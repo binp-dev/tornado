@@ -1,4 +1,6 @@
-# BINP next-gen power supply controller - realtime Cortex-M4 part of the code
+# PSC-M4
+
+BINP next-gen power supply controller - Cortex-M4 realtime part
 
 ## Usage
 
