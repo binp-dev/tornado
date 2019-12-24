@@ -57,7 +57,7 @@ SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}  -DCPU_MCIMX7D_M4")
 # CXX MACRO
 
 # INCLUDE_DIRECTORIES
-INCLUDE_DIRECTORIES(${ProjDirPath})
+INCLUDE_DIRECTORIES(${ProjDirPath}/src)
 INCLUDE_DIRECTORIES($ENV{FREERTOS_DIR}/examples/var-som-mx7_m4)
 INCLUDE_DIRECTORIES($ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/portable/GCC/ARM_CM4F)
 INCLUDE_DIRECTORIES($ENV{FREERTOS_DIR}/platform/CMSIS/Include)
@@ -164,9 +164,13 @@ ADD_EXECUTABLE(psc_m4
     "$ENV{FREERTOS_DIR}/platform/drivers/inc/rdc_semaphore.h"
     "$ENV{FREERTOS_DIR}/platform/drivers/src/flexcan.c"
     "$ENV{FREERTOS_DIR}/platform/drivers/inc/flexcan.h"
-#    "${ProjDirPath}/FreeRTOSConfig.h"
-    "${ProjDirPath}/hardware_init.c"
-    "${ProjDirPath}/main.c"
+    "${ProjDirPath}/src/app_gpt.c"
+    "${ProjDirPath}/src/app_gpt.h"
+    "${ProjDirPath}/src/app_flexcan.c"
+    "${ProjDirPath}/src/app_flexcan.h"
+    #"${ProjDirPath}/src/FreeRTOSConfig.h"
+    "${ProjDirPath}/src/hardware_init.c"
+    "${ProjDirPath}/src/main.c"
 )
 SET_TARGET_PROPERTIES(psc_m4 PROPERTIES OUTPUT_NAME "m4image.elf")
 

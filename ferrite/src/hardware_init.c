@@ -31,6 +31,10 @@
 #include "board.h"
 #include "pin_mux.h"
 
+#include "app_flexcan.h"
+#include "app_gpt.h"
+
+
 void hardware_init(void)
 {
     /* Board specific RDC settings */
@@ -42,27 +46,12 @@ void hardware_init(void)
     /* initialize debug uart */
     dbg_uart_init();
 
-    /* In this example, we need to grasp board flexcan exclusively */
-    RDC_SetPdapAccess(RDC, BOARD_FLEXCAN_RDC_PDAP, 3 << (BOARD_DOMAIN_ID * 2), false, false);
 
-    /* Select board flexcan derived from OSC clock(24M) */
-    CCM_UpdateRoot(CCM, BOARD_FLEXCAN_CCM_ROOT, ccmRootmuxUartOsc24m, 0, 0);
-    /* Enable flexcan clock */
-    CCM_EnableRoot(CCM, BOARD_FLEXCAN_CCM_ROOT);
-    CCM_ControlGate(CCM, BOARD_FLEXCAN_CCM_CCGR, ccmClockNeededRunWait);
+    /* Initialize FLEXCAN hardware */
+    APP_FLEXCAN_HardwareInit();
 
-    /* FLEXCAN Pin setting */
-    configure_flexcan_pins(BOARD_FLEXCAN_BASEADDR);
-
-    /* In this example, we need to grasp board GPT exclusively */
-    RDC_SetPdapAccess(RDC, BOARD_GPTA_RDC_PDAP, 3 << (BOARD_DOMAIN_ID * 2), false, false);
-
-    /* Select GPTA clock derived from OSC 24M */
-    CCM_UpdateRoot(CCM, BOARD_GPTA_CCM_ROOT, ccmRootmuxGptOsc24m, 0, 0);
-
-    /* Enable clock used by GPTA */
-    CCM_EnableRoot(CCM, BOARD_GPTA_CCM_ROOT);
-    CCM_ControlGate(CCM, BOARD_GPTA_CCM_CCGR, ccmClockNeededRunWait);
+    /* Initialize GPT hardware */
+    APP_GPT_HardwareInit();
 }
 
 /*******************************************************************************
