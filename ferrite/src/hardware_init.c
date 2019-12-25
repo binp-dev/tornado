@@ -33,6 +33,7 @@
 
 #include "app_flexcan.h"
 #include "app_gpt.h"
+#include "app_rpmsg.h"
 
 
 void hardware_init(void)
@@ -52,6 +53,9 @@ void hardware_init(void)
 
     /* Initialize GPT hardware */
     APP_GPT_HardwareInit();
+
+    /* Initialize RPMSG hardware */
+    APP_RPMSG_HardwareInit();
 }
 
 /*******************************************************************************

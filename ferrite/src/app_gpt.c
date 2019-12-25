@@ -35,6 +35,7 @@
 #include "debug_console_imx.h"
 #include "gpt.h"
 
+#include "app.h"
 #include "app_gpt.h"
 
 
@@ -82,7 +83,7 @@ uint8_t APP_GPT_Init(uint32_t period, SemaphoreHandle_t target) {
     /* Set both GPT modules to 1 second duration */
     GPT_SetOutputCompareValue(BOARD_GPTA_BASEADDR, gptOutputCompareChannel1, period);
     /* Set GPT interrupt priority to same value to avoid handler preemption */
-    NVIC_SetPriority(BOARD_GPTA_IRQ_NUM, 3);
+    NVIC_SetPriority(BOARD_GPTA_IRQ_NUM, APP_GPT_IRQ_PRIORITY);
     /* Enable NVIC interrupt */
     NVIC_EnableIRQ(BOARD_GPTA_IRQ_NUM);
     /* Enable GPT Output Compare1 interrupt */

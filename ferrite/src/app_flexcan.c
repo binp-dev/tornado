@@ -41,6 +41,7 @@
 #include "task.h"
 #include "semphr.h"
 
+#include "app.h"
 #include "app_flexcan.h"
 #include "app_log.h"
 
@@ -143,7 +144,7 @@ uint8_t APP_FLEXCAN_Init(APP_FLEXCAN_Baudrate rate_id, uint16_t rx_mask) {
     txMsgBufPtr->srr   = 0x1; /* Don't care in standard id mode. */
 
     /* Set FlexCAN interrupt priority. */
-    NVIC_SetPriority(BOARD_FLEXCAN_IRQ_NUM, 3);
+    NVIC_SetPriority(BOARD_FLEXCAN_IRQ_NUM, APP_FLEXCAN_IRQ_PRIORITY);
     /* Enable FlexCAN interrupt. */
     NVIC_EnableIRQ(BOARD_FLEXCAN_IRQ_NUM);
 
@@ -197,6 +198,16 @@ void BOARD_FLEXCAN_HANDLER() {
     portYIELD_FROM_ISR(txHptw || rxHptw);
 }
 
+static TickType_t ms_to_ticks(uint32_t ms) {
+    if (ms == 0) {
+        return 0;
+    } else if (ms == 0xFFFFFFFFul) {
+        return portMAX_DELAY;
+    } else {
+        return (ms - 1)/portTICK_PERIOD_MS + 1;
+    }
+}
+
 uint8_t APP_FLEXCAN_Send(const APP_FLEXCAN_Frame *frame, uint32_t timeout) {
     uint8_t status = 0;
 
@@ -228,8 +239,7 @@ uint8_t APP_FLEXCAN_Send(const APP_FLEXCAN_Frame *frame, uint32_t timeout) {
     txMsgBufPtr->code  = flexcanTxDataOrRemte;
 
     /* Wait for send to complete */
-    TickType_t ticks = timeout > 0 ? (timeout - 1)/portTICK_PERIOD_MS + 1 : portMAX_DELAY;
-    if (xSemaphoreTake(txSemaphore, ticks) != pdTRUE) {
+    if (xSemaphoreTake(txSemaphore, ms_to_ticks(timeout)) != pdTRUE) {
         APP_ERROR("FLEXCAN Tx timed out");
         status = 1;
     }
@@ -241,8 +251,7 @@ uint8_t APP_FLEXCAN_Receive(APP_FLEXCAN_Frame *frame, uint32_t timeout) {
     uint8_t status = 0;
 
     /* Wait for response */
-    TickType_t ticks = timeout > 0 ? (timeout - 1)/portTICK_PERIOD_MS + 1 : portMAX_DELAY;
-    if (xSemaphoreTake(rxSemaphore, ticks) != pdTRUE) {
+    if (xSemaphoreTake(rxSemaphore, ms_to_ticks(timeout)) != pdTRUE) {
         status = 1;
         goto timed_out;
     }
