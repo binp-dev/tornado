@@ -38,14 +38,12 @@
 #include "app_gpt.h"
 
 
-static void(*gpt_callback)() = NULL;
+static SemaphoreHandle_t target_semaphore = NULL;
+
 
 /*! @brief GPT interrupt handler. */
-static void APP_GPT_Handler();
+void BOARD_GPTA_HANDLER();
 
-void BOARD_GPTA_HANDLER(void) {
-    APP_GPT_Handler();
-}
 
 void APP_GPT_HardwareInit() {
     /* In this example, we need to grasp board GPT exclusively */
@@ -59,7 +57,7 @@ void APP_GPT_HardwareInit() {
     CCM_ControlGate(CCM, BOARD_GPTA_CCM_CCGR, ccmClockNeededRunWait);
 }
 
-uint8_t APP_GPT_Init(uint32_t period, void (*callback)()) {
+uint8_t APP_GPT_Init(uint32_t period, SemaphoreHandle_t target) {
     gpt_init_config_t config = {
         .freeRun     = false,
         .waitEnable  = true,
@@ -77,7 +75,7 @@ uint8_t APP_GPT_Init(uint32_t period, void (*callback)()) {
     GPT_SetOscPrescaler(BOARD_GPTA_BASEADDR, 1);
     GPT_SetPrescaler(BOARD_GPTA_BASEADDR, 1);
 
-    gpt_callback = callback;
+    target_semaphore = target;
 
     /* Get GPT clock frequency */
     //period = 24000000/4; /* A is bound to OSC directly, with OSC divider 2 */
@@ -95,9 +93,16 @@ uint8_t APP_GPT_Init(uint32_t period, void (*callback)()) {
     return 0;
 }
 
-void APP_GPT_Handler() {
+void BOARD_GPTA_HANDLER() {
     GPT_ClearStatusFlag(BOARD_GPTA_BASEADDR, gptStatusFlagOutputCompare1);
-    if (gpt_callback != NULL) {
-        gpt_callback();
+
+    if (target_semaphore != NULL) {
+        BaseType_t hptw = pdFALSE;
+
+        /* Notify target task */
+        xSemaphoreGiveFromISR(target_semaphore, &hptw);
+
+        /* Yield to higher priority task */
+        portYIELD_FROM_ISR(hptw);
     }
 }

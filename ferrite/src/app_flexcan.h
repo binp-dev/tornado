@@ -1,33 +1,3 @@
-/*
- * Copyright (c) 2015, Freescale Semiconductor, Inc.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * o Redistributions of source code must retain the above copyright notice, this list
- *   of conditions and the following disclaimer.
- *
- * o Redistributions in binary form must reproduce the above copyright notice, this
- *   list of conditions and the following disclaimer in the documentation and/or
- *   other materials provided with the distribution.
- *
- * o Neither the name of Freescale Semiconductor, Inc. nor the names of its
- *   contributors may be used to endorse or promote products derived from this
- *   software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
 /*!
  * @file app_flexcan.h
  * @brief Application-specific FLEXCAN abstraction layer
@@ -62,7 +32,7 @@ void APP_FLEXCAN_HardwareInit();
  *
  * @param rate_id CAN baudrate enum.
  * @param rx_mask Incoming frame ID mask.
- * @return Status, zero on success.
+ * @return Status, 0 - success, 1 - timed out.
  */
 uint8_t APP_FLEXCAN_Init(APP_FLEXCAN_Baudrate rate_id, uint16_t rx_mask);
 
@@ -70,14 +40,16 @@ uint8_t APP_FLEXCAN_Init(APP_FLEXCAN_Baudrate rate_id, uint16_t rx_mask);
  * @brief Send CAN frame synchronously.
  *
  * @param frame Read-only CAN frame structure to send.
+ * @param timeout Time to wait for send to complete in milliseconds, 0 to wait forever.
  * @return Operation status, zero on success.
  */
-uint8_t APP_FLEXCAN_Send(const APP_FLEXCAN_Frame *frame);
+uint8_t APP_FLEXCAN_Send(const APP_FLEXCAN_Frame *frame, uint32_t timeout);
 
 /*!
  * @brief Get CAN frame if it has been received.
  *
  * @param frame CAN frame structure to write into.
- * @return Operation status, zero on success.
+ * @param timeout Time to wait for send to complete in milliseconds, 0 to wait forever.
+ * @return Operation status, 0 - success, 1 - timed out.
  */
-uint8_t APP_FLEXCAN_TryRecv(APP_FLEXCAN_Frame *frame);
+uint8_t APP_FLEXCAN_Receive(APP_FLEXCAN_Frame *frame, uint32_t timeout);

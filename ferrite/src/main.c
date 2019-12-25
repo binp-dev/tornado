@@ -30,21 +30,56 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+
 #include "board.h"
 #include "debug_console_imx.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
+
 #include "app_flexcan.h"
 #include "app_gpt.h"
+#include "app_log.h"
 
 
-static APP_FLEXCAN_Frame tx_frame = {
-    .id = 0x123,
-    .len = 8,
-    .data = "\xEF\xCD\xAB\x89\x67\x45\x23\x01"
-};
+#define APP_TASK_STACK_SIZE 256
 
-void send() {
-    APP_FLEXCAN_Send(&tx_frame);
-    *(uint64_t*)tx_frame.data += 1;
+static SemaphoreHandle_t send_semaphore = NULL;
+
+
+static void APP_Task_FlexcanSend(void *param) {
+    APP_FLEXCAN_Frame frame = {
+        .id = 0x123,
+        .len = 8,
+        .data = "\xEF\xCD\xAB\x89\x67\x45\x23\x01"
+    };
+
+    while (true) {
+        if (xSemaphoreTake(send_semaphore, portMAX_DELAY) != pdTRUE) {
+            APP_ERROR("FLEXCAN Send task notify timed out (unreachable)");
+        }
+        if (APP_FLEXCAN_Send(&frame, 0) != 0) {
+            APP_ERROR("Cannot send CAN frame");
+        }
+        *(uint64_t*)frame.data += 1;
+    }
+}
+
+static void APP_Task_FlexcanReceive(void *param) {
+    APP_FLEXCAN_Frame frame;
+    
+    while (true) {
+        if (APP_FLEXCAN_Receive(&frame, 0) == 0) {
+            PRINTF("0x%03X # ", frame.id);
+            for (uint8_t i = 0; i < frame.len; ++i) {
+                PRINTF("%0X ", frame.data[frame.len - i - 1]);
+            }
+            PRINTF("\r\n");
+        } else {
+            APP_ERROR("Cannot receive CAN frame");
+        }
+    }
 }
 
 int main(void) {
@@ -52,15 +87,27 @@ int main(void) {
     hardware_init();
 
     APP_FLEXCAN_Init(APP_FLEXCAN_Baudrate_1000, 0x321);
-    APP_GPT_Init(APP_GPT_SEC, send);
 
-    while (true) {
-        APP_FLEXCAN_Frame rx_frame;
-        if (APP_FLEXCAN_TryRecv(&rx_frame) == 0) {
-            PRINTF("\r\n0x%03X # ", rx_frame.id);
-            for (uint8_t i = 0; i < rx_frame.len; ++i) {
-                PRINTF("%0X ", rx_frame.data[rx_frame.len - i - 1]);
-            }
-        }
-    }
+    send_semaphore = xSemaphoreCreateBinary();
+    
+    /* Create tasks. */
+    xTaskCreate(
+        APP_Task_FlexcanReceive, "FLEXCAN Receive task",
+        APP_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL
+    );
+
+    xTaskCreate(
+        APP_Task_FlexcanSend, "FLEXCAN Send task",
+        APP_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL
+    );
+
+    APP_GPT_Init(APP_GPT_SEC/10, send_semaphore);
+
+    /* Start FreeRTOS scheduler. */
+    vTaskStartScheduler();
+
+    vSemaphoreDelete(send_semaphore);
+
+    /* Should never reach this point. */
+    while(true);
 }

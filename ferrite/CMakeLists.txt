@@ -51,8 +51,10 @@ SET(CMAKE_ASM_FLAGS_DEBUG "${CMAKE_ASM_FLAGS_DEBUG}  -D__DEBUG")
 # C MACRO
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}  -D__DEBUG")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}  -DCPU_MCIMX7D_M4")
+SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}  -DAPP_LOG_LEVEL=4") # DEBUG
 SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}  -D__NDEBUG")
 SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}  -DCPU_MCIMX7D_M4")
+SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}  -DAPP_LOG_LEVEL=3") # INFO
 
 # CXX MACRO
 
@@ -74,10 +76,10 @@ INCLUDE_DIRECTORIES($ENV{FREERTOS_DIR}/middleware/multicore/open-amp/porting/env
 
 # ADD_EXECUTABLE
 ADD_EXECUTABLE(psc_m4 
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/portable/GCC/ARM_CM4F/portmacro.h"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/portable/GCC/ARM_CM4F/portmacro.h"
     "$ENV{FREERTOS_DIR}/platform/devices/MCIMX7D/startup/gcc/startup_MCIMX7D_M4.S"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/portable/MemMang/heap_2.c"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/portable/MemMang/heap_2.c"
     "$ENV{FREERTOS_DIR}/middleware/multicore/open-amp/rpmsg/rpmsg_rtos.h"
     "$ENV{FREERTOS_DIR}/middleware/multicore/open-amp/porting/imx7d_m4/platform.h"
     "$ENV{FREERTOS_DIR}/middleware/multicore/open-amp/porting/imx7d_m4/rpmsg_platform_porting.h"
@@ -93,18 +95,18 @@ ADD_EXECUTABLE(psc_m4
     "$ENV{FREERTOS_DIR}/middleware/multicore/open-amp/virtio/virtio_ring.h"
     "$ENV{FREERTOS_DIR}/middleware/multicore/open-amp/virtio/virtqueue.h"
     "$ENV{FREERTOS_DIR}/middleware/multicore/open-amp/porting/env/freertos/rpmsg_porting.h"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/croutine.h"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/event_groups.h"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/FreeRTOS.h"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/list.h"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/mpu_wrappers.h"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/portable.h"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/projdefs.h"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/queue.h"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/semphr.h"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/StackMacros.h"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/task.h"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/timers.h"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/croutine.h"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/event_groups.h"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/FreeRTOS.h"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/list.h"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/mpu_wrappers.h"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/portable.h"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/projdefs.h"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/queue.h"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/semphr.h"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/StackMacros.h"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/task.h"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/include/timers.h"
     "$ENV{FREERTOS_DIR}/platform/drivers/inc/ccm_analog_imx7d.h"
     "$ENV{FREERTOS_DIR}/platform/drivers/inc/ccm_imx7d.h"
     "$ENV{FREERTOS_DIR}/platform/drivers/inc/lmem.h"
@@ -125,12 +127,12 @@ ADD_EXECUTABLE(psc_m4
     "$ENV{FREERTOS_DIR}/middleware/multicore/open-amp/virtio/virtio.c"
     "$ENV{FREERTOS_DIR}/middleware/multicore/open-amp/virtio/virtqueue.c"
     "$ENV{FREERTOS_DIR}/middleware/multicore/open-amp/porting/env/freertos/rpmsg_porting.c"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/croutine.c"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/event_groups.c"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/list.c"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/queue.c"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/tasks.c"
-#    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/timers.c"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/croutine.c"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/event_groups.c"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/list.c"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/queue.c"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/tasks.c"
+    "$ENV{FREERTOS_DIR}/rtos/FreeRTOS/Source/timers.c"
     "$ENV{FREERTOS_DIR}/platform/drivers/src/ccm_analog_imx7d.c"
     "$ENV{FREERTOS_DIR}/platform/drivers/src/ccm_imx7d.c"
     "$ENV{FREERTOS_DIR}/platform/drivers/src/lmem.c"
@@ -164,11 +166,13 @@ ADD_EXECUTABLE(psc_m4
     "$ENV{FREERTOS_DIR}/platform/drivers/inc/rdc_semaphore.h"
     "$ENV{FREERTOS_DIR}/platform/drivers/src/flexcan.c"
     "$ENV{FREERTOS_DIR}/platform/drivers/inc/flexcan.h"
+    "${ProjDirPath}/src/app_log.c"
+    "${ProjDirPath}/src/app_log.h"
     "${ProjDirPath}/src/app_gpt.c"
     "${ProjDirPath}/src/app_gpt.h"
     "${ProjDirPath}/src/app_flexcan.c"
     "${ProjDirPath}/src/app_flexcan.h"
-    #"${ProjDirPath}/src/FreeRTOSConfig.h"
+    "${ProjDirPath}/src/FreeRTOSConfig.h"
     "${ProjDirPath}/src/hardware_init.c"
     "${ProjDirPath}/src/main.c"
 )

@@ -37,7 +37,12 @@
 #include "debug_console_imx.h"
 #include "flexcan.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
+
 #include "app_flexcan.h"
+#include "app_log.h"
 
 
 #define TX_MSG_BUF_NUM    8
@@ -51,20 +56,28 @@ static const flexcan_timing_t timing_table[] = {
     {0, 3, 7, 7, 6},  /* 1   MHz from 24 MHz OSC */
 };
 
+static const char *const flexcan_rate_text[] = {
+    "125 kHz",
+    "250 kHz",
+    "500 kHz",
+    "1 MHz"
+};
+
 
 static volatile flexcan_msgbuf_t *txMsgBufPtr;
 static volatile flexcan_msgbuf_t *rxMsgBufPtr;
 
 static volatile flexcan_msgbuf_t rxBuffer;
-static volatile bool rxCanReceive;
+static volatile bool rxBufferLocked;
+static volatile bool rxWasMissed;
+
+static SemaphoreHandle_t txSemaphore = NULL;
+static SemaphoreHandle_t rxSemaphore = NULL;
 
 
 /*! @brief FLEXCAN interrupt handler. */
-static void APP_FLEXCAN_Handler();
+void BOARD_FLEXCAN_HANDLER();
 
-void BOARD_FLEXCAN_HANDLER(void) {
-    APP_FLEXCAN_Handler();
-}
 
 void APP_FLEXCAN_HardwareInit() {
     /* In this example, we need to grasp board flexcan exclusively */
@@ -82,15 +95,6 @@ void APP_FLEXCAN_HardwareInit() {
 
 
 uint8_t APP_FLEXCAN_Init(APP_FLEXCAN_Baudrate rate_id, uint16_t rx_mask) {
-    /* TODO: Remove print */
-    PRINTF("\n\r********* FLEXCAN NETWORK TEST *********");
-    PRINTF("\n\r   Message format: Standard (11 bit id)");
-    PRINTF("\n\r   Message buffer %d used for Rx.", RX_MSG_BUF_NUM);
-    PRINTF("\n\r   Message buffer %d used for Tx.", TX_MSG_BUF_NUM);
-    PRINTF("\n\r   Interrupt Mode: Enabled");
-    PRINTF("\n\r   Operating Mode: TX and RX --> Normal");
-    PRINTF("\n\r****************************************\n\r");
-
     flexcan_init_config_t initConfig = {
         .timing = timing_table[rate_id],
         .operatingMode = flexcanNormalMode,
@@ -114,7 +118,15 @@ uint8_t APP_FLEXCAN_Init(APP_FLEXCAN_Baudrate rate_id, uint16_t rx_mask) {
     FLEXCAN_SetMsgBufIntCmd(BOARD_FLEXCAN_BASEADDR, RX_MSG_BUF_NUM, true);
 
     /* Initialize Global variable. */
-    rxCanReceive = false;
+    txSemaphore = xSemaphoreCreateBinary();
+    rxSemaphore = xSemaphoreCreateBinary();
+    if (!txSemaphore || !rxSemaphore) {
+        return 1;
+    }
+
+    rxBufferLocked = false;
+    rxWasMissed = false;
+
     txMsgBufPtr = FLEXCAN_GetMsgBufPtr(BOARD_FLEXCAN_BASEADDR, TX_MSG_BUF_NUM);
     rxMsgBufPtr = FLEXCAN_GetMsgBufPtr(BOARD_FLEXCAN_BASEADDR, RX_MSG_BUF_NUM);
 
@@ -135,16 +147,27 @@ uint8_t APP_FLEXCAN_Init(APP_FLEXCAN_Baudrate rate_id, uint16_t rx_mask) {
     /* Enable FlexCAN interrupt. */
     NVIC_EnableIRQ(BOARD_FLEXCAN_IRQ_NUM);
 
+    APP_INFO("FLEXCAN Initialized");
+    APP_INFO("  Message format: Standard (11 bit id)");
+    APP_INFO("  Message buffer %d used for Rx.", RX_MSG_BUF_NUM);
+    APP_INFO("  Message buffer %d used for Tx.", TX_MSG_BUF_NUM);
+    APP_INFO("  Interrupt mode: Enabled");
+    APP_INFO("  Operating mode: TX and RX --> Normal");
+    APP_INFO("  Baud rate: %s", flexcan_rate_text[rate_id]);
+
     return 0;
 }
 
-void APP_FLEXCAN_Handler() {
+void BOARD_FLEXCAN_HANDLER() {
+    BaseType_t txHptw = pdFALSE, rxHptw = pdFALSE;
+    
     /* Solve Tx interrupt */
     if (FLEXCAN_GetMsgBufStatusFlag(BOARD_FLEXCAN_BASEADDR, TX_MSG_BUF_NUM))
     {
+        /* Notify sender */
+        xSemaphoreGiveFromISR(txSemaphore, &txHptw);
+
         FLEXCAN_ClearMsgBufStatusFlag(BOARD_FLEXCAN_BASEADDR, TX_MSG_BUF_NUM);
-        
-        /* TODO: Notify APP_FLEXCAN_Send() */
     }
 
     /* Solve Rx interrupt */
@@ -152,17 +175,31 @@ void APP_FLEXCAN_Handler() {
     {
         /* Lock message buffer for receive data. */
         FLEXCAN_LockRxMsgBuf(BOARD_FLEXCAN_BASEADDR, RX_MSG_BUF_NUM);
-        /* TODO: Check rxBuffer lock */
-        rxBuffer = *rxMsgBufPtr;
+        
+        /* Check if ready to receive a new frame */
+        if (!rxBufferLocked) {
+            /* Copy data */
+            rxBuffer = *rxMsgBufPtr;
+            /* Notify receiver */
+            if (xSemaphoreGiveFromISR(rxSemaphore, &rxHptw) != pdTRUE) {
+                rxWasMissed = true;
+            }
+        } else {
+            rxWasMissed = true;
+        }
+
         FLEXCAN_UnlockAllRxMsgBuf(BOARD_FLEXCAN_BASEADDR);
 
         FLEXCAN_ClearMsgBufStatusFlag(BOARD_FLEXCAN_BASEADDR, RX_MSG_BUF_NUM);
-
-        rxCanReceive = true;
     }
+
+    /* Yield to higher priority task */
+    portYIELD_FROM_ISR(txHptw || rxHptw);
 }
 
-uint8_t APP_FLEXCAN_Send(const APP_FLEXCAN_Frame *frame) {
+uint8_t APP_FLEXCAN_Send(const APP_FLEXCAN_Frame *frame, uint32_t timeout) {
+    uint8_t status = 0;
+
     /* Set ID and length. */
     txMsgBufPtr->idStd = frame->id;
     txMsgBufPtr->dlc = frame->len;
@@ -190,21 +227,27 @@ uint8_t APP_FLEXCAN_Send(const APP_FLEXCAN_Frame *frame) {
     /* Start transmit. */
     txMsgBufPtr->code  = flexcanTxDataOrRemte;
 
-    /* TODO: Wait for send complete */
-    /* TODO: Timeout and clear queue */
-
-    return 0;
-}
-
-uint8_t APP_FLEXCAN_TryRecv(APP_FLEXCAN_Frame *frame) {
-    /* TODO: Wait for response */
-    /* TODO: Timeout */
-
-    if (!rxCanReceive) {
-        return 1;
+    /* Wait for send to complete */
+    TickType_t ticks = timeout > 0 ? (timeout - 1)/portTICK_PERIOD_MS + 1 : portMAX_DELAY;
+    if (xSemaphoreTake(txSemaphore, ticks) != pdTRUE) {
+        APP_ERROR("FLEXCAN Tx timed out");
+        status = 1;
     }
 
-    rxCanReceive = false;
+    return status;
+}
+
+uint8_t APP_FLEXCAN_Receive(APP_FLEXCAN_Frame *frame, uint32_t timeout) {
+    uint8_t status = 0;
+
+    /* Wait for response */
+    TickType_t ticks = timeout > 0 ? (timeout - 1)/portTICK_PERIOD_MS + 1 : portMAX_DELAY;
+    if (xSemaphoreTake(rxSemaphore, ticks) != pdTRUE) {
+        status = 1;
+        goto timed_out;
+    }
+
+    rxBufferLocked = true;
 
     /* Set ID and length. */
     frame->id = rxBuffer.idStd;
@@ -230,5 +273,14 @@ uint8_t APP_FLEXCAN_TryRecv(APP_FLEXCAN_Frame *frame) {
         );
     }
 
-    return 0;
+    rxBufferLocked = false;
+
+    if (rxWasMissed) {
+        APP_WARN("Some CAN frames was missed");
+        rxWasMissed = false;
+    }
+
+timed_out:
+
+    return status;
 }
