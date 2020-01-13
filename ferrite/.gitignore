@@ -1,0 +1,5 @@
+epics-base
+
+__pycache__
+
+*.code-workspace
