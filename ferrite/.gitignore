@@ -1,0 +1,8 @@
+/bin
+/db
+/dbd
+/lib
+/iocBoot/iocPSC/envPaths
+O.*
+
+*.code-workspace
