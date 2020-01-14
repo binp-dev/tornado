@@ -22,28 +22,28 @@ def clone(path):
 def configure_toolchain(epicsdir, toolchain):
     if toolchain is None:
         substitute([
-            (r'^([ \t]*CROSS_COMPILER_TARGET_ARCHS[ \t]*=[ \t]*).*$', r'\1'),
+            (r'^([ \t]*CROSS_COMPILER_TARGET_ARCHS[ \t]*=[ \t]*)[^\n]*$', r'\1'),
         ], os.path.join(epicsdir, "configure/CONFIG_SITE"))
         
     else:
         substitute([
-            (r'^([ \t]*CROSS_COMPILER_TARGET_ARCHS[ \t]*=[ \t]*).*$', r'\1linux-arm'),
+            (r'^([ \t]*CROSS_COMPILER_TARGET_ARCHS[ \t]*=[ \t]*)[^\n]*$', r'\1linux-arm'),
         ], os.path.join(epicsdir, "configure/CONFIG_SITE"))
 
         substitute([
-            (r'^([ \t]*GNU_TARGET[ \t]*=[ \t]*).*$', r'\1arm-linux-gnueabihf'),
-            (r'^([ \t]*GNU_DIR[ \t]*=[ \t]*).*$', r'\1"{}"'.format(toolchain)),
+            (r'^([ \t]*GNU_TARGET[ \t]*=[ \t]*)[^\n]*$', r'\1arm-linux-gnueabihf'),
+            (r'^([ \t]*GNU_DIR[ \t]*=[ \t]*)[^\n]*$', r'\1{}'.format(toolchain)),
         ], os.path.join(epicsdir, "configure/os/CONFIG_SITE.linux-x86.linux-arm"))
 
 def configure_outdir(epicsdir, outdir):
     if outdir is None:
         substitute([
-            (r'^[ \t]*#*([ \t]*INSTALL_LOCATION[ \t]*=[ \t]*).*$', r'#\1'),
+            (r'^[ \t]*#*([ \t]*INSTALL_LOCATION[ \t]*=[ \t]*)[^\n]*$', r'#\1'),
         ], os.path.join(epicsdir, "configure/CONFIG_SITE"))
 
     else:
         substitute([
-            (r'^[ \t]*#*([ \t]*INSTALL_LOCATION[ \t]*=[ \t]*).*$', r'\1{}'.format(outdir)),
+            (r'^[ \t]*#*([ \t]*INSTALL_LOCATION[ \t]*=[ \t]*)[^\n]*$', r'\1{}'.format(outdir)),
         ], os.path.join(epicsdir, "configure/CONFIG_SITE"))
 
 def build(epicsdir):
@@ -68,6 +68,9 @@ class EpicsLoader(ComponentLoader):
             clean(path)
 
         configure_toolchain(path, self.toolchain)
-        configure_outdir(path, self.outdir)
-        
+        configure_outdir(path, None)
         build(path)
+        
+        if self.outdir is not None:
+            configure_outdir(path, self.outdir)
+            build(path)
