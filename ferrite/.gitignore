@@ -5,4 +5,5 @@
 /iocBoot/iocPSC/envPaths
 O.*
 
+/.vscode
 *.code-workspace

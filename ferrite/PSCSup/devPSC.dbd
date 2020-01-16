@@ -1,1 +1,1 @@
-device (waveform, INST_IO, rec_waveform, "devsup")
+device (waveform, INST_IO, waveform_record_handler, "devsup")

@@ -6,7 +6,7 @@ include $(TOP)/configure/CONFIG
 LIBRARY_IOC += devPSC
 
 # Library Source files
-devPSC_SRCS += devPSC.c
+devPSC_SRCS += devPSC.cpp
 
 # Link with the asyn and base libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)

@@ -1,6 +1,6 @@
 record(waveform, "WAVEFORM")
 {
     field(DTYP, "devsup")
-    field(NELM, 20000)
+    field(NELM, 64)
     field(FTVL, "DOUBLE")
 }
