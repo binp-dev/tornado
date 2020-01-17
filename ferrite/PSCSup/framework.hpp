@@ -14,7 +14,7 @@ public:
     ~PrintWaveform() override = default;
 
     void read(double *data, size_t count) override {
-        printf("count: %ld\n", count);
+        printf("count: %zd\n", count);
         printf("data: [ ");
         for (int i = 0; i < int(count); ++i) {
             printf("%lf, ", data[i]);
