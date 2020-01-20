@@ -40,6 +40,7 @@ public:
     }
 };
 
+
 template <typename T, class E>
 class Sender {
 private:
@@ -60,17 +61,18 @@ public:
         E encoder
     ) :
         channel(std::move(ch)),
-        buffer(max_packet_size, 0)
+        packet(max_packet_size, 0),
+        encoder(std::move(encoder))
     {}
     
     void set_data(const double *data, size_t data_size) {
         this->data = data;
         this->data_size = data_size;
         this->pos = 0;
-        this->packet_ready = false;
+        this->packet_size = 0;
     }
     bool is_complete() {
-        return pos >= data_size && packet_size == 0
+        return pos >= data_size && packet_size == 0;
     }
     size_t try_send(msec timeout) {
         if (packet_size == 0) {
@@ -95,6 +97,7 @@ public:
         return sent;
     }
 };
+
 
 class Device {
 private:
