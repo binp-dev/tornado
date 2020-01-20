@@ -8,7 +8,7 @@
 #include "record/record.hpp"
 #include "record/waveform_record.hpp"
 
-#include "device.hpp"
+//#include "device.hpp"
 
 class PrintWaveform : public WaveformRecord<double> {
 public:
