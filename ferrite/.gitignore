@@ -5,7 +5,7 @@
 /iocBoot/iocPSC/envPaths
 O.*
 
-PSCSup/catch.hpp
+__pycache__
 
 /.vscode
 *.code-workspace

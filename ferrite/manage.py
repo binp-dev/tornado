@@ -3,6 +3,7 @@ from subprocess import run
 from argparse import ArgumentParser
 from urllib.request import urlretrieve
 
+from test import test
 
 class Manager:
     def __init__(self, cwd):
@@ -36,11 +37,7 @@ class Manager:
         if "target" in kwargs:
             raise TypeError("test() got an unexpected keyword argument 'target'")
 
-        run(
-            ["make", "test", "EPICS_BASE={}".format(kwargs["epics_base"])],
-            cwd=os.path.join(self.cwd, "unittest"),
-            check=True,
-        )
+        test(self.cwd, **kwargs)
 
 if __name__ == "__main__":
     parser = ArgumentParser(

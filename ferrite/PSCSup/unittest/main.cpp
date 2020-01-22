@@ -2,3 +2,4 @@
 #include <catch/catch.hpp>
 
 #include <framework.hpp>
+#include <channel/zmq_channel.hpp>

@@ -13,10 +13,10 @@ public:
 
     }
 
-    void send(const uint8_t *bytes, size_t length) override {
+    void send(const uint8_t *bytes, size_t length, msec timeout) override {
 
     }
-    size_t receive(uint8_t *bytes, size_t max_length) override {
+    size_t receive(uint8_t *bytes, size_t max_length, msec timeout) override {
         
     }
 };

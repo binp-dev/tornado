@@ -8,7 +8,7 @@
 #include "record/record.hpp"
 #include "record/waveform_record.hpp"
 
-//#include "device.hpp"
+#include "device.hpp"
 
 class PrintWaveform : public WaveformRecord<double> {
 public:
@@ -39,3 +39,11 @@ std::unique_ptr<GenericWaveformRecord> framework_init_record(const std::string &
         assert(false);
     }
 }
+
+#ifdef UNITTEST
+#include <catch/catch.hpp>
+
+TEST_CASE( "Dummy test", "[dummy]" ) {
+    REQUIRE(1 + 1 == 2);
+}
+#endif //UNITTEST

@@ -6,6 +6,7 @@
 #include <mutex>
 #include <thread>
 #include <cstring>
+#include <cassert>
 
 #include <channel/channel.hpp>
 
