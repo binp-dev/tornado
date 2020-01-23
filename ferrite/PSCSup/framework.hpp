@@ -10,29 +10,23 @@
 
 #include "device.hpp"
 
-class PrintWaveform : public WaveformRecord<double> {
+class PrintWaveform : public WaveformHandler {
 public:
     PrintWaveform() = default;
     ~PrintWaveform() override = default;
 
-    void read(double *data, size_t count) override {
-        printf("count: %zd\n", count);
+    void read(WaveformRecord &record) override {
+        printf("count: %zd\n", record.waveform_length());
         printf("data: [ ");
-        for (int i = 0; i < int(count); ++i) {
-            printf("%lf, ", data[i]);
+        for (int i = 0; i < int(record.waveform_length()); ++i) {
+            printf("%lf, ", record.waveform_data<double>()[i]);
         }
         printf("]\n");
     }
 };
 
-template <class R>
-std::unique_ptr<R> framework_init_record(const std::string &name) {
-    assert(false);
-}
-
-template <>
-std::unique_ptr<GenericWaveformRecord> framework_init_record(const std::string &name) {
-    if (name.compare("WAVEFORM") == 0) {
+std::unique_ptr<WaveformHandler> framework_record_init_waveform(WaveformRecord &record) {
+    if (strcmp(record.name(), "WAVEFORM") == 0) {
         // FIXME: Call this only once
         return std::make_unique<PrintWaveform>();
     } else {

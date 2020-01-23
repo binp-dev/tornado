@@ -17,12 +17,13 @@ void init(void) {
     printf("init\n");
 }
 
-long record_waveform_init(waveformRecord *record) {
-    std::cout << "record_waveform_init: " << record->name << std::endl;
-    std::unique_ptr<GenericWaveformRecord> user_record;
+long record_waveform_init(waveformRecord *raw) {
+    WaveformRecord record(raw);
+    std::cout << "record_waveform_init: " << record.name() << std::endl;
 
+    std::unique_ptr<WaveformHandler> handler;
     try {
-        user_record = framework_init_record<GenericWaveformRecord>(record->name);
+        handler = framework_record_init_waveform(record);
     } catch (const std::exception &e) {
         std::cerr << "Exception caught" << std::endl;
         std::cerr << e.what() << std::endl;
@@ -31,22 +32,21 @@ long record_waveform_init(waveformRecord *record) {
         std::cerr << "Unknown exception caught" << std::endl;
         epicsExit(1);
     }
+    record.set_private_data((void *)handler.release());
 
-    assert(record->ftvl == user_record->generic_type());
-    record->dpvt = reinterpret_cast<void*>(user_record.release());
     return 0;
 }
-long record_waveform_get_ioint_info(int cmd, waveformRecord *record, IOSCANPVT *ppvt) {
-    std::cout << "record_waveform_get_ioint_info: " << record->name << std::endl;
+long record_waveform_get_ioint_info(int cmd, waveformRecord *raw, IOSCANPVT *ppvt) {
+    std::cout << "record_waveform_get_ioint_info: " << raw->name << std::endl;
     std::cerr << "unimplemented" << std::endl;
     return 0;
 }
-long record_waveform_read(waveformRecord *record) {
-    std::cout << "record_waveform_read: " << record->name << std::endl;
-    GenericWaveformRecord *user_record = reinterpret_cast<GenericWaveformRecord*>(record->dpvt);
+long record_waveform_read(waveformRecord *raw) {
+    WaveformRecord record(raw);
+    std::cout << "record_waveform_read: " << record.name() << std::endl;
 
     try {
-        user_record->read_generic(record->bptr, record->nord, record->ftvl);
+        record.handler().read(record);
     } catch (const std::exception &e) {
         std::cerr << "Exception caught" << std::endl;
         std::cerr << e.what() << std::endl;

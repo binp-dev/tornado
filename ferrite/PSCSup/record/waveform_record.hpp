@@ -19,30 +19,59 @@ template <> struct to_waveform_type<double> {
     static const menuFtype value = menuFtypeDOUBLE;
 };
 
+class WaveformHandler;
 
-class GenericWaveformRecord: public Record {
+class WaveformRecord : public Record {
 public:
-    GenericWaveformRecord() = default;
-    ~GenericWaveformRecord() override = default;
-
-    virtual void read_generic(void *data, size_t count, uint16_t type) = 0;
-    virtual waveform_type generic_type() const = 0;
-};
-
-
-template <typename T>
-class WaveformRecord : public GenericWaveformRecord {
-public:
-    WaveformRecord() = default;
+    WaveformRecord(waveformRecord *raw) : Record((dbCommon *)raw) {}
     ~WaveformRecord() override = default;
 
-    void read_generic(void *data, size_t count, uint16_t type) override final {
-        assert(to_waveform_type<T>::value == type);
-        this->read(reinterpret_cast<T*>(data), count);
+    const waveformRecord *raw() const {
+        return (const waveformRecord *)Record::raw();
     }
-    waveform_type generic_type() const override final {
-        return to_waveform_type<T>::value;
+    waveformRecord *raw() {
+        return (waveformRecord *)Record::raw();
     }
 
-    virtual void read(T *data, size_t size) = 0;
+    waveform_type waveform_data_type() const {
+        return static_cast<waveform_type>(raw()->ftvl);
+    }
+
+    const void *waveform_raw_data() const {
+        return raw()->bptr;
+    }
+    void *waveform_raw_data() {
+        return raw()->bptr;
+    }
+    template <typename T>
+    const T *waveform_data() const {
+        assert(to_waveform_type<T>::value == waveform_data_type());
+        return (const T *)waveform_raw_data();
+    }
+    template <typename T>
+    T *waveform_data() {
+        assert(to_waveform_type<T>::value == waveform_data_type());
+        return (T *)waveform_raw_data();
+    }
+
+    size_t waveform_max_length() const {
+        return raw()->nelm;
+    }
+    size_t waveform_length() const {
+        return raw()->nord;
+    }
+    const WaveformHandler &handler() const {
+        return *(const WaveformHandler *)private_data();
+    }
+    WaveformHandler &handler() {
+        return *(WaveformHandler *)private_data();
+    }
+};
+
+class WaveformHandler : public Handler {
+public:
+    WaveformHandler() = default;
+    ~WaveformHandler() override = default;
+
+    virtual void read(WaveformRecord &record) = 0;
 };
