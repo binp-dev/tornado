@@ -1,5 +1,5 @@
-DIR=$(TOP)/bin/$(shell $(EPICS_BASE)/startup/EpicsHostArch)
-BIN=$(DIR)/unittest
+DIR=$(INSTALL_LOCATION)/bin/$(shell $(EPICS_BASE)/startup/EpicsHostArch)
+BIN=$(DIR)/$(NAME)_unittest
 
 CFLAGS=\
 	-DUNITTEST \
