@@ -10,8 +10,14 @@
 #include <utils/mutex.hpp>
 #include <utils/lazy_static.hpp>
 #include <record/waveform.hpp>
-#include <channel/zmq.hpp>
 #include <device.hpp>
+
+
+#ifdef TEST
+#include <channel/zmq.hpp>
+#else // TEST
+#include <channel/rpmsg.hpp>
+#endif // TEST
 
 
 class : public LazyStatic<Mutex<Device>> {
@@ -19,15 +25,16 @@ class : public LazyStatic<Mutex<Device>> {
         //std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
         return std::make_unique<Mutex<Device>>(
             #ifdef TEST
-                std::move(std::unique_ptr<Channel>(new ZmqChannel("localhost:8321"))),
+                std::move(std::unique_ptr<Channel>(new ZmqChannel("tcp://127.0.0.1:8321"))),
             #else // TEST
                 #error "unimplemented"
             #endif // TEST
-            1000,
+            1024,
             256
         );
     }
 } DEVICE;
+
 
 class SendWaveform : public WaveformHandler {
     private:
@@ -47,6 +54,7 @@ class SendWaveform : public WaveformHandler {
     }
 };
 
+
 std::unique_ptr<WaveformHandler> framework_record_init_waveform(WaveformRecord &record) {
     if (strcmp(record.name(), "WAVEFORM") == 0) {
         return std::make_unique<SendWaveform>(DEVICE.get(), record);
@@ -55,9 +63,9 @@ std::unique_ptr<WaveformHandler> framework_record_init_waveform(WaveformRecord &
     }
 }
 
+
 #ifdef UNITTEST
 #include <catch/catch.hpp>
-
 TEST_CASE( "Dummy test", "[dummy]" ) {
     REQUIRE(1 + 1 == 2);
 }

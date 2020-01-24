@@ -120,7 +120,12 @@ private:
     std::thread worker;
 
     void serve_loop() {
+        std::cout << "[ioc] Channel serve thread started" << std::endl;
         bool sending = false;
+
+        channel->send((const uint8_t*)"Start", 6, msec(10000));
+        std::cout << "[ioc] ZeroMQ socket connected" << std::endl;
+
         while(!this->done.load()) {
             if (!sending) {
                 try {

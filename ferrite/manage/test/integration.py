@@ -1,7 +1,31 @@
 import os
-from subprocess import run
+from subprocess import run, Popen
+import time
+import zmq
 
 from manage.build import build
+from manage import ca
+
+
+class Ioc:
+    def __init__(self, binary, script):
+        self.binary = binary
+        self.script = script
+        self.proc = None
+
+    def __enter__(self):
+        self.proc = Popen(
+            [self.binary, os.path.basename(self.script)],
+            cwd=os.path.dirname(self.script),
+            text=True
+        )
+        time.sleep(1)
+        print("ioc '%s' started")
+
+    def __exit__(self, *args):
+        print("terminating '%s' ...")
+        self.proc.terminate()
+        print("ioc '%s' terminated")
 
 
 def test(**kwargs):
@@ -15,11 +39,19 @@ def test(**kwargs):
         "LIB_SYS_LIBS=czmq zmq"
     ])
 
-    run(
-        [
-            os.path.join(kwargs["output_dir"], "bin", kwargs["host_arch"], "PSC"),
-            "./st.cmd",
-        ],
-        cwd=os.path.join(kwargs["output_dir"], "iocBoot/iocPSC"),
-        check=True,
+    ioc = Ioc(
+        os.path.join(kwargs["output_dir"], "bin", kwargs["host_arch"], "PSC"),
+        os.path.join(kwargs["output_dir"], "iocBoot/iocPSC/st.cmd")
     )
+
+    context = zmq.Context()
+    socket = context.socket(zmq.REP)
+    socket.bind("tcp://127.0.0.1:8321")
+
+    prefix = os.path.join(kwargs["epics_base"], "bin", kwargs["host_arch"])
+    with ca.Repeater(prefix), ioc:
+        print(socket.recv())
+        while(True):
+            time.sleep(1)
+            socket.send(b"Hello")
+            print(socket.recv())
