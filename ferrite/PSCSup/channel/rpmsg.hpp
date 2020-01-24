@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "channel.hpp"
+#include "base.hpp"
 
 class RpmsgChannel : public Channel {
 public:

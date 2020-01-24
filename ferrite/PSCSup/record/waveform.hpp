@@ -5,7 +5,9 @@
 
 #include <waveformRecord.h>
 
-#include "record.hpp"
+#include <utils/slice.hpp>
+
+#include "base.hpp"
 
 
 typedef menuFtype waveform_type;
@@ -52,6 +54,14 @@ public:
     T *waveform_data() {
         assert(to_waveform_type<T>::value == waveform_data_type());
         return (T *)waveform_raw_data();
+    }
+    template <typename T>
+    const_slice<T> waveform_slice() const {
+        return const_slice<T>(waveform_data<T>(), waveform_length());
+    }
+    template <typename T>
+    slice<T> waveform_slice() {
+        return slice<T>(waveform_data<T>(), waveform_length());
     }
 
     size_t waveform_max_length() const {

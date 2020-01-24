@@ -8,8 +8,8 @@
 #include <cstring>
 #include <cassert>
 
-#include <channel/channel.hpp>
-
+#include <channel/base.hpp>
+#include <utils/slice.hpp>
 
 class Encoder {
 private:
@@ -56,13 +56,16 @@ private:
     size_t data_size = 0;
 
 public:
+    Sender(const Sender &dev) = delete;
+    Sender &operator=(const Sender &dev) = delete;
+
     Sender(
         std::shared_ptr<Channel> ch,
         size_t max_packet_size,
         E encoder
     ) :
-        channel(std::move(ch)),
         packet(max_packet_size, 0),
+        channel(std::move(ch)),
         encoder(std::move(encoder))
     {}
     
@@ -102,7 +105,9 @@ public:
 
 class Device {
 private:
-    const size_t max_points;
+    const size_t _max_points;
+    const size_t _max_transfer;
+
     std::vector<double> waveforms[3];
     std::atomic_bool swap_ready;
     std::mutex swap_mutex;
@@ -151,11 +156,14 @@ public:
         size_t max_points,
         size_t max_transfer
     ) :
-        max_points(max_points),
+        _max_points(max_points),
+        _max_transfer(max_transfer),
+
         swap_ready(false),
+
         channel(std::move(channel)),
-        buffer(max_transfer, 0),
-        sender(this->channel, max_transfer, Encoder(0, 1<<24, 3))
+        sender(this->channel, max_transfer, Encoder(0, 1<<24, 3)),
+        buffer(max_transfer, 0)
     {
         for (int i = 0; i < 3; ++i) {
             waveforms[i].resize(max_points, 0.0);
@@ -169,18 +177,25 @@ public:
         worker.join();
     }
 
-    void set_waveform(double *points, size_t count) {
-        assert(count <= max_points);
+    void set_waveform(const_slice<double> waveform) {
+        assert(waveform.size() <= max_points());
         if (!swap_ready.load()) {
-            memcpy(waveforms[1].data(), points, count);
+            memcpy(waveforms[1].data(), waveform.data(), waveform.size());
             swap_ready.store(true);
         } else {
-            memcpy(waveforms[2].data(), points, count);
+            memcpy(waveforms[2].data(), waveform.data(), waveform.size());
             {
                 std::lock_guard<std::mutex> guard(swap_mutex);
                 std::swap(waveforms[1], waveforms[2]);
                 swap_ready.store(true);
             }
         }
+    }
+
+    size_t max_points() const {
+        return _max_points;
+    }
+    size_t max_transfer() const {
+        return _max_transfer;
     }
 };

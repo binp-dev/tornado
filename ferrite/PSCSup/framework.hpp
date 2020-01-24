@@ -4,31 +4,51 @@
 #include <string>
 #include <type_traits>
 #include <memory>
+#include <mutex>
+#include <atomic>
 
-#include "record/record.hpp"
-#include "record/waveform_record.hpp"
+#include <utils/mutex.hpp>
+#include <utils/lazy_static.hpp>
+#include <record/waveform.hpp>
+#include <channel/zmq.hpp>
+#include <device.hpp>
 
-#include "device.hpp"
 
-class PrintWaveform : public WaveformHandler {
-public:
-    PrintWaveform() = default;
-    ~PrintWaveform() override = default;
+class : public LazyStatic<Mutex<Device>> {
+    std::unique_ptr<Mutex<Device>> init() noexcept override {
+        return std::make_unique<Mutex<Device>>(
+            #ifdef TEST
+                std::move(std::unique_ptr<Channel>(new ZmqChannel("localhost:8321"))),
+            #else // TEST
+                #error "unimplemented"
+            #endif // TEST
+            1000,
+            256
+        );
+    }
+} DEVICE;
+
+class SendWaveform : public WaveformHandler {
+    private:
+    std::shared_ptr<Mutex<Device>> device;
+
+    public:
+    SendWaveform(
+        std::shared_ptr<Mutex<Device>> device,
+        WaveformRecord &record
+    ) : device(device) {
+        assert(device->lock()->max_points() == record.waveform_max_length());
+    }
+    ~SendWaveform() override = default;
 
     void read(WaveformRecord &record) override {
-        printf("count: %zd\n", record.waveform_length());
-        printf("data: [ ");
-        for (int i = 0; i < int(record.waveform_length()); ++i) {
-            printf("%lf, ", record.waveform_data<double>()[i]);
-        }
-        printf("]\n");
+        device->lock()->set_waveform(record.waveform_slice<double>());
     }
 };
 
 std::unique_ptr<WaveformHandler> framework_record_init_waveform(WaveformRecord &record) {
     if (strcmp(record.name(), "WAVEFORM") == 0) {
-        // FIXME: Call this only once
-        return std::make_unique<PrintWaveform>();
+        return std::make_unique<SendWaveform>(DEVICE.get(), record);
     } else {
         assert(false);
     }

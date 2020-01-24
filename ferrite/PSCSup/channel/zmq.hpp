@@ -5,7 +5,7 @@
 
 #include <czmq.h>
 
-#include "channel.hpp"
+#include "base.hpp"
 
 class ZmqChannel : public Channel {
 private:
