@@ -10,10 +10,12 @@ def build(
     opts=None,
     **kwargs,
 ):
-    args = ["make"]
+    args = ["make", "clean"]
 
-    if clean:
-        args += ["clean", "uninstall"]
+    if not clean:
+        args += ["install"]
+    else:
+        args += ["uninstall"]
 
     if threads is not None:
         args += ["-j{}".format(threads)]

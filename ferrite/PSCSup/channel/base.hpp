@@ -3,15 +3,28 @@
 #include <cstdlib>
 #include <cstdint>
 #include <chrono>
-#include <exception>
+
+#include <utils/exception.hpp>
 
 typedef std::chrono::milliseconds msec;
 
 class Channel {
 public:
-    class Exception : public std::exception {};
-    class IoError : public Exception {};
-    class TimedOut : public Exception {};
+    class Exception : public ::Exception {
+        public:
+        template <typename ... Args>
+        Exception(Args ... args) : ::Exception(args ...) {}
+    };
+    class IoError : public Exception {
+        public:
+        template <typename ... Args>
+        IoError(Args ... args) : Exception(args ...) {}
+    };
+    class TimedOut : public Exception {
+        public:
+        template <typename ... Args>
+        TimedOut(Args ... args) : Exception(args ...) {}
+    };
 
     Channel() = default;
     Channel(const Channel &ch) = delete;

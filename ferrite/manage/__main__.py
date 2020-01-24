@@ -51,7 +51,7 @@ if __name__ == "__main__":
         "--output-dir", metavar="PATH",
         help=" ".join([
             "Absolute path to directory where IOC binaries will be stored after compilation.",
-            "By default TOP directory is used.",
+            "By default TOP is used for release builds, 'build/*test' is used for test builds",
         ]),
     )
     parser.add_argument(

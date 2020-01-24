@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdio>
+#include <iostream>
 #include <string>
 #include <type_traits>
 #include <memory>
@@ -15,7 +15,8 @@
 
 
 class : public LazyStatic<Mutex<Device>> {
-    std::unique_ptr<Mutex<Device>> init() noexcept override {
+    std::unique_ptr<Mutex<Device>> init() override {
+        //std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
         return std::make_unique<Mutex<Device>>(
             #ifdef TEST
                 std::move(std::unique_ptr<Channel>(new ZmqChannel("localhost:8321"))),

@@ -1,6 +1,3 @@
-/* PSCMain.cpp */
-/* Author:  Marty Kraimer Date:    17MAR2000 */
-
 #include <stddef.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -10,6 +7,8 @@
 #include "epicsExit.h"
 #include "epicsThread.h"
 #include "iocsh.h"
+
+#ifndef UNITTEST
 
 int main(int argc,char *argv[])
 {
@@ -21,3 +20,10 @@ int main(int argc,char *argv[])
     epicsExit(0);
     return(0);
 }
+
+#else // UNITTEST
+
+#define CATCH_CONFIG_MAIN
+#include <catch/catch.hpp>
+
+#endif // UNITTEST

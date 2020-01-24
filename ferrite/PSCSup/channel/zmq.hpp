@@ -7,6 +7,7 @@
 
 #include "base.hpp"
 
+
 class ZmqChannel : public Channel {
 private:
     class ZSock;
@@ -51,8 +52,9 @@ private:
             sock(zsock_new(ZMQ_REQ)),
             poller(zpoller_new(sock))
         {
+            //std::cout << "ZmqChannel::ZSock()" << std::endl;
             if (zsock_connect(sock, host.c_str()) != 0) {
-                throw Channel::IoError();
+                throw Channel::IoError("Cannot connect to ZeroMQ server at " + host);
             }
         }
         ~ZSock() {
@@ -98,7 +100,9 @@ public:
     ZmqChannel(const std::string &host) :
         host(host),
         sock(host)
-    {}
+    {
+        //std::cout << "ZmqChannel(host='" << host << "')" << std::endl;
+    }
     ~ZmqChannel() override = default;
 
     void send(const uint8_t *bytes, size_t length, msec timeout) override {

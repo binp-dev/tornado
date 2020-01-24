@@ -12,7 +12,7 @@ class LazyStatic {
     std::shared_ptr<T> value;
 
     protected:
-    virtual std::unique_ptr<T> init() noexcept = 0;
+    virtual std::unique_ptr<T> init() = 0;
 
     public:
     LazyStatic() : initialized(false) {}
@@ -23,6 +23,7 @@ class LazyStatic {
             std::lock_guard<std::mutex> guard(initialization_mutex);
             if (!initialized.load()) {
                 value = std::shared_ptr<T>(std::move(init()));
+                initialized.store(true);
             }
         }
     }
