@@ -7,7 +7,7 @@
 
 #include <utils/slice.hpp>
 
-#include "base.hpp"
+#include "record.hpp"
 
 
 typedef menuFtype waveform_type;

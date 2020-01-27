@@ -8,7 +8,7 @@
 #include <cstring>
 #include <cassert>
 
-#include <channel/base.hpp>
+#include <channel/channel.hpp>
 #include <utils/slice.hpp>
 
 class Encoder {
@@ -78,7 +78,7 @@ public:
     bool is_complete() {
         return pos >= data_size && packet_size == 0;
     }
-    size_t try_send(msec timeout) {
+    size_t try_send(int timeout) {
         if (packet_size == 0) {
             while(pos < data_size && packet_size + encoder.bytes() - 1 < packet.size()) {
                 encoder.encode(data[pos], packet.data());
@@ -123,13 +123,14 @@ private:
         std::cout << "[ioc] Channel serve thread started" << std::endl;
         bool sending = false;
 
-        channel->send((const uint8_t*)"Start", 6, msec(10000));
-        std::cout << "[ioc] ZeroMQ socket connected" << std::endl;
-
         while(!this->done.load()) {
             if (!sending) {
                 try {
-                    channel->receive(buffer.data(), buffer.size(), msec(10));
+                    size_t size = channel->receive(buffer.data(), buffer.size(), 10);
+                    if (size < buffer.size()) {
+                        buffer[size] = '\0';
+                        std::cout << (char *)buffer.data() << std::endl;
+                    }
                 } catch (const Channel::TimedOut &e) {
                     continue;
                 }
@@ -145,7 +146,7 @@ private:
                     }
                     sender.set_data(waveforms[0].data(), waveforms[0].size());
                 }
-                if (sender.try_send(msec(10)) > 0) {
+                if (sender.try_send(10) > 0) {
                     sending = false;
                 }
             }
@@ -167,7 +168,7 @@ public:
         swap_ready(false),
 
         channel(std::move(channel)),
-        sender(this->channel, max_transfer, Encoder(0, 1<<24, 3)),
+        sender(this->channel, max_transfer, Encoder(0, (1<<24) - 1, 3)),
         buffer(max_transfer, 0)
     {
         for (int i = 0; i < 3; ++i) {

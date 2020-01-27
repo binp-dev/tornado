@@ -45,13 +45,14 @@ def test(**kwargs):
     )
 
     context = zmq.Context()
-    socket = context.socket(zmq.REP)
+    socket = context.socket(zmq.PAIR)
     socket.bind("tcp://127.0.0.1:8321")
 
     prefix = os.path.join(kwargs["epics_base"], "bin", kwargs["host_arch"])
     with ca.Repeater(prefix), ioc:
-        print(socket.recv())
-        while(True):
-            time.sleep(1)
+        for _ in range(100):
+            time.sleep(0.01)
             socket.send(b"Hello")
-            print(socket.recv())
+            pts = socket.recv()
+            assert len(pts) == (256//3)*3
+            assert all([0 == c for c in pts])

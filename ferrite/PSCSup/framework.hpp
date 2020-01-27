@@ -9,14 +9,14 @@
 
 #include <utils/mutex.hpp>
 #include <utils/lazy_static.hpp>
-#include <record/waveform.hpp>
+#include <record/waveform_record.hpp>
 #include <device.hpp>
 
 
 #ifdef TEST
-#include <channel/zmq.hpp>
+#include <channel/zmq_channel.hpp>
 #else // TEST
-#include <channel/rpmsg.hpp>
+#include <channel/rpmsg_channel.hpp>
 #endif // TEST
 
 

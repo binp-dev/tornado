@@ -2,11 +2,9 @@
 
 #include <cstdlib>
 #include <cstdint>
-#include <chrono>
 
 #include <utils/exception.hpp>
 
-typedef std::chrono::milliseconds msec;
 
 class Channel {
 public:
@@ -18,12 +16,16 @@ public:
     class IoError : public Exception {
         public:
         template <typename ... Args>
-        IoError(Args ... args) : Exception(args ...) {}
+        IoError() : Exception("Channel::IoError") {}
+        IoError(const char *msg) : Exception("Channel::IoError" + std::string(msg)) {}
+        IoError(std::string msg) : Exception("Channel::IoError" + msg) {}
     };
     class TimedOut : public Exception {
         public:
         template <typename ... Args>
-        TimedOut(Args ... args) : Exception(args ...) {}
+        TimedOut() : Exception("Channel::TimedOut") {}
+        TimedOut(const char *msg) : Exception("Channel::TimedOut" + std::string(msg)) {}
+        TimedOut(std::string msg) : Exception("Channel::TimedOut" + msg) {}
     };
 
     Channel() = default;
@@ -31,6 +33,6 @@ public:
     Channel &operator=(const Channel &ch) = delete;
     virtual ~Channel() = default;
 
-    virtual void send(const uint8_t *bytes, size_t length, msec timeout) = 0;
-    virtual size_t receive(uint8_t *bytes, size_t max_length, msec timeout) = 0;
+    virtual void send(const uint8_t *bytes, size_t length, int timeout) = 0;
+    virtual size_t receive(uint8_t *bytes, size_t max_length, int timeout) = 0;
 };
