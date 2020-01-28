@@ -8,11 +8,11 @@
 #include <cstring>
 #include <cassert>
 
-#include <common/proto.h>
 #include <utils/slice.hpp>
 #include <utils/panic.hpp>
 #include <channel/channel.hpp>
 #include <encoder.hpp>
+#include <../common/proto.h>
 
 
 #define TIMEOUT 10 // ms
@@ -95,15 +95,18 @@ private:
                 }
 
                 uint8_t cmd = recv_buffer[0];
-                std::cout << "M4 command: " << int(cmd) << std::endl;
+                std::cout << "Received command: 0x" << std::hex << int(cmd) << std::dec << std::endl;
 
                 if(cmd == PSCM_WF_REQ) {
+                    if (size != 1) {
+                        throw Exception("Bad size of PSCM_WF_REQ command");
+                    }
                     send_buffer[0] = PSCA_WF_DATA; 
                     size_t shift = 1;
                     size_t msg_size = fill_until_full(
                         send_buffer.data() + shift,
                         send_buffer.size() - shift
-                    );
+                    ) + shift;
                     channel->send(send_buffer.data(), msg_size, TIMEOUT);
                 } else {
                     throw Exception("Unknown PSCM command: " + std::to_string(cmd));
@@ -119,8 +122,8 @@ private:
         }
     }
 
-public:
     // Device support methods
+public:
     Device(const Device &dev) = delete;
     Device &operator=(const Device &dev) = delete;
 
@@ -156,10 +159,10 @@ public:
     void set_waveform(const_slice<double> waveform) {
         assert(waveform.size() <= max_points());
         if (!swap_ready.load()) {
-            memcpy(waveforms[1].data(), waveform.data(), waveform.size());
+            std::copy(waveform.begin(), waveform.end(), waveforms[1].begin());
             swap_ready.store(true);
         } else {
-            memcpy(waveforms[2].data(), waveform.data(), waveform.size());
+            std::copy(waveform.begin(), waveform.end(), waveforms[2].begin());
             {
                 std::lock_guard<std::mutex> guard(swap_mutex);
                 std::swap(waveforms[1], waveforms[2]);

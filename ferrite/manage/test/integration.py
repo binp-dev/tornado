@@ -1,33 +1,32 @@
 import os
-from subprocess import run, Popen
 import time
 import zmq
 
 from manage.build import build
-from manage import ca
+from manage.epics import Ioc, ca
 from manage.test import proto
 
+def decode(data, ids, nbytes=3, shift=1, dlen=256):
+    assert len(data) == ((dlen - shift)//nbytes)*nbytes + shift
+    
+    cmd = int(data[0])
+    assert(cmd == ids["PSCA_WF_DATA"])
 
-class Ioc:
-    def __init__(self, binary, script):
-        self.binary = binary
-        self.script = script
-        self.proc = None
+    arr = data[shift:]
+    arr = [arr[i : i + nbytes] for i in range(0, len(arr), nbytes)]
+    assert all([len(a) == nbytes for a in arr])
+    arr = [int.from_bytes(a, "little") for a in arr]
+    return (cmd, arr)
 
-    def __enter__(self):
-        self.proc = Popen(
-            [self.binary, os.path.basename(self.script)],
-            cwd=os.path.dirname(self.script),
-            text=True
-        )
-        time.sleep(1)
-        print("ioc '%s' started")
-
-    def __exit__(self, *args):
-        print("terminating '%s' ...")
-        self.proc.terminate()
-        print("ioc '%s' terminated")
-
+def assert_pop(queue, arr):
+    print(arr)
+    assert len(queue) >= len(arr)
+    try:
+        assert all((a == b for a, b in zip(queue, arr)))
+    except AssertionError:
+        print("{} != {}".format(queue[:len(arr)], arr))
+        raise
+    return queue[len(arr):]
 
 def test(**kwargs):
     if kwargs["output_dir"] is None:
@@ -50,11 +49,33 @@ def test(**kwargs):
     socket.bind("tcp://127.0.0.1:8321")
 
     prefix = os.path.join(kwargs["epics_base"], "bin", kwargs["host_arch"])
-    ids = proto.read_defines(os.path.join(kwargs["top"], "PSCSup/common/proto.h"))
+    ids = proto.read_defines(os.path.join(kwargs["top"], "common/proto.h"))
 
+    wfs = 200
     with ca.Repeater(prefix), ioc:
-        for _ in range(100):
-            time.sleep(0.01)
+        queue = [0]*wfs*2
+        for _ in range(4):
             socket.send(bytes([ids["PSCM_WF_REQ"]]))
-            pts = socket.recv()
-            print(pts)
+            queue = assert_pop(queue, decode(socket.recv(), ids)[1])
+        
+        wf = list(range(wfs))
+        ca.put("WAVEFORM", wf, array=True, prefix=prefix)
+        queue += wf*2
+        for _ in range(5):
+            socket.send(bytes([ids["PSCM_WF_REQ"]]))
+            queue = assert_pop(queue, decode(socket.recv(), ids)[1])
+
+        wf = [wfs - x - 1 for x in range(wfs)]
+        ca.put("WAVEFORM", wf, array=True, prefix=prefix)
+        queue += wf*2
+        for _ in range(5):
+            socket.send(bytes([ids["PSCM_WF_REQ"]]))
+            queue = assert_pop(queue, decode(socket.recv(), ids)[1])
+
+        wf = [wfs + x for x in range(wfs)]
+        ca.put("WAVEFORM", range(0, 2*wfs, 2), array=True, prefix=prefix)
+        ca.put("WAVEFORM", wf, array=True, prefix=prefix)
+        queue += wf*4
+        for _ in range(9):
+            socket.send(bytes([ids["PSCM_WF_REQ"]]))
+            queue = assert_pop(queue, decode(socket.recv(), ids)[1])

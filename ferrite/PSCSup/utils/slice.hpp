@@ -47,6 +47,28 @@ class slice {
     slice<const T> truncate(size_t begin, size_t end) const {
         return slice<const T>(data() + begin, end - begin);
     }
+
+    using iterator = T *;
+    using const_iterator = const T *;
+
+    iterator begin() {
+        return data();
+    }
+    iterator end() {
+        return data() + size();
+    }
+    const_iterator begin() const {
+        return data();
+    }
+    const_iterator end() const {
+        return data() + size();
+    }
+    const_iterator cbegin() const {
+        return data();
+    }
+    const_iterator cend() const {
+        return data() + size();
+    }
 };
 
 
@@ -80,6 +102,22 @@ class slice<const T> {
 
     slice<const T> truncate(size_t begin, size_t end) const {
         return slice<const T>(data() + begin, end - begin);
+    }
+
+    using iterator = T *;
+    using const_iterator = const T *;
+
+    const_iterator begin() const {
+        return data();
+    }
+    const_iterator end() const {
+        return data() + size();
+    }
+    const_iterator cbegin() const {
+        return data();
+    }
+    const_iterator cend() const {
+        return data() + size();
     }
 };
 

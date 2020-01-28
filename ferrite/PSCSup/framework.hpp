@@ -31,7 +31,7 @@ class : public LazyStatic<Mutex<Device>> {
                 #error "unimplemented"
             #endif // TEST
             std::move(std::make_unique<LinearEncoder>(0, (1<<24) - 1, 3)),
-            1024,
+            200,
             256
         );
     }
@@ -47,7 +47,14 @@ class SendWaveform : public WaveformHandler {
         std::shared_ptr<Mutex<Device>> device,
         WaveformRecord &record
     ) : device(device) {
-        assert(device->lock()->max_points() == record.waveform_max_length());
+        size_t dev_len = device->lock()->max_points();
+        size_t rec_len = record.waveform_max_length();
+        if (dev_len != rec_len) {
+            throw Exception(
+                "Device waveform size (" + std::to_string(dev_len) +
+                ") doesn't match to the one of the record (" + std::to_string(rec_len) + ")"
+            );
+        }
     }
     ~SendWaveform() override = default;
 

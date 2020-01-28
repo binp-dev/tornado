@@ -21,10 +21,17 @@ def get(pv, epics_base=None):
     print("  %s" % out)
     return out
 
-def put(pv, value, prefix=None):
+def put(pv, value, array=False, prefix=None):
     print("caput %s %s ..." % (pv, str(value)))
+
+    args = [_try_join(prefix, "caput"), "-t"]
+    if not array:
+        args += [pv, str(value)]
+    else:
+        args += ["-a", pv, str(len(value))] + [str(v) for v in value]
+    
     ret = run(
-        [_try_join(prefix, "caput"), "-t", pv, str(value)],
+        args,
         stdout=PIPE,
         text=True,
         check=True
