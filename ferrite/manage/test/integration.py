@@ -5,6 +5,7 @@ import zmq
 
 from manage.build import build
 from manage import ca
+from manage.test import proto
 
 
 class Ioc:
@@ -49,10 +50,11 @@ def test(**kwargs):
     socket.bind("tcp://127.0.0.1:8321")
 
     prefix = os.path.join(kwargs["epics_base"], "bin", kwargs["host_arch"])
+    ids = proto.read_defines(os.path.join(kwargs["top"], "PSCSup/common/proto.h"))
+
     with ca.Repeater(prefix), ioc:
         for _ in range(100):
             time.sleep(0.01)
-            socket.send(b"Hello")
+            socket.send(bytes([ids["PSCM_WF_REQ"]]))
             pts = socket.recv()
-            assert len(pts) == (256//3)*3
-            assert all([0 == c for c in pts])
+            print(pts)

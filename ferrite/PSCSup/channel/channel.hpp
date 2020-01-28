@@ -4,7 +4,7 @@
 #include <cstdint>
 
 #include <utils/exception.hpp>
-
+#include <utils/slice.hpp>
 
 class Channel {
 public:

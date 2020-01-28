@@ -10,6 +10,7 @@
 #include <utils/mutex.hpp>
 #include <utils/lazy_static.hpp>
 #include <record/waveform_record.hpp>
+#include <encoder.hpp>
 #include <device.hpp>
 
 
@@ -29,6 +30,7 @@ class : public LazyStatic<Mutex<Device>> {
             #else // TEST
                 #error "unimplemented"
             #endif // TEST
+            std::move(std::make_unique<LinearEncoder>(0, (1<<24) - 1, 3)),
             1024,
             256
         );
