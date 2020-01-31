@@ -12,12 +12,12 @@ extern const char *const APP_LOG_LEVEL_NAME[6];
 #define APP_LOG_LEVEL APP_LOG_LEVEL_INFO
 #endif // APP_LOG_LEVEL
 
-#define _VA_ARGS_MAY_EMPTY(...) , ##__VA_ARGS__
+#define _MAY_EMPTY(...) , ##__VA_ARGS__
 
 /*! Print log message with specified priority */
 #define APP_LOG(level, format, ...) \
     if (APP_LOG_LEVEL >= level) { \
-        PRINTF("[%s]" format "\r\n", APP_LOG_LEVEL_NAME[level] _VA_ARGS_MAY_EMPTY(__VA_ARGS__)); \
+        PRINTF("[%s]" format "\r\n", APP_LOG_LEVEL_NAME[level] _MAY_EMPTY(__VA_ARGS__)); \
     } \
     do {} while(0)
 

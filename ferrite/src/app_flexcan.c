@@ -44,7 +44,10 @@
 #include "app.h"
 #include "app_flexcan.h"
 #include "app_log.h"
+#include "app_time.h"
 
+
+#define ms_to_ticks APP_Ms2Ticks
 
 #define TX_MSG_BUF_NUM    8
 #define RX_MSG_BUF_NUM    9
@@ -196,16 +199,6 @@ void BOARD_FLEXCAN_HANDLER() {
 
     /* Yield to higher priority task */
     portYIELD_FROM_ISR(txHptw || rxHptw);
-}
-
-static TickType_t ms_to_ticks(uint32_t ms) {
-    if (ms == 0) {
-        return 0;
-    } else if (ms == 0xFFFFFFFFul) {
-        return portMAX_DELAY;
-    } else {
-        return (ms - 1)/portTICK_PERIOD_MS + 1;
-    }
 }
 
 uint8_t APP_FLEXCAN_Send(const APP_FLEXCAN_Frame *frame, uint32_t timeout) {
