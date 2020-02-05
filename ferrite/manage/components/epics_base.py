@@ -1,8 +1,8 @@
 import os
 
-from component import ComponentLoader
-from tools.subproc import run, SubprocError
-from tools.files import substitute
+from manage.components import ComponentLoader
+from manage.tools.subproc import run, SubprocError
+from manage.tools.files import substitute
 
 
 def clone(path):

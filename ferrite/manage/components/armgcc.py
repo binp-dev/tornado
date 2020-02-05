@@ -1,7 +1,7 @@
 import os
 
-from component import ComponentLoader
-from tools.subproc import run
+from manage.components import ComponentLoader
+from manage.tools.subproc import run
 
 
 class ToolchainLoader(ComponentLoader):

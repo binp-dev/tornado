@@ -1,7 +1,4 @@
-/armgcc
-/freertos
-/epics-base
-
+/components
 /output
 
 __pycache__
