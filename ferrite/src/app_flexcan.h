@@ -32,7 +32,7 @@ void APP_FLEXCAN_HardwareInit();
  *
  * @param rate_id CAN baudrate enum.
  * @param rx_mask Incoming frame ID mask.
- * @return Status, 0 - success, 1 - timed out.
+ * @return Initialization status, zero on success.
  */
 uint8_t APP_FLEXCAN_Init(APP_FLEXCAN_Baudrate rate_id, uint16_t rx_mask);
 
@@ -40,16 +40,16 @@ uint8_t APP_FLEXCAN_Init(APP_FLEXCAN_Baudrate rate_id, uint16_t rx_mask);
  * @brief Send CAN frame synchronously.
  *
  * @param frame Read-only CAN frame structure to send.
- * @param timeout Time to wait for send to complete in milliseconds, 0 to wait forever.
- * @return Operation status, zero on success.
+ * @param timeout Time to wait for send to complete in milliseconds.
+ * @return Operation status, 0 - success, 1 - timed out.
  */
 uint8_t APP_FLEXCAN_Send(const APP_FLEXCAN_Frame *frame, uint32_t timeout);
 
 /*!
- * @brief Get CAN frame if it has been received.
+ * @brief Receive CAN frame.
  *
  * @param frame CAN frame structure to write into.
- * @param timeout Time to wait for send to complete in milliseconds, 0 to wait forever.
+ * @param timeout Time to wait for frame to be received in milliseconds.
  * @return Operation status, 0 - success, 1 - timed out.
  */
 uint8_t APP_FLEXCAN_Receive(APP_FLEXCAN_Frame *frame, uint32_t timeout);

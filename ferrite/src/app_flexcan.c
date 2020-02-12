@@ -233,6 +233,7 @@ uint8_t APP_FLEXCAN_Send(const APP_FLEXCAN_Frame *frame, uint32_t timeout) {
 
     /* Wait for send to complete */
     if (xSemaphoreTake(txSemaphore, ms_to_ticks(timeout)) != pdTRUE) {
+        /* FIXME: Recover from timeout. */
         APP_ERROR("FLEXCAN Tx timed out");
         status = 1;
     }

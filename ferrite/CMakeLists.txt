@@ -176,6 +176,8 @@ ADD_EXECUTABLE(psc_m4
     "${ProjDirPath}/src/app_gpt.h"
     "${ProjDirPath}/src/app_flexcan.c"
     "${ProjDirPath}/src/app_flexcan.h"
+    "${ProjDirPath}/src/app_ecspi.c"
+    "${ProjDirPath}/src/app_ecspi.h"
     "${ProjDirPath}/src/app_rpmsg.c"
     "${ProjDirPath}/src/app_rpmsg.h"
     "${ProjDirPath}/src/FreeRTOSConfig.h"
