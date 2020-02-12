@@ -51,7 +51,7 @@ static void APP_Task_FlexcanSend(void *param) {
             pos = 0;
 
             // FIXME: Use `psc-common`.
-            const uint8_t data = {0x10};
+            const uint8_t data[] = {0x10};
             APP_RPMSG_Send(data, 1);
         }
 
