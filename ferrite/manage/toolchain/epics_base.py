@@ -1,8 +1,8 @@
 import os
 
-from manage.components import ComponentLoader
-from manage.tools.subproc import run, SubprocError
-from manage.tools.files import substitute
+from manage.toolchain import ToolLoader
+from manage.util.subproc import run, SubprocError
+from manage.util.files import substitute
 
 
 def clone(path):
@@ -56,7 +56,7 @@ def clean(epicsdir):
         run(["git", "clean", "-dfX"], cwd=epicsdir)
 
 
-class EpicsLoader(ComponentLoader):
+class EpicsLoader(ToolLoader):
     def __init__(self, toolchain=None, outdir=None):
         self.outdir = outdir
         self.toolchain = toolchain

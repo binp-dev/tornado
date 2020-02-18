@@ -1,9 +1,9 @@
 import os
 
-from manage.components import ComponentLoader
-from manage.tools.subproc import run
+from manage.toolchain import ToolLoader
+from manage.util.subproc import run
 
-class FreertosLoader(ComponentLoader):
+class FreertosLoader(ToolLoader):
     def __init__(self):
         pass
 

@@ -1,0 +1,6 @@
+[submodule "ioc"]
+	path = ioc
+	url = git@github.com:binp-automation/psc-ioc.git
+[submodule "m4"]
+	path = m4
+	url = git@github.com:binp-automation/psc-m4.git

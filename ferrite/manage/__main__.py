@@ -2,10 +2,13 @@ import sys, os
 import argparse
 import logging as log
 
-from manage.components import epics_base, freertos, armgcc
+from manage.toolchain import epics_base, freertos, armgcc
+from manage import ioc, m4
+
+log.basicConfig(format='[%(levelname)s] %(message)s', level=log.DEBUG)
 
 
-class Component:
+class Tool:
     def __init__(self):
         self.path = None
         self.loader = None
@@ -24,7 +27,7 @@ class Component:
         self.loader.load(self.path)
 
 
-class ArmgccM4(Component):
+class ArmgccM4(Tool):
     def __init__(self):
         super().__init__()
 
@@ -32,11 +35,11 @@ class ArmgccM4(Component):
         self.set_path(
             args.get("armgcc_m4", None),
             "ARMGCC_M4",
-            os.path.join(args["top"], "components", "armgcc/m4"),
+            os.path.join(args["top"], "toolchain", "armgcc/m4"),
         )
         self.loader = armgcc.m4_loader
 
-class ArmgccLinux(Component):
+class ArmgccLinux(Tool):
     def __init__(self):
         super().__init__()
 
@@ -44,11 +47,11 @@ class ArmgccLinux(Component):
         self.set_path(
             args.get("armgcc_linux", None),
             "ARMGCC_LINUX",
-            os.path.join(args["top"], "components", "armgcc/linux"),
+            os.path.join(args["top"], "toolchain", "armgcc/linux"),
         )
         self.loader = armgcc.linux_loader
 
-class Freertos(Component):
+class Freertos(Tool):
     def __init__(self):
         super().__init__()
 
@@ -56,11 +59,11 @@ class Freertos(Component):
         self.set_path(
             args.get("freertos", None),
             "FREERTOS",
-            os.path.join(args["top"], "components", "freertos"),
+            os.path.join(args["top"], "toolchain", "freertos"),
         )
         self.loader = freertos.loader
 
-class EpicsBase(Component):
+class EpicsBase(Tool):
     def __init__(self, armgcc):
         super().__init__()
         self.armgcc = armgcc
@@ -69,19 +72,23 @@ class EpicsBase(Component):
         self.set_path(
             args.get("epics_base", None),
             "EPICS_BASE",
-            os.path.join(args["top"], "components", "epics-base"),
+            os.path.join(args["top"], "toolchain", "epics-base"),
         )
-        self.outdir = args["output_dir"]
+        self.outdir = os.path.join(args["output_dir"], "epics-base")
         self.loader = epics_base.EpicsLoader(self.armgcc.path, self.outdir)
 
 
-components = {
+tools = {
     "armgcc_m4":    ArmgccM4(),
     "armgcc_linux": ArmgccLinux(),
     "freertos":     Freertos(),
 }
-components["epics_base"] = EpicsBase(components["armgcc_linux"])
+tools["epics_base"] = EpicsBase(tools["armgcc_linux"])
 
+components = {
+    "m4": m4.M4(),
+    "ioc": ioc.Ioc(),
+}
 
 class Handler:
     def __init__(self):
@@ -108,13 +115,16 @@ class Handler:
         if args["output_dir"] is None:
             args["output_dir"] = os.path.join(args["top"], "output")
 
-        for k, c in components.items():
-            args[k] = c.locate(args)
+        for c in tools.values():
+            c.locate(args)
+
+        for c in components.values():
+            c.setup(args, tools)
 
         return args
 
     def _run(self, args):
-        print(args)
+        raise NotImplementedError()
 
     def __call__(self, argv):
         args = vars(self.parser.parse_args(argv))
@@ -128,29 +138,28 @@ class LoadHandler(Handler):
 
     def _create_parser(self):
         parser = argparse.ArgumentParser(
-            description="Downloads and prepare third-party components",
+            description="Downloads and prepare third-party tools",
             parents=[super()._create_parser()], add_help=False,
         )
         parser.add_argument(
-            "--component", action="append", type=str,
-            choices=list(components.keys()), default=list(components.keys()),
-            help="Select components to download. All by default."
+            "--tools", action="append", type=str,
+            choices=list(tools.keys()), default=[],
+            help="Select tools to download. All by default."
         )
         return parser
     
     def _handle_args(self, args):
         args = super()._handle_args(args)
 
-        if not args["component"]:
-            args["component"] = list(components.keys())
+        if not args["tools"]:
+            args["tools"] = list(tools.keys())
+        log.info("Tools selected: {}".format(args["tools"]))
 
         return args
 
     def _run(self, args):
-        super()._run(args)
-
-        for c in args["component"]:
-            components[c].load()
+        for c in args["tools"]:
+            tools[c].load()
 
 
 class BuildHandler(Handler):
@@ -165,10 +174,12 @@ class BuildHandler(Handler):
         return parser
     
     def _handle_args(self, args):
+        args = super()._handle_args(args)
         return args
 
     def _run(self, args):
-        pass
+        for c in components.values():
+            c.build()
 
 
 class CleanHandler(Handler):
@@ -183,10 +194,12 @@ class CleanHandler(Handler):
         return parser
     
     def _handle_args(self, args):
+        args = super()._handle_args(args)
         return args
 
     def _run(self, args):
-        pass
+        for c in components.values():
+            c.clean()
 
 
 class DeployHandler(BuildHandler):
@@ -201,10 +214,12 @@ class DeployHandler(BuildHandler):
         return parser
     
     def _handle_args(self, args):
+        args = super()._handle_args(args)
         return args
 
     def _run(self, args):
-        pass
+        for c in components.values():
+            c.deploy()
 
 
 class TestHandler(DeployHandler):
@@ -219,10 +234,13 @@ class TestHandler(DeployHandler):
         return parser
     
     def _handle_args(self, args):
+        args = super()._handle_args(args)
         return args
 
     def _run(self, args):
-        pass
+        for c in components.values():
+            c.test()
+
 
 commands = {
     "load":     LoadHandler(),
