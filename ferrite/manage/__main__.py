@@ -211,10 +211,25 @@ class DeployHandler(BuildHandler):
             description="Deploy software to the device",
             parents=[super()._create_parser()], add_help=False,
         )
+        parser.add_argument(
+            "--dev-addr", type=str,
+            help=" ".join([
+                "Specify device IP address to connect via SSH.",
+                "The SSH should be configured to allow login as `root` without prompt for password."
+            ]),
+        )
+        parser.add_argument(
+            "--no-dev", action="store_true",
+            help="Perform only local tasks (if there is no device accessible).",
+        )
         return parser
     
     def _handle_args(self, args):
         args = super()._handle_args(args)
+
+        if not args["dev_addr"] and not args["no_dev"]:
+            raise AssertionError("You should specify either `--dev-addr` or `--no-dev`.")
+
         return args
 
     def _run(self, args):

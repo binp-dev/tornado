@@ -1,18 +1,20 @@
 import os
+import logging as log
 
 from manage.util.subproc import run
 from manage import Component
 
 
 class M4(Component):
-    def __init__(self):
-        self.path = None
-        self.output = None
-    
     def setup(self, args, tools):
         self.path = os.path.join(args["top"], "m4")
         self.output = os.path.join(args["output_dir"], "m4")
         self.tools = tools
+
+        if not args["no_dev"]:
+            self.device = args["dev_addr"]
+        else:
+            self.device = None
 
     def build(self):
         run(["mkdir", "-p", self.output])
@@ -40,3 +42,12 @@ class M4(Component):
 
     def test(self):
         pass
+
+    def deploy(self):
+        self.build()
+        if self.device is not None:
+            devcmd = "cat > m4image.bin && mount /dev/mmcblk0p1 /mnt && mv m4image.bin /mnt && umount /mnt"
+            hostcmd = "out=$(cat {}/release/m4image.bin) && echo '$out' | ssh root@{} '{}'".format(
+                self.output, self.device, devcmd
+            )
+            run(["sh", "-c", hostcmd])

@@ -29,12 +29,14 @@ class Ioc(Component):
 
     def build(self):
         self.manage(["build"])
+        self.manage(["build", "--target", "linux-arm"])
     
     def clean(self):
         self.manage(["clean"])
+        self.manage(["clean", "--target", "linux-arm"])
 
     def deploy(self):
-        self.manage(["build", "--target", "linux-arm"])
+        pass
 
     def test(self):
         self.manage(["test"])
