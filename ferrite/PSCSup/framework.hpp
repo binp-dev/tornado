@@ -28,7 +28,7 @@ class : public LazyStatic<Mutex<Device>> {
             #ifdef TEST
                 std::move(std::unique_ptr<Channel>(new ZmqChannel("tcp://127.0.0.1:8321"))),
             #else // TEST
-                #error "unimplemented"
+                std::move(std::unique_ptr<Channel>(new RpmsgChannel("/dev/ttyRPMSG0"))),
             #endif // TEST
             std::move(std::make_unique<LinearEncoder>(0, (1<<24) - 1, 3)),
             200,
