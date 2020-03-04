@@ -10,11 +10,7 @@ class M4(Component):
         self.path = os.path.join(args["top"], "m4")
         self.output = os.path.join(args["output_dir"], "m4")
         self.tools = tools
-
-        if not args["no_dev"]:
-            self.device = args["dev_addr"]
-        else:
-            self.device = None
+        self.device = args.get("dev_addr", None)
 
     def build(self):
         run(["mkdir", "-p", self.output])

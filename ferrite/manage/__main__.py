@@ -85,10 +85,10 @@ tools = {
 }
 tools["epics_base"] = EpicsBase(tools["armgcc_linux"])
 
-components = {
-    "m4": m4.M4(),
-    "ioc": ioc.Ioc(),
-}
+components = [
+    ("m4", m4.M4()),
+    ("ioc", ioc.Ioc()),
+]
 
 class Handler:
     def __init__(self):
@@ -118,7 +118,7 @@ class Handler:
         for c in tools.values():
             c.locate(args)
 
-        for c in components.values():
+        for _, c in components:
             c.setup(args, tools)
 
         return args
@@ -178,7 +178,7 @@ class BuildHandler(Handler):
         return args
 
     def _run(self, args):
-        for c in components.values():
+        for _, c in components:
             c.build()
 
 
@@ -198,7 +198,7 @@ class CleanHandler(Handler):
         return args
 
     def _run(self, args):
-        for c in components.values():
+        for _, c in components:
             c.clean()
 
 
@@ -233,7 +233,7 @@ class DeployHandler(BuildHandler):
         return args
 
     def _run(self, args):
-        for c in components.values():
+        for _, c in components:
             c.deploy()
 
 
@@ -253,7 +253,7 @@ class TestHandler(DeployHandler):
         return args
 
     def _run(self, args):
-        for c in components.values():
+        for _, c in components:
             c.test()
 
 

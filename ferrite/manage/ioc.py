@@ -6,37 +6,46 @@ from manage import Component
 
 
 class Ioc(Component):
-    def __init__(self):
-        self.path = None
-        self.output = None
-        self.tools = None
-    
     def setup(self, args, tools):
         self.path = os.path.join(args["top"], "ioc")
         self.output = os.path.join(args["output_dir"], "ioc")
         self.tools = tools
+        self.device = args.get("dev_addr", None)
 
-    def manage(self, cmd):
+    def manage(self, cmd, postfix):
         run(
             [
                 "python3", "-m", "manage",
                 "--top", self.path,
-                "--output", self.output,
+                "--output", os.path.join(self.output, postfix),
                 "--epics-base", self.tools["epics_base"].path,
             ] + cmd,
             cwd=self.path
         )
 
     def build(self):
-        self.manage(["build"])
-        self.manage(["build", "--target", "linux-arm"])
+        self.manage(["build"], "release")
+        self.manage(["build", "--target", "linux-arm"], "release")
     
     def clean(self):
-        self.manage(["clean"])
-        self.manage(["clean", "--target", "linux-arm"])
+        run(["rm", "-rf", self.output])
 
     def deploy(self):
-        pass
+        self.build()
+        if self.device is not None:
+            run([
+                "rsync", "-lr",
+                os.path.join(self.output, "../epics-base"),
+                "root@{}:/opt".format(self.device),
+            ])
+            run([
+                "rsync", "-lr",
+                os.path.join(self.output, "release"),
+                "root@{}:/opt/ioc".format(self.device),
+            ])
 
     def test(self):
-        self.manage(["test"])
+        self.manage(["test", "--tests", "unit"], "test/unit")
+        self.manage(["test", "--tests", "integration"], "test/integration")
+        if self.device is not None:
+            self.deploy()
