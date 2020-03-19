@@ -37,6 +37,7 @@ class Ioc(Component):
         self.output = os.path.join(args["output_dir"], "ioc")
         self.tools = tools
         self.device = args.get("dev_addr", None)
+        self.args = args
 
     def manage(self, cmd, postfix):
         run(
@@ -74,7 +75,11 @@ class Ioc(Component):
 
     def run_ioc(self):
         with IocRunner(self.device):
-            time.sleep(10)
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                pass
 
     def build(self):
         self.manage(["build"], "release")
@@ -83,14 +88,23 @@ class Ioc(Component):
     def clean(self):
         run(["rm", "-rf", self.output])
 
+    def send_epics(self):
+        run([
+            "rsync", "-lr",
+            os.path.join(self.output, "../epics-base"),
+            "root@{}:/opt".format(self.device),
+        ])
+
     def deploy(self):
         self.build()
         if self.device is not None:
-            run([
-                "rsync", "-lr",
-                os.path.join(self.output, "../epics-base"),
-                "root@{}:/opt".format(self.device),
-            ])
+            try:
+                self.run_cmd(["[[", "-d", "/opt/epics-base", "]]"])
+            except SubprocError:
+                self.send_epics()
+            else:
+                if self.args["update_epics"]:
+                    self.send_epics()
             run([
                 "rsync", "-lr",
                 os.path.join(self.output, "release"),
@@ -103,8 +117,9 @@ class Ioc(Component):
             ])
 
     def test(self):
-        self.manage(["test", "--tests", "unit"], "test/unit")
-        self.manage(["test", "--tests", "integration"], "test/integration")
+        if not self.args["no_local"]:
+            self.manage(["test", "--tests", "unit"], "test/unit")
+            self.manage(["test", "--tests", "integration"], "test/integration")
         if self.device is not None:
             self.deploy()
             self.reboot()

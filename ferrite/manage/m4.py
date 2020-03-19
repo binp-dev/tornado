@@ -36,9 +36,6 @@ class M4(Component):
     def clean(self):
         run(["rm", "-rf", self.output])
 
-    def test(self):
-        pass
-
     def deploy(self):
         self.build()
         if self.device is not None:
@@ -47,3 +44,6 @@ class M4(Component):
                 self.device, devcmd, img=os.path.join(self.output, "release/m4image.bin")
             )
             run(["bash", "-c", hostcmd])
+
+    def test(self):
+        self.deploy()

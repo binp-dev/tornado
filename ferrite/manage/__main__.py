@@ -222,6 +222,10 @@ class DeployHandler(BuildHandler):
             "--no-dev", action="store_true",
             help="Perform only local tasks (if there is no device accessible).",
         )
+        parser.add_argument(
+            "--update-epics", action="store_true",
+            help="Update epics-base directory on the device.",
+        )
         return parser
     
     def _handle_args(self, args):
@@ -245,6 +249,10 @@ class TestHandler(DeployHandler):
         parser = argparse.ArgumentParser(
             description="Test software both locally and on the device",
             parents=[super()._create_parser()], add_help=False,
+        )
+        parser.add_argument(
+            "--no-local", action="store_true",
+            help="Does not perform local testing.",
         )
         return parser
     
