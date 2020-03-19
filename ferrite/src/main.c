@@ -44,15 +44,16 @@ static void APP_Task_FlexcanSend(void *param) {
 
     while (true) {
         if (buf == NULL || pos + APP_WF_POINT_SIZE > APP_WF_BUF_SIZE) {
+            APP_INFO("RPMSG send waveform request");
+            // FIXME: Use `psc-common`.
+            uint8_t sid = 0x10;
+            APP_RPMSG_Send(&sid, 1);
+
             ASSERT(xSemaphoreTake(wf_ready_sem, portMAX_DELAY) == pdTRUE);
             
             wf_current = !wf_current;
             buf = wf_buffers[wf_current];
-            pos = 0;
-
-            // FIXME: Use `psc-common`.
-            const uint8_t data[] = {0x10};
-            APP_RPMSG_Send(data, 1);
+            pos = APP_WF_OFFSET;
         }
 
         frame.len = APP_WF_POINT_SIZE;
@@ -69,7 +70,7 @@ static void APP_Task_FlexcanSend(void *param) {
 
 
         if (buf != NULL) {
-            
+            // TODO: What 
         }
     }
 }
@@ -96,9 +97,27 @@ static void APP_Task_Rpmsg(void *param) {
     APP_INFO("RPMSG task start");
 
     if (APP_RPMSG_Init() != 0) {
-        APP_ERROR("RPMSG init error");
-        return;
+        PANIC_("RPMSG init error");
     }
+
+    uint8_t ssid;
+    uint32_t slen = 0;
+    int32_t sst = APP_RPMSG_Receive(&ssid, &slen, 1, APP_FOREVER_MS);
+    // FIXME: Use `psc-common`.
+    if (sst == 0 && slen == 1 && ssid == 0x01) {
+        APP_INFO("RPMSG received start signal");
+    } else {
+        PANIC_("RPMSG receive start signal error: { status: %d, len: %d, sid: %d }", sst, slen, (int)ssid);
+    }
+
+    xTaskCreate(
+        APP_Task_FlexcanSend, "FLEXCAN task",
+        APP_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL
+    );
+    xTaskCreate(
+        APP_Task_FlexcanReceive, "FLEXCAN Receive task",
+        APP_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL
+    );
 
     while(true) {
         uint32_t len = 0;
@@ -108,7 +127,10 @@ static void APP_Task_Rpmsg(void *param) {
         APP_INFO("RPMSG receive status: %d", status);
         if (status == 0) {
             // FIXME: Use `psc-common`.
-            ASSERT(len == APP_RPMSG_BUF_SIZE && buffer[0] == 0x11);
+            APP_INFO("RPMSG mesage received: { len: %d, sid: %d }", len, (int)buffer[0]);
+            ASSERT(len == APP_WF_BUF_SIZE);
+            ASSERT(buffer[0] == 0x11);
+            xSemaphoreGive(wf_ready_sem);
             PRINTF("[INFO] RPMSG: [%d] ", len);
             for (uint32_t i = 0; i < len; ++i) {
                 PRINTF("%02X ", buffer[i]);
@@ -136,19 +158,9 @@ int main(void) {
     
     /* Create tasks. */
     xTaskCreate(
-        APP_Task_FlexcanSend, "FLEXCAN task",
-        APP_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL
-    );
-
-    xTaskCreate(
         APP_Task_Rpmsg, "RPMSG task",
         APP_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL
     );
-
-    xTaskCreate(
-        APP_Task_FlexcanReceive, "FLEXCAN Receive task",
-        APP_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL
-    );    
 
     APP_INFO("Start GPT");
     APP_GPT_Init(APP_GPT_SEC/10, wf_send_sem);

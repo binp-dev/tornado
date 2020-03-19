@@ -19,7 +19,7 @@ void panic();
     panic()
 
 #define ASSERT(expr) \
-    if (expr) { \
+    if (!(expr)) { \
         PANIC_("Assertion failed:\r\n" #expr); \
     } \
     do {} while(0)

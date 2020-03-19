@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 void APP_RPMSG_HardwareInit();
+/* Should be called only from FreeRTOS task */
 uint8_t APP_RPMSG_Init();
 uint8_t APP_RPMSG_Deinit();
 
