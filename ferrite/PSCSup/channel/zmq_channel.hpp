@@ -27,8 +27,8 @@ public:
 
     void send(const uint8_t *bytes, size_t length, int timeout) override {
         zmq::pollitem_t pollitem = {(void *)socket, 0, ZMQ_POLLOUT};
-        if (zmq::poll(&pollitem, 1, timeout) > 0) {
-            if (socket.send(bytes, length, ZMQ_NOBLOCK) == 0) {
+        if (timeout < 0 || zmq::poll(&pollitem, 1, timeout) > 0) {
+            if (socket.send(bytes, length, timeout < 0 ? 0 : ZMQ_NOBLOCK) == 0) {
                 throw Channel::IoError("Error send");
             }
         } else {
@@ -37,8 +37,8 @@ public:
     }
     size_t receive(uint8_t *bytes, size_t max_length, int timeout) override {
         zmq::pollitem_t pollitem = {(void *)socket, 0, ZMQ_POLLIN};
-        if (zmq::poll(&pollitem, 1, timeout) > 0) {
-            size_t ret = socket.recv(bytes, max_length, ZMQ_NOBLOCK);
+        if (timeout < 0 || zmq::poll(&pollitem, 1, timeout) > 0) {
+            size_t ret = socket.recv(bytes, max_length, timeout < 0 ? 0 : ZMQ_NOBLOCK);
             if (ret == 0) {
                 throw Channel::IoError("Error receive");
             }

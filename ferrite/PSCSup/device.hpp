@@ -85,6 +85,9 @@ private:
     void serve_loop() {
         try {
             std::cout << "[ioc] Channel serve thread started" << std::endl;
+            
+            uint8_t start_sid = PSCA_START;
+            channel->send(&start_sid, 1, -1); // Wait forever
 
             while(!this->done.load()) {
                 size_t size = 0;

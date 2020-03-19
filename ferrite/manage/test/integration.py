@@ -53,6 +53,9 @@ def test(**kwargs):
 
     wfs = 200
     with ca.Repeater(prefix), ioc:
+        assert socket.recv() == b"\01"
+        print("Received start signal")
+
         queue = [0]*wfs*2
         for _ in range(4):
             socket.send(bytes([ids["PSCM_WF_REQ"]]))
@@ -79,3 +82,5 @@ def test(**kwargs):
         for _ in range(9):
             socket.send(bytes([ids["PSCM_WF_REQ"]]))
             queue = assert_pop(queue, decode(socket.recv(), ids)[1])
+
+    print("Test passed!")

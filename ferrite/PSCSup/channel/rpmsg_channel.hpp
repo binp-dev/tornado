@@ -17,6 +17,8 @@ private:
 
 public:
     RpmsgChannel(const std::string &dev) {
+        std::cout << "Init RPMSG channel: " << dev << std::endl;
+
         fd = open(dev.c_str(), O_NOCTTY | O_RDWR);// | O_NONBLOCK);
         if (fd < 0) {
             throw Channel::IoError("Open error");
@@ -25,13 +27,14 @@ public:
         if (tcsetattr(fd, TCSAFLUSH, &tty) < 0) {
             throw Channel::IoError("Error tcsetattr");
         }
-
     }
     ~RpmsgChannel() override {
         close(fd);
     }
 
     void send(const uint8_t *bytes, size_t length, int timeout) override {
+        std::cout << "Send data" << std::endl;
+
         pollfd pfd = { .fd = fd, .events = POLLOUT };
         int pr = poll(&pfd, 1, timeout);
         if (pr > 0) {
@@ -68,6 +71,8 @@ public:
         if (rr <= 0) {
             throw Channel::IoError("Read error");
         }
+
+        std::cout << "Received data" << std::endl;
 
         return (size_t)rr;
     }
