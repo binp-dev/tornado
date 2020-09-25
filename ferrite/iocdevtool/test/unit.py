@@ -1,7 +1,7 @@
 import os
 from subprocess import run
 
-from manage.build import build
+from iocdevtool.build import build
 
 
 def test(**kwargs):

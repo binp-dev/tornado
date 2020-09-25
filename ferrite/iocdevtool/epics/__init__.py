@@ -1,1 +1,1 @@
-from manage.epics.ioc import Ioc
+from iocdevtool.epics.ioc import Ioc
