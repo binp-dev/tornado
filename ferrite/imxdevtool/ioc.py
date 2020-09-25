@@ -42,7 +42,7 @@ class Ioc(Component):
     def manage(self, cmd, postfix):
         run(
             [
-                "python3", "-m", "manage",
+                "python3", "-m", "iocdevtool",
                 "--top", self.path,
                 "--output", os.path.join(self.output, postfix),
                 "--epics-base", self.tools["epics_base"].path,

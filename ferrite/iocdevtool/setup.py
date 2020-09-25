@@ -6,20 +6,20 @@ version = '0.1.0'
 repo_url = 'https://github.com/agerasev/imxdevtool'
 download_url = repo_url + '/tarball/' + version
 
-setup(name='imxdevtool',
+setup(name='iocdevtool',
       version=version,
-      description='Suite for building, deploying and testing heterogenous software for i.MX* SoC family',
+      description='Suite for building, deploying and testing EPICS IOC for embedded devices',
       long_description=open('README.md').read(),
       long_description_content_type="text/markdown",
       url=repo_url,
       download_url=download_url,
       author='Alexey Gerasev',
       author_email='alexey.gerasev@gmail.com',
-      keywords='imx soc heterogenous build deploy test epics ioc freertos crosscompile',
+      keywords='epics ioc embedded test deploy',
       license='MIT',
-      py_modules=['imxdevtool'],
+      py_modules=['iocdevtool'],
       entry_points = {
-        'console_scripts': ['imxdevtool=imxdevtool:main'],
+        'console_scripts': ['iocdevtool=iocdevtool:main'],
       },
       classifiers=[
         'Topic :: Software Development :: Embedded Systems',
