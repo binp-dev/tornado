@@ -1,8 +1,8 @@
 import os
 import logging as log
 
-from manage.util.subproc import run
-from manage import Component
+from imxdevtool.util.subproc import run
+from imxdevtool import Component
 
 
 class M4(Component):

@@ -1,7 +1,7 @@
 import os
 from subprocess import run
 
-from manage.test import unit, integration
+from iocdevtool.test import unit, integration
 
 
 def test(tests="all", **kwargs):
