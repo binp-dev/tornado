@@ -111,6 +111,9 @@ private:
                         send_buffer.size() - shift
                     ) + shift;
                     channel->send(send_buffer.data(), msg_size, TIMEOUT);
+                } else if (cmd == PSCM_MESSAGE) {
+                    uint8_t len = recv_buffer[1];
+                    std::cout << "Message(" << int(len) << "): " << recv_buffer.data() + 2 << std::endl;
                 } else {
                     throw Exception("Unknown PSCM command: " + std::to_string(cmd));
                 }

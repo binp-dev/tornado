@@ -32,7 +32,6 @@
 #include <stdbool.h>
 
 #include "board.h"
-#include "debug_console_imx.h"
 #include "ecspi.h"
 
 #include "FreeRTOS.h"
@@ -40,6 +39,7 @@
 #include "semphr.h"
 
 #include "app.h"
+#include "app_debug.h"
 #include "app_log.h"
 #include "app_time.h"
 #include "app_ecspi.h"

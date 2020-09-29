@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "board.h"
-#include "debug_console_imx.h"
+#include "app_debug.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -102,10 +102,13 @@ static void APP_Task_Rpmsg(void *param) {
         PANIC_("RPMSG init error");
     }
 
+#ifdef APP_DEBUG_IO_RPMSG
+    APP_Debug_IO_RPMSG_Enable();
+#endif // APP_DEBUG_IO_RPMSG
+
     uint8_t ssid;
     uint32_t slen = 0;
     int32_t sst = APP_RPMSG_Receive(&ssid, &slen, 1, APP_FOREVER_MS);
-    // FIXME: Use `psc-common`.
     if (sst == 0 && slen == 1 && ssid == PSCA_START) {
         APP_INFO("RPMSG received start signal");
     } else {
@@ -128,7 +131,6 @@ static void APP_Task_Rpmsg(void *param) {
         int32_t status = APP_RPMSG_Receive(buffer, &len, APP_RPMSG_BUF_SIZE, APP_FOREVER_MS);
         APP_INFO("RPMSG receive status: %d", status);
         if (status == 0) {
-            // FIXME: Use `psc-common`.
             APP_INFO("RPMSG mesage received: { len: %d, sid: %d }", len, (int)buffer[0]);
             ASSERT(len == APP_WF_BUF_SIZE);
             ASSERT(buffer[0] == PSCA_WF_DATA);

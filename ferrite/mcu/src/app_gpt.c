@@ -32,10 +32,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "board.h"
-#include "debug_console_imx.h"
 #include "gpt.h"
 
 #include "app.h"
+#include "app_debug.h"
 #include "app_gpt.h"
 
 
