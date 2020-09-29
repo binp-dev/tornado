@@ -49,30 +49,32 @@ def test(**kwargs):
     socket.bind("tcp://127.0.0.1:8321")
 
     prefix = os.path.join(kwargs["epics_base"], "bin", kwargs["host_arch"])
-    ids = proto.read_defines(os.path.join(kwargs["top"], "common/proto.h"))
+    ids = proto.read_defines(os.path.join(kwargs["top"], "../common/proto.h"))
+    def id_as_bytes(id):
+        return bytes([id])
 
     wfs = 200
     with ca.Repeater(prefix), ioc:
-        assert socket.recv() == b"\01"
+        assert socket.recv() == id_as_bytes(ids["PSCA_START"])
         print("Received start signal")
 
         queue = [0]*wfs*2
         for _ in range(4):
-            socket.send(bytes([ids["PSCM_WF_REQ"]]))
+            socket.send(id_as_bytes(ids["PSCM_WF_REQ"]))
             queue = assert_pop(queue, decode(socket.recv(), ids)[1])
         
         wf = list(range(wfs))
         ca.put("WAVEFORM", wf, array=True, prefix=prefix)
         queue += wf*2
         for _ in range(5):
-            socket.send(bytes([ids["PSCM_WF_REQ"]]))
+            socket.send(id_as_bytes(ids["PSCM_WF_REQ"]))
             queue = assert_pop(queue, decode(socket.recv(), ids)[1])
 
         wf = [wfs - x - 1 for x in range(wfs)]
         ca.put("WAVEFORM", wf, array=True, prefix=prefix)
         queue += wf*2
         for _ in range(5):
-            socket.send(bytes([ids["PSCM_WF_REQ"]]))
+            socket.send(id_as_bytes(ids["PSCM_WF_REQ"]))
             queue = assert_pop(queue, decode(socket.recv(), ids)[1])
 
         wf = [wfs + x for x in range(wfs)]
@@ -80,7 +82,7 @@ def test(**kwargs):
         ca.put("WAVEFORM", wf, array=True, prefix=prefix)
         queue += wf*4
         for _ in range(9):
-            socket.send(bytes([ids["PSCM_WF_REQ"]]))
+            socket.send(id_as_bytes(ids["PSCM_WF_REQ"]))
             queue = assert_pop(queue, decode(socket.recv(), ids)[1])
 
     print("Test passed!")
