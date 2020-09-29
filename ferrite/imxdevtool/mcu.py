@@ -5,10 +5,10 @@ from imxdevtool.util.subproc import run
 from imxdevtool import Component
 
 
-class M4(Component):
+class Mcu(Component):
     def setup(self, args, tools):
-        self.path = os.path.join(args["top"], "m4")
-        self.output = os.path.join(args["output_dir"], "m4")
+        self.path = os.path.join(args["top"], "mcu")
+        self.output = os.path.join(args["output_dir"], "mcu")
         self.tools = tools
         self.device = args.get("dev_addr", None)
 
@@ -27,7 +27,7 @@ class M4(Component):
             ],
             add_env={
                 "FREERTOS_DIR": self.tools["freertos"].path,
-                "ARMGCC_DIR": self.tools["armgcc_m4"].path,
+                "ARMGCC_DIR": self.tools["armgcc_mcu"].path,
             },
             cwd=self.output,
         )

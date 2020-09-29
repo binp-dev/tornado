@@ -41,7 +41,7 @@ class Ioc(Component):
         self.device = args.get("dev_addr", None)
         self.args = args
 
-    def ioc_run_cmd(self, iocdtcmd, postfix, *args, **kwargs):
+    def _ioc_run_cmd(self, iocdtcmd, postfix, *args, **kwargs):
         iocdtcmd(
             top=self.path,
             output_dir=os.path.join(self.output, postfix),
@@ -49,25 +49,25 @@ class Ioc(Component):
             *args, **kwargs,
         )
 
-    def ioc_build(self, postfix, *args, **kwargs):
-        self.ioc_run_cmd(iocdevtool.build, postfix, *args, **kwargs)
+    def _ioc_build(self, postfix, *args, **kwargs):
+        self._ioc_run_cmd(iocdevtool.build, postfix, *args, **kwargs)
 
-    def ioc_test(self, postfix, *args, **kwargs):
-        self.ioc_run_cmd(iocdevtool.test, postfix, *args, **kwargs)
+    def _ioc_test(self, postfix, *args, **kwargs):
+        self._ioc_run_cmd(iocdevtool.test, postfix, *args, **kwargs)
 
-    def dev_run_cmd(self, args):
+    def _dev_run_cmd(self, args):
         run(["ssh", "root@{}".format(self.device)] + args)
 
-    def dev_reboot(self):
+    def _dev_reboot(self):
         try:
-            self.dev_run_cmd(["reboot", "now"])
+            self._dev_run_cmd(["reboot", "now"])
         except:
             pass
         log.info("Waiting for SoC to reboot ...")
         time.sleep(10)
         for i in range(10-1, -1, -1):
             try:
-                self.dev_run_cmd(["uname", "-a"])
+                self._dev_run_cmd(["uname", "-a"])
             except SubprocError:
                 if i > 0:
                     time.sleep(10)
@@ -78,7 +78,7 @@ class Ioc(Component):
                 conn = True
                 break
 
-    def dev_run_ioc(self):
+    def _dev_run_ioc(self):
         with IocRunner(self.device):
             try:
                 while True:
@@ -87,13 +87,13 @@ class Ioc(Component):
                 pass
 
     def build(self):
-        self.ioc_build("release")
-        self.ioc_build("release", target="linux-arm")
+        self._ioc_build("release")
+        self._ioc_build("release", target="linux-arm")
     
     def clean(self):
         run(["rm", "-rf", self.output])
 
-    def deploy_epics(self):
+    def _deploy_epics(self):
         run([
             "rsync", "-lr",
             os.path.join(self.output, "../epics-base"),
@@ -104,18 +104,18 @@ class Ioc(Component):
         self.build()
         if self.device is not None:
             try:
-                self.dev_run_cmd(["[[", "-d", "/opt/epics-base", "]]"])
+                self._dev_run_cmd(["[[", "-d", "/opt/epics-base", "]]"])
             except SubprocError:
-                self.deploy_epics()
+                self._deploy_epics()
             else:
                 if self.args["update_epics"]:
-                    self.deploy_epics()
+                    self._deploy_epics()
             run([
                 "rsync", "-lr",
                 os.path.join(self.output, "release"),
                 "root@{}:/opt/ioc".format(self.device),
             ])
-            self.dev_run_cmd([
+            self._dev_run_cmd([
                 "sed", "-i",
                 "'s/^epicsEnvSet(\"TOP\",.*)$/epicsEnvSet(\"TOP\",\"\\/opt\\/ioc\\/release\")/'",
                 "/opt/ioc/release/iocBoot/iocPSC/envPaths"
@@ -123,9 +123,9 @@ class Ioc(Component):
 
     def test(self):
         if not self.args["no_local"]:
-            self.ioc_test("test/unit", tests="unit")
-            self.ioc_test("test/integration", tests="integration")
+            self._ioc_test("test/unit", tests="unit")
+            self._ioc_test("test/integration", tests="integration")
         if self.device is not None:
             self.deploy()
-            self.dev_reboot()
-            self.dev_run_ioc()
+            self._dev_reboot()
+            self._dev_run_ioc()

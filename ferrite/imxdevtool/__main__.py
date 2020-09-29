@@ -3,7 +3,7 @@ import argparse
 import logging as log
 
 from imxdevtool.toolchain import epics_base, freertos, armgcc
-from imxdevtool import ioc, m4
+from imxdevtool import ioc, mcu
 
 log.basicConfig(format='[%(levelname)s] %(message)s', level=log.DEBUG)
 
@@ -27,17 +27,17 @@ class Tool:
         self.loader.load(self.path)
 
 
-class ArmgccM4(Tool):
+class ArmgccMcu(Tool):
     def __init__(self):
         super().__init__()
 
     def locate(self, args):
         self.set_path(
-            args.get("armgcc_m4", None),
-            "ARMGCC_M4",
-            os.path.join(args["top"], "toolchain", "armgcc/m4"),
+            args.get("armgcc_mcu", None),
+            "ARMGCC_MCU",
+            os.path.join(args["top"], "toolchain", "armgcc/mcu"),
         )
-        self.loader = armgcc.m4_loader
+        self.loader = armgcc.mcu_loader
 
 class ArmgccLinux(Tool):
     def __init__(self):
@@ -79,14 +79,14 @@ class EpicsBase(Tool):
 
 
 tools = {
-    "armgcc_m4":    ArmgccM4(),
+    "armgcc_mcu":    ArmgccMcu(),
     "armgcc_linux": ArmgccLinux(),
     "freertos":     Freertos(),
 }
 tools["epics_base"] = EpicsBase(tools["armgcc_linux"])
 
 components = [
-    ("m4", m4.M4()),
+    ("mcu", mcu.Mcu()),
     ("ioc", ioc.Ioc()),
 ]
 
