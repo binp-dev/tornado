@@ -12,7 +12,7 @@
 #include <utils/panic.hpp>
 #include <channel/channel.hpp>
 #include <encoder.hpp>
-#include <../common/proto.h>
+#include <../../common/proto.h>
 
 
 #define TIMEOUT 10 // ms

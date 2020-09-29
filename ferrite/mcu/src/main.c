@@ -16,6 +16,8 @@
 #include "app_time.h"
 #include "app_log.h"
 
+#include "../../common/proto.h"
+
 
 #define APP_TASK_STACK_SIZE    256
 #define APP_RPMSG_BUF_SIZE     256
@@ -46,7 +48,7 @@ static void APP_Task_FlexcanSend(void *param) {
         if (buf == NULL || pos + APP_WF_POINT_SIZE > APP_WF_BUF_SIZE) {
             APP_INFO("RPMSG send waveform request");
             // FIXME: Use `psc-common`.
-            uint8_t sid = 0x10;
+            uint8_t sid = PSCM_WF_REQ;
             APP_RPMSG_Send(&sid, 1);
 
             ASSERT(xSemaphoreTake(wf_ready_sem, portMAX_DELAY) == pdTRUE);
@@ -104,7 +106,7 @@ static void APP_Task_Rpmsg(void *param) {
     uint32_t slen = 0;
     int32_t sst = APP_RPMSG_Receive(&ssid, &slen, 1, APP_FOREVER_MS);
     // FIXME: Use `psc-common`.
-    if (sst == 0 && slen == 1 && ssid == 0x01) {
+    if (sst == 0 && slen == 1 && ssid == PSCA_START) {
         APP_INFO("RPMSG received start signal");
     } else {
         PANIC_("RPMSG receive start signal error: { status: %d, len: %d, sid: %d }", sst, slen, (int)ssid);
@@ -129,7 +131,7 @@ static void APP_Task_Rpmsg(void *param) {
             // FIXME: Use `psc-common`.
             APP_INFO("RPMSG mesage received: { len: %d, sid: %d }", len, (int)buffer[0]);
             ASSERT(len == APP_WF_BUF_SIZE);
-            ASSERT(buffer[0] == 0x11);
+            ASSERT(buffer[0] == PSCA_WF_DATA);
             xSemaphoreGive(wf_ready_sem);
             PRINTF("[INFO] RPMSG: [%d] ", len);
             for (uint32_t i = 0; i < len; ++i) {
