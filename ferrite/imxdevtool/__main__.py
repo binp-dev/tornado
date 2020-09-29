@@ -39,17 +39,17 @@ class ArmgccMcu(Tool):
         )
         self.loader = armgcc.mcu_loader
 
-class ArmgccLinux(Tool):
+class ArmgccApp(Tool):
     def __init__(self):
         super().__init__()
 
     def locate(self, args):
         self.set_path(
-            args.get("armgcc_linux", None),
-            "ARMGCC_LINUX",
-            os.path.join(args["top"], "toolchain", "armgcc/linux"),
+            args.get("armgcc_app", None),
+            "ARMGCC_APP",
+            os.path.join(args["top"], "toolchain", "armgcc/app"),
         )
-        self.loader = armgcc.linux_loader
+        self.loader = armgcc.app_loader
 
 class Freertos(Tool):
     def __init__(self):
@@ -80,10 +80,10 @@ class EpicsBase(Tool):
 
 tools = {
     "armgcc_mcu":    ArmgccMcu(),
-    "armgcc_linux": ArmgccLinux(),
+    "armgcc_app": ArmgccApp(),
     "freertos":     Freertos(),
 }
-tools["epics_base"] = EpicsBase(tools["armgcc_linux"])
+tools["epics_base"] = EpicsBase(tools["armgcc_app"])
 
 components = [
     ("mcu", mcu.Mcu()),
