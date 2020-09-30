@@ -6,6 +6,7 @@
 #define APP_FLEXCAN_IRQ_PRIORITY   3
 #define APP_GPT_IRQ_PRIORITY       3
 #define APP_MU_IRQ_PRIORITY        3
+#define APP_GPIO_IRQ_PRIORITY      3
 
 
 void panic();

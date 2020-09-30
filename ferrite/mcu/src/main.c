@@ -38,16 +38,16 @@ static void APP_Task_Rpmsg(void *param) {
 #endif // APP_DEBUG_IO_RPMSG
 
     /* Initialize GPIO */
-    //APP_GPIO_HardwareInit();
+    APP_GPIO_HardwareInit();
 
     SemaphoreHandle_t clock_sem = xSemaphoreCreateBinary();
     ASSERT(clock_sem);
 
-    APP_INFO("Start GPT");
-    APP_GPT_Init(APP_GPT_SEC, clock_sem);
+    //APP_INFO("Start GPT");
+    //APP_GPT_Init(APP_GPT_SEC, clock_sem);
 
-    //APP_INFO("Init GPIO");
-    //ASSERT(APP_GPIO_Init(APP_GPIO_MODE_INPUT, clock_sem) == 0);
+    APP_INFO("Init GPIO");
+    ASSERT(APP_GPIO_Init(APP_GPIO_MODE_INPUT, clock_sem) == 0);
 
     uint8_t ssid;
     uint32_t slen = 0;
@@ -58,10 +58,12 @@ static void APP_Task_Rpmsg(void *param) {
         PANIC_("RPMSG receive start signal error: { status: %d, len: %d, sid: %d }", sst, slen, (int)ssid);
     }
 
+    const int INTR_DIV = 1000;
     while (true) {
-        ASSERT(xSemaphoreTake(clock_sem, portMAX_DELAY) == pdTRUE);
-
-        APP_INFO("Clock interrupt received!");
+        for (int i = 0; i < INTR_DIV; ++i) {
+            ASSERT(xSemaphoreTake(clock_sem, portMAX_DELAY) == pdTRUE);
+        }
+        APP_INFO("%d clock interrupts received!", INTR_DIV);
     }
 
     /*

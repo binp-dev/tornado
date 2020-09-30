@@ -51,18 +51,21 @@ static uint8_t app_gpio_mode = 0;
 
 static gpio_config_t app_gpio_config = {
     "App GPIO",                          /* name */
-    &IOMUXC_SW_MUX_CTL_PAD_EPDC_DATA04,  /* muxReg */
+    &IOMUXC_SW_MUX_CTL_PAD_EPDC_PWR_COM,  /* muxReg */
     5,                                   /* muxConfig */
-    &IOMUXC_SW_PAD_CTL_PAD_EPDC_DATA04,  /* padReg */
+    &IOMUXC_SW_PAD_CTL_PAD_EPDC_PWR_COM,  /* padReg */
     /*
     IOMUXC_SW_PAD_CTL_PAD_I2C2_SDA_PS(2) |
     IOMUXC_SW_PAD_CTL_PAD_I2C2_SDA_PE_MASK |
     IOMUXC_SW_PAD_CTL_PAD_I2C2_SDA_HYS_MASK,
     */
-    IOMUXC_SW_PAD_CTL_PAD_EPDC_DATA04_PS(0) | IOMUXC_SW_PAD_CTL_PAD_EPDC_DATA04_PE_MASK, /* padConfig */
+    IOMUXC_SW_PAD_CTL_PAD_EPDC_PWR_COM_PS(0) | IOMUXC_SW_PAD_CTL_PAD_EPDC_PWR_COM_PE_MASK, /* padConfig */
     GPIO2,                               /* base */
-    4                                    /* pin */
+    30                                    /* pin */
 };
+
+//MX7D_PAD_EPDC_PWR_COM__GPIO2_IO30  0x00AC 0x031C 0x0000 0x5 0x0
+//MX7D_PAD_EPDC_DATA04__GPIO2_IO4    0x0044 0x02B4 0x0000 0x5 0x0
 
 /*
 #define APP_GPIO_IRQ_NUM BOARD_GPIO_KEY_IRQ_NUM
@@ -70,8 +73,8 @@ static gpio_config_t app_gpio_config = {
 #define APP_GPIO_CONFIG BOARD_GPIO_KEY_CONFIG
 */
 
-#define APP_GPIO_IRQ_NUM GPIO2_INT15_0_IRQn
-#define APP_GPIO_HANDLER GPIO2_INT15_0_Handler
+#define APP_GPIO_IRQ_NUM GPIO2_INT31_16_IRQn
+#define APP_GPIO_HANDLER GPIO2_INT31_16_Handler
 #define APP_GPIO_CONFIG (&app_gpio_config)
 
 static volatile SemaphoreHandle_t gpio_sem = NULL;

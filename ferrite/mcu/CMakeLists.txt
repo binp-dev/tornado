@@ -175,6 +175,8 @@ ADD_EXECUTABLE(psc_m4
     "${ProjDirPath}/src/app_debug.c"
     "${ProjDirPath}/src/app_log.c"
     "${ProjDirPath}/src/app_log.h"
+    "${ProjDirPath}/src/app_gpio.c"
+    "${ProjDirPath}/src/app_gpio.h"
     "${ProjDirPath}/src/app_time.c"
     "${ProjDirPath}/src/app_time.h"
     "${ProjDirPath}/src/app_gpt.c"
