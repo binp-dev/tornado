@@ -64,8 +64,9 @@ static gpio_config_t app_gpio_config = {
     30                                    /* pin */
 };
 
-//MX7D_PAD_EPDC_PWR_COM__GPIO2_IO30  0x00AC 0x031C 0x0000 0x5 0x0
 //MX7D_PAD_EPDC_DATA04__GPIO2_IO4    0x0044 0x02B4 0x0000 0x5 0x0
+//MX7D_PAD_EPDC_PWR_COM__GPIO2_IO30  0x00AC 0x031C 0x0000 0x5 0x0
+//MX7D_PAD_EPDC_GDRL__GPIO2_IO26     0x009C 0x030C 0x0000 0x5 0x0
 
 /*
 #define APP_GPIO_IRQ_NUM BOARD_GPIO_KEY_IRQ_NUM
