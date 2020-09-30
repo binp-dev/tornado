@@ -58,6 +58,9 @@ def test(**kwargs):
         assert socket.recv() == id_as_bytes(ids["PSCA_START"])
         print("Received start signal")
 
+        msg = "Hello from MCU!"
+        socket.send(id_as_bytes(ids["PSCM_MESSAGE"]) + bytes([len(msg)]) + msg.encode("utf-8"))
+
         queue = [0]*wfs*2
         for _ in range(4):
             socket.send(id_as_bytes(ids["PSCM_WF_REQ"]))
