@@ -39,7 +39,7 @@ class Mcu(Component):
     def deploy(self):
         self.build()
         if self.device is not None:
-            devcmd = "cat > m4image.bin && mount /dev/mmcblk0p1 /mnt && mv m4image.bin /mnt && umount /mnt"
+            devcmd = "cat > m4image.bin && mount /dev/mmcblk2p1 /mnt && mv m4image.bin /mnt && umount /mnt"
             hostcmd = "test -f {img} && cat {img} | ssh root@{} '{}'".format(
                 self.device, devcmd, img=os.path.join(self.output, "release/m4image.bin")
             )
