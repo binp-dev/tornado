@@ -1,5 +1,7 @@
 #pragma once
 
+#include "app_debug.h"
+
 #define APP_LOG_LEVEL_ERROR 1
 #define APP_LOG_LEVEL_WARN  2
 #define APP_LOG_LEVEL_INFO  3

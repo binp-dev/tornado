@@ -29,13 +29,13 @@
  */
 
 #include "board.h"
-#include "debug_console_imx.h"
 #include "mu_imx.h"
 
 #include "FreeRTOS.h"
 #include "rpmsg/rpmsg_rtos.h"
 
 #include "app.h"
+#include "app_debug.h"
 #include "app_rpmsg.h"
 #include "app_log.h"
 

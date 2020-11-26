@@ -47,15 +47,11 @@ void hardware_init(void)
     /* initialize debug uart */
     dbg_uart_init();
 
-
-    /* Initialize FLEXCAN hardware */
-    APP_FLEXCAN_HardwareInit();
+    /* Initialize RPMSG hardware */
+    APP_RPMSG_HardwareInit();
 
     /* Initialize GPT hardware */
     APP_GPT_HardwareInit();
-
-    /* Initialize RPMSG hardware */
-    APP_RPMSG_HardwareInit();
 }
 
 /*******************************************************************************

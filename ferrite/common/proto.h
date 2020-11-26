@@ -10,4 +10,5 @@
 /* M4 to A7 message ids */ 
 #define PSCM_NONE              0x00      /* none */
 #define PSCM_WF_REQ            0x10      /* waveform request */
+#define PSCM_MESSAGE           0xE0      /* debug message */
 #define PSCM_ERROR             0xF1      /* error report */
