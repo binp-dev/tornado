@@ -11,7 +11,7 @@ export EPICS_BASE=/path/to/epics-base
 ## Manage script
 
 ```bash
-python3 -m iocdevtool <command> [options ...]
+python3 -m script.ioctool <command> [options ...]
 ```
 
 ### Commands
@@ -27,5 +27,5 @@ python3 -m iocdevtool <command> [options ...]
 To list all possible options:
 
 ```bash
-python3 -m iocdevtool --help
+python3 -m script.ioctool --help
 ```

@@ -1,7 +1,7 @@
 import os
 
-from imxdevtool.toolchain import ToolLoader
-from imxdevtool.util.subproc import run
+from script.toolchain import ToolLoader
+from script.util.subproc import run
 
 
 class ArchiveLoader(ToolLoader):

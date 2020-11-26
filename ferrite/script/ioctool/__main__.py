@@ -2,8 +2,8 @@ import os
 from argparse import ArgumentParser
 
 
-from iocdevtool.build import build, clean
-from iocdevtool.test import test
+from script.ioctool.build import build, clean
+from script.ioctool.test import test
 
 tasks = {
     "build": build,
@@ -14,7 +14,7 @@ tasks = {
 if __name__ == "__main__":
     parser = ArgumentParser(
         description="IOC management tool",
-        usage="python3 -m iocdevtool <command> [options...]",
+        usage="python3 -m script.ioctool <command> [options...]",
     )
 
     parser.add_argument(

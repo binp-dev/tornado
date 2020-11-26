@@ -3,10 +3,10 @@ from subprocess import Popen
 import time
 import logging as log
 
-from imxdevtool.util.subproc import run, SubprocError
-from imxdevtool import Component
+from script.util.subproc import run, SubprocError
+from script import Component
 
-import iocdevtool
+import script.ioctool
 
 
 class IocRunner:
@@ -50,10 +50,10 @@ class Ioc(Component):
         )
 
     def _ioc_build(self, postfix, *args, **kwargs):
-        self._ioc_run_cmd(iocdevtool.build, postfix, *args, **kwargs)
+        self._ioc_run_cmd(script.ioctool.build, postfix, *args, **kwargs)
 
     def _ioc_test(self, postfix, *args, **kwargs):
-        self._ioc_run_cmd(iocdevtool.test, postfix, *args, **kwargs)
+        self._ioc_run_cmd(script.ioctool.test, postfix, *args, **kwargs)
 
     def _dev_run_cmd(self, args):
         run(["ssh", "root@{}".format(self.device)] + args)

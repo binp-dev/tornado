@@ -34,5 +34,5 @@ These variables specify the location of the following components. If they aren't
 ### Run testing process
 
 ```bash
-python3 -m imxdevtool test --dev-addr <device-ip-address>
+python3 -m script test --dev-addr <device-ip-address>
 ```

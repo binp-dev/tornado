@@ -2,9 +2,9 @@ import os
 import time
 import zmq
 
-from iocdevtool.build import build
-from iocdevtool.epics import Ioc, ca
-from iocdevtool.test import proto
+from script.ioctool.build import build
+from script.ioctool.epics import Ioc, ca
+from script.ioctool.test import proto
 
 def decode(data, ids, nbytes=3, shift=1, dlen=256):
     assert len(data) == ((dlen - shift)//nbytes)*nbytes + shift

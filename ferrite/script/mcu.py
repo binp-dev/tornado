@@ -1,8 +1,8 @@
 import os
 import logging as log
 
-from imxdevtool.util.subproc import run
-from imxdevtool import Component
+from script.util.subproc import run
+from script import Component
 
 
 class Mcu(Component):

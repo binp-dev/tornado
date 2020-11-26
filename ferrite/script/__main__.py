@@ -2,8 +2,8 @@ import sys, os
 import argparse
 import logging as log
 
-from imxdevtool.toolchain import epics_base, freertos, armgcc
-from imxdevtool import ioc, mcu
+from script.toolchain import epics_base, freertos, armgcc
+from script import ioc, mcu
 
 log.basicConfig(format='[%(levelname)s] %(message)s', level=log.DEBUG)
 
@@ -275,7 +275,7 @@ commands = {
 
 command_parser = argparse.ArgumentParser(
     description="PSC software building and testing tool",
-    usage="python3 -m imxdevtool <command> [options...]",
+    usage="python3 -m script <command> [options...]",
 )
 command_parser.add_argument(
     "command", choices=commands.keys(),

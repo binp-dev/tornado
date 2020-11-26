@@ -2,12 +2,25 @@
 
 Software for the BINP next-gen power supply controller.
 
-## Usage
+## Requirements
 
-[`imxdevtool`](https://github.com/binp-automation/imxdevtool) is used to automate building, deploying and testing process.
+### Python packages
+
+```bash
+pip3 install -r script/requirements.txt
+```
+
+### Testing dependencies
+
++ `catch`
++ `libzmq3-dev`
++ `libczmq-dev`
+
+
+## Usage
 
 For example, to build, deploy and run tests:
 
 ```bash
-python3 -m imxdevtool test --dev-addr <device-ip-address>
+python3 -m script test --dev-addr <device-ip-address>
 ```

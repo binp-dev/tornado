@@ -1,8 +1,8 @@
 import os
 
-from imxdevtool.toolchain import ToolLoader
-from imxdevtool.util.subproc import run, SubprocError
-from imxdevtool.util.files import substitute
+from script.toolchain import ToolLoader
+from script.util.subproc import run, SubprocError
+from script.util.files import substitute
 
 
 def clone(path):
