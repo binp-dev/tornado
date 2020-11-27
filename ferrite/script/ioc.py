@@ -1,10 +1,9 @@
 import os
-from subprocess import Popen
 import time
 import logging as log
 
 from script.util.subproc import run, SubprocError
-from script.remote import _ssh_prefix
+from script.remote import Remote
 from script import Component
 
 import script.ioctool
@@ -16,8 +15,7 @@ class IocRunner:
         self.proc = None
 
     def __enter__(self):
-        self.proc = Popen([
-            *_ssh_prefix(self.device),
+        self.proc = Remote(self.device).popen([
             "export {}; cd {} && {} {}".format(
                 "LD_LIBRARY_PATH=/opt/epics-base/lib/linux-arm:/opt/ioc/release/lib/linux-arm",
                 "/opt/ioc/release/iocBoot/iocPSC",
@@ -56,7 +54,7 @@ class Ioc(Component):
         self._ioc_run_cmd(script.ioctool.test, postfix, *args, **kwargs)
 
     def _dev_run_cmd(self, args):
-        run(_ssh_prefix(self.device) + args)
+        Remote(self.device).run(args)
 
     def _dev_reboot(self):
         try:
@@ -94,28 +92,29 @@ class Ioc(Component):
         run(["rm", "-rf", self.output])
 
     def _deploy_epics(self):
-        run([
-            "rsync", "-lr",
+        Remote(self.device).store(
             os.path.join(self.output, "../epics-base"),
-            "root@{}:/opt".format(self.device),
-        ])
+            "/opt",
+            r=True,
+        )
 
     def deploy(self):
         self.build()
         if self.device is not None:
+            dev = Remote(self.device)
             try:
-                self._dev_run_cmd(["[[", "-d", "/opt/epics-base", "]]"])
+                dev.run(["[[", "-d", "/opt/epics-base", "]]"])
             except SubprocError:
                 self._deploy_epics()
             else:
                 if self.args["update_epics"]:
                     self._deploy_epics()
-            run([
-                "rsync", "-lr",
+            dev.store(
                 os.path.join(self.output, "release"),
-                "root@{}:/opt/ioc".format(self.device),
-            ])
-            self._dev_run_cmd([
+                "/opt/ioc",
+                r=True,
+            )
+            dev.run([
                 "sed", "-i",
                 "'s/^epicsEnvSet(\"TOP\",.*)$/epicsEnvSet(\"TOP\",\"\\/opt\\/ioc\\/release\")/'",
                 "/opt/ioc/release/iocBoot/iocPSC/envPaths"

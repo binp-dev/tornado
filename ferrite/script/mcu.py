@@ -2,7 +2,7 @@ import os
 import logging as log
 
 from script.util.subproc import run
-from script.remote import _ssh_prefix
+from script.remote import Remote
 from script import Component
 
 
@@ -40,11 +40,9 @@ class Mcu(Component):
     def deploy(self):
         self.build()
         if self.device is not None:
-            devcmd = "cat > m4image.bin && mount /dev/mmcblk0p1 /mnt && mv m4image.bin /mnt && umount /mnt"
-            hostcmd = "test -f {img} && cat {img} | {} '{}'".format(
-                " ".join(_ssh_prefix(self.device)), devcmd, img=os.path.join(self.output, "release/m4image.bin")
-            )
-            run(["bash", "-c", hostcmd])
+            remote = Remote(self.device)
+            remote.store(os.path.join(self.output, "release/m4image.bin"), "/m4image.bin")
+            remote.run(["mount /dev/mmcblk2p1 /mnt && mv /m4image.bin /mnt && umount /mnt"])
 
     def test(self):
         self.deploy()

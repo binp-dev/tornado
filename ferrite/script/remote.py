@@ -1,20 +1,45 @@
 from script.util.subproc import run
+from subprocess import Popen
 
-def _ssh_prefix(addr, user="root"):
+
+def _split_addr(addr):
     comps = addr.split(":")
     if len(comps) == 2:
-        host, port = comps
+        return comps
     elif len(comps) == 1:
-        host, port = addr, "22"
+        return addr, "22"
     else:
         raise Exception(f"Bad address format: '{addr}'")
-    return ["ssh", "-p", port, f"{user}@{host}"]
 
-"""
-def store(addr, src, dst):
-    devcmd = "cat > m4image.bin && mount /dev/mmcblk0p1 /mnt && mv m4image.bin /mnt && umount /mnt"
-    hostcmd = "test -f {img} && cat {img} | ssh root@{} '{}'".format(
-        self.device, devcmd, img=os.path.join(self.output, "release/m4image.bin")
-    )
-    run(["bash", "-c", hostcmd])
-"""
+class Remote:
+    def __init__(self, *args, user="root"):
+        if len(args) == 2:
+            self.host, self.port = args
+        elif len(args) == 1:
+            self.host, self.port = _split_addr(args[0])
+        else:
+            raise Exception(f"Bad Remote args format")
+        self.user = user
+
+    def store(self, src, dst, r=False):
+        if not r:
+            run([
+                "bash", "-c",
+                f"test -f {src} && cat {src} | ssh -p {self.port} {self.user}@{self.host} 'cat > {dst}'"
+            ])
+        else:
+            run([
+                "rsync", "-lr",
+                "--rsh", f"ssh -p {self.port}",
+                src,
+                f"{self.user}@{self.host}:{dst}",
+            ])
+
+    def _prefix(self):
+        return ["ssh", "-p", self.port, f"{self.user}@{self.host}"]
+
+    def run(self, args):
+        run(self._prefix() + args)
+
+    def popen(self, args):
+        return Popen(self._prefix() + args)
