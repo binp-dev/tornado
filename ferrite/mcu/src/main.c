@@ -64,7 +64,7 @@ static void APP_Task_Rpmsg(void *param) {
         for (int i = 0; i < INTR_DIV; ++i) {
             ASSERT(xSemaphoreTake(clock_sem, portMAX_DELAY) == pdTRUE);
         }
-        APP_INFO("Clock: %d bunch of %d interrupts received!", counter, INTR_DIV);
+        //APP_INFO("Clock: %d bunch of %d interrupts received!", counter, INTR_DIV);
         counter += 1;
     }
 
