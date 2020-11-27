@@ -4,6 +4,7 @@ import time
 import logging as log
 
 from script.util.subproc import run, SubprocError
+from script.remote import _ssh_prefix
 from script import Component
 
 import script.ioctool
@@ -16,8 +17,7 @@ class IocRunner:
 
     def __enter__(self):
         self.proc = Popen([
-            "ssh",
-            "root@{}".format(self.device),
+            *_ssh_prefix(self.device),
             "export {}; cd {} && {} {}".format(
                 "LD_LIBRARY_PATH=/opt/epics-base/lib/linux-arm:/opt/ioc/release/lib/linux-arm",
                 "/opt/ioc/release/iocBoot/iocPSC",
@@ -56,7 +56,7 @@ class Ioc(Component):
         self._ioc_run_cmd(script.ioctool.test, postfix, *args, **kwargs)
 
     def _dev_run_cmd(self, args):
-        run(["ssh", "root@{}".format(self.device)] + args)
+        run(_ssh_prefix(self.device) + args)
 
     def _dev_reboot(self):
         try:

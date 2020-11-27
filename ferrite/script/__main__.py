@@ -212,7 +212,7 @@ class DeployHandler(BuildHandler):
             parents=[super()._create_parser()], add_help=False,
         )
         parser.add_argument(
-            "--dev-addr", type=str,
+            "--dev-addr", type=str, metavar="ADDR[:PORT]",
             help=" ".join([
                 "Specify device IP address to connect via SSH.",
                 "The SSH should be configured to allow login as `root` without prompt for password."
