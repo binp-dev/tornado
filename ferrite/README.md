@@ -12,7 +12,7 @@ pip3 install -r script/requirements.txt
 
 ### Testing dependencies
 
-+ `catch`
++ `libgtest-dev`
 + `libzmq3-dev`
 + `libczmq-dev`
 

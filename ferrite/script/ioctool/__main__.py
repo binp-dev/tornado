@@ -55,7 +55,7 @@ if __name__ == "__main__":
         ]),
     )
     parser.add_argument(
-        "--tests", choices=["all", "unit", "integration"],
+        "--tests", choices=["all", "unittest", "integration"],
         help="Which kind of testing should be run. All by default.",
     )
 

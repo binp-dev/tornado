@@ -122,7 +122,7 @@ class Ioc(Component):
 
     def test(self):
         if not self.args["no_local"]:
-            self._ioc_test("test/unit", tests="unit")
+            self._ioc_test("test/unittest", tests="unittest")
             self._ioc_test("test/integration", tests="integration")
         if self.device is not None:
             self.deploy()

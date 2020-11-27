@@ -18,9 +18,9 @@ python3 -m script.ioctool <command> [options ...]
 
 | Command | Description |
 |---------|-------------|
-| `build` | Build release version                                 |
-| `test`  | Build and perform tests (both unit and integration)   |
-| `clean` | Remove all files created during test or release build |
+| `build` | Build release version                                   |
+| `test`  | Build and perform tests (both unittest and integration) |
+| `clean` | Remove all files created during test or release build   |
 
 ### Options
 

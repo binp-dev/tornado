@@ -104,7 +104,7 @@ class Handler:
             "--output-dir", metavar="PATH", type=str,
             help=" ".join([
                 "Absolute path to directory where binaries will be stored after build.",
-                "By default 'output' directory is used",
+                "By default 'build' directory is used",
             ]),
         )
         return parser
@@ -113,7 +113,7 @@ class Handler:
         if args["top"] is None:
             args["top"] = os.getcwd()
         if args["output_dir"] is None:
-            args["output_dir"] = os.path.join(args["top"], "output")
+            args["output_dir"] = os.path.join(args["top"], "build")
 
         for c in tools.values():
             c.locate(args)
