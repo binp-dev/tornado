@@ -1,4 +1,5 @@
 /toolchain
+/build
 /output
 
 __pycache__

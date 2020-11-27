@@ -71,11 +71,3 @@ std::unique_ptr<WaveformHandler> framework_record_init_waveform(WaveformRecord &
         assert(false);
     }
 }
-
-
-#ifdef UNITTEST
-#include <catch/catch.hpp>
-TEST_CASE( "Dummy test", "[dummy]" ) {
-    REQUIRE(1 + 1 == 2);
-}
-#endif //UNITTEST

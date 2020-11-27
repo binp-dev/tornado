@@ -4,8 +4,8 @@
 #include <sstream>
 
 
-template <unsigned N, typename ... Args>
-bool check(const char (&fmt)[N], Args ... args) {
+template <unsigned N, typename ...Args>
+std::string format(const char (&fmt)[N], const Args &...args) {
     bool open = false, close = false;
     std::stringstream ss;
     for (int i = 0; i < N; ++i) {
