@@ -20,18 +20,18 @@ struct Err final {
 
 
 template <typename T, typename E>
-struct [[nodiscard("Result should be handled")]] Result final {
+struct [[nodiscard]] Result final {
     std::variant<E, T> variant;
 
-    explicit Result(const T &t) : variant<1>(t) {}
-    explicit Result(T &&t) : variant<1>(std::move(t)) {}
-    explicit Result(const E &e) : variant<0>(e) {}
-    explicit Result(E &&e) : variant<0>(std::move(e)) {}
+    explicit Result(const T &t) : variant(std::in_place_index<1>, t) {}
+    explicit Result(T &&t) : variant(std::in_place_index<1>, std::move(t)) {}
+    explicit Result(const E &e) : variant(std::in_place_index<0>, e) {}
+    explicit Result(E &&e) : variant(std::in_place_index<0>, std::move(e)) {}
 
-    Result(const Ok<T> &t) : variant<1>(std::move(t.value)) {}
-    Result(Ok<T> &&t) : variant<1>(std::move(t.value)) {}
-    Result(const Err<E> &e) : variant<0>(std::move(e.value)) {}
-    Result(Err<E> &&e) : variant<0>(std::move(e.value)) {}
+    Result(const Ok<T> &t) : variant(std::in_place_index<1>, std::move(t.value)) {}
+    Result(Ok<T> &&t) : variant(std::in_place_index<1>, std::move(t.value)) {}
+    Result(const Err<E> &e) : variant(std::in_place_index<0>, std::move(e.value)) {}
+    Result(Err<E> &&e) : variant(std::in_place_index<0>, std::move(e.value)) {}
 
     Result(const Result &r) = default;
     Result &operator=(const Result &r) = default;

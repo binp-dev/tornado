@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
 
-#include "zmq.hpp"
+//#include "zmq.hpp"
+#include <core/result.hpp>
+#include <core/panic.hpp>
+#include <core/lazy_static.hpp>
 
 #include <random>
 #include <functional>
-
 
 template <typename T>
 std::optional<T> try_random(T low, T high, std::function<bool(T)> fn, size_t num_tries=16, uint32_t seed=0xDEADBEEF) {
@@ -19,6 +21,7 @@ std::optional<T> try_random(T low, T high, std::function<bool(T)> fn, size_t num
     return std::nullopt;
 }
 
+/*
 Result<std::monostate, std::string> try_send(zmq::socket_t &socket, const uint8_t *data, size_t length) {
     zmq::pollitem_t pollitem = {socket, 0, ZMQ_POLLOUT};
     if (zmq::poll(&pollitem, 1, 10) > 0) {
@@ -42,7 +45,7 @@ size_t try_recv(zmq::socket_t &socket, void *data, size_t max_length) {
         throw Err<std::string>("Zmq recv timeout");
     }
 }
-
+*/
 /*
 TEST(ZeroMQ, "[zmq]") {
     zmq::context_t ctx(1);
