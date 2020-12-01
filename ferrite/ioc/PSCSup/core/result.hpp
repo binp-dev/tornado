@@ -2,7 +2,6 @@
 
 #include <variant>
 
-
 template <typename T>
 struct Ok final {
     T value;

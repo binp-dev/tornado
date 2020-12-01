@@ -12,4 +12,4 @@ def test(**kwargs):
     os.makedirs(outdir, exist_ok=True)
     run(["cmake", os.path.join(kwargs["top"], "ioc")], cwd=outdir, check=True)
     run(["make"], cwd=outdir, check=True)
-    run(["ctest"], cwd=outdir, check=True)
+    run(["ctest", "-V"], cwd=outdir, check=True)

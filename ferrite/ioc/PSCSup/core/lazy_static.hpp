@@ -6,28 +6,28 @@
 
 template <typename T>
 class LazyStatic {
-    private:
+private:
     std::atomic_bool initialized;
-    std::mutex initialization_mutex;
-    std::shared_ptr<T> value;
+    std::mutex mutex;
+    std::unique_ptr<T> value;
 
-    protected:
-    virtual std::unique_ptr<T> init() = 0;
+protected:
+    virtual std::unique_ptr<T> init_value() = 0;
 
-    public:
+public:
     LazyStatic() : initialized(false) {}
     ~LazyStatic() = default;
 
     void try_init() {
         if (!initialized.load()) {
-            std::lock_guard<std::mutex> guard(initialization_mutex);
+            std::lock_guard<std::mutex> guard(mutex);
             if (!initialized.load()) {
-                value = std::shared_ptr<T>(std::move(init()));
+                value = std::move(init_value());
                 initialized.store(true);
             }
         }
     }
-    std::shared_ptr<T> get() {
+    const T &operator*() {
         try_init();
         return value;
     }
