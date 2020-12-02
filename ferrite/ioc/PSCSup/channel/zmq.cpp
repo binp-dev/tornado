@@ -38,7 +38,7 @@ Result<ZmqChannel, ZmqChannel::Error> ZmqChannel::create(const std::string &host
     auto socket = zmq_helper::guard_socket(raw_socket);
 
     //std::cout << "ZmqChannel(host='" << host << "')" << std::endl;
-    if (zmq_connect(socket.get(), host.c_str()) <= 0) {
+    if (zmq_connect(socket.get(), host.c_str()) != 0) {
         return Err(Error{ErrorKind::IoError, "Error connecting ZMQ socket"});
     }
 
@@ -47,6 +47,7 @@ Result<ZmqChannel, ZmqChannel::Error> ZmqChannel::create(const std::string &host
 
 Result<std::monostate, ZmqChannel::Error> ZmqChannel::send(const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout) {
     zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLOUT, 0};
+    // Handle timeout error separately
     if (!timeout || zmq_poll(&pollitem, 1, timeout->count()) > 0) {
         if (zmq_send(this->socket_.get(), bytes, length, !timeout ? 0 : ZMQ_NOBLOCK) <= 0) {
             return Err(Error{ErrorKind::IoError, "Error send"});
@@ -58,6 +59,7 @@ Result<std::monostate, ZmqChannel::Error> ZmqChannel::send(const uint8_t *bytes,
 }
 Result<size_t, ZmqChannel::Error> ZmqChannel::receive(uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout) {
     zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLIN, 0};
+    // Handle timeout error separately
     if (!timeout || zmq_poll(&pollitem, 1, timeout->count()) > 0) {
         int ret = zmq_recv(this->socket_.get(), bytes, max_length, !timeout ? 0 : ZMQ_NOBLOCK);
         if (ret <= 0) {

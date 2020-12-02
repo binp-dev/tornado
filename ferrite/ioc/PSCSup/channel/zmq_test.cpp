@@ -105,7 +105,9 @@ TEST(ZmqTest, channel) {
     ASSERT_TRUE(bool(rp));
     uint16_t port = *rp;
 
-    ZmqChannel channel = ZmqChannel::create("tcp://127.0.0.1:" + std::to_string(port)).unwrap();
+    auto cr = ZmqChannel::create("tcp://127.0.0.1:" + std::to_string(port));
+    ASSERT_TRUE(cr.is_ok()) << cr.err().message;
+    ZmqChannel channel = cr.unwrap();
 
     { // Receive
         const char *src = "Hello";
