@@ -45,7 +45,9 @@ Result<ZmqChannel, ZmqChannel::Error> ZmqChannel::create(const std::string &host
     return Ok(ZmqChannel(host, std::move(context), std::move(socket)));
 }
 
-Result<std::monostate, ZmqChannel::Error> ZmqChannel::send(const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout) {
+Result<std::monostate, ZmqChannel::Error> ZmqChannel::send(
+    const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout
+) {
     zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLOUT, 0};
     // Handle timeout error separately
     if (!timeout || zmq_poll(&pollitem, 1, timeout->count()) > 0) {
@@ -57,7 +59,9 @@ Result<std::monostate, ZmqChannel::Error> ZmqChannel::send(const uint8_t *bytes,
         return Err(Error{ErrorKind::TimedOut, "Timed out send"});
     }
 }
-Result<size_t, ZmqChannel::Error> ZmqChannel::receive(uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout) {
+Result<size_t, ZmqChannel::Error> ZmqChannel::receive(
+    uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout
+) {
     zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLIN, 0};
     // Handle timeout error separately
     if (!timeout || zmq_poll(&pollitem, 1, timeout->count()) > 0) {

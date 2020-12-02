@@ -11,6 +11,7 @@ include_directories(
 
 set(SOURCE
     "${CMAKE_CURRENT_SOURCE_DIR}/PSCSup/channel/zmq.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/PSCSup/channel/rpmsg.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/PSCSup/channel/zmq_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/PSCSup/unittest.cpp"
 )
