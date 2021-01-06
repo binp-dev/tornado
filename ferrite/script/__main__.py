@@ -129,6 +129,7 @@ class Handler:
             comp_list = args["components"].split(",")
             assert len(set(comp_list) - set([c[0] for c in components])) == 0
             self.components = [c for c in components if c[0] in comp_list]
+        log.info("Components selected: {}".format([c[0] for c in self.components]))
 
         for c in tools.values():
             c.locate(args)

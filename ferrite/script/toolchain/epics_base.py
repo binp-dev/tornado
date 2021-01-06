@@ -19,6 +19,16 @@ def clone(path):
             cwd=path,
         )
 
+def configure_common(epicsdir):
+    flags = "-std=c++17"
+    usr_vars = [
+        #("USR_CFLAGS", ""),
+        ("USR_CXXFLAGS", flags),
+        #("USR_CPPFLAGS", ""),
+    ]
+    rules = [(r'^([ \t]*{}[ \t]*=[ \t]*)[^\n]*$'.format(v), r'\1{}'.format(f)) for v, f in usr_vars]
+    substitute(rules, os.path.join(epicsdir, "configure/CONFIG_COMMON"))
+
 def configure_toolchain(epicsdir, toolchain):
     if toolchain is None:
         substitute([
@@ -67,6 +77,7 @@ class EpicsLoader(ToolLoader):
         else:
             clean(path)
 
+        configure_common(path)
         configure_toolchain(path, self.toolchain)
         configure_outdir(path, None)
         build(path)

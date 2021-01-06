@@ -7,10 +7,14 @@ def build(
     target=None, output_dir=None,
     clean=False,
     threads=None,
+    cflags=None,
+    ldflags=None,
+    libs=None,
     opts=None,
     **kwargs,
 ):
     args = ["make", "clean"]
+    base_flags = ["-std=c++17", "-fno-exceptions"]
 
     if not clean:
         args += ["install"]
@@ -25,6 +29,13 @@ def build(
         args += ["CROSS_COMPILER_TARGET_ARCHS={}".format(target)]
     if output_dir is not None:
         args += ["INSTALL_LOCATION={}".format(output_dir)]
+    if cflags is not None:
+        flagsstr = " ".join(base_flags + cflags)
+        args += ["USR_CFLAGS={}".format(flagsstr), "USR_CXXFLAGS={}".format(flagsstr)]
+    if ldflags is not None:
+        args.append("USR_LDFLAGS={}".format(" ".join(ldflags)))
+    if libs is not None:
+        args.append("LIB_SYS_LIBS={}".format(" ".join(libs)))
     if opts is not None:
         args += opts
     
