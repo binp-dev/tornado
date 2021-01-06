@@ -21,15 +21,9 @@ long record_waveform_init(waveformRecord *raw) {
     WaveformRecord record(raw);
     std::cout << "record_waveform_init: " << record.name() << std::endl;
 
-    std::unique_ptr<WaveformHandler> handler;
-    try {
-        handler = framework_record_init_waveform(record);
-    } catch (const std::exception &e) {
-        std::cerr << "Exception caught" << std::endl;
-        std::cerr << e.what() << std::endl;
-        epicsExit(1);
-    } catch (...) {
-        std::cerr << "Unknown exception caught" << std::endl;
+    std::unique_ptr<WaveformHandler> handler = framework_record_init_waveform(record);
+    if (!bool(handler)) {
+        std::cerr << "framework_record_init_waveform returned NULL" << std::endl;
         epicsExit(1);
     }
     record.set_private_data((void *)handler.release());
@@ -45,16 +39,8 @@ long record_waveform_read(waveformRecord *raw) {
     WaveformRecord record(raw);
     std::cout << "record_waveform_read: " << record.name() << std::endl;
 
-    try {
-        record.handler().read(record);
-    } catch (const std::exception &e) {
-        std::cerr << "Exception caught" << std::endl;
-        std::cerr << e.what() << std::endl;
-        epicsExit(1);
-    } catch (...) {
-        std::cerr << "Unknown exception caught" << std::endl;
-        epicsExit(1);
-    }
+    // FIXME: Check result
+    record.handler().read(record);
 
     return 0;
 }

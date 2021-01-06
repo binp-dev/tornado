@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <poll.h>
 
-#include "rpmsg.hpp"
+#include "channel_rpmsg.hpp"
 
 
 Result<RpmsgChannel, RpmsgChannel::Error> RpmsgChannel::create(const std::string &dev) {

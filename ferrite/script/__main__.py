@@ -3,7 +3,7 @@ import argparse
 import logging as log
 
 from script.toolchain import epics_base, freertos, armgcc
-from script import ioc, mcu
+from script import ioc, mcu, lib
 
 log.basicConfig(format='[%(levelname)s] %(message)s', level=log.DEBUG)
 
@@ -85,6 +85,7 @@ tools = {
 }
 tools["epics_base"] = EpicsBase(tools["armgcc_app"])
 
+# FIXME: add components dependencies
 components = [
     ("mcu", mcu.Mcu()),
     ("ioc", ioc.Ioc()),

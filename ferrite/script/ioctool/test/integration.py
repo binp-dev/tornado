@@ -36,7 +36,7 @@ def test(**kwargs):
         **kwargs,
         cflags=["-DTEST", "-DBACKTRACE"],
         ldflags=[],
-        libs=["czmq", "zmq"],
+        libs=["zmq"],
     )
 
     ioc = Ioc(

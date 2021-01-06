@@ -2,8 +2,7 @@
 
 #include <cstdint>
 #include <cstring>
-
-#include <utils/slice.hpp>
+#include <utility>
 
 
 template <typename T>
@@ -21,7 +20,7 @@ class SizedArrayEncoder : public ArrayEncoder<T> {
 private:
     size_t _size;
 public:
-    SizedArrayEncoder(size_t size) : _size(size) {}
+    explicit SizedArrayEncoder(size_t size) : _size(size) {}
     size_t size() const {
         return _size;
     }
@@ -55,7 +54,7 @@ public:
     double low() const { return _low; }
     double high() const { return _high; }
 
-    std::pair<size_t, size_t> encode(
+    virtual std::pair<size_t, size_t> encode(
         uint8_t *dst, size_t dst_len,
         const double *src, size_t src_len
     ) const override {

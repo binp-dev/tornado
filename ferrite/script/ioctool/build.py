@@ -7,9 +7,9 @@ def build(
     target=None, output_dir=None,
     clean=False,
     threads=None,
-    cflags=None,
-    ldflags=None,
-    libs=None,
+    cflags=[],
+    ldflags=[],
+    libs=[],
     opts=None,
     **kwargs,
 ):
@@ -29,13 +29,18 @@ def build(
         args += ["CROSS_COMPILER_TARGET_ARCHS={}".format(target)]
     if output_dir is not None:
         args += ["INSTALL_LOCATION={}".format(output_dir)]
-    if cflags is not None:
-        flagsstr = " ".join(base_flags + cflags)
+
+    cflags = base_flags + cflags
+    if cflags:
+        flagsstr = " ".join(cflags)
         args += ["USR_CFLAGS={}".format(flagsstr), "USR_CXXFLAGS={}".format(flagsstr)]
-    if ldflags is not None:
+
+    if ldflags:
         args.append("USR_LDFLAGS={}".format(" ".join(ldflags)))
-    if libs is not None:
+
+    if libs:
         args.append("LIB_SYS_LIBS={}".format(" ".join(libs)))
+
     if opts is not None:
         args += opts
     

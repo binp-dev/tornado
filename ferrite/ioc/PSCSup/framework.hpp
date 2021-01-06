@@ -7,17 +7,17 @@
 #include <mutex>
 #include <atomic>
 
-#include <utils/mutex.hpp>
-#include <utils/lazy_static.hpp>
-#include <record/waveform_record.hpp>
+#include <core/lazy_static.hpp>
+#include <record_waveform.hpp>
+/*
 #include <encoder.hpp>
 #include <device.hpp>
 
 
 #ifdef TEST
-#include <channel/zmq_channel.hpp>
+#include <channel_zmq.hpp>
 #else // TEST
-#include <channel/rpmsg_channel.hpp>
+#include <channel_rpmsg.hpp>
 #endif // TEST
 
 
@@ -62,12 +62,16 @@ class SendWaveform : public WaveformHandler {
         device->lock()->set_waveform(record.waveform_slice<double>());
     }
 };
+*/
 
-
+[[nodiscard]]
 std::unique_ptr<WaveformHandler> framework_record_init_waveform(WaveformRecord &record) {
+    /*
     if (strcmp(record.name(), "WAVEFORM") == 0) {
         return std::make_unique<SendWaveform>(DEVICE.get(), record);
     } else {
         assert(false);
     }
+    */
+    return std::unique_ptr<WaveformHandler>();
 }

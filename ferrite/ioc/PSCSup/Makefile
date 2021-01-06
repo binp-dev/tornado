@@ -6,7 +6,12 @@ include $(TOP)/configure/CONFIG
 LIBRARY_IOC += devPSC
 
 # Library Source files
-devPSC_SRCS += devPSC.cpp
+devPSC_SRCS += \
+	channel_rpmsg.cpp \
+	channel_zmq.cpp \
+	record_base.cpp \
+	record_waveform.cpp \
+	devPSC.cpp
 
 # Link with the asyn and base libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)

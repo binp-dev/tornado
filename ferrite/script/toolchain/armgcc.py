@@ -39,9 +39,9 @@ class ArchiveLoader(ToolLoader):
 
 
 app_loader = ArchiveLoader(
-    "gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf",
+    "gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf",
     "{}.tar.xz",
-    "http://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/arm-linux-gnueabihf/{}"
+    "http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/{}"
 )
 
 mcu_loader = ArchiveLoader(
