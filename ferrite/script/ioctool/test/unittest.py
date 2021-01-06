@@ -10,6 +10,6 @@ def test(**kwargs):
         outdir = os.path.join(kwargs["top"], "build/unittest")
 
     os.makedirs(outdir, exist_ok=True)
-    run(["cmake", os.path.join(kwargs["top"], "ioc")], cwd=outdir, check=True)
+    run(["cmake", os.path.join(kwargs["top"])], cwd=outdir, check=True)
     run(["make"], cwd=outdir, check=True)
     run(["ctest", "-V"], cwd=outdir, check=True)

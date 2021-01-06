@@ -80,8 +80,8 @@ class EpicsBase(Tool):
 
 tools = {
     "armgcc_mcu":    ArmgccMcu(),
-    "armgcc_app": ArmgccApp(),
-    "freertos":     Freertos(),
+    "armgcc_app":    ArmgccApp(),
+    "freertos":      Freertos(),
 }
 tools["epics_base"] = EpicsBase(tools["armgcc_app"])
 
@@ -93,6 +93,7 @@ components = [
 class Handler:
     def __init__(self):
         self.parser = self._create_parser()
+        self.components = []
 
     def _create_parser(self):
         parser = argparse.ArgumentParser()
@@ -107,6 +108,13 @@ class Handler:
                 "By default 'build' directory is used",
             ]),
         )
+        parser.add_argument(
+            "--components", metavar="A,B,C", type=str, default="all",
+            help="\n".join([
+                "List of comma-separated components to run command on. All by default.",
+                "Available components are: {}.".format(", ".join([c[0] for c in components])),
+            ]),
+        )
         return parser
 
     def _handle_args(self, args):
@@ -114,11 +122,18 @@ class Handler:
             args["top"] = os.getcwd()
         if args["output_dir"] is None:
             args["output_dir"] = os.path.join(args["top"], "build")
+        
+        if args["components"] == "all":
+            self.components = components
+        else:
+            comp_list = args["components"].split(",")
+            assert len(set(comp_list) - set([c[0] for c in components])) == 0
+            self.components = [c for c in components if c[0] in comp_list]
 
         for c in tools.values():
             c.locate(args)
 
-        for _, c in components:
+        for _, c in self.components:
             c.setup(args, tools)
 
         return args
@@ -178,7 +193,7 @@ class BuildHandler(Handler):
         return args
 
     def _run(self, args):
-        for _, c in components:
+        for _, c in self.components:
             c.build()
 
 
@@ -198,7 +213,7 @@ class CleanHandler(Handler):
         return args
 
     def _run(self, args):
-        for _, c in components:
+        for _, c in self.components:
             c.clean()
 
 
@@ -237,7 +252,7 @@ class DeployHandler(BuildHandler):
         return args
 
     def _run(self, args):
-        for _, c in components:
+        for _, c in self.components:
             c.deploy()
 
 
@@ -261,7 +276,7 @@ class TestHandler(DeployHandler):
         return args
 
     def _run(self, args):
-        for _, c in components:
+        for _, c in self.components:
             c.test()
 
 
@@ -284,6 +299,7 @@ command_parser.add_argument(
         "To read about specific command use `<command> --help`"
     ]),
 )
+
 
 args = command_parser.parse_args(sys.argv[1:2])
 
