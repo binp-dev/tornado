@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <utility>
-
+#include <algorithm>
 
 template <typename T>
 class ArrayEncoder {

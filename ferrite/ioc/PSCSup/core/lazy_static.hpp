@@ -7,18 +7,18 @@
 template <typename T>
 class LazyStatic {
 private:
-    std::atomic_bool initialized;
-    std::mutex mutex;
-    std::unique_ptr<T> value;
+    mutable std::atomic_bool initialized;
+    mutable std::mutex mutex;
+    mutable std::unique_ptr<T> value;
 
 protected:
-    virtual std::unique_ptr<T> init_value() = 0;
+    virtual std::unique_ptr<T> init_value() const = 0;
 
 public:
     LazyStatic() : initialized(false) {}
     ~LazyStatic() = default;
 
-    void try_init() {
+    void try_init() const {
         if (!initialized.load()) {
             std::lock_guard<std::mutex> guard(mutex);
             if (!initialized.load()) {
@@ -27,8 +27,11 @@ public:
             }
         }
     }
-    const T &operator*() {
+    const T &operator*() const {
         try_init();
-        return value;
+        return *value;
+    }
+    const T *operator->() const {
+        return &(**this);
     }
 };

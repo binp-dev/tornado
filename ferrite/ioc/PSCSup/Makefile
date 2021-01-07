@@ -11,6 +11,7 @@ devPSC_SRCS += \
 	channel_zmq.cpp \
 	record_base.cpp \
 	record_waveform.cpp \
+	framework.cpp \
 	devPSC.cpp
 
 # Link with the asyn and base libraries
