@@ -38,10 +38,16 @@ public:
     Mutex(const T &value) : value_(value) {}
     ~Mutex() = default;
 
+    Mutex(Mutex &&other) {
+        value_ = std::move(other.value_);
+    }
+    Mutex &operator=(Mutex &&other) {
+        value_ = std::move(other.value_);
+        return *this;
+    }
+
     Mutex(const Mutex &) = delete;
     Mutex &operator=(const Mutex &) = delete;
-    Mutex(Mutex &&) = delete;
-    Mutex &operator=(Mutex &&) = delete;
 
     T replace(T &&value) {
         T tmp = std::move(value_);

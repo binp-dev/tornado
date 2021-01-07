@@ -8,13 +8,13 @@ def build(
     clean=False,
     threads=None,
     cflags=[],
+    cxxflags=[],
     ldflags=[],
     libs=[],
     opts=None,
     **kwargs,
 ):
     args = ["make", "clean"]
-    base_flags = ["-std=c++17", "-fno-exceptions"]
 
     if not clean:
         args += ["install"]
@@ -30,10 +30,13 @@ def build(
     if output_dir is not None:
         args += ["INSTALL_LOCATION={}".format(output_dir)]
 
-    cflags = base_flags + cflags
     if cflags:
-        flagsstr = " ".join(cflags)
-        args += ["USR_CFLAGS={}".format(flagsstr), "USR_CXXFLAGS={}".format(flagsstr)]
+        fstr = " ".join(cflags)
+        args.append("USR_CFLAGS={}".format(fstr))
+
+    if cxxflags:
+        fstr = " ".join(cxxflags)
+        args.append("USR_CXXFLAGS={}".format(fstr))
 
     if ldflags:
         args.append("USR_LDFLAGS={}".format(" ".join(ldflags)))
@@ -44,6 +47,7 @@ def build(
     if opts is not None:
         args += opts
     
+    print(args)
     run(args, cwd=top, check=True)
 
     if output_dir is not None:

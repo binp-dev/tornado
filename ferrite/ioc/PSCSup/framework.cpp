@@ -19,9 +19,9 @@
 typedef std::unique_ptr<Device> DevicePtr;
 
 const class : public LazyStatic<Mutex<DevicePtr>> {
-    virtual std::unique_ptr<Mutex<DevicePtr>> init_value() const override {
+    virtual Mutex<DevicePtr> init_value() const override {
         std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
-        return std::make_unique<Mutex<DevicePtr>>(std::make_unique<Device>(
+        return Mutex(std::make_unique<Device>(
 #ifdef IOC_TEST
             std::unique_ptr<Channel>(new ZmqChannel(std::move(ZmqChannel::create("tcp://127.0.0.1:8321").unwrap()))),
 #else // IOC_TEST

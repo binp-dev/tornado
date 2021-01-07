@@ -9,14 +9,19 @@ class LazyStatic {
 private:
     mutable std::atomic_bool initialized;
     mutable std::mutex mutex;
-    mutable std::unique_ptr<T> value;
+    mutable T value;
 
 protected:
-    virtual std::unique_ptr<T> init_value() const = 0;
+    virtual T init_value() const = 0;
 
 public:
     LazyStatic() : initialized(false) {}
     ~LazyStatic() = default;
+
+    LazyStatic(const LazyStatic &) = delete;
+    LazyStatic &operator=(const LazyStatic &) = delete;
+    LazyStatic(LazyStatic &&) = delete;
+    LazyStatic &operator=(LazyStatic &&) = delete;
 
     void try_init() const {
         if (!initialized.load()) {
@@ -29,9 +34,9 @@ public:
     }
     const T &operator*() const {
         try_init();
-        return *value;
+        return value;
     }
     const T *operator->() const {
-        return &(**this);
+        return &*this;
     }
 };

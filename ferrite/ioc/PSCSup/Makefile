@@ -7,12 +7,18 @@ LIBRARY_IOC += devPSC
 
 # Library Source files
 devPSC_SRCS += \
-	channel_rpmsg.cpp \
-	channel_zmq.cpp \
 	record_base.cpp \
 	record_waveform.cpp \
 	framework.cpp \
 	devPSC.cpp
+
+ifndef $(USE_ZMQ)
+	devPSC_SRCS += \
+		channel_rpmsg.cpp
+else
+	devPSC_SRCS += \
+		channel_zmq.cpp
+endif
 
 # Link with the asyn and base libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)

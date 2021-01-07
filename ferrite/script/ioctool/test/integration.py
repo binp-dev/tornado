@@ -34,9 +34,11 @@ def test(**kwargs):
 
     build(
         **kwargs,
-        cflags=["-DTEST", "-DBACKTRACE"],
+        cflags=["-DUSE_ZMQ"],
+        cxxflags=["-DUSE_ZMQ", "-std=c++17", "-fno-exceptions"],
         ldflags=[],
         libs=["zmq"],
+        opts=["USE_ZMQ=1"],
     )
 
     ioc = Ioc(
