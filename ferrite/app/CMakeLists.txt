@@ -1,26 +1,24 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(psc_ioc)
+project(app)
 
 set(CMAKE_C_FLAGS "-Wall -Wextra -Werror=return-type")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -fno-exceptions -pedantic")
 
 include_directories(
-    "${CMAKE_CURRENT_SOURCE_DIR}/PSCSup"
+    "src"
 )
 
 set(SOURCE
-    "${CMAKE_CURRENT_SOURCE_DIR}/PSCSup/channel_zmq.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/PSCSup/channel_rpmsg.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/PSCSup/channel_zmq_test.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/PSCSup/unittest.cpp"
+    "src/channel/zmq.cpp"
+    "src/channel/rpmsg.cpp"
+    "src/channel/zmq_test.cpp"
+    "src/unittest.cpp"
 )
 
 enable_testing()
 
-add_executable("${PROJECT_NAME}"
-    ${SOURCE}
-)
+add_executable("${PROJECT_NAME}" ${SOURCE})
 
 target_compile_definitions("${PROJECT_NAME}" PRIVATE "DEBUG")
 

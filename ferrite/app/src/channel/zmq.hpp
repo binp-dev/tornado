@@ -5,7 +5,7 @@
 
 #include <zmq.h>
 
-#include "channel_base.hpp"
+#include "base.hpp"
 
 namespace zmq_helper {
 

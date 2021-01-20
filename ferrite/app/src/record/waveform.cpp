@@ -1,4 +1,4 @@
-#include "record_waveform.hpp"
+#include "waveform.hpp"
 
 
 const waveformRecord *WaveformRecord::raw() const {

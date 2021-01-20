@@ -1,4 +1,4 @@
-#include "channel_zmq.hpp"
+#include "zmq.hpp"
 
 #include <core/assert.hpp>
 

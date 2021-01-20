@@ -5,7 +5,7 @@
 
 #include <waveformRecord.h>
 
-#include "record_base.hpp"
+#include "base.hpp"
 
 
 typedef menuFtype waveform_type;

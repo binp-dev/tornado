@@ -4,7 +4,7 @@
 
 #include <termios.h>
 
-#include "channel_base.hpp"
+#include "base.hpp"
 
 
 class RpmsgChannel final : public Channel {

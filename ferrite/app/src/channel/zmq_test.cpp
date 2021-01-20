@@ -3,7 +3,7 @@
 #include <zmq.h>
 #include <core/result.hpp>
 
-#include "channel_zmq.hpp"
+#include "zmq.hpp"
 
 #include <random>
 #include <functional>
