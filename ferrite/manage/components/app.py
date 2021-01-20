@@ -6,10 +6,11 @@ from manage.components.base import Component
 from manage.components.cmake import Cmake
 
 class App(Component):
-    def __init__(self, toolchain=None):
+    def __init__(self, cross_toolchain):
         super().__init__()
 
         self.src_dir = os.path.join(base_dir, "app")
+        self.cross_toolchain = cross_toolchain
         
         self.local_tests = Cmake(self.src_dir, os.path.join(target_dir, "app_local_tests"))
 

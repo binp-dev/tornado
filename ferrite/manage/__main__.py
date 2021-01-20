@@ -2,11 +2,16 @@ import sys
 import argparse
 import logging
 from manage.components.app import App
+from manage.components.toolchains import AppToolchain, McuToolchain
 
 logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.DEBUG)
 
+app_toolchain = AppToolchain()
+mcu_toolchain = McuToolchain()
 components = {
-    "app": App()
+    "app_toolchain": app_toolchain,
+    "mcu_toolchain": mcu_toolchain,
+    "app": App(app_toolchain)
 }
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os
 from manage.components.base import Component
-from manage.tasks.base import Task
+from manage.tasks.base import Task, TaskArgs
 from manage.utils.run import run
 
 class CmakeTask(Task):
@@ -10,16 +10,13 @@ class CmakeTask(Task):
         self.owner = owner
 
 class CmakeBuildTask(CmakeTask):
-    def run(self, args: dict[str, str]):
+    def run(self, args: TaskArgs):
         os.makedirs(self.owner.build_dir, exist_ok=True)
         run(["cmake", self.owner.src_dir], cwd=self.owner.build_dir)
         run(["cmake", "--build", self.owner.build_dir], cwd=self.owner.build_dir)
 
 class CmakeTestTask(CmakeTask):
-    def dependencies(self) -> list[Task]:
-        return [self.owner.build_task]
-
-    def run(self, args: dict[str, str]):
+    def run(self, args: TaskArgs):
         self.owner.build_task.run(args)
         run(["ctest", "--verbose"], cwd=self.owner.build_dir)
 

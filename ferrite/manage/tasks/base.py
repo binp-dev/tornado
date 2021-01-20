@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+class TaskArgs(object):
+    def __init__(self):
+        super().__init__()
+
 class Task(object):
     def __init__(self):
         super().__init__()
 
-    def dependencies(self) -> list[Task]:
-        return []
-
-    def run(self, args: dict[str, str]):
+    def run(self, args: TaskArgs):
         raise NotImplementedError
+
+class EmptyArgs(TaskArgs):
+    def __init__(self):
+        super().__init__()
