@@ -11,7 +11,11 @@ class CmakeTask(Task):
 class CmakeBuildTask(CmakeTask):
     def run(self, args: TaskArgs):
         os.makedirs(self.owner.build_dir, exist_ok=True)
-        run(["cmake", self.owner.src_dir], cwd=self.owner.build_dir)
+        run(
+            ["cmake", *self.owner.opt, self.owner.src_dir],
+            cwd=self.owner.build_dir,
+            add_env=self.owner.env,
+        )
         run(["cmake", "--build", self.owner.build_dir], cwd=self.owner.build_dir)
 
 class CmakeTestTask(CmakeTask):
@@ -20,11 +24,19 @@ class CmakeTestTask(CmakeTask):
         run(["ctest", "--verbose"], cwd=self.owner.build_dir)
 
 class Cmake(Component):
-    def __init__(self, src_dir: str, build_dir: str):
+    def __init__(
+        self,
+        src_dir: str,
+        build_dir: str,
+        opt: list[str]=[],
+        env: dict[str, str]=None,
+    ):
         super().__init__()
 
         self.src_dir = src_dir
         self.build_dir = build_dir
+        self.opt = opt
+        self.env = env
 
         self.build_task = CmakeBuildTask(self)
         self.test_task = CmakeTestTask(self)

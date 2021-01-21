@@ -1,8 +1,13 @@
+import os
 import logging
 import subprocess
 
 RunError = subprocess.CalledProcessError
 
-def run(cmd, **kwargs):
+def run(cmd, add_env=None, **kwargs):
     logging.debug(f"run({cmd}, {kwargs})")
-    subprocess.run(cmd, check=True, **kwargs)
+    env = dict(os.environ)
+    if add_env:
+        env.update(add_env)
+        logging.info("additional env: {}".format(add_env))
+    subprocess.run(cmd, check=True, env=env, **kwargs)

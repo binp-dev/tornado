@@ -4,6 +4,7 @@ import logging
 from manage.components.toolchains import AppToolchain, McuToolchain
 from manage.components.freertos import Freertos
 from manage.components.epics import EpicsBase
+from manage.components.mcu import Mcu
 from manage.components.app import App
 
 logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.DEBUG)
@@ -12,6 +13,7 @@ mcu_toolchain = McuToolchain()
 app_toolchain = AppToolchain()
 freertos = Freertos()
 epics_base = EpicsBase(app_toolchain)
+mcu = Mcu(freertos, mcu_toolchain)
 app = App(app_toolchain)
 
 components = {
@@ -19,6 +21,7 @@ components = {
     "app_toolchain": app_toolchain,
     "freertos": freertos,
     "epics_base": epics_base,
+    "mcu": mcu,
     "app": app,
 }
 
