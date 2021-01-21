@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 import shutil
 import logging
-from manage.components.base import Component, Task, TaskArgs
+from manage.components.base import Component, Task, Context
 from manage.components.git import Repo
 from manage.utils.run import run, RunError
 from manage.utils.files import substitute
@@ -61,24 +61,21 @@ class EpicsTask(Task):
         src_dir: str,
         build_dir: str,
         install_dir: str,
-        toolchain_dir: str,
-        dependencies: str,
+        toolchain: str,
+        deps: str,
     ):
         super().__init__()
         self.src_dir = src_dir
         self.build_dir = build_dir
         self.install_dir = install_dir
-        self.toolchain_dir = toolchain_dir
-        self.dependencies = dependencies
+        self.toolchain = toolchain
+        self.deps = deps
 
-    def _run_deps(self, args):
-        for dep in self.dependencies:
-            dep.run(args)
+    def dependencies(self) -> list[Task]:
+        return self.deps
 
 class EpicsBuildTask(EpicsTask):
-    def run(self, args: TaskArgs):
-        self._run_deps(args)
-
+    def run(self, ctx: Context) -> bool:
         done_build = os.path.join(self.build_dir, "build.done")
         if not os.path.exists(self.build_dir):
             shutil.copytree(self.src_dir, self.build_dir)
@@ -90,11 +87,13 @@ class EpicsBuildTask(EpicsTask):
                 shutil.rmtree(self.install_dir)
             os.makedirs(self.install_dir, exist_ok=True)
 
-            _configure(self.build_dir, self.toolchain_dir, self.install_dir)
+            _configure(self.build_dir, self.toolchain, self.install_dir)
             run(["make", "install"], cwd=self.build_dir)
             _make_done_file(done_build)
+            return True
         else:
             logging.info(f"{self.build_dir} is already built")
+            return False
 
 class EpicsBase(Component):
     def __init__(self, cross_toolchain=None):

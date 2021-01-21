@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os
 import logging
-from manage.components.base import Component, Task, TaskArgs
+from manage.components.base import Component, Task, Context
 from manage.utils.run import run
 from manage.paths import TARGET_DIR
 
@@ -12,10 +12,10 @@ class GitCloneTask(Task):
         self.path = path
         self.branch = branch
 
-    def run(self, args: TaskArgs):
+    def run(self, ctx: Context) -> bool:
         if os.path.exists(self.path):
             logging.info(f"Repo '{self.remote}' is cloned already")
-            return
+            return False
         run(
             ["git", "clone", self.remote, os.path.basename(self.path)],
             cwd=os.path.dirname(self.path)
@@ -23,6 +23,7 @@ class GitCloneTask(Task):
         if self.branch:
             run(["git", "checkout", self.branch], cwd=self.path)
         run(["git", "submodule", "update", "--init", "--recursive"], cwd=self.path)
+        return True
 
 class Repo(Component):
     def __init__(self, remote: str, name: str, branch: str=None):

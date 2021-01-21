@@ -1,8 +1,22 @@
 from __future__ import annotations
 import os
 from manage.paths import BASE_DIR, TARGET_DIR
-from manage.components.base import Component, Task
+from manage.components.base import Component, Task, Context
 from manage.components.cmake import Cmake
+
+class McuBuildTask(Task):
+    def __init__(self, owner):
+        super().__init__()
+        self.owner = owner
+
+    def run(self, ctx: Context) -> bool:
+        return self.owner.cmake.build_task.run(ctx)
+    
+    def dependencies(self) -> list[Task]:
+        return [
+            self.owner.cross_toolchain.download_task,
+            self.owner.freertos.clone_task,
+        ]
 
 class Mcu(Component):
     def __init__(self, freertos, cross_toolchain):
@@ -30,5 +44,5 @@ class Mcu(Component):
 
     def tasks(self) -> dict[str, Task]:
         return {
-            "build": self.cmake.build_task,
+            "build": McuBuildTask(self),
         }

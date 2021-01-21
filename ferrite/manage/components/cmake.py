@@ -1,6 +1,6 @@
 from __future__ import annotations
 import os
-from manage.components.base import Component, Task, TaskArgs
+from manage.components.base import Component, Task, Context
 from manage.utils.run import run
 
 class CmakeTask(Task):
@@ -9,7 +9,8 @@ class CmakeTask(Task):
         self.owner = owner
 
 class CmakeBuildTask(CmakeTask):
-    def run(self, args: TaskArgs):
+    # TODO: Detect that project is already built
+    def run(self, ctx: Context) -> bool:
         os.makedirs(self.owner.build_dir, exist_ok=True)
         run(
             ["cmake", *self.owner.opt, self.owner.src_dir],
@@ -17,11 +18,14 @@ class CmakeBuildTask(CmakeTask):
             add_env=self.owner.env,
         )
         run(["cmake", "--build", self.owner.build_dir], cwd=self.owner.build_dir)
+        return True
 
 class CmakeTestTask(CmakeTask):
-    def run(self, args: TaskArgs):
-        self.owner.build_task.run(args)
+    def run(self, ctx: Context):
         run(["ctest", "--verbose"], cwd=self.owner.build_dir)
+    
+    def dependencies(self) -> list[Task]:
+        return [self.owner.build_task]
 
 class Cmake(Component):
     def __init__(

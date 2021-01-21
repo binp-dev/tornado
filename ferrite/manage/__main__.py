@@ -57,4 +57,4 @@ if __name__ == "__main__":
     task_name = task_parser.parse_args(sys.argv[2:]).task
     task = component.tasks()[task_name]
 
-    task.run({})
+    task.run_with_dependencies(None)

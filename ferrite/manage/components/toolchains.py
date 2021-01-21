@@ -3,7 +3,7 @@ import os
 import shutil
 import tarfile
 import logging
-from manage.components.base import Component, Task, TaskArgs
+from manage.components.base import Component, Task, Context
 from manage.utils.run import run
 from manage.utils.net import download
 from manage.paths import TARGET_DIR
@@ -13,8 +13,8 @@ class ToolchainDownloadTask(Task):
         super().__init__()
         self.owner = owner
 
-    def run(self, args: TaskArgs):
-        self.owner.download()
+    def run(self, ctx: Context) -> bool:
+        return self.owner.download()
 
 class Toolchain(Component):
     def __init__(self, dir_name: str, archive: str, url: str):
@@ -33,10 +33,10 @@ class Toolchain(Component):
 
         self.download_task = ToolchainDownloadTask(self)
 
-    def download(self):
+    def download(self) -> bool:
         if os.path.exists(self.path):
             logging.info(f"Toolchain {self.archive} is already downloaded")
-            return
+            return False
 
         tmp_dir = os.path.join(TARGET_DIR, "download")
         os.makedirs(tmp_dir, exist_ok=True)
@@ -63,6 +63,8 @@ class Toolchain(Component):
             raise
 
         shutil.move(dir_path, self.path)
+
+        return True
     
     def tasks(self) -> dict[str, Task]:
         return {
