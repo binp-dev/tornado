@@ -6,7 +6,7 @@ import logging
 from manage.components.base import Component, Task, TaskArgs
 from manage.utils.run import run
 from manage.utils.net import download
-from manage.paths import target_dir
+from manage.paths import TARGET_DIR
 
 class ToolchainDownloadTask(Task):
     def __init__(self, owner):
@@ -20,7 +20,7 @@ class Toolchain(Component):
     def __init__(self, dir_name: str, archive: str, url: str):
         super().__init__()
 
-        self.path = os.path.join(target_dir, dir_name)
+        self.path = os.path.join(TARGET_DIR, dir_name)
 
         if "{}" in archive:
             archive = archive.format(dir_name)
@@ -38,7 +38,7 @@ class Toolchain(Component):
             logging.info(f"Toolchain {self.archive} is already downloaded")
             return
 
-        tmp_dir = os.path.join(target_dir, "download")
+        tmp_dir = os.path.join(TARGET_DIR, "download")
         os.makedirs(tmp_dir, exist_ok=True)
 
         archive_path = os.path.join(tmp_dir, self.archive)

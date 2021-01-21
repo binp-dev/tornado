@@ -3,7 +3,7 @@ import os
 import logging
 from manage.components.base import Component, Task, TaskArgs
 from manage.utils.run import run
-from manage.paths import target_dir
+from manage.paths import TARGET_DIR
 
 class GitCloneTask(Task):
     def __init__(self, remote: str, path: str, branch: str=None):
@@ -30,7 +30,7 @@ class Repo(Component):
 
         self.remote = remote
         self.name = name
-        self.path = os.path.join(target_dir, name)
+        self.path = os.path.join(TARGET_DIR, name)
         self.branch = branch
 
         self.clone_task = GitCloneTask(self.remote, self.path, self.branch)

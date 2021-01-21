@@ -1,20 +1,20 @@
 from __future__ import annotations
 import os
-from manage.paths import base_dir, target_dir
+from manage.paths import BASE_DIR, TARGET_DIR
 from manage.components.base import Component, Task
 from manage.components.cmake import Cmake
 
 class App(Component):
-    def __init__(self, cross_toolchain):
+    def __init__(self, cross_toolchain=None):
         super().__init__()
 
-        self.src_dir = os.path.join(base_dir, "app")
+        self.src_dir = os.path.join(BASE_DIR, "app")
         self.cross_toolchain = cross_toolchain
         
-        self.local_tests = Cmake(self.src_dir, os.path.join(target_dir, "app_local_tests"))
+        self.host_tests = Cmake(self.src_dir, os.path.join(TARGET_DIR, "app_local_tests"))
 
     def tasks(self) -> dict[str, Task]:
         return {
-            "build_local_tests": self.local_tests.build_task,
-            "run_local_tests": self.local_tests.test_task,
+            "build_host_tests": self.host_tests.build_task,
+            "run_host_tests": self.host_tests.test_task,
         }
