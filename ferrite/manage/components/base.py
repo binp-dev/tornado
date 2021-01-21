@@ -1,5 +1,15 @@
 from __future__ import annotations
-from manage.tasks.base import Task
+
+class TaskArgs(object):
+    def __init__(self):
+        super().__init__()
+
+class Task(object):
+    def __init__(self):
+        super().__init__()
+
+    def run(self, args: TaskArgs):
+        raise NotImplementedError
 
 class Component(object):
     def __init__(self):

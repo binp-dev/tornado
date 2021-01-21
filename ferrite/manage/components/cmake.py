@@ -1,7 +1,6 @@
 from __future__ import annotations
 import os
-from manage.components.base import Component
-from manage.tasks.base import Task, TaskArgs
+from manage.components.base import Component, Task, TaskArgs
 from manage.utils.run import run
 
 class CmakeTask(Task):

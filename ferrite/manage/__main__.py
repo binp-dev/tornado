@@ -1,16 +1,19 @@
 import sys
 import argparse
 import logging
-from manage.components.app import App
 from manage.components.toolchains import AppToolchain, McuToolchain
+from manage.components.freertos import Freertos
+from manage.components.app import App
 
 logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.DEBUG)
 
-app_toolchain = AppToolchain()
 mcu_toolchain = McuToolchain()
+app_toolchain = AppToolchain()
+freertos = Freertos()
 components = {
-    "app_toolchain": app_toolchain,
     "mcu_toolchain": mcu_toolchain,
+    "app_toolchain": app_toolchain,
+    "freertos": freertos,
     "app": App(app_toolchain)
 }
 

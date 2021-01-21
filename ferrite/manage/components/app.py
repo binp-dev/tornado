@@ -1,8 +1,7 @@
 from __future__ import annotations
 import os
 from manage.paths import base_dir, target_dir
-from manage.tasks.base import Task
-from manage.components.base import Component
+from manage.components.base import Component, Task
 from manage.components.cmake import Cmake
 
 class App(Component):
