@@ -3,9 +3,10 @@ import argparse
 import logging
 from manage.components.toolchains import AppToolchain, McuToolchain
 from manage.components.freertos import Freertos
-from manage.components.epics import EpicsBase
+from manage.components.epics.epics_base import EpicsBase
 from manage.components.mcu import Mcu
 from manage.components.app import App
+from manage.components.epics.ioc import AppIoc
 
 logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.DEBUG)
 
@@ -15,6 +16,7 @@ freertos = Freertos()
 epics_base = EpicsBase(app_toolchain)
 mcu = Mcu(freertos, mcu_toolchain)
 app = App(app_toolchain)
+ioc = AppIoc(epics_base, app_toolchain)
 
 components = {
     "mcu_toolchain": mcu_toolchain,
@@ -23,6 +25,7 @@ components = {
     "epics_base": epics_base,
     "mcu": mcu,
     "app": app,
+    "ioc": ioc,
 }
 
 if __name__ == "__main__":

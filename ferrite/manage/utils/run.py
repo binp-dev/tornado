@@ -1,13 +1,19 @@
+from __future__ import annotations
 import os
 import logging
 import subprocess
 
 RunError = subprocess.CalledProcessError
 
-def run(cmd, add_env=None, **kwargs):
+def run(cmd: list[str], add_env: dict[str, str]=None, capture: bool=False, **kwargs) -> str:
     logging.debug(f"run({cmd}, {kwargs})")
     env = dict(os.environ)
     if add_env:
         env.update(add_env)
         logging.info("additional env: {}".format(add_env))
-    subprocess.run(cmd, check=True, env=env, **kwargs)
+    params = {}
+    if capture:
+        params["stdout"] = subprocess.PIPE
+    ret = subprocess.run(cmd, check=True, env=env, **params, **kwargs)
+    if capture:
+        return ret.stdout.decode("utf-8")

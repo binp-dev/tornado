@@ -10,7 +10,7 @@
 #include <iocsh.h>
 #include <waveformRecord.h>
 
-#include "framework.hpp"
+//#include "framework.hpp"
 
 
 void init(void) {
@@ -18,6 +18,7 @@ void init(void) {
 }
 
 long record_waveform_init(waveformRecord *raw) {
+    /*
     WaveformRecord record(raw);
     std::cout << "record_waveform_init: " << record.name() << std::endl;
 
@@ -27,21 +28,24 @@ long record_waveform_init(waveformRecord *raw) {
         epicsExit(1);
     }
     record.set_private_data((void *)handler.release());
-
+    */
     return 0;
 }
 long record_waveform_get_ioint_info(int cmd, waveformRecord *raw, IOSCANPVT *ppvt) {
+    /*
     std::cout << "record_waveform_get_ioint_info: " << raw->name << std::endl;
     std::cerr << "unimplemented" << std::endl;
+    */
     return 0;
 }
 long record_waveform_read(waveformRecord *raw) {
+    /*
     WaveformRecord record(raw);
     std::cout << "record_waveform_read: " << record.name() << std::endl;
 
     // FIXME: Check result
     record.handler().read(record);
-
+    */
     return 0;
 }
 

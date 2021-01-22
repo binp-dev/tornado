@@ -17,19 +17,29 @@ class ToolchainDownloadTask(Task):
         return self.owner.download()
 
 class Toolchain(Component):
-    def __init__(self, dir_name: str, archive: str, url: str):
+    def __init__(self, target, dir_name, archive, url):
         super().__init__()
 
-        self.path = os.path.join(TARGET_DIR, dir_name)
+        raw_info = [
+            ("target", target),
+            ("dir_name", dir_name),
+            ("archive", archive),
+            ("url", url),
+        ]
+        info = {}
+        for ks, src in raw_info:
+            rep = {}
+            for k, v in info.items():
+                if ("{" + k + "}") in src:
+                    rep[k] = v
+            info[ks] = src.format(**rep)
 
-        if "{}" in archive:
-            archive = archive.format(dir_name)
-        if "{}" in url:
-            url = url.format(archive)
-        
-        self.dir_name = dir_name
-        self.archive = archive
-        self.url = url
+        self.target = info["target"]
+        self.dir_name = info["dir_name"]
+        self.archive = info["archive"]
+        self.url = info["url"]
+
+        self.path = os.path.join(TARGET_DIR, self.dir_name)
 
         self.download_task = ToolchainDownloadTask(self)
 
@@ -74,15 +84,17 @@ class Toolchain(Component):
 class AppToolchain(Toolchain):
     def __init__(self):
         super().__init__(
-            "gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf",
-            "{}.tar.xz",
-            "http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/{}",
+            target="arm-linux-gnueabihf",
+            dir_name="gcc-linaro-7.5.0-2019.12-x86_64_{target}",
+            archive="{dir_name}.tar.xz",
+            url="http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/{dir_name}/{archive}",
         )
 
 class McuToolchain(Toolchain):
     def __init__(self):
         super().__init__(
-            "gcc-arm-none-eabi-5_4-2016q3",
-            "{}-20160926-linux.tar.bz2",
-            "https://developer.arm.com/-/media/Files/downloads/gnu-rm/5_4-2016q3/{}",
+            target="arm-none-eabi",
+            dir_name="gcc-{target}-5_4-2016q3",
+            archive="{dir_name}-20160926-linux.tar.bz2",
+            url="https://developer.arm.com/-/media/Files/downloads/gnu-rm/5_4-2016q3/{archive}",
         )
