@@ -41,9 +41,10 @@ class App(Component):
         super().__init__()
 
         self.src_dir = os.path.join(BASE_DIR, "app")
+        self.host_build_dir = os.path.join(TARGET_DIR, "app_host")
         self.cross_toolchain = cross_toolchain
-        
-        self.host_cmake = Cmake(self.src_dir, os.path.join(TARGET_DIR, "app_host"))
+
+        self.host_cmake = Cmake(self.src_dir, self.host_build_dir)
 
         self.build_unittest_task = AppBuildUnittestTask(self.host_cmake)
         self.run_unittest_task = AppRunUnittestTask(self.host_cmake, self.build_unittest_task)

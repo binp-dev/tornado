@@ -9,7 +9,7 @@
 #include <cassert>
 
 #include <core/panic.hpp>
-#include <channel_base.hpp>
+#include <channel/base.hpp>
 #include <encoder.hpp>
 #include <../../common/proto.h>
 

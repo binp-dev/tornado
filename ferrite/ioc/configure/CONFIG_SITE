@@ -35,6 +35,10 @@ CROSS_COMPILER_TARGET_ARCHS =
 #HOST_OPT = NO
 #CROSS_OPT = NO
 
+# Paths to an application.
+APP_SRC_DIR =
+APP_BUILD_DIR =
+
 # These allow developers to override the CONFIG_SITE variable
 # settings without having to modify the configure/CONFIG_SITE
 # file itself.

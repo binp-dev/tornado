@@ -5,7 +5,7 @@
 
 #include <core/lazy_static.hpp>
 #include <core/mutex.hpp>
-#include <record_waveform.hpp>
+#include <record/waveform.hpp>
 #include <encoder.hpp>
 #include <device.hpp>
 
@@ -13,7 +13,7 @@
 #ifdef IOC_TEST
 #include <channel_zmq.hpp>
 #else // IOC_TEST
-#include <channel_rpmsg.hpp>
+#include <channel/rpmsg.hpp>
 #endif // IOC_TEST
 
 typedef std::unique_ptr<Device> DevicePtr;

@@ -5,12 +5,16 @@ include $(TOP)/configure/CONFIG
 # Build devPSC as a library for an IOC:
 LIBRARY_IOC += devPSC
 
+# Library includes
+devPSC_INCLUDES += -I$(APP_SRC_DIR)/src
+
 # Library Source files
 devPSC_SRCS += \
 	devPSC.cpp
 
 # Link with the libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)
+devPSC_LDFLAGS += -l$(APP_BUILD_DIR)/libapp_fakedev.a
 
 #ifndef $(FAKEDEV)
 #	devPSC_LIBS += app

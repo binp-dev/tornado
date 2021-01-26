@@ -16,7 +16,7 @@ freertos = Freertos()
 epics_base = EpicsBase(app_toolchain)
 mcu = Mcu(freertos, mcu_toolchain)
 app = App(app_toolchain)
-ioc = AppIoc(epics_base, app_toolchain)
+ioc = AppIoc(epics_base, app, app_toolchain)
 
 components = {
     "mcu_toolchain": mcu_toolchain,
