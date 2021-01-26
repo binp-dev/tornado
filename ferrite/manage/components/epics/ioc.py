@@ -51,15 +51,15 @@ class Ioc(Component):
             self.src_path,
             self.paths["host_build"],
             [self.epics_base.host_build_task],
-            self.epics_base.src_path,
+            self.epics_base.paths["host_build"],
             None,
         )
         self.cross_build_task = IocBuildTask(
             self.paths["host_build"],
             self.paths["cross_build"],
             [self.epics_base.cross_build_task],
-            self.epics_base.src_path,
-            self.cross_toolchain.path,
+            self.epics_base.paths["cross_build"],
+            self.cross_toolchain,
         )
 
     def tasks(self) -> dict[str, Task]:
