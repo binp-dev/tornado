@@ -9,25 +9,37 @@ from manage.paths import TARGET_DIR
 from .base import EpicsBuildTask, epics_host_arch, epics_arch_by_target
 
 class EpicsBaseBuildTask(EpicsBuildTask):
-    def __init__(self, base_args, toolchain: Toolchain, **kwargs):
-        super().__init__(*base_args, **kwargs)
+    def __init__(
+        self,
+        src_dir: src,
+        build_dir: src,
+        deps: list[Task],
+        toolchain: Toolchain,
+    ):
+        super().__init__(src_dir, build_dir, deps)
         self.toolchain = toolchain
 
     def _configure_common(self):
-        usr_vars = [
+        defs = [
             #("USR_CFLAGS", ""),
-            ("USR_CXXFLAGS", "-std=c++17"),
             #("USR_CPPFLAGS", ""),
+            ("USR_CXXFLAGS", "-std=c++17"),
+
+            ("BIN_PERMISSIONS", "755"),
+            ("LIB_PERMISSIONS", "644"),
+            ("SHRLIB_PERMISSIONS", "755"),
+            ("INSTALL_PERMISSIONS", "644"),
         ]
-        rules = [(r'^([ \t]*{}[ \t]*=[ \t]*)[^\n]*$'.format(v), r'\1{}'.format(f)) for v, f in usr_vars]
+        rules = [(f"^(\\s*{k}\\s*=).*$", f"\\1 {v}") for k, v in defs]
+        logging.warning(rules)
         substitute(rules, os.path.join(self.build_dir, "configure/CONFIG_COMMON"))
 
     def _configure_toolchain(self):
         if self.toolchain is None:
             substitute([
-                (r'^([ \t]*CROSS_COMPILER_TARGET_ARCHS[ \t]*=[ \t]*)[^\n]*$', r'\1'),
+                ("^(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", "\\1"),
             ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
-            
+
         else:
             host_arch = epics_host_arch(self.src_dir)
             if host_arch.endswith("-x86_64"):
@@ -36,32 +48,30 @@ class EpicsBaseBuildTask(EpicsBuildTask):
             cross_arch = epics_arch_by_target(self.toolchain.target)
             
             substitute([
-                (r'^([ \t]*CROSS_COMPILER_TARGET_ARCHS[ \t]*=[ \t]*)[^\n]*$', r'\1{}'.format(cross_arch)),
+                ("^(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {cross_arch}"),
             ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
 
             substitute([
-                (r'^([ \t]*GNU_TARGET[ \t]*=[ \t]*)[^\n]*$', r'\1{}'.format(self.toolchain.target)),
-                (r'^([ \t]*GNU_DIR[ \t]*=[ \t]*)[^\n]*$', r'\1{}'.format(self.toolchain.path)),
+                ("^(\\s*GNU_TARGET\\s*=).*$", f"\\1 {self.toolchain.target}"),
+                ("^(\\s*GNU_DIR\\s*=).*$", f"\\1 {self.toolchain.path}"),
             ], os.path.join(self.build_dir, f"configure/os/CONFIG_SITE.{host_arch}.{cross_arch}"))
-
-    def _configure_install(self):
-        if self.install_dir is None:
-            substitute([
-                (r'^[ \t]*#*([ \t]*INSTALL_LOCATION[ \t]*=[ \t]*)[^\n]*$', r'#\1'),
-            ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
-
-        else:
-            substitute([
-                (r'^[ \t]*#*([ \t]*INSTALL_LOCATION[ \t]*=[ \t]*)[^\n]*$', r'\1{}'.format(self.install_dir)),
-            ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
 
     def _configure(self):
         self._configure_common()
         self._configure_toolchain()
-        self._configure_install()
 
-    def _variables(self) -> dict[str, str]:
-        return {}
+    def run(self, ctx: Context) -> bool:
+        done_path = os.path.join(self.build_dir, "build.done")
+        if os.path.exists(done_path):
+            with open(done_path, "r") as f:
+                if f.read() == self.build_dir:
+                    logging.info(f"'{self.build_dir}' is already built")
+                    return False
+
+        super().run(ctx)
+        with open(done_path, "w") as f:
+            f.write(self.build_dir)
+        return True
 
 class EpicsBase(Component):
     def __init__(self, cross_toolchain: Toolchain=None):
@@ -72,35 +82,27 @@ class EpicsBase(Component):
         self.repo = Repo(
             "https://github.com/epics-base/epics-base.git",
             "epics_base_src",
-            "R7.0.3.1",
+            "R7.0.4.1",
         )
         self.cross_toolchain = cross_toolchain
 
         self.names = {
             "host_build":    "epics_base_host_build",
             "cross_build":   "epics_base_cross_build",
-            "host_install":  "epics_base_host_install",
-            "cross_install": "epics_base_cross_install",
         }
         self.paths = {k: os.path.join(TARGET_DIR, v) for k, v in self.names.items()}
 
         self.host_build_task = EpicsBaseBuildTask(
-            [
-                self.src_path,
-                self.paths["host_build"],
-                self.paths["host_install"],
-            ],
+            self.src_path,
+            self.paths["host_build"],
+            [self.repo.clone_task],
             None,
-            deps=[self.repo.clone_task],
         )
         self.cross_build_task = EpicsBaseBuildTask(
-            [
-                self.paths["host_build"],
-                self.paths["cross_build"],
-                self.paths["cross_install"],
-            ],
+            self.paths["host_build"],
+            self.paths["cross_build"],
+            [self.host_build_task],
             self.cross_toolchain,
-            deps=[self.host_build_task],
         )
 
     def tasks(self) -> dict[str, Task]:

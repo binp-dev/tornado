@@ -9,32 +9,28 @@ from .base import EpicsBuildTask, epics_arch_by_target
 from .epics_base import EpicsBase
 
 class IocBuildTask(EpicsBuildTask):
-    def __init__(self, base_args, epics_base_dir: str, toolchain: Toolchain, **kwargs):
-        super().__init__(*base_args, **kwargs)
+    def __init__(
+        self,
+        src_dir: str,
+        build_dir: str,
+        deps: list[Task],
+        epics_base_dir: str,
+        toolchain: Toolchain,
+    ):
+        super().__init__(src_dir, build_dir, deps)
         self.epics_base_dir = epics_base_dir
         self.toolchain = toolchain
 
     def _configure(self):
-        pass
+        substitute([
+            ("^\\s*#*(\\s*EPICS_BASE\\s*=).*$", f"\\1 {self.epics_base_dir}"),
+        ], os.path.join(self.build_dir, "configure/RELEASE"))
 
-    def _variables(self) -> dict[str, str]:
-        v = {
-            "EPICS_BASE": self.epics_base_dir,
-            "INSTALL_LOCATION": self.install_dir,
-            #"USR_CFLAGS": "",
-            #"USR_CXXFLAGS": "",
-            #"USR_LDFLAGS": "",
-            #"LIB_SYS_LIBS": "",
-        }
         if self.toolchain:
-            v["CROSS_COMPILER_TARGET_ARCHS"] = epics_arch_by_target(self.toolchain.arch)
-        return v
-
-    def _post_build(self):
-        shutil.copytree(
-            os.path.join(self.build_dir, "iocBoot"),
-            os.path.join(self.install_dir, "iocBoot"),
-        )
+            cross_arch = epics_arch_by_target(self.toolchain.target)
+            substitute([
+                ("^\\s*#*(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {cross_arch}"),
+            ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
 
 class Ioc(Component):
     def __init__(self, name: str, path: str, epics_base: EpicsBase, cross_toolchain: Toolchain):
@@ -48,30 +44,22 @@ class Ioc(Component):
         self.names = {
             "host_build":    f"{self.name}_host_build",
             "cross_build":   f"{self.name}_cross_build",
-            "host_install":  f"{self.name}_host_install",
-            "cross_install": f"{self.name}_cross_install",
         }
         self.paths = {k: os.path.join(TARGET_DIR, v) for k, v in self.names.items()}
 
         self.host_build_task = IocBuildTask(
-            [
-                self.src_path,
-                self.paths["host_build"],
-                self.paths["host_install"],
-            ],
-            self.epics_base.paths["host_install"],
+            self.src_path,
+            self.paths["host_build"],
+            [self.epics_base.host_build_task],
+            self.epics_base.src_path,
             None,
-            deps=[self.epics_base.host_build_task],
         )
         self.cross_build_task = IocBuildTask(
-            [
-                self.paths["host_build"],
-                self.paths["cross_build"],
-                self.paths["cross_install"],
-            ],
-            self.epics_base.paths["cross_install"],
+            self.paths["host_build"],
+            self.paths["cross_build"],
+            [self.epics_base.cross_build_task],
+            self.epics_base.src_path,
             self.cross_toolchain.path,
-            deps=[self.epics_base.cross_build_task],
         )
 
     def tasks(self) -> dict[str, Task]:
