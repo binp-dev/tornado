@@ -38,10 +38,15 @@ class Cmake(Component):
         self.build_task = CmakeBuildTask(self)
         self.test_task = CmakeTestTask(self)
 
-    def configure(self):
+    def configure(self, cvars: dict[str, str] = {}):
         os.makedirs(self.build_dir, exist_ok=True)
         run(
-            ["cmake", *self.opt, self.src_dir],
+            [
+                "cmake",
+                *self.opt,
+                *[f"-D{k}={v}" for k, v in cvars.items()],
+                self.src_dir,
+            ],
             cwd=self.build_dir,
             add_env=self.env,
         )

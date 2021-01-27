@@ -4,6 +4,7 @@
 #include <utility>
 
 #include <waveformRecord.h>
+#include <menuFtype.h>
 
 #include "base.hpp"
 

@@ -1,12 +1,13 @@
 from __future__ import annotations
 import os
+import shutil
 from manage.components.base import Component, Task
 from manage.components.git import Repo
 from manage.components.toolchains import Toolchain
 from manage.components.app import App
 from manage.utils.files import substitute
 from manage.paths import BASE_DIR, TARGET_DIR
-from .base import EpicsBuildTask, epics_arch_by_target
+from .base import EpicsBuildTask, epics_host_arch, epics_arch_by_target
 from .epics_base import EpicsBase
 
 class IocBuildTask(EpicsBuildTask):
@@ -33,6 +34,12 @@ class IocBuildTask(EpicsBuildTask):
             ("^\\s*#*(\\s*APP_SRC_DIR\\s*=).*$", f"\\1 {self.app.src_dir}"),
             ("^\\s*#*(\\s*APP_BUILD_DIR\\s*=).*$", f"\\1 {self.app.host_build_dir}"),
         ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
+
+        os.makedirs(os.path.join(self.build_dir, "lib", "linux-x86_64"), exist_ok=True)
+        shutil.copy2(
+            os.path.join(self.app.host_build_dir, "libapp_fakedev.so"),
+            os.path.join(self.build_dir, "lib", "linux-x86_64", "libapp_fakedev.so"),
+        )
 
         if self.toolchain:
             cross_arch = epics_arch_by_target(self.toolchain.target)
@@ -66,7 +73,10 @@ class Ioc(Component):
         self.host_build_task = IocBuildTask(
             self.src_path,
             self.paths["host_build"],
-            [self.epics_base.host_build_task],
+            [
+                self.epics_base.host_build_task,
+                self.app.build_fakedev_task,
+            ],
             self.epics_base.paths["host_build"],
             self.app,
             None,

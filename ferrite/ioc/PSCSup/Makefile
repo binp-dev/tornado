@@ -13,8 +13,9 @@ devPSC_SRCS += \
 	devPSC.cpp
 
 # Link with the libraries
-devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)
-devPSC_LDFLAGS += -l$(APP_BUILD_DIR)/libapp_fakedev.a
+devPSC_LIBS += \
+	$(EPICS_BASE_IOC_LIBS) \
+	app_fakedev
 
 #ifndef $(FAKEDEV)
 #	devPSC_LIBS += app

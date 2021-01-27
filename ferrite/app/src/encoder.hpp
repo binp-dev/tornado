@@ -12,7 +12,7 @@ public:
     virtual std::pair<size_t, size_t> encode(
         uint8_t *dst, size_t dst_len,
         const T *src, size_t src_len
-    ) const;
+    ) const = 0;
 };
 
 template <typename T>
@@ -31,7 +31,7 @@ private:
     double _low;
     double _high;
 
-    uint64_t encode_value(double value) const {
+    inline uint64_t encode_value(double value) const {
         uint64_t enc;
         if (value <= _low) {
             enc = 0;
@@ -44,17 +44,17 @@ private:
     }
 
 public:
-    LinearEncoder(double low, double high, size_t bytes) :
+    inline LinearEncoder(double low, double high, size_t bytes) :
         SizedArrayEncoder(bytes)
     {
         _low = low;
         _high = high;
     }
 
-    double low() const { return _low; }
-    double high() const { return _high; }
+    inline double low() const { return _low; }
+    inline double high() const { return _high; }
 
-    virtual std::pair<size_t, size_t> encode(
+    inline virtual std::pair<size_t, size_t> encode(
         uint8_t *dst, size_t dst_len,
         const double *src, size_t src_len
     ) const override {

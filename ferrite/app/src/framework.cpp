@@ -10,11 +10,11 @@
 #include <device.hpp>
 
 
-#ifdef IOC_TEST
-#include <channel_zmq.hpp>
-#else // IOC_TEST
+#ifdef FAKEDEV
+#include <channel/zmq.hpp>
+#else // FAKEDEV
 #include <channel/rpmsg.hpp>
-#endif // IOC_TEST
+#endif // FAKEDEV
 
 typedef std::unique_ptr<Device> DevicePtr;
 
@@ -22,11 +22,11 @@ const class : public LazyStatic<Mutex<DevicePtr>> {
     virtual Mutex<DevicePtr> init_value() const override {
         std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
         return Mutex(std::make_unique<Device>(
-#ifdef IOC_TEST
+#ifdef FAKEDEV
             std::unique_ptr<Channel>(new ZmqChannel(std::move(ZmqChannel::create("tcp://127.0.0.1:8321").unwrap()))),
-#else // IOC_TEST
+#else // FAKEDEV
             std::unique_ptr<Channel>(new RpmsgChannel(std::move(RpmsgChannel::create("/dev/ttyRPMSG0").unwrap()))),
-#endif // IOC_TEST
+#endif // FAKEDEV
             std::move(std::make_unique<LinearEncoder>(0, (1<<24) - 1, 3)),
             200,
             256

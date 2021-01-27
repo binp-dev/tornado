@@ -19,7 +19,7 @@ PSC_DBD += base.dbd
 PSC_DBD += devPSC.dbd
 
 # Add all the support libraries needed by this IOC
-PSC_LIBS += devPSC
+PSC_LIBS += devPSC app_fakedev
 
 # PSC_registerRecordDeviceDriver.cpp derives from PSC.dbd
 PSC_SRCS += PSC_registerRecordDeviceDriver.cpp

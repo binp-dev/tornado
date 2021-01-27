@@ -4,20 +4,31 @@ project("app")
 
 set(CMAKE_C_FLAGS "-Wall -Wextra -Werror=return-type")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -fno-exceptions -pedantic")
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-include_directories("src")
+include_directories(
+    "src"
+    "${EPICS_BASE}/include"
+    "${EPICS_BASE}/include/os/Linux"
+    "${EPICS_BASE}/include/compiler/gcc"
+)
 
-set(COMMON_SRC)
+set(EPICS_SRC
+    "src/record/base.cpp"
+    "src/record/waveform.cpp"
+)
 set(MAIN_SRC
-    ${COMMON_SRC}
+    ${EPICS_SRC}
     "src/channel/rpmsg.cpp"
+    "src/framework.cpp"
 )
 set(FAKEDEV_SRC
-    ${COMMON_SRC}
+    ${EPICS_SRC}
     "src/channel/zmq.cpp"
+    "src/framework.cpp"
 )
 set(UNITTEST_SRC
-    ${FAKEDEV_SRC}
+    "src/channel/zmq.cpp"
     "src/channel/zmq_test.cpp"
     "src/unittest.cpp"
 )
@@ -50,12 +61,12 @@ set(UNITTEST_LIBS
 )
 
 set(MAIN ${PROJECT_NAME})
-add_library(${MAIN} STATIC ${MAIN_SRC})
+add_library(${MAIN} SHARED ${MAIN_SRC})
 target_compile_definitions(${MAIN} PRIVATE ${MAIN_DEFS})
 target_link_libraries(${MAIN} PRIVATE ${MAIN_LIBS})
 
 set(FAKEDEV "${PROJECT_NAME}_fakedev")
-add_library(${FAKEDEV} STATIC ${FAKEDEV_SRC})
+add_library(${FAKEDEV} SHARED ${FAKEDEV_SRC})
 target_compile_definitions(${FAKEDEV} PRIVATE ${FAKEDEV_DEFS})
 target_link_libraries(${FAKEDEV} PRIVATE ${FAKEDEV_LIBS})
 
