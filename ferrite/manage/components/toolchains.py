@@ -3,9 +3,9 @@ import os
 import shutil
 import tarfile
 import logging
+from utils.run import run
+from utils.net import download
 from manage.components.base import Component, Task, Context
-from manage.utils.run import run
-from manage.utils.net import download
 from manage.paths import TARGET_DIR
 
 class ToolchainDownloadTask(Task):

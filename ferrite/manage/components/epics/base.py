@@ -2,8 +2,8 @@ from __future__ import annotations
 import os
 import shutil
 import logging
+from utils.run import run
 from manage.components.base import Task, Context
-from manage.utils.run import run
 
 def epics_host_arch(epics_base_dir: str):
     return run([

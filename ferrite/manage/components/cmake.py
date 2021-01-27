@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os
+from utils.run import run
 from manage.components.base import Component, Task, Context
-from manage.utils.run import run
 
 class CmakeTask(Task):
     def __init__(self, owner: Cmake):

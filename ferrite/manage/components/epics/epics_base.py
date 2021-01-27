@@ -1,10 +1,10 @@
 from __future__ import annotations
 import os
 import logging
+from utils.files import substitute
 from manage.components.base import Component, Task
 from manage.components.git import Repo
 from manage.components.toolchains import Toolchain
-from manage.utils.files import substitute
 from manage.paths import TARGET_DIR
 from .base import EpicsBuildTask, epics_host_arch, epics_arch_by_target
 

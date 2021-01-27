@@ -1,8 +1,8 @@
 from __future__ import annotations
 import os
 import logging
+from utils.run import run
 from manage.components.base import Component, Task, Context
-from manage.utils.run import run
 from manage.paths import TARGET_DIR
 
 class GitCloneTask(Task):
