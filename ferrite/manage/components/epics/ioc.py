@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 import shutil
 from utils.files import substitute
-from manage.components.base import Component, Task
+from manage.components.base import Component, Task, Context
 from manage.components.git import Repo
 from manage.components.toolchains import Toolchain
 from manage.components.app import App
@@ -53,6 +53,25 @@ class IocBuildTask(EpicsBuildTask):
             os.path.join(lib_dir, lib_name),
         )
 
+class IocTestFakeDevTask(Task):
+    def __init__(self, owner):
+        super().__init__()
+        self.owner = owner
+
+    def run(self, ctx: Context) -> bool:
+        import ioc.tests.fakedev as fakedev
+        epics_base_dir = self.owner.epics_base.paths["host_build"]
+        fakedev.run_test(
+            epics_base_dir,
+            self.owner.paths["host_build"],
+            os.path.join(BASE_DIR, "common"),
+            epics_host_arch(epics_base_dir)
+        )
+        return True
+
+    def dependencies(self) -> list[Task]:
+        return [self.owner.host_build_task]
+
 class Ioc(Component):
     def __init__(
         self,
@@ -94,11 +113,13 @@ class Ioc(Component):
             None, #self.app.cross_build_dir,
             self.cross_toolchain,
         )
+        self.test_fakedev_task = IocTestFakeDevTask(self)
 
     def tasks(self) -> dict[str, Task]:
         return {
             "build_host": self.host_build_task,
             "build_cross": self.cross_build_task,
+            "test_fakedev": self.test_fakedev_task,
         }
 
 class AppIoc(Ioc):

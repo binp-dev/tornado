@@ -1,6 +1,3 @@
-/toolchain
-/build
-/output
 /target
 
 __pycache__

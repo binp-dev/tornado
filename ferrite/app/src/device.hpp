@@ -82,8 +82,8 @@ private:
         std::cout << "[ioc] Channel serve thread started" << std::endl;
         auto timeout = std::chrono::milliseconds(10);
         
-        uint8_t start_sid = PSCA_START;
-        channel->send(&start_sid, 1, std::nullopt).unwrap(); // Wait forever
+        uint8_t start_msg[2] = {PSCA_START, 0};
+        channel->send(start_msg, 2, std::nullopt).unwrap(); // Wait forever
 
         while(!this->done.load()) {
             size_t size = 0;
@@ -103,16 +103,17 @@ private:
             std::cout << "Received command: 0x" << std::hex << int(cmd) << std::dec << std::endl;
 
             if(cmd == PSCM_WF_REQ) {
-                if (size != 1) {
+                if (size != 2) {
                     panic("Bad size of PSCM_WF_REQ command");
                 }
                 send_buffer[0] = PSCA_WF_DATA; 
-                size_t shift = 1;
+                size_t shift = 2;
                 size_t msg_size = fill_until_full(
                     send_buffer.data() + shift,
                     send_buffer.size() - shift
-                ) + shift;
-                channel->send(send_buffer.data(), msg_size, timeout).unwrap();
+                );
+                send_buffer[1] = msg_size;
+                channel->send(send_buffer.data(), msg_size + shift, timeout).unwrap();
             } else if (cmd == PSCM_MESSAGE) {
                 uint8_t len = recv_buffer[1];
                 std::cout << "Message(" << int(len) << "): " << recv_buffer.data() + 2 << std::endl;

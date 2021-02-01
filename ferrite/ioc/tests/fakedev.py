@@ -2,20 +2,25 @@ import os
 import time
 import zmq
 
-from utils import proto
 from utils.epics import Ioc, ca
+import utils.proto as proto
 
-def decode(data, ids, nbytes=3, shift=1, dlen=256):
-    assert len(data) == ((dlen - shift)//nbytes)*nbytes + shift
-    
+IDS = None
+
+def decode_wf_data(data, nbytes=3, dlen=256):
     cmd = int(data[0])
-    assert(cmd == ids["PSCA_WF_DATA"])
+    assert(cmd == IDS["PSCA_WF_DATA"])
+    assert(int(data[1]) == len(data) - 2)
 
-    arr = data[shift:]
+    arr = data[2:]
     arr = [arr[i : i + nbytes] for i in range(0, len(arr), nbytes)]
-    assert all([len(a) == nbytes for a in arr])
+    assert(all([len(a) == nbytes for a in arr]))
     arr = [int.from_bytes(a, "little") for a in arr]
-    return (cmd, arr)
+    return arr
+
+def encode(id, data=b""):
+    assert(len(data) <= 256 - 2)
+    return bytes([id, len(data)]) + data
 
 def assert_pop(queue, arr):
     print(arr)
@@ -27,66 +32,62 @@ def assert_pop(queue, arr):
         raise
     return queue[len(arr):]
 
-def test(**kwargs):
-    if kwargs["output_dir"] is None:
-        kwargs["output_dir"] = os.path.join(kwargs["top"], "build/unittest")
-
-    build(
-        **kwargs,
-        cflags=["-DUSE_ZMQ"],
-        cxxflags=["-DUSE_ZMQ", "-std=c++17", "-fno-exceptions"],
-        ldflags=[],
-        libs=["zmq"],
-        opts=["USE_ZMQ=1"],
-    )
+def run_test(
+    epics_base_dir,
+    ioc_dir,
+    common_dir,
+    arch,
+):
+    global IDS
 
     ioc = Ioc(
-        os.path.join(kwargs["output_dir"], "bin", kwargs["host_arch"], "PSC"),
-        os.path.join(kwargs["output_dir"], "iocBoot/iocPSC/st.cmd")
+        os.path.join(ioc_dir, "bin", arch, "PSC"),
+        os.path.join(ioc_dir, "iocBoot/iocPSC/st.cmd")
     )
 
     context = zmq.Context()
     socket = context.socket(zmq.PAIR)
     socket.bind("tcp://127.0.0.1:8321")
 
-    prefix = os.path.join(kwargs["epics_base"], "bin", kwargs["host_arch"])
-    ids = proto.read_defines(os.path.join(kwargs["top"], "../common/proto.h"))
+    prefix = os.path.join(epics_base_dir, "bin", arch)
+    IDS = proto.read_defines(os.path.join(common_dir, "proto.h"))
     def id_as_bytes(id):
         return bytes([id])
 
     wfs = 200
     with ca.Repeater(prefix), ioc:
-        assert socket.recv() == id_as_bytes(ids["PSCA_START"])
+        start_msg = socket.recv()
+        assert(int(start_msg[0]) == IDS["PSCA_START"])
+        assert(int(start_msg[1]) == 0)
         print("Received start signal")
 
-        msg = "Hello from MCU!"
-        socket.send(id_as_bytes(ids["PSCM_MESSAGE"]) + bytes([len(msg)]) + msg.encode("utf-8"))
+        socket.send(encode(IDS["PSCM_MESSAGE"], "Hello from MCU!".encode("utf-8")))
 
         queue = [0]*wfs*2
         for _ in range(4):
-            socket.send(id_as_bytes(ids["PSCM_WF_REQ"]))
-            queue = assert_pop(queue, decode(socket.recv(), ids)[1])
+            socket.send(encode(IDS["PSCM_WF_REQ"]))
+            queue = assert_pop(queue, decode_wf_data(socket.recv()))
         
         wf = list(range(wfs))
         ca.put("WAVEFORM", wf, array=True, prefix=prefix)
         queue += wf*2
         for _ in range(5):
-            socket.send(id_as_bytes(ids["PSCM_WF_REQ"]))
-            queue = assert_pop(queue, decode(socket.recv(), ids)[1])
+            socket.send(encode(IDS["PSCM_WF_REQ"]))
+            queue = assert_pop(queue, decode_wf_data(socket.recv()))
 
         wf = [wfs - x - 1 for x in range(wfs)]
         ca.put("WAVEFORM", wf, array=True, prefix=prefix)
         queue += wf*2
         for _ in range(5):
-            socket.send(id_as_bytes(ids["PSCM_WF_REQ"]))
-            queue = assert_pop(queue, decode(socket.recv(), ids)[1])
+            socket.send(encode(IDS["PSCM_WF_REQ"]))
+            queue = assert_pop(queue, decode_wf_data(socket.recv()))
 
         wf = [wfs + x for x in range(wfs)]
         ca.put("WAVEFORM", range(0, 2*wfs, 2), array=True, prefix=prefix)
         ca.put("WAVEFORM", wf, array=True, prefix=prefix)
         queue += wf*4
         for _ in range(9):
-            socket.send(id_as_bytes(ids["PSCM_WF_REQ"]))
-            queue = assert_pop(queue, decode(socket.recv(), ids)[1])
+            socket.send(encode(IDS["PSCM_WF_REQ"]))
+            queue = assert_pop(queue, decode_wf_data(socket.recv()))
 
     print("Test passed!")
