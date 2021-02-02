@@ -1,8 +1,9 @@
 from __future__ import annotations
 import logging
+from manage.remote import Device
 
 class Context(object):
-    def __init__(self, device=None):
+    def __init__(self, device: Device = None):
         super().__init__()
         self.device = device
 

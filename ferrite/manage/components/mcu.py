@@ -26,6 +26,31 @@ class McuDeployTask(McuTask):
     def __init__(self, owner):
         super().__init__(owner)
 
+    def run(self, ctx: Context) -> bool:
+        assert ctx.device is not None
+        ctx.device.store(
+            os.path.join(self.owner.cmake.build_dir, "release/m4image.bin"),
+            "/m4image.bin",
+        )
+        ctx.device.run(["bash", "-c", " && ".join([
+            "mount /dev/mmcblk2p1 /mnt",
+            "mv /m4image.bin /mnt",
+            "umount /mnt",
+        ])])
+
+    def dependencies(self) -> list[Task]:
+        return [self.owner.tasks()["build"]]
+
+class McuDeployAndRebootTask(McuTask):
+    def __init__(self, owner):
+        super().__init__(owner)
+
+    def run(self, ctx: Context) -> bool:
+        ctx.device.reboot()
+
+    def dependencies(self) -> list[Task]:
+        return [self.owner.tasks()["deploy"]]
+
 class Mcu(Component):
     def __init__(self, freertos, cross_toolchain):
         super().__init__()
@@ -53,4 +78,6 @@ class Mcu(Component):
     def tasks(self) -> dict[str, Task]:
         return {
             "build": McuBuildTask(self),
+            "deploy": McuDeployTask(self),
+            "deploy_and_reboot": McuDeployAndRebootTask(self),
         }

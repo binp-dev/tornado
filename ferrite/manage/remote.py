@@ -1,4 +1,7 @@
-from utils.run import run
+import time
+import logging
+from subprocess import Popen
+from utils.run import run, RunError, quote
 
 def _split_addr(addr):
     comps = addr.split(":")
@@ -9,7 +12,11 @@ def _split_addr(addr):
     else:
         raise Exception(f"Bad address format: '{addr}'")
 
-class SshDevice(object):
+class Device(object):
+    def __init__(self):
+        super().__init__()
+
+class SshDevice(Device):
     def __init__(self, *args, user="root"):
         super().__init__()
 
@@ -39,8 +46,39 @@ class SshDevice(object):
     def _prefix(self):
         return ["ssh", "-p", self.port, f"{self.user}@{self.host}"]
 
-    def run(self, args, popen=True):
+    def _name(self):
+        return f"{self.user}@{self.host}:{self.port}";
+
+    def run(self, args, popen=False):
+        argstr = " ".join([quote(a) for a in args])
         if not popen:
-            run(self._prefix() + args)
+            logging.info(f"SSH run {self._name()} {args}")
+            run(self._prefix() + [argstr], log=False)
         else:
-            return Popen(self._prefix() + args)
+            logging.info(f"SSH popen {self._name()} {args}")
+            return Popen(self._prefix() + [argstr])
+
+    def wait_online(self, attempts=10, timeout=10.0):
+        time.sleep(timeout)
+        for i in range(attempts - 1, -1, -1):
+            try:
+                self.run(["uname", "-a"])
+            except RunError:
+                if i > 0:
+                    time.sleep(timeout)
+                    continue
+                else:
+                    raise
+            else:
+                conn = True
+                break
+
+    def reboot(self):
+        try:
+            self.run(["reboot", "now"])
+        except:
+            pass
+
+        logging.info("Waiting for SoC to reboot ...")
+        self.wait_online()
+        logging.info("Rebooted")
