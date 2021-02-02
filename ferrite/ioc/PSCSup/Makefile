@@ -3,7 +3,8 @@ include $(TOP)/configure/CONFIG
 #=======================================
 
 # Build devPSC as a library for an IOC:
-LIBRARY_IOC += devPSC
+LIBRARY_$(APP_ARCH) += devPSC
+LIBRARY = $(LIBRARY_$(T_A))
 
 # Library includes
 devPSC_INCLUDES += -I$(APP_SRC_DIR)/src
@@ -13,15 +14,13 @@ devPSC_SRCS += \
 	devPSC.cpp
 
 # Link with the libraries
-devPSC_LIBS += \
-	$(EPICS_BASE_IOC_LIBS) \
-	app_fakedev
+devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)
 
-#ifndef $(FAKEDEV)
-#	devPSC_LIBS += app
-#else
-#	devPSC_LIBS += app_fakedev
-#endif
+ifndef $(APP_FAKEDEV)
+	devPSC_LIBS += app
+else
+	devPSC_LIBS += app_fakedev
+endif
 
 # Install .dbd and .db files
 DBD += devPSC.dbd

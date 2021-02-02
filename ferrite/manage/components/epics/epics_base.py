@@ -16,7 +16,11 @@ class EpicsBaseBuildTask(EpicsBuildTask):
         deps: list[Task],
         toolchain: Toolchain,
     ):
-        super().__init__(src_dir, build_dir, deps)
+        super().__init__(
+            src_dir,
+            build_dir,
+            deps=deps,
+        )
         self.toolchain = toolchain
 
     def _configure_common(self):

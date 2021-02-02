@@ -25,8 +25,8 @@ class Cmake(Component):
         self,
         src_dir: str,
         build_dir: str,
-        opt: list[str]=[],
-        env: dict[str, str]=None,
+        opt: list[str] = [],
+        env: dict[str, str] = None,
     ):
         super().__init__()
 

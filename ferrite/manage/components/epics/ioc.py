@@ -19,13 +19,25 @@ class IocBuildTask(EpicsBuildTask):
         epics_base_dir: str,
         app_src_dir: str,
         app_build_dir: str,
+        app_fakedev: bool,
         toolchain: Toolchain,
     ):
-        super().__init__(src_dir, build_dir, deps)
+        if toolchain:
+            arch = epics_arch_by_target(toolchain.target)
+        else:
+            arch = epics_host_arch(epics_base_dir)
+
+        super().__init__(
+            src_dir,
+            build_dir,
+            deps=deps,
+        )
         self.epics_base_dir = epics_base_dir
         self.app_src_dir = app_src_dir
         self.app_build_dir = app_build_dir
+        self.app_fakedev = app_fakedev
         self.toolchain = toolchain
+        self.arch = arch
 
     def _configure(self):
         substitute([
@@ -37,16 +49,18 @@ class IocBuildTask(EpicsBuildTask):
             ("^\\s*#*(\\s*APP_BUILD_DIR\\s*=).*$", f"\\1 {self.app_build_dir}"),
         ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
 
-        arch = epics_host_arch(self.epics_base_dir)
         if self.toolchain:
-            cross_arch = epics_arch_by_target(self.toolchain.target)
             substitute([
-                ("^\\s*#*(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {cross_arch}"),
+                ("^\\s*#*(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {self.arch}"),
             ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
-            arch = cross_arch
-        
-        lib_dir = os.path.join(self.build_dir, "lib", arch)
-        lib_name = "libapp_fakedev.so"
+    
+        substitute([
+            ("^\\s*#*(\\s*APP_ARCH\\s*=).*$", f"\\1 {self.arch}"),
+            ("^\\s*#*(\\s*APP_FAKEDEV\\s*=).*$", f"{'' if self.app_fakedev else '#'}\\1 1"),
+        ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
+
+        lib_dir = os.path.join(self.build_dir, "lib", self.arch)
+        lib_name = "libapp{}.so".format("_fakedev" if self.app_fakedev else "")
         os.makedirs(lib_dir, exist_ok=True)
         shutil.copy2(
             os.path.join(self.app_build_dir, lib_name),
@@ -102,15 +116,17 @@ class Ioc(Component):
             self.epics_base.paths["host_build"],
             self.app.src_dir,
             self.app.host_build_dir,
+            True,
             None,
         )
         self.cross_build_task = IocBuildTask(
-            self.paths["host_build"],
+            self.src_path,
             self.paths["cross_build"],
-            [self.epics_base.cross_build_task],
+            [self.epics_base.cross_build_task, self.app.build_main_cross_task],
             self.epics_base.paths["cross_build"],
             self.app.src_dir,
-            None, #self.app.cross_build_dir,
+            self.app.cross_build_dir,
+            False,
             self.cross_toolchain,
         )
         self.test_fakedev_task = IocTestFakeDevTask(self)

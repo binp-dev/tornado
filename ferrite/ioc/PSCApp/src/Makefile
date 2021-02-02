@@ -8,7 +8,9 @@ include $(TOP)/configure/CONFIG
 #=============================
 # Build the IOC application
 
-PROD_IOC = PSC
+PROD_IOC_$(APP_ARCH) += PSC
+PROD_IOC = $(PROD_IOC_$(T_A))
+
 # PSC.dbd will be created and installed
 DBD += PSC.dbd
 
@@ -19,7 +21,13 @@ PSC_DBD += base.dbd
 PSC_DBD += devPSC.dbd
 
 # Add all the support libraries needed by this IOC
-PSC_LIBS += devPSC app_fakedev
+PSC_LIBS += devPSC
+
+ifndef $(APP_FAKEDEV)
+	PSC_LIBS += app
+else
+	PSC_LIBS += app_fakedev
+endif
 
 # PSC_registerRecordDeviceDriver.cpp derives from PSC.dbd
 PSC_SRCS += PSC_registerRecordDeviceDriver.cpp

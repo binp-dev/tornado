@@ -22,11 +22,13 @@ class EpicsBuildTask(Task):
         self,
         src_dir: str,
         build_dir: str,
-        deps: list[Task],
+        target: str = None,
+        deps: list[Task] = [],
     ):
         super().__init__()
         self.src_dir = src_dir
         self.build_dir = build_dir
+        self.target = target
         self.deps = deps
 
     def _configure(self):
@@ -39,7 +41,11 @@ class EpicsBuildTask(Task):
             ignore=shutil.ignore_patterns(".git")
         )
         self._configure()
-        run(["make", "--jobs"], cwd=self.build_dir)
+        run([
+            "make",
+            "--jobs",
+            *([self.target] if self.target is not None else []),
+            ], cwd=self.build_dir)
         return True
 
     def dependencies(self) -> list[Task]:
