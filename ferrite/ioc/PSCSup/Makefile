@@ -16,7 +16,7 @@ devPSC_SRCS += \
 # Link with the libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)
 
-ifndef $(APP_FAKEDEV)
+ifeq ($(APP_FAKEDEV),)
 	devPSC_LIBS += app
 else
 	devPSC_LIBS += app_fakedev

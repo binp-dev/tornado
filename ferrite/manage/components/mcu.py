@@ -4,10 +4,14 @@ from manage.paths import BASE_DIR, TARGET_DIR
 from manage.components.base import Component, Task, Context
 from manage.components.cmake import Cmake
 
-class McuBuildTask(Task):
+class McuTask(Task):
     def __init__(self, owner):
         super().__init__()
         self.owner = owner
+
+class McuBuildTask(McuTask):
+    def __init__(self, owner):
+        super().__init__(owner)
 
     def run(self, ctx: Context) -> bool:
         return self.owner.cmake.build_task.run(ctx)
@@ -17,6 +21,10 @@ class McuBuildTask(Task):
             self.owner.cross_toolchain.download_task,
             self.owner.freertos.clone_task,
         ]
+
+class McuDeployTask(McuTask):
+    def __init__(self, owner):
+        super().__init__(owner)
 
 class Mcu(Component):
     def __init__(self, freertos, cross_toolchain):

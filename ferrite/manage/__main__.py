@@ -29,35 +29,57 @@ components = {
 }
 
 if __name__ == "__main__":
-    component_parser = argparse.ArgumentParser(
+    parser = argparse.ArgumentParser(
         description="Power supply controller software development automation tool",
-        usage="python3 -m manage <component> <task> [options...]",
+        usage="python3 -m manage <component>.<task> [options...]",
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    component_parser.add_argument(
-        "component", type=str,
+    available_components_text = "\n".join([
+        "Available components:",
+        *[f"\t{name}" for name in components.keys()],
+    ])
+    parser.add_argument(
+        "action", type=str, metavar="<component>.<task>",
         help="\n".join([
-            "Component which task you want to run.",
-            "Available components:",
-            *[f"\t{name}" for name in components.keys()],
+            "Component and task you want to run.",
+            available_components_text,
         ]),
     )
-    component_name = component_parser.parse_args(sys.argv[1:2]).component
-    component = components[component_name]
+    args = parser.parse_args()
 
-    task_parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawTextHelpFormatter,
-    )
-    task_parser.add_argument(
-        "task", type=str,
-        help="\n".join([
-            "Task to run.\nAvailable tasks for '{}':\n{}".format(
-                component_name,
-                "\n".join([f"\t{name}" for name in component.tasks().keys()])
-            ),
-        ]),
-    )
-    task_name = task_parser.parse_args(sys.argv[2:]).task
-    task = component.tasks()[task_name]
+    names = args.action.split(".")
+    component_name = names[0]
+    try:
+        component = components[component_name]
+    except KeyError:
+        print("\n".join([
+            f"Unknown component '{component_name}'.",
+            available_components_text
+        ]))
+        exit(1)
+
+    available_tasks_text = "\n".join([
+        f"Available tasks for component '{component_name}':",
+        *[f"\t{name}" for name in component.tasks().keys()],
+    ])
+    if len(names) == 1:
+        print("\n".join([
+            "No task provided.",
+            available_tasks_text,
+        ]))
+        exit(1)
+    elif len(names) == 2:
+        task_name = names[1]
+        try:
+            task = component.tasks()[task_name]
+        except KeyError:
+            print("\n".join([
+                f"Unknown task '{task_name}'.",
+                available_tasks_text,
+            ]))
+            exit(1)
+    else:
+        print("Bad action syntax. Expected format: '<component>.<task>'.")
+        exit(1)
 
     task.run_with_dependencies(None)

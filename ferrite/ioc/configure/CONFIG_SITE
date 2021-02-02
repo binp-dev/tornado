@@ -43,7 +43,7 @@ APP_BUILD_DIR =
 APP_ARCH =
 
 # Whether to build for real or fake device
-#APP_FAKEDEV = 1
+APP_FAKEDEV =
 
 # These allow developers to override the CONFIG_SITE variable
 # settings without having to modify the configure/CONFIG_SITE

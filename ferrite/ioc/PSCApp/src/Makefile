@@ -23,7 +23,7 @@ PSC_DBD += devPSC.dbd
 # Add all the support libraries needed by this IOC
 PSC_LIBS += devPSC
 
-ifndef $(APP_FAKEDEV)
+ifeq ($(APP_FAKEDEV),)
 	PSC_LIBS += app
 else
 	PSC_LIBS += app_fakedev

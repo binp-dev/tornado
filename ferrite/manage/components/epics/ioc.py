@@ -22,11 +22,6 @@ class IocBuildTask(EpicsBuildTask):
         app_fakedev: bool,
         toolchain: Toolchain,
     ):
-        if toolchain:
-            arch = epics_arch_by_target(toolchain.target)
-        else:
-            arch = epics_host_arch(epics_base_dir)
-
         super().__init__(
             src_dir,
             build_dir,
@@ -37,9 +32,13 @@ class IocBuildTask(EpicsBuildTask):
         self.app_build_dir = app_build_dir
         self.app_fakedev = app_fakedev
         self.toolchain = toolchain
-        self.arch = arch
 
     def _configure(self):
+        if self.toolchain:
+            arch = epics_arch_by_target(self.toolchain.target)
+        else:
+            arch = epics_host_arch(self.epics_base_dir)
+
         substitute([
             ("^\\s*#*(\\s*EPICS_BASE\\s*=).*$", f"\\1 {self.epics_base_dir}"),
         ], os.path.join(self.build_dir, "configure/RELEASE"))
@@ -51,15 +50,15 @@ class IocBuildTask(EpicsBuildTask):
 
         if self.toolchain:
             substitute([
-                ("^\\s*#*(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {self.arch}"),
+                ("^\\s*#*(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {arch}"),
             ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
     
         substitute([
-            ("^\\s*#*(\\s*APP_ARCH\\s*=).*$", f"\\1 {self.arch}"),
-            ("^\\s*#*(\\s*APP_FAKEDEV\\s*=).*$", f"{'' if self.app_fakedev else '#'}\\1 1"),
+            ("^\\s*#*(\\s*APP_ARCH\\s*=).*$", f"\\1 {arch}"),
+            ("^\\s*#*(\\s*APP_FAKEDEV\\s*=).*$", f"\\1 {'1' if self.app_fakedev else ''}"),
         ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
 
-        lib_dir = os.path.join(self.build_dir, "lib", self.arch)
+        lib_dir = os.path.join(self.build_dir, "lib", arch)
         lib_name = "libapp{}.so".format("_fakedev" if self.app_fakedev else "")
         os.makedirs(lib_dir, exist_ok=True)
         shutil.copy2(
