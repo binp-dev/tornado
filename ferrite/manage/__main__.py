@@ -1,12 +1,14 @@
 import sys
 import argparse
 import logging
+from manage.components.base import Context
 from manage.components.toolchains import AppToolchain, McuToolchain
 from manage.components.freertos import Freertos
 from manage.components.epics.epics_base import EpicsBase
 from manage.components.mcu import Mcu
 from manage.components.app import App
 from manage.components.epics.ioc import AppIoc
+from manage.remote import SshDevice
 
 logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.DEBUG)
 
@@ -39,15 +41,29 @@ if __name__ == "__main__":
         *[f"\t{name}" for name in components.keys()],
     ])
     parser.add_argument(
-        "action", type=str, metavar="<component>.<task>",
+        "comptask", type=str, metavar="<component>.<task>",
         help="\n".join([
             "Component and task you want to run.",
             available_components_text,
         ]),
     )
+    parser.add_argument(
+        "--no-deps", action="store_true",
+        help="Run only specified task without dependencies.",
+    )
+    parser.add_argument(
+        "--device", type=str, metavar="<address>[:port]", default=None,
+        help="\n".join([
+            "Device to deploy and run tests.",
+            "Requirements:",
+            "+ Debian Linux running on the device (another distros are not tested).",
+            "+ SSH server running on the device on the specified port (or 22 if the port is not specified).",
+            "+ Possibility to log in to the device via SSH by user 'root' without password (e.g. using public key)."
+        ])
+    )
     args = parser.parse_args()
 
-    names = args.action.split(".")
+    names = args.comptask.split(".")
     component_name = names[0]
     try:
         component = components[component_name]
@@ -82,4 +98,14 @@ if __name__ == "__main__":
         print("Bad action syntax. Expected format: '<component>.<task>'.")
         exit(1)
 
-    task.run_with_dependencies(None)
+    device = None
+    if args.device:
+        device = SshDevice(args.device)
+
+    context = Context(
+        device=device,
+    )
+    if args.no_deps:
+        task.run(context)
+    else:
+        task.run_with_dependencies(context)

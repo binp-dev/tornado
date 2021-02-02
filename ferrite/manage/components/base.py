@@ -2,8 +2,9 @@ from __future__ import annotations
 import logging
 
 class Context(object):
-    def __init__(self):
+    def __init__(self, device=None):
         super().__init__()
+        self.device = device
 
 class Task(object):
     def __init__(self):
