@@ -48,7 +48,7 @@ class AppBuildWithEpicsTask(Task):
     def run(self, ctx: Context) -> bool:
         if self.toolchain is None:
             self.cmake.configure({
-                "EPICS_BASE": self.epics_base.paths["host_build"],
+                "EPICS_BASE": self.epics_base.paths["host_install"],
             })
         else:
             assert self.toolchain == self.epics_base.cross_toolchain
@@ -56,7 +56,7 @@ class AppBuildWithEpicsTask(Task):
                 "TOOLCHAIN_DIR": self.toolchain.path,
                 "TARGET_TRIPLE": self.toolchain.target,
                 "CMAKE_TOOLCHAIN_FILE": os.path.join(self.cmake.src_dir, "armgcc.cmake"),
-                "EPICS_BASE": self.epics_base.paths["cross_build"],
+                "EPICS_BASE": self.epics_base.paths["cross_install"],
             })
         return self.cmake.build(self.cmake_target)
 

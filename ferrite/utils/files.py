@@ -1,5 +1,8 @@
+from __future__ import annotations
+from typing import Callable
 import re
 import logging
+import shutil 
 
 def match(pat, src):
     logging.debug("matching '%s': '%s':" % (src, pat))
@@ -28,3 +31,13 @@ def substitute(rep, src, dst=None, force=False):
             file.write(new_data)
     else:
         logging.debug(f"file unchanged '{dst}'")
+
+def _inverse_ignore_patterns(
+    ignore_patterns: Callable[[str, list[str]], list[str]],
+) -> Callable[[str, list[str]], list[str]]:
+    def allow_patterns(path: str, names: list[str]) -> list[str]:
+        return list(set(names) - set(ignore_patterns(path, names)))
+    return allow_patterns
+
+def allow_patterns(*patterns):
+    return _inverse_ignore_patterns(shutil.ignore_patterns(*patterns))

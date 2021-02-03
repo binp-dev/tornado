@@ -7,7 +7,7 @@ from manage.components.git import Repo
 from manage.components.toolchains import Toolchain
 from manage.components.app import App
 from manage.paths import BASE_DIR, TARGET_DIR
-from .base import EpicsBuildTask, epics_arch_by_target, epics_host_arch
+from .base import EpicsBuildTask, epics_arch, epics_host_arch
 from .epics_base import EpicsBase
 
 class IocBuildTask(EpicsBuildTask):
@@ -15,6 +15,7 @@ class IocBuildTask(EpicsBuildTask):
         self,
         src_dir: str,
         build_dir: str,
+        install_dir: str,
         deps: list[Task],
         epics_base_dir: str,
         app_src_dir: str,
@@ -25,6 +26,7 @@ class IocBuildTask(EpicsBuildTask):
         super().__init__(
             src_dir,
             build_dir,
+            install_dir,
             deps=deps,
         )
         self.epics_base_dir = epics_base_dir
@@ -34,10 +36,7 @@ class IocBuildTask(EpicsBuildTask):
         self.toolchain = toolchain
 
     def _configure(self):
-        if self.toolchain:
-            arch = epics_arch_by_target(self.toolchain.target)
-        else:
-            arch = epics_host_arch(self.epics_base_dir)
+        arch = epics_arch(self.epics_base_dir, self.toolchain and self.toolchain.target)
 
         substitute([
             ("^\\s*#*(\\s*EPICS_BASE\\s*=).*$", f"\\1 {self.epics_base_dir}"),
@@ -58,12 +57,25 @@ class IocBuildTask(EpicsBuildTask):
             ("^\\s*#*(\\s*APP_FAKEDEV\\s*=).*$", f"\\1 {'1' if self.app_fakedev else ''}"),
         ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
 
-        lib_dir = os.path.join(self.build_dir, "lib", arch)
+        substitute([
+            ("^\\s*#*(\\s*INSTALL_LOCATION\\s*=).*$", f"\\1 {self.install_dir}"),
+        ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
+        os.makedirs(self.install_dir, exist_ok=True)
+
+        lib_dir = os.path.join(self.install_dir, "lib", arch)
         lib_name = "libapp{}.so".format("_fakedev" if self.app_fakedev else "")
         os.makedirs(lib_dir, exist_ok=True)
         shutil.copy2(
             os.path.join(self.app_build_dir, lib_name),
             os.path.join(lib_dir, lib_name),
+        )
+
+    def _install(self):
+        shutil.copytree(
+            os.path.join(self.build_dir, "iocBoot"),
+            os.path.join(self.install_dir, "iocBoot"),
+            dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns("O.*"),
         )
 
 class IocTestFakeDevTask(Task):
@@ -73,12 +85,12 @@ class IocTestFakeDevTask(Task):
 
     def run(self, ctx: Context) -> bool:
         import ioc.tests.fakedev as fakedev
-        epics_base_dir = self.owner.epics_base.paths["host_build"]
+        epics_base_dir = self.owner.epics_base.paths["host_install"]
         fakedev.run_test(
-            epics_base_dir,
-            self.owner.paths["host_build"],
+            self.owner.epics_base.paths["host_install"],
+            self.owner.paths["host_install"],
             os.path.join(BASE_DIR, "common"),
-            epics_host_arch(epics_base_dir)
+            epics_host_arch(self.owner.epics_base.paths["host_build"]),
         )
         return True
 
@@ -105,12 +117,15 @@ class Ioc(Component):
         self.names = {
             "host_build":    f"{self.name}_host_build",
             "cross_build":   f"{self.name}_cross_build",
+            "host_install":    f"{self.name}_host_install",
+            "cross_install":   f"{self.name}_cross_install",
         }
         self.paths = {k: os.path.join(TARGET_DIR, v) for k, v in self.names.items()}
 
         self.host_build_task = IocBuildTask(
             self.src_path,
             self.paths["host_build"],
+            self.paths["host_install"],
             [self.epics_base.host_build_task, self.app.build_fakedev_task],
             self.epics_base.paths["host_build"],
             self.app.src_dir,
@@ -121,6 +136,7 @@ class Ioc(Component):
         self.cross_build_task = IocBuildTask(
             self.src_path,
             self.paths["cross_build"],
+            self.paths["cross_install"],
             [self.epics_base.cross_build_task, self.app.build_main_cross_task],
             self.epics_base.paths["cross_build"],
             self.app.src_dir,
