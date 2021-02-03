@@ -16,6 +16,9 @@ class Device(object):
     def __init__(self):
         super().__init__()
 
+    def name(self) -> str:
+        raise NotImplementedError
+
 class SshDevice(Device):
     def __init__(self, *args, user="root"):
         super().__init__()
@@ -37,7 +40,7 @@ class SshDevice(Device):
             ])
         else:
             run([
-                "rsync", "-lr",
+                "rsync", "-lr", "--progress",
                 "--rsh", f"ssh -p {self.port}",
                 src,
                 f"{self.user}@{self.host}:{dst}",
@@ -46,16 +49,16 @@ class SshDevice(Device):
     def _prefix(self):
         return ["ssh", "-p", self.port, f"{self.user}@{self.host}"]
 
-    def _name(self):
+    def name(self):
         return f"{self.user}@{self.host}:{self.port}";
 
     def run(self, args, popen=False):
         argstr = " ".join([quote(a) for a in args])
         if not popen:
-            logging.info(f"SSH run {self._name()} {args}")
+            logging.info(f"SSH run {self.name()} {args}")
             run(self._prefix() + [argstr], log=False)
         else:
-            logging.info(f"SSH popen {self._name()} {args}")
+            logging.info(f"SSH popen {self.name()} {args}")
             return Popen(self._prefix() + [argstr])
 
     def wait_online(self, attempts=10, timeout=10.0):

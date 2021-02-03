@@ -70,3 +70,28 @@ class EpicsBuildTask(Task):
 
     def dependencies(self) -> list[Task]:
         return self.deps
+
+class EpicsDeployTask(Task):
+    def __init__(
+        self,
+        install_dir: str,
+        deploy_dir: str,
+        deps: list[Task] = [],
+    ):
+        super().__init__()
+        self.install_dir = install_dir
+        self.deploy_dir = deploy_dir
+        self.deps = deps
+
+    def run(self, ctx: Context) -> bool:
+        assert ctx.device is not None
+        logging.info(f"Deploy {self.install_dir} to {ctx.device.name()}:{self.deploy_dir}")
+        ctx.device.store(
+            self.install_dir,
+            self.deploy_dir,
+            r=True,
+        )
+        return True
+
+    def dependencies(self) -> list[Task]:
+        return self.deps

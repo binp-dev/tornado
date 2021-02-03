@@ -7,7 +7,7 @@ from manage.components.base import Component, Task
 from manage.components.git import Repo
 from manage.components.toolchains import Toolchain
 from manage.paths import TARGET_DIR
-from .base import EpicsBuildTask, epics_arch, epics_host_arch, epics_arch_by_target
+from .base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch, epics_arch_by_target
 
 class EpicsBaseBuildTask(EpicsBuildTask):
     def __init__(
@@ -150,10 +150,16 @@ class EpicsBase(Component):
             [self.host_build_task],
             self.cross_toolchain,
         )
+        self.deploy_task = EpicsDeployTask(
+            self.paths["cross_install"],
+            "/opt/epics_base",
+            [self.cross_build_task],
+        )
 
     def tasks(self) -> dict[str, Task]:
         return {
             "clone": self.repo.clone_task,
             "build_host": self.host_build_task,
             "build_cross": self.cross_build_task,
+            "deploy": self.deploy_task,
         }

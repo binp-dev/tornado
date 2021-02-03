@@ -7,7 +7,7 @@ from manage.components.git import Repo
 from manage.components.toolchains import Toolchain
 from manage.components.app import App
 from manage.paths import BASE_DIR, TARGET_DIR
-from .base import EpicsBuildTask, epics_arch, epics_host_arch
+from .base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch
 from .epics_base import EpicsBase
 
 class IocBuildTask(EpicsBuildTask):
@@ -145,12 +145,18 @@ class Ioc(Component):
             self.cross_toolchain,
         )
         self.test_fakedev_task = IocTestFakeDevTask(self)
+        self.deploy_task = EpicsDeployTask(
+            self.paths["cross_install"],
+            "/opt/ioc",
+            [self.cross_build_task],
+        )
 
     def tasks(self) -> dict[str, Task]:
         return {
             "build_host": self.host_build_task,
             "build_cross": self.cross_build_task,
             "test_fakedev": self.test_fakedev_task,
+            "deploy": self.deploy_task,
         }
 
 class AppIoc(Ioc):
