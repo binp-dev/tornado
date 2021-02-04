@@ -92,6 +92,7 @@ class EpicsBaseBuildTask(EpicsBuildTask):
                 os.path.join(self.build_dir, path),
                 os.path.join(self.install_dir, path),
                 dirs_exist_ok=True,
+                symlinks=True,
                 ignore=shutil.ignore_patterns("O.*"),
             )
         if arch != host_arch:
@@ -99,6 +100,7 @@ class EpicsBaseBuildTask(EpicsBuildTask):
                 os.path.join(self.build_dir, "bin", host_arch),
                 os.path.join(self.install_dir, "bin", arch),
                 dirs_exist_ok=True,
+                symlinks=True,
                 ignore=allow_patterns("*.pl", "*.py"),
             )
 

@@ -1,8 +1,10 @@
 from __future__ import annotations
 import os
 import shutil
+import re
+import logging
 from utils.files import substitute
-from manage.components.base import Component, Task, Context
+from manage.components.base import Component, Task, FinalTask, Context
 from manage.components.git import Repo
 from manage.components.toolchains import Toolchain
 from manage.components.app import App
@@ -75,7 +77,7 @@ class IocBuildTask(EpicsBuildTask):
             os.path.join(self.build_dir, "iocBoot"),
             os.path.join(self.install_dir, "iocBoot"),
             dirs_exist_ok=True,
-            ignore=shutil.ignore_patterns("O.*"),
+            ignore=shutil.ignore_patterns("Makefile"),
         )
 
 class IocTestFakeDevTask(Task):
@@ -96,6 +98,42 @@ class IocTestFakeDevTask(Task):
 
     def dependencies(self) -> list[Task]:
         return [self.owner.host_build_task]
+
+class IocDeployTask(EpicsDeployTask):
+    def __init__(
+        self,
+        install_dir: str,
+        deploy_dir: str,
+        deps: list[Task] = [],
+    ):
+        super().__init__(
+            install_dir,
+            deploy_dir,
+            deps,
+        )
+
+    def _post(self, ctx: Context):
+        boot_dir = os.path.join(self.install_dir, "iocBoot")
+        for ioc_name in os.listdir(boot_dir):
+            ioc_dir = os.path.join(boot_dir, ioc_name)
+            if not os.path.isdir(ioc_dir):
+                continue
+            env_path = os.path.join(ioc_dir, "envPaths")
+            if not os.path.isfile(env_path):
+                continue
+            with open(env_path, "r") as f:
+                text = f.read()
+            text = re.sub(r'(epicsEnvSet\("TOP",)[^\n]+', f'\\1"{self.deploy_dir}")', text)
+            text = re.sub(r'(epicsEnvSet\("EPICS_BASE",)[^\n]+', f'\\1"{"/opt/epics_base"}")', text)
+            ctx.device.store_mem(text, os.path.join(self.deploy_dir, "iocBoot", ioc_name, "envPaths"))
+
+class IocRunTask(FinalTask):
+    def __init__(self, owner):
+        super().__init__()
+        self.owner = owner
+
+    def run(self, ctx: Context) -> bool:
+        pass
 
 class Ioc(Component):
     def __init__(
@@ -145,11 +183,12 @@ class Ioc(Component):
             self.cross_toolchain,
         )
         self.test_fakedev_task = IocTestFakeDevTask(self)
-        self.deploy_task = EpicsDeployTask(
+        self.deploy_task = IocDeployTask(
             self.paths["cross_install"],
             "/opt/ioc",
             [self.cross_build_task],
         )
+        self.run_task = IocRunTask(self)
 
     def tasks(self) -> dict[str, Task]:
         return {
@@ -157,6 +196,7 @@ class Ioc(Component):
             "build_cross": self.cross_build_task,
             "test_fakedev": self.test_fakedev_task,
             "deploy": self.deploy_task,
+            "run": self.run_task,
         }
 
 class AppIoc(Ioc):

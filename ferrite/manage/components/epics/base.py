@@ -83,14 +83,21 @@ class EpicsDeployTask(Task):
         self.deploy_dir = deploy_dir
         self.deps = deps
 
+    def _pre(self, ctx: Context):
+        pass
+    def _post(self, ctx: Context):
+        pass
+
     def run(self, ctx: Context) -> bool:
         assert ctx.device is not None
+        self._pre(ctx)
         logging.info(f"Deploy {self.install_dir} to {ctx.device.name()}:{self.deploy_dir}")
         ctx.device.store(
             self.install_dir,
             self.deploy_dir,
             r=True,
         )
+        self._post(ctx)
         return True
 
     def dependencies(self) -> list[Task]:

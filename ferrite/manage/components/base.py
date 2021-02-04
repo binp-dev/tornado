@@ -27,6 +27,22 @@ class Task(object):
 
         return self.run(ctx) or ret
 
+class FinalTask(Task):
+    def __init__(self):
+        super().__init__()
+
+class WrappingTask(Task):
+    def __init__(self, inner: Task, deps: list[Task]):
+        super().__init__()
+        self.inner = inner
+        self.deps = deps
+
+    def run(self, ctx: Context) -> bool:
+        return self.inner.run(self, ctx)
+
+    def dependencies(self) -> list[Task]:
+        return self.inner.dependencies() + self.deps
+
 class Component(object):
     def __init__(self):
         super().__init__()

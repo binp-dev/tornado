@@ -40,11 +40,18 @@ class SshDevice(Device):
             ])
         else:
             run([
-                "rsync", "-lr", "--progress",
+                "rsync", "-rlpt", "--progress",
                 "--rsh", f"ssh -p {self.port}",
-                src,
+                src + "/",
                 f"{self.user}@{self.host}:{dst}",
             ])
+
+    def store_mem(self, src_data, dst_path):
+        logging.debug(f"Store {len(src_data)} chars to {self.name()}:{dst_path}")
+        run([
+            "bash", "-c",
+            f"echo {quote(src_data)} | ssh -p {self.port} {self.user}@{self.host} 'cat > {dst_path}'"
+        ], log=False)
 
     def _prefix(self):
         return ["ssh", "-p", self.port, f"{self.user}@{self.host}"]
