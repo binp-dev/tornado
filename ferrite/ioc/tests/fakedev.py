@@ -2,7 +2,8 @@ import os
 import time
 import zmq
 
-from utils.epics import Ioc, ca
+from utils.epics.ioc import Ioc
+from utils.epics import ca
 import utils.proto as proto
 
 IDS = None

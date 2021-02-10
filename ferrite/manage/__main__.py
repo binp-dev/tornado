@@ -82,7 +82,28 @@ if __name__ == "__main__":
     context = Context(
         device=device,
     )
-    if args.no_deps:
-        task.run(context)
-    else:
-        task.run_with_dependencies(context)
+
+    def print_title(text, char="*"):
+        assert len(char) == 1
+        length = len(text) + 2
+        print("\n".join([
+            "",
+            char * length,
+            f"{char} {text}",
+            char * length,
+        ]))
+
+    def run_task(context, task, no_deps=False, title_length=64):
+        if not no_deps:
+            for dep in task.dependencies():
+                run_task(context, dep, no_deps=no_deps, title_length=title_length)
+
+        print_title(f"Running '{task.name()}'.", "*")
+
+        try:
+            task.run(context)
+        except:
+            print_title(f"Task '{task.name()}' failed!", "!")
+            raise
+
+    run_task(context, task, no_deps=args.no_deps)

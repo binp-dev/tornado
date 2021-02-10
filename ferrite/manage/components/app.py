@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 from utils.run import run
 from manage.paths import BASE_DIR, TARGET_DIR
-from manage.components.base import Component, Task
+from manage.components.base import Component, Task, TaskWrapper
 from manage.components.cmake import Cmake
 from manage.components.epics.epics_base import EpicsBase
 from manage.components.toolchains import Toolchain

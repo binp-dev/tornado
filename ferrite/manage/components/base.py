@@ -11,6 +11,9 @@ class Task(object):
     def __init__(self):
         super().__init__()
 
+    def name(self) -> str:
+        return str(self)
+
     def run(self, ctx: Context) -> bool:
         raise NotImplementedError
 
