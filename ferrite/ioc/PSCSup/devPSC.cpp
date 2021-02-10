@@ -13,6 +13,8 @@
 #include "framework.hpp"
 
 
+typedef menuFtype abc;
+
 void init(void) {
     printf("init\n");
 }
@@ -27,7 +29,6 @@ long record_waveform_init(waveformRecord *raw) {
         epicsExit(1);
     }
     record.set_private_data((void *)handler.release());
-
     return 0;
 }
 long record_waveform_get_ioint_info(int cmd, waveformRecord *raw, IOSCANPVT *ppvt) {
@@ -41,7 +42,6 @@ long record_waveform_read(waveformRecord *raw) {
 
     // FIXME: Check result
     record.handler().read(record);
-
     return 0;
 }
 

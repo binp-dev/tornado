@@ -19,7 +19,7 @@ CHECK_RELEASE = YES
 # Set this when you only want to compile this application
 #   for a subset of the cross-compiled target architectures
 #   that Base is built for.
-CROSS_COMPILER_TARGET_ARCHS = 
+CROSS_COMPILER_TARGET_ARCHS =
 
 # To install files into a location other than $(TOP) define
 #   INSTALL_LOCATION here.
@@ -34,6 +34,16 @@ CROSS_COMPILER_TARGET_ARCHS =
 #   or CROSS_OPT settings from base/configure/CONFIG_SITE
 #HOST_OPT = NO
 #CROSS_OPT = NO
+
+# Paths to an application.
+APP_SRC_DIR =
+APP_BUILD_DIR =
+
+# The only architecture to build for 
+APP_ARCH =
+
+# Whether to build for real or fake device
+APP_FAKEDEV =
 
 # These allow developers to override the CONFIG_SITE variable
 # settings without having to modify the configure/CONFIG_SITE
