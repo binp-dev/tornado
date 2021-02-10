@@ -1,6 +1,6 @@
 from __future__ import annotations
 import logging
-from manage.remote import Device
+from manage.remote.base import Device
 
 class Context(object):
     def __init__(self, device: Device = None):
@@ -31,17 +31,45 @@ class FinalTask(Task):
     def __init__(self):
         super().__init__()
 
-class WrappingTask(Task):
-    def __init__(self, inner: Task, deps: list[Task]):
+class TaskList(Task):
+    def __init__(
+        self,
+        tasks: list[Task],
+    ):
+        super().__init__()
+        self.tasks = tasks
+
+    def run(self, ctx: Context) -> bool:
+        res = False
+        for task in self.tasks:
+            if task.run(ctx):
+                res = True
+        return res
+
+    def dependencies(self) -> list[Task]:
+        return [dep for task in self.tasks for dep in task.dependencies()]
+
+class TaskWrapper(Task):
+    def __init__(
+        self,
+        inner: Task = None,
+        deps: list[Task] = [],
+    ):
         super().__init__()
         self.inner = inner
         self.deps = deps
 
     def run(self, ctx: Context) -> bool:
-        return self.inner.run(self, ctx)
+        if self.inner is not None:
+            return self.inner.run(ctx)
+        else:
+            return False
 
     def dependencies(self) -> list[Task]:
-        return self.inner.dependencies() + self.deps
+        inner_deps = []
+        if self.inner is not None:
+            inner_deps = self.inner.dependencies()
+        return inner_deps + self.deps
 
 class Component(object):
     def __init__(self):

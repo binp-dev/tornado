@@ -1,8 +1,9 @@
 from __future__ import annotations
 import os
 from manage.paths import BASE_DIR, TARGET_DIR
-from manage.components.base import Component, Task, Context
+from manage.components.base import Component, Task, Context, TaskWrapper
 from manage.components.cmake import Cmake
+from manage.remote.tasks import RebootTask
 
 class McuTask(Task):
     def __init__(self, owner):
@@ -41,16 +42,6 @@ class McuDeployTask(McuTask):
     def dependencies(self) -> list[Task]:
         return [self.owner.tasks()["build"]]
 
-class McuDeployAndRebootTask(McuTask):
-    def __init__(self, owner):
-        super().__init__(owner)
-
-    def run(self, ctx: Context) -> bool:
-        ctx.device.reboot()
-
-    def dependencies(self) -> list[Task]:
-        return [self.owner.tasks()["deploy"]]
-
 class Mcu(Component):
     def __init__(self, freertos, cross_toolchain):
         super().__init__()
@@ -74,10 +65,13 @@ class Mcu(Component):
                 "ARMGCC_DIR": self.cross_toolchain.path,
             }
         )
+        self.build_task = McuBuildTask(self)
+        self.deploy_task = McuDeployTask(self)
+        self.deploy_and_reboot_task = TaskWrapper(RebootTask(), deps=[self.deploy_task])
 
     def tasks(self) -> dict[str, Task]:
         return {
-            "build": McuBuildTask(self),
-            "deploy": McuDeployTask(self),
-            "deploy_and_reboot": McuDeployAndRebootTask(self),
+            "build": self.build_task,
+            "deploy": self.deploy_task,
+            "deploy_and_reboot": self.deploy_and_reboot_task,
         }

@@ -137,6 +137,7 @@ class EpicsBase(Component):
             "cross_install": "epics_base_cross_install",
         }
         self.paths = {k: os.path.join(TARGET_DIR, v) for k, v in self.names.items()}
+        self.deploy_path = "/opt/epics_base"
 
         self.host_build_task = EpicsBaseBuildTask(
             self.src_path,
@@ -154,9 +155,16 @@ class EpicsBase(Component):
         )
         self.deploy_task = EpicsDeployTask(
             self.paths["cross_install"],
-            "/opt/epics_base",
+            self.deploy_path,
             [self.cross_build_task],
         )
+
+    def host_arch(self) -> str:
+        return epics_host_arch(self.src_path)
+    
+    def cross_arch(self) -> str:
+        tc = self.cross_toolchain
+        return tc and epics_arch_by_target(tc.target)
 
     def tasks(self) -> dict[str, Task]:
         return {

@@ -3,12 +3,14 @@ import os
 import shutil
 import re
 import logging
+import time
 from utils.files import substitute
 from manage.components.base import Component, Task, FinalTask, Context
 from manage.components.git import Repo
 from manage.components.toolchains import Toolchain
 from manage.components.app import App
 from manage.paths import BASE_DIR, TARGET_DIR
+from manage.remote.base import Device
 from .base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch
 from .epics_base import EpicsBase
 
@@ -104,6 +106,7 @@ class IocDeployTask(EpicsDeployTask):
         self,
         install_dir: str,
         deploy_dir: str,
+        epics_deploy_path: str,
         deps: list[Task] = [],
     ):
         super().__init__(
@@ -111,6 +114,7 @@ class IocDeployTask(EpicsDeployTask):
             deploy_dir,
             deps,
         )
+        self.epics_deploy_path = epics_deploy_path
 
     def _post(self, ctx: Context):
         boot_dir = os.path.join(self.install_dir, "iocBoot")
@@ -124,8 +128,42 @@ class IocDeployTask(EpicsDeployTask):
             with open(env_path, "r") as f:
                 text = f.read()
             text = re.sub(r'(epicsEnvSet\("TOP",)[^\n]+', f'\\1"{self.deploy_dir}")', text)
-            text = re.sub(r'(epicsEnvSet\("EPICS_BASE",)[^\n]+', f'\\1"{"/opt/epics_base"}")', text)
+            text = re.sub(r'(epicsEnvSet\("EPICS_BASE",)[^\n]+', f'\\1"{self.epics_deploy_path}")', text)
             ctx.device.store_mem(text, os.path.join(self.deploy_dir, "iocBoot", ioc_name, "envPaths"))
+
+class IocRunner(object):
+    def __init__(
+        self,
+        device: Device,
+        deploy_path: str,
+        epics_deploy_path: str,
+        arch: str,
+    ):
+        super().__init__()
+        self.device = device
+        self.deploy_path = deploy_path
+        self.epics_deploy_path = epics_deploy_path
+        self.arch = arch
+        self.proc = None
+
+    def __enter__(self):
+        self.proc = self.device.run([
+            "bash", "-c",
+            "export {}; export {}; cd {} && {} {}".format(
+                f"TOP={self.deploy_path}",
+                f"LD_LIBRARY_PATH={self.epics_deploy_path}/lib/{self.arch}:{self.deploy_path}/lib/{self.arch}",
+                f"{self.deploy_path}/iocBoot/iocPSC",
+                f"{self.deploy_path}/bin/{self.arch}/PSC", "st.cmd",
+            ),
+        ], popen=True)
+        time.sleep(1)
+        logging.info("IOC started")
+
+    def __exit__(self, *args):
+        logging.info("terminating IOC ...")
+        self.proc.terminate()
+        logging.info("IOC terminated")
+
 
 class IocRunTask(FinalTask):
     def __init__(self, owner):
@@ -133,7 +171,24 @@ class IocRunTask(FinalTask):
         self.owner = owner
 
     def run(self, ctx: Context) -> bool:
-        pass
+        assert ctx.device is not None
+        with IocRunner(
+            ctx.device,
+            self.owner.deploy_path,
+            self.owner.epics_base.deploy_path,
+            self.owner.epics_base.cross_arch(),
+        ):
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                pass
+    
+    def dependencies(self) -> list[Task]:
+        return [
+            self.owner.epics_base.deploy_task,
+            self.owner.deploy_task,
+        ]
 
 class Ioc(Component):
     def __init__(
@@ -159,6 +214,7 @@ class Ioc(Component):
             "cross_install":   f"{self.name}_cross_install",
         }
         self.paths = {k: os.path.join(TARGET_DIR, v) for k, v in self.names.items()}
+        self.deploy_path = "/opt/ioc"
 
         self.host_build_task = IocBuildTask(
             self.src_path,
@@ -185,7 +241,8 @@ class Ioc(Component):
         self.test_fakedev_task = IocTestFakeDevTask(self)
         self.deploy_task = IocDeployTask(
             self.paths["cross_install"],
-            "/opt/ioc",
+            self.deploy_path,
+            self.epics_base.deploy_path,
             [self.cross_build_task],
         )
         self.run_task = IocRunTask(self)

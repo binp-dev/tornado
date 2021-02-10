@@ -8,7 +8,8 @@ from manage.components.epics.epics_base import EpicsBase
 from manage.components.mcu import Mcu
 from manage.components.app import App
 from manage.components.epics.ioc import AppIoc
-from manage.remote import SshDevice
+from manage.components.all_ import All
+from manage.remote.ssh import SshDevice
 
 logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.DEBUG)
 
@@ -19,6 +20,7 @@ epics_base = EpicsBase(app_toolchain)
 mcu = Mcu(freertos, mcu_toolchain)
 app = App(epics_base, app_toolchain)
 ioc = AppIoc(epics_base, app, app_toolchain)
+all_ = All(epics_base, ioc, mcu)
 
 components = {
     "mcu_toolchain": mcu_toolchain,
@@ -28,6 +30,7 @@ components = {
     "mcu": mcu,
     "app": app,
     "ioc": ioc,
+    "all": all_,
 }
 
 if __name__ == "__main__":

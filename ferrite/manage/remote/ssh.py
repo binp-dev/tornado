@@ -2,6 +2,7 @@ import time
 import logging
 from subprocess import Popen
 from utils.run import run, RunError, quote
+from .base import Device
 
 def _split_addr(addr):
     comps = addr.split(":")
@@ -11,13 +12,6 @@ def _split_addr(addr):
         return addr, "22"
     else:
         raise Exception(f"Bad address format: '{addr}'")
-
-class Device(object):
-    def __init__(self):
-        super().__init__()
-
-    def name(self) -> str:
-        raise NotImplementedError
 
 class SshDevice(Device):
     def __init__(self, *args, user="root"):
@@ -48,6 +42,7 @@ class SshDevice(Device):
 
     def store_mem(self, src_data, dst_path):
         logging.debug(f"Store {len(src_data)} chars to {self.name()}:{dst_path}")
+        logging.debug(src_data)
         run([
             "bash", "-c",
             f"echo {quote(src_data)} | ssh -p {self.port} {self.user}@{self.host} 'cat > {dst_path}'"
@@ -89,6 +84,6 @@ class SshDevice(Device):
         except:
             pass
 
-        logging.info("Waiting for SoC to reboot ...")
+        logging.info("Waiting for device to reboot ...")
         self.wait_online()
         logging.info("Rebooted")

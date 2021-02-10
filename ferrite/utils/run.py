@@ -27,4 +27,4 @@ def run(
         return ret.stdout.decode("utf-8")
 
 def quote(text: str, char: str = '"'):
-    return char + text.replace(r"/", r"//").replace(char, r"/" + char) + char
+    return char + text.replace("\\", "\\\\").replace(char, "\\" + char) + char
