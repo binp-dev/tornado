@@ -55,6 +55,7 @@ class Toolchain(Component):
         if not os.path.exists(archive_path):
             try:
                 logging.info(f"Loading toolchain {self.archive} ...")
+                logging.debug(f"URL: {self.url}")
                 download(self.url, archive_path)
             except:
                 if os.path.exists(archive_path):
@@ -87,7 +88,7 @@ class AppToolchain(Toolchain):
             target="arm-linux-gnueabihf",
             dir_name="gcc-linaro-7.5.0-2019.12-x86_64_{target}",
             archive="{dir_name}.tar.xz",
-            url="http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/{dir_name}/{archive}",
+            url="http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/{target}/{archive}",
         )
 
 class McuToolchain(Toolchain):

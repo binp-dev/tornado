@@ -7,6 +7,8 @@ build:
   before_script:
     - pip3 install -r requirements.txt
   script:
+    - python3 -m manage mcu_toolchain.download
+    - ls -lah target/gcc-arm-none-eabi-5_4-2016q3/bin
     - python3 -m manage all.build
   artifacts:
     paths:
