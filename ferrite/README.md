@@ -6,12 +6,10 @@ Software for the BINP next-gen power supply controller.
 
 ### Debian packages
 
-+ `git`
 + `g++`
 + `cmake`
-+ `make`
 + `python3`
-+ `python3-pip`
++ `perl`
 
 ### Python packages
 

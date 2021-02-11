@@ -22,6 +22,7 @@ class DownloadHook:
             self._progress_bar(0.0),
             self._format_bytes(0),
         ), end="")
+        self.prev_progress = 0.0
 
     def __call__(self, block_count, block_size, total_size):
         if total_size <= 0:
@@ -29,11 +30,13 @@ class DownloadHook:
         
         size = block_count * block_size
         progress = size / total_size
-        print("\r[{}] {} of {}".format(
-            self._progress_bar(progress),
-            self._format_bytes(size),
-            self._format_bytes(total_size),
-        ), end="")
+        if progress > self.prev_progress + 0.5 / self.bar_length:
+            print("\r[{}] {} of {}".format(
+                self._progress_bar(progress),
+                self._format_bytes(size),
+                self._format_bytes(total_size),
+            ), end="")
+            self.prev_progress = progress
 
 def download(src_url, dst_path):
     urlretrieve(src_url, dst_path, DownloadHook())
