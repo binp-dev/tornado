@@ -1,7 +1,9 @@
-FROM debian
+FROM debian:bullseye
 
-RUN apt-get update && \
+RUN dpkg --add-architecture i386 && \
+    apt-get update && \
     apt-get -y install \
+        lib32z1 \
         git \
         g++ \
         cmake \
