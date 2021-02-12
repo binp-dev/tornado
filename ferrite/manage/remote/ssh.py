@@ -1,7 +1,8 @@
 import time
 import logging
 from subprocess import Popen
-from utils.run import run, RunError, quote
+from utils.run import run, RunError
+from utils.strings import quote
 from .base import Device
 
 def _split_addr(addr):

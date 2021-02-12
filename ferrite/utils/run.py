@@ -25,6 +25,3 @@ def run(
     ret = subprocess.run(cmd, check=True, env=env, **params, **kwargs)
     if capture:
         return ret.stdout.decode("utf-8")
-
-def quote(text: str, char: str = '"'):
-    return char + text.replace("\\", "\\\\").replace(char, "\\" + char) + char
