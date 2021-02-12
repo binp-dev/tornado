@@ -24,7 +24,7 @@ class DownloadHook:
         print("[{}] {}".format(
             self._progress_bar(0.0),
             self._format_bytes(0),
-        ), end="")
+        ), end="", flush=True)
         self.prev_progress = 0.0
 
     def __call__(self, block_count, block_size, total_size):
@@ -38,7 +38,7 @@ class DownloadHook:
                 self._progress_bar(progress),
                 self._format_bytes(size),
                 self._format_bytes(total_size),
-            ), end="")
+            ), end="", flush=True)
             self.prev_progress = progress
 
 def download(src_url, dst_path):
@@ -46,13 +46,13 @@ def download(src_url, dst_path):
     try:
         urlretrieve(src_url, dst_path, DownloadHook())
     except:
-        print()
+        print(flush=True)
         if os.path.exists(dst_path):
             os.remove(dst_path)
         logging.debug(f"download failed")
         raise
     else:
-        print()
+        print(flush=True)
         logging.debug(f"downloaded to '{dst_path}'")
 
 def download_alt(src_urls, dst_path):
