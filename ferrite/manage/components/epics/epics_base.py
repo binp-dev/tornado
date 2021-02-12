@@ -150,7 +150,10 @@ class EpicsBase(Component):
             self.paths["host_build"],
             self.paths["cross_build"],
             self.paths["cross_install"],
-            [self.host_build_task],
+            [
+                self.cross_toolchain.download_task,
+                self.host_build_task,
+            ],
             self.cross_toolchain,
         )
         self.deploy_task = EpicsDeployTask(

@@ -65,6 +65,7 @@ class AppBuildWithEpicsTask(Task):
         if self.toolchain is None:
             deps.append(self.epics_base.host_build_task)
         else:
+            deps.append(self.toolchain.download_task)
             deps.append(self.epics_base.cross_build_task)
         return deps
 

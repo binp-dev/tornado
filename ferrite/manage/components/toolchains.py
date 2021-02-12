@@ -4,7 +4,8 @@ import shutil
 import tarfile
 import logging
 from utils.run import run
-from utils.net import download
+from utils.net import download_alt
+from utils.strings import try_format
 from manage.components.base import Component, Task, Context
 from manage.paths import TARGET_DIR
 
@@ -17,27 +18,19 @@ class ToolchainDownloadTask(Task):
         return self.owner.download()
 
 class Toolchain(Component):
-    def __init__(self, target, dir_name, archive, url):
+    def __init__(self, target, dir_name, archive, urls):
         super().__init__()
 
-        raw_info = [
-            ("target", target),
-            ("dir_name", dir_name),
-            ("archive", archive),
-            ("url", url),
-        ]
-        info = {}
-        for ks, src in raw_info:
-            rep = {}
-            for k, v in info.items():
-                if ("{" + k + "}") in src:
-                    rep[k] = v
-            info[ks] = src.format(**rep)
+        self.target = target
+        info = {"target": self.target}
 
-        self.target = info["target"]
-        self.dir_name = info["dir_name"]
-        self.archive = info["archive"]
-        self.url = info["url"]
+        self.dir_name = try_format(dir_name, **info)
+        info["dir_name"] = self.dir_name
+
+        self.archive = try_format(archive, **info)
+        info["archive"] = self.archive
+
+        self.urls = [try_format(url, **info) for url in urls]
 
         self.path = os.path.join(TARGET_DIR, self.dir_name)
 
@@ -53,13 +46,8 @@ class Toolchain(Component):
 
         archive_path = os.path.join(tmp_dir, self.archive)
         if not os.path.exists(archive_path):
-            try:
-                logging.info(f"Loading toolchain {self.archive} ...")
-                download(self.url, archive_path)
-            except:
-                if os.path.exists(archive_path):
-                    os.remove(archive_path)
-                raise
+            logging.info(f"Loading toolchain {self.archive} ...")
+            download_alt(self.urls, archive_path)
         else:
             logging.info(f"Toolchain archive {self.archive} already exists")
 
@@ -87,7 +75,10 @@ class AppToolchain(Toolchain):
             target="arm-linux-gnueabihf",
             dir_name="gcc-linaro-7.5.0-2019.12-x86_64_{target}",
             archive="{dir_name}.tar.xz",
-            url="http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/{dir_name}/{archive}",
+            urls=[
+                "https://gitlab.inp.nsk.su/psc/storage/-/raw/master/toolchains/{archive}",
+                "http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/{target}/{archive}",
+            ],
         )
 
 class McuToolchain(Toolchain):
@@ -96,5 +87,8 @@ class McuToolchain(Toolchain):
             target="arm-none-eabi",
             dir_name="gcc-{target}-5_4-2016q3",
             archive="{dir_name}-20160926-linux.tar.bz2",
-            url="https://developer.arm.com/-/media/Files/downloads/gnu-rm/5_4-2016q3/{archive}",
+            urls=[
+                "https://gitlab.inp.nsk.su/psc/storage/-/raw/master/toolchains/{archive}",
+                "https://developer.arm.com/-/media/Files/downloads/gnu-rm/5_4-2016q3/{archive}",
+            ],
         )

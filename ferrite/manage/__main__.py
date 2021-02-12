@@ -91,7 +91,7 @@ if __name__ == "__main__":
             char * length,
             f"{char} {text}",
             char * length,
-        ]))
+        ]), flush=True)
 
     def run_task(context, task, no_deps=False, title_length=64):
         if not no_deps:
