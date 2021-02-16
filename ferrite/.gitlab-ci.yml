@@ -7,5 +7,5 @@ test:
   before_script:
     - pip3 install -r requirements.txt
   script:
-    - python3 -m manage all.build
-    - python3 -m manage all.test_host
+    - python3 -u -m manage all.build
+    - python3 -u -m manage all.test_host
