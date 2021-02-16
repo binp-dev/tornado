@@ -3,6 +3,8 @@ image: agerasev/debian-psc
 test:
   stage: test
   only:
+    - master
+    - develop
     - merge_requests
   before_script:
     - pip3 install -r requirements.txt
