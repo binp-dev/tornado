@@ -83,8 +83,9 @@ class App(Component):
         self.epics_base = epics_base
         self.cross_toolchain = cross_toolchain
 
-        self.host_cmake = Cmake(self.src_dir, self.host_build_dir)
-        self.cross_cmake = Cmake(self.src_dir, self.cross_build_dir)
+        opts = ["-DCMAKE_BUILD_TYPE=Debug"]
+        self.host_cmake = Cmake(self.src_dir, self.host_build_dir, opt=opts)
+        self.cross_cmake = Cmake(self.src_dir, self.cross_build_dir, opt=opts)
 
         self.build_unittest_task = AppBuildUnittestTask(self.host_cmake)
         self.run_unittest_task = AppRunUnittestTask(self.host_cmake, self.build_unittest_task)

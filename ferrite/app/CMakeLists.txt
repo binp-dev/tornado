@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.0)
 
 project("app")
 
+set(CMAKE_C_FLAGS_DEBUG "-g -rdynamic -funwind-tables")
 set(CMAKE_C_FLAGS "-Wall -Wextra -Werror=return-type")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -fno-exceptions -pedantic")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -13,21 +15,27 @@ include_directories(
     "${EPICS_BASE}/include/compiler/gcc"
 )
 
+set(BASE_SRC
+    "src/core/panic.cpp"
+)
 set(EPICS_SRC
     "src/record/base.cpp"
     "src/record/waveform.cpp"
 )
 set(MAIN_SRC
+    ${BASE_SRC}
     ${EPICS_SRC}
     "src/channel/rpmsg.cpp"
     "src/framework.cpp"
 )
 set(FAKEDEV_SRC
+    ${BASE_SRC}
     ${EPICS_SRC}
     "src/channel/zmq.cpp"
     "src/framework.cpp"
 )
 set(UNITTEST_SRC
+    ${BASE_SRC}
     "src/channel/zmq.cpp"
     "src/channel/zmq_test.cpp"
     "src/unittest.cpp"

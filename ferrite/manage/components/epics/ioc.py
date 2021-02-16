@@ -66,6 +66,7 @@ class IocBuildTask(EpicsBuildTask):
         ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
         os.makedirs(self.install_dir, exist_ok=True)
 
+        #for top_dir in [self.build_dir, self.lib_dir]:
         lib_dir = os.path.join(self.install_dir, "lib", arch)
         lib_name = "libapp{}.so".format("_fakedev" if self.app_fakedev else "")
         os.makedirs(lib_dir, exist_ok=True)
@@ -231,7 +232,10 @@ class Ioc(Component):
             self.src_path,
             self.paths["cross_build"],
             self.paths["cross_install"],
-            [self.epics_base.cross_build_task, self.app.build_main_cross_task],
+            [
+                self.epics_base.cross_build_task,
+                self.app.build_main_cross_task,
+            ],
             self.epics_base.paths["cross_build"],
             self.app.src_dir,
             self.app.cross_build_dir,
