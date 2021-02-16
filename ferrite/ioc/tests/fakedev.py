@@ -70,22 +70,22 @@ def run_test(
             queue = assert_pop(queue, decode_wf_data(socket.recv()))
         
         wf = list(range(wfs))
-        ca.put("WAVEFORM", wf, array=True, prefix=prefix)
+        ca.put(prefix, "WAVEFORM", wf, array=True)
         queue += wf*2
         for _ in range(5):
             socket.send(encode(IDS["PSCM_WF_REQ"]))
             queue = assert_pop(queue, decode_wf_data(socket.recv()))
 
         wf = [wfs - x - 1 for x in range(wfs)]
-        ca.put("WAVEFORM", wf, array=True, prefix=prefix)
+        ca.put(prefix, "WAVEFORM", wf, array=True)
         queue += wf*2
         for _ in range(5):
             socket.send(encode(IDS["PSCM_WF_REQ"]))
             queue = assert_pop(queue, decode_wf_data(socket.recv()))
 
         wf = [wfs + x for x in range(wfs)]
-        ca.put("WAVEFORM", range(0, 2*wfs, 2), array=True, prefix=prefix)
-        ca.put("WAVEFORM", wf, array=True, prefix=prefix)
+        ca.put(prefix, "WAVEFORM", range(0, 2*wfs, 2), array=True)
+        ca.put(prefix, "WAVEFORM", wf, array=True)
         queue += wf*4
         for _ in range(9):
             socket.send(encode(IDS["PSCM_WF_REQ"]))
