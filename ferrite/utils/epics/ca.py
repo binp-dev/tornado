@@ -15,6 +15,7 @@ def get(prefix, pv):
         [os.path.join(prefix, "caget"), "-t", pv],
         add_env=_env(),
         capture=True,
+        log=False,
     ).strip()
     print("  %s" % out)
     return out
@@ -32,6 +33,7 @@ def put(prefix, pv, value, array=False):
         args,
         add_env=_env(),
         capture=True,
+        log=False,
     )
     print("  done")
 

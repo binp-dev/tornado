@@ -18,7 +18,7 @@ def run(
     if add_env:
         env.update(add_env)
         if log:
-            logging.info("additional env: {}".format(add_env))
+            logging.debug("additional env: {}".format(add_env))
     params = {}
     if capture:
         params["stdout"] = subprocess.PIPE
