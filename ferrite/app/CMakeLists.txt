@@ -17,6 +17,7 @@ include_directories(
 
 set(BASE_SRC
     "src/core/panic.cpp"
+    "src/channel/base.cpp"
 )
 set(EPICS_SRC
     "src/record/base.cpp"
@@ -36,6 +37,7 @@ set(FAKEDEV_SRC
 )
 set(UNITTEST_SRC
     ${BASE_SRC}
+    "src/core/io_test.cpp"
     "src/channel/zmq.cpp"
     "src/channel/zmq_test.cpp"
     "src/unittest.cpp"

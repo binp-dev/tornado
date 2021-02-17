@@ -1,6 +1,7 @@
 #pragma once
 
 #include <variant>
+#include "io.hpp"
 #include "panic.hpp"
 
 
@@ -48,17 +49,33 @@ struct [[nodiscard]] Result final {
     T &ok() { return std::get<1>(this->variant); }
     E &err() { return std::get<0>(this->variant); }
 
-    T unwrap() {
+    T expect(const std::string message) {
         if (this->is_err()) {
-            panic("Result is Err");
+            std::stringstream ss;
+            ss << message;
+            if constexpr (is_writable<E>) {
+                ss << ": " << this->err();
+            }
+            panic(ss.str());
         }
         return std::move(this->ok());
     }
-    E unwrap_err() {
+    E expect_err(const std::string message) {
         if (this->is_ok()) {
-            panic("Result is Ok");
+            std::stringstream ss;
+            ss << message;
+            if constexpr (is_writable<T>) {
+                ss << ": " << this->ok();
+            }
+            panic(ss.str());
         }
         return std::move(this->err());
+    }
+    T unwrap() {
+        return this->expect("Result is Err");
+    }
+    E unwrap_err() {
+        return this->expect_err("Result is Ok");
     }
 
     bool operator==(const Result &other) const { return this->variant == other.variant; }
