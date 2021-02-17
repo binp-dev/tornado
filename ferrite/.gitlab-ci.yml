@@ -1,13 +1,25 @@
 image: agerasev/debian-psc
 
-test:
-  stage: test
-  only:
-    - master
-    - develop
-    - merge_requests
+cache:
+  paths:
+    - target/download
+    - target/epics_base_*
+
+build:
+  stage: build
   before_script:
     - pip3 install -r requirements.txt
   script:
     - python3 -u -m manage all.build
+  artifacts:
+    paths:
+      - target/mcu
+      - target/ioc*
+      - target/app*
+
+test:
+  stage: test
+  before_script:
+    - pip3 install -r requirements.txt
+  script:
     - python3 -u -m manage all.test_host

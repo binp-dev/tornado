@@ -31,6 +31,7 @@ class IocBuildTask(EpicsBuildTask):
             src_dir,
             build_dir,
             install_dir,
+            clean=True,
             deps=deps,
         )
         self.epics_base_dir = epics_base_dir

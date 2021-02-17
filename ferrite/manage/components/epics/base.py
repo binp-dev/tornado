@@ -29,6 +29,7 @@ class EpicsBuildTask(Task):
         src_dir: str,
         build_dir: str,
         install_dir: str,
+        clean: bool = False,
         mk_target: str = None,
         deps: list[Task] = [],
     ):
@@ -36,6 +37,7 @@ class EpicsBuildTask(Task):
         self.src_dir = src_dir
         self.build_dir = build_dir
         self.install_dir = install_dir
+        self.clean = clean
         self.mk_target = mk_target
         self.deps = deps
 
@@ -46,6 +48,10 @@ class EpicsBuildTask(Task):
         raise NotImplementedError
 
     def run(self, ctx: Context) -> bool:
+        if self.clean:
+            shutil.rmtree(self.build_dir, ignore_errors=True)
+            shutil.rmtree(self.install_dir, ignore_errors=True)
+
         shutil.copytree(
             self.src_dir, self.build_dir,
             dirs_exist_ok=True,

@@ -121,11 +121,12 @@ class EpicsBase(Component):
     def __init__(self, cross_toolchain: Toolchain=None):
         super().__init__()
 
-        self.src_name = "epics_base_src"
-        self.src_path = os.path.join(TARGET_DIR, self.src_name)
         self.version = "7.0.4.1"
+        self.prefix = f"epics_base_{self.version}"
+        self.src_name = f"{self.prefix}_src"
+        self.src_path = os.path.join(TARGET_DIR, self.src_name)
         self.repo = RepoList(
-            "epics_base_src",
+            self.src_name,
             [
                 ("https://gitlab.inp.nsk.su/epics/epics-base.git", f"binp-R{self.version}"),
                 ("https://github.com/epics-base/epics-base.git", f"R{self.version}"),
@@ -134,10 +135,10 @@ class EpicsBase(Component):
         self.cross_toolchain = cross_toolchain
 
         self.names = {
-            "host_build":    "epics_base_host_build",
-            "cross_build":   "epics_base_cross_build",
-            "host_install":  "epics_base_host_install",
-            "cross_install": "epics_base_cross_install",
+            "host_build":    f"{self.prefix}_host_build",
+            "cross_build":   f"{self.prefix}_cross_build",
+            "host_install":  f"{self.prefix}_host_install",
+            "cross_install": f"{self.prefix}_cross_install",
         }
         self.paths = {k: os.path.join(TARGET_DIR, v) for k, v in self.names.items()}
         self.deploy_path = "/opt/epics_base"
