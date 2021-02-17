@@ -1,42 +1,63 @@
 from __future__ import annotations
 import os
+import shutil
 import logging
-from utils.run import run
+from utils.run import run, RunError
 from manage.components.base import Component, Task, Context
 from manage.paths import TARGET_DIR
 
+def clone(path: str, remote: str, branch: str = None) -> str:
+    # FIXME: Pull if update available
+    if os.path.exists(path):
+        logging.info(f"Repo '{remote}' is cloned already")
+        return False
+    try:
+        run(
+            ["git", "clone", remote, os.path.basename(path)],
+            cwd=os.path.dirname(path),
+            add_env={"GIT_TERMINAL_PROMPT": "0"},
+        )
+        if branch:
+            run(["git", "checkout", branch], cwd=path)
+        run(["git", "submodule", "update", "--init", "--recursive"], cwd=path)
+    except RunError:
+        if os.path.exists(path):
+            shutil.rmtree(path)
+        raise
+    return True
+
 class GitCloneTask(Task):
-    def __init__(self, remote: str, path: str, branch: str=None):
+    def __init__(self, path: str, sources: list[(str, str)]):
         super().__init__()
-        self.remote = remote
         self.path = path
-        self.branch = branch
+        self.sources = sources
 
     def run(self, ctx: Context) -> bool:
-        if os.path.exists(self.path):
-            logging.info(f"Repo '{self.remote}' is cloned already")
-            return False
-        run(
-            ["git", "clone", self.remote, os.path.basename(self.path)],
-            cwd=os.path.dirname(self.path)
-        )
-        if self.branch:
-            run(["git", "checkout", self.branch], cwd=self.path)
-        run(["git", "submodule", "update", "--init", "--recursive"], cwd=self.path)
-        return True
+        last_error = None
+        for remote, branch in self.sources:
+            try:
+                return clone(self.path, remote, branch)
+            except RunError as e:
+                last_error = e
+                continue
+        if last_error is not None:
+            raise last_error
 
-class Repo(Component):
-    def __init__(self, remote: str, name: str, branch: str=None):
+class RepoList(Component):
+    def __init__(self, name: str, sources: list[(str, str)]):
         super().__init__()
 
-        self.remote = remote
         self.name = name
         self.path = os.path.join(TARGET_DIR, name)
-        self.branch = branch
+        self.sources = sources
 
-        self.clone_task = GitCloneTask(self.remote, self.path, self.branch)
+        self.clone_task = GitCloneTask(self.path, self.sources)
 
     def tasks(self) -> dict[str, Task]:
         return {
             "clone": self.clone_task,
         }
+
+class Repo(RepoList):
+    def __init__(self, name: str, remote: str, branch: str = None):
+        super().__init__(name, [remote, branch])

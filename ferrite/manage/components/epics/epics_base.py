@@ -4,7 +4,7 @@ import shutil
 import logging
 from utils.files import substitute, allow_patterns
 from manage.components.base import Component, Task
-from manage.components.git import Repo
+from manage.components.git import RepoList
 from manage.components.toolchains import Toolchain
 from manage.paths import TARGET_DIR
 from .base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch, epics_arch_by_target
@@ -123,10 +123,13 @@ class EpicsBase(Component):
 
         self.src_name = "epics_base_src"
         self.src_path = os.path.join(TARGET_DIR, self.src_name)
-        self.repo = Repo(
-            "https://github.com/epics-base/epics-base.git",
+        self.version = "7.0.4.1"
+        self.repo = RepoList(
             "epics_base_src",
-            "R7.0.4.1",
+            [
+                ("https://gitlab.inp.nsk.su/epics/epics-base.git", f"binp-R{self.version}"),
+                ("https://github.com/epics-base/epics-base.git", f"R{self.version}"),
+            ],
         )
         self.cross_toolchain = cross_toolchain
 
