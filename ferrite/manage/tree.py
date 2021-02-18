@@ -25,3 +25,8 @@ components = {
     "ioc": ioc,
     "all": all_,
 }
+
+for cname, comp in components.items():
+    for tname, task in comp.tasks().items():
+        if not task._name:
+            task._name = f"{cname}.{tname}"

@@ -43,6 +43,9 @@ class GitCloneTask(Task):
         if last_error is not None:
             raise last_error
 
+    def artifacts(self) -> str[list]:
+        return [self.path]
+
 class RepoList(Component):
     def __init__(self, name: str, sources: list[(str, str)]):
         super().__init__()
