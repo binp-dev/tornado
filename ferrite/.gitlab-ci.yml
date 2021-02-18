@@ -5,21 +5,157 @@ cache:
     - target/download
     - target/epics_base_*
 
-build:
-  stage: build
-  before_script:
-    - pip3 install -r requirements.txt
+all.build:
+  stage: test
   script:
     - python3 -u -m manage all.build
+  needs:
+    - mcu.build
+    - epics_base.build_host
+    - epics_base.build_cross
+    - app.build_unittest
+    - app.build_fakedev
+    - ioc.build_host
+    - ioc.build_cross
+
+mcu.build:
+  stage: build
+  script:
+    - python3 -u -m manage mcu.build
+  needs:
+    - mcu_toolchain.download
+    - freertos.clone
   artifacts:
     paths:
       - target/mcu
-      - target/ioc*
-      - target/app*
 
-test:
+mcu_toolchain.download:
+  stage: build
+  script:
+    - python3 -u -m manage mcu_toolchain.download
+  artifacts:
+    paths:
+      - target/gcc-arm-none-eabi-5_4-2016q3
+
+freertos.clone:
+  stage: build
+  script:
+    - python3 -u -m manage freertos.clone
+  artifacts:
+    paths:
+      - target/freertos
+
+epics_base.build_host:
+  stage: build
+  script:
+    - python3 -u -m manage epics_base.build_host
+  needs:
+    - epics_base.clone
+  artifacts:
+    paths:
+      - target/epics_base_7.0.4.1_host_build
+      - target/epics_base_7.0.4.1_host_install
+
+epics_base.clone:
+  stage: build
+  script:
+    - python3 -u -m manage epics_base.clone
+  artifacts:
+    paths:
+      - target/epics_base_7.0.4.1_src
+
+epics_base.build_cross:
+  stage: build
+  script:
+    - python3 -u -m manage epics_base.build_cross
+  needs:
+    - app_toolchain.download
+    - epics_base.build_host
+  artifacts:
+    paths:
+      - target/epics_base_7.0.4.1_cross_build
+      - target/epics_base_7.0.4.1_cross_install
+
+app_toolchain.download:
+  stage: build
+  script:
+    - python3 -u -m manage app_toolchain.download
+  artifacts:
+    paths:
+      - target/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf
+
+app.build_unittest:
+  stage: build
+  script:
+    - python3 -u -m manage app.build_unittest
+  artifacts:
+    paths:
+      - target/app_host
+
+app.build_fakedev:
+  stage: build
+  script:
+    - python3 -u -m manage app.build_fakedev
+  needs:
+    - epics_base.build_host
+  artifacts:
+    paths:
+      - target/app_host
+
+ioc.build_host:
+  stage: build
+  script:
+    - python3 -u -m manage ioc.build_host
+  needs:
+    - epics_base.build_host
+    - app.build_fakedev
+  artifacts:
+    paths:
+      - target/ioc_host_build
+      - target/ioc_host_install
+
+ioc.build_cross:
+  stage: build
+  script:
+    - python3 -u -m manage ioc.build_cross
+  needs:
+    - epics_base.build_cross
+    - app.build_main_cross
+  artifacts:
+    paths:
+      - target/ioc_cross_build
+      - target/ioc_cross_install
+
+app.build_main_cross:
+  stage: build
+  script:
+    - python3 -u -m manage app.build_main_cross
+  needs:
+    - app_toolchain.download
+    - epics_base.build_cross
+  artifacts:
+    paths:
+      - target/app_cross
+
+all.test_host:
   stage: test
-  before_script:
-    - pip3 install -r requirements.txt
   script:
     - python3 -u -m manage all.test_host
+  needs:
+    - app.run_unittest
+    - ioc.test_fakedev
+
+app.run_unittest:
+  stage: test
+  script:
+    - python3 -u -m manage app.run_unittest
+  needs:
+    - app.build_unittest
+
+ioc.test_fakedev:
+  stage: test
+  script:
+    - python3 -u -m manage ioc.test_fakedev
+  needs:
+    - ioc.build_host
+
