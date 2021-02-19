@@ -1,4 +1,8 @@
 image: agerasev/debian-psc
+cache:
+  paths:
+    - target/epics_base_*
+    - target/gcc-*
 
 stages:
   - "5"
@@ -12,9 +16,6 @@ epics_base.clone:
   stage: "5"
   script:
     - python3 -u -m manage epics_base.clone
-  cache:
-    paths:
-      - target/epics_base_7.0.4.1_src
 
 epics_base.build_host:
   stage: "4"
@@ -22,19 +23,11 @@ epics_base.build_host:
     - python3 -u -m manage epics_base.build_host
   needs:
     - epics_base.clone
-  cache:
-    paths:
-      - target/epics_base_7.0.4.1_host_install
-      - target/epics_base_7.0.4.1_host_build
-      - target/epics_base_7.0.4.1_src
 
 app_toolchain.download:
   stage: "4"
   script:
     - python3 -u -m manage app_toolchain.download
-  cache:
-    paths:
-      - target/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf
 
 epics_base.build_cross:
   stage: "3"
@@ -43,13 +36,6 @@ epics_base.build_cross:
   needs:
     - app_toolchain.download
     - epics_base.build_host
-  cache:
-    paths:
-      - target/epics_base_7.0.4.1_cross_install
-      - target/epics_base_7.0.4.1_host_install
-      - target/epics_base_7.0.4.1_cross_build
-      - target/epics_base_7.0.4.1_host_build
-      - target/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf
 
 app.build_fakedev:
   stage: "3"
@@ -60,18 +46,11 @@ app.build_fakedev:
   artifacts:
     paths:
       - target/app_host
-  cache:
-    paths:
-      - target/epics_base_7.0.4.1_host_install
-      - target/epics_base_7.0.4.1_host_build
 
 mcu_toolchain.download:
   stage: "2"
   script:
     - python3 -u -m manage mcu_toolchain.download
-  cache:
-    paths:
-      - target/gcc-arm-none-eabi-5_4-2016q3
 
 freertos.clone:
   stage: "2"
@@ -100,10 +79,6 @@ ioc.build_host:
     paths:
       - target/ioc_host_build
       - target/ioc_host_install
-  cache:
-    paths:
-      - target/epics_base_7.0.4.1_host_install
-      - target/epics_base_7.0.4.1_host_build
 
 app.build_main_cross:
   stage: "2"
@@ -115,11 +90,6 @@ app.build_main_cross:
   artifacts:
     paths:
       - target/app_cross
-  cache:
-    paths:
-      - target/epics_base_7.0.4.1_cross_install
-      - target/epics_base_7.0.4.1_cross_build
-      - target/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf
 
 mcu.build:
   stage: "1"
@@ -131,9 +101,6 @@ mcu.build:
   artifacts:
     paths:
       - target/mcu
-  cache:
-    paths:
-      - target/gcc-arm-none-eabi-5_4-2016q3
 
 ioc.build_cross:
   stage: "1"
@@ -146,10 +113,6 @@ ioc.build_cross:
     paths:
       - target/ioc_cross_build
       - target/ioc_cross_install
-  cache:
-    paths:
-      - target/epics_base_7.0.4.1_cross_install
-      - target/epics_base_7.0.4.1_cross_build
 
 app.run_unittest:
   stage: "1"
@@ -177,12 +140,6 @@ all.build:
     - app.build_fakedev
     - ioc.build_host
     - ioc.build_cross
-  cache:
-    paths:
-      - target/epics_base_7.0.4.1_cross_install
-      - target/epics_base_7.0.4.1_host_install
-      - target/epics_base_7.0.4.1_cross_build
-      - target/epics_base_7.0.4.1_host_build
 
 all.test_host:
   stage: "0"

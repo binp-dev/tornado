@@ -11,13 +11,22 @@ def text_lines(*lines):
 def base_path(path):
     return os.path.relpath(path, BASE_DIR)
 
+class Cache(object):
+    def __init__(self):
+        super().__init__()
+    
+    def is_cached(self, path):
+        raise NotImplementedError
+
+    def text(self) -> str:
+        raise NotImplementedError
+
 class Job(object):
-    def __init__(self, task: Task, level: int, deps: list[Job], cached: bool = False):
+    def __init__(self, task: Task, level: int, deps: list[Job]):
         super().__init__()
         self.task = task
         self.level = level
         self.deps = deps
-        self.cached = cached
 
     def name(self) -> str:
         return self.task.name()
@@ -25,7 +34,7 @@ class Job(object):
     def stage(self) -> str:
         return quote(str(self.level))
 
-    def text(self) -> str:
+    def text(self, cache: Cache) -> str:
         text = text_lines(
             f"{self.name()}:",
             f"  stage: {self.stage()}",
@@ -38,35 +47,25 @@ class Job(object):
             for dep in self.deps:
                 text += f"    - {dep.name()}\n"
 
-        if not self.cached and len(self.task.artifacts()) > 0:
+        artifacts = []
+        for art in self.task.artifacts():
+            if not cache.is_cached(art):
+                artifacts.append(art)
+
+        if len(artifacts) > 0:
             text += text_lines(
                 "  artifacts:",
                 "    paths:",
             )
-            for art in self.task.artifacts():
+            for art in artifacts:
                 text += f"      - {base_path(art)}\n"
-
-        cache = set()
-        for dep in self.deps:
-            if dep.cached:
-                cache = cache.union(set(dep.task.artifacts()))
-        if self.cached:
-            cache = cache.union(set(self.task.artifacts()))
-
-        if len(cache) > 0:
-            text += text_lines(
-                "  cache:",
-                "    paths:",
-            )
-            for cch in cache:
-                text += f"      - {base_path(cch)}\n"
 
         return text
 
 class Graph(object):
-    def __init__(self, is_cached):
+    def __init__(self):
         self.jobs = {}
-        self.is_cached = is_cached
+        self.cache = cache
 
     def add(self, task: Task, level: int = 0) -> Job:
         name = task.name()
@@ -77,46 +76,61 @@ class Graph(object):
         deps = []
         for dep in task.dependencies():
             deps.append(self.add(dep, level + 1))
-        job = Job(task, level, deps, cached=self.is_cached(task.name()))
+        job = Job(task, level, deps)
         self.jobs[name] = job
         return job
 
-    def text(self) -> str:
+    def text(self, cache: Cache) -> str:
         text = ""
 
-        stages = sorted(set([str(x.level) for x in self.jobs.values()]))
+        stages = sorted(set([x.stage() for x in self.jobs.values()]))
         text += "\nstages:\n"
         for stg in reversed(stages):
-            text += f"  - {quote(stg)}\n"
+            text += f"  - {stg}\n"
 
         sequence = [j for j in sorted(self.jobs.values(), key=lambda j: -j.level)]
         for job in sequence:
             text += "\n"
-            text += job.text()
+            text += job.text(self.cache)
         
         return text
 
+class PatternCache(Cache):
+    def __init__(self, patterns):
+        super().__init__()
+        self.patterns = patterns
+    
+    def is_cached(self, path):
+        relpath = base_path(path)
+        # FIXME: Use * pattern
+        return any([p.replace("*", "") in relpath for p in self.patterns])
+
+    def text(self) -> str:
+        text = text_lines(
+            "cache:",
+            "  paths:",
+        )
+        for pat in self.patterns:
+            text += f"    - {pat}\n"
+        return text
 
 if __name__ == "__main__":
     end_tasks = [
         "all.build",
         "all.test_host",
     ]
-    cache_patterns = [
-        "epics_base.",
-        "_toolchain."
-    ]
+    cache = PatternCache([
+        "target/epics_base_*",
+        "target/gcc-*"
+    ])
 
-    graph = Graph(
-        is_cached = lambda name: any([p in name for p in cache_patterns]),
-    )
+    graph = Graph()
     for etn in end_tasks:
         cn, tn = etn.split(".")
         task = components[cn].tasks()[tn]
         graph.add(task)
 
     text = "image: agerasev/debian-psc\n"
-
-    text += graph.text()
-
+    text += cache.text()
+    text += graph.text(cache)
     print(text)
