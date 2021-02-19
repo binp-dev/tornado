@@ -107,12 +107,14 @@ class PatternCache(Cache):
         return any([p.replace("*", "") in relpath for p in self.patterns])
 
     def text(self) -> str:
-        text = text_lines(
-            "cache:",
-            "  paths:",
-        )
-        for pat in self.patterns:
-            text += f"    - {pat}\n"
+        text = ""
+        if len(self.patterns) > 0:
+            text += text_lines(
+                "cache:",
+                "  paths:",
+            )
+            for pat in self.patterns:
+                text += f"    - {pat}\n"
         return text
 
 if __name__ == "__main__":
@@ -121,9 +123,9 @@ if __name__ == "__main__":
         "all.test_host",
     ]
     cache = PatternCache([
-        "target/epics_base_*",
-        "target/freertos_*",
-        "target/toolchain_*",
+        #"target/epics_base_*",
+        #"target/freertos_*",
+        #"target/toolchain_*",
     ])
 
     graph = Graph()
