@@ -7,7 +7,7 @@ def text_lines(*lines):
 
 def get_entry(task):
     name = task.name()
-    stage = "build" if len(task.artifacts()) > 0 else "test"
+    stage = name
 
     text = text_lines(
         f"{name}:",
@@ -31,23 +31,26 @@ def get_entry(task):
 
     return text
 
-def fill_tree(tree, task):
-    if task.name() in tree:
-        return
-    tree[task.name()] = task
+def fill_graph(graph, task, level=0):
+    name = task.name()
+    if name in graph:
+        if graph[name][1] >= level:
+            return
+    graph[name] = (task, level)
     for dep in task.dependencies():
-        fill_tree(tree, dep)
+        fill_graph(graph, dep, level + 1)
 
 if __name__ == "__main__":
     end_tasks = [
         "all.build",
         "all.test_host",
     ]
-    tree = {}
+    graph = {}
     for etn in end_tasks:
         cn, tn = etn.split(".")
         task = components[cn].tasks()[tn]
-        fill_tree(tree, task)
+        fill_graph(graph, task)
+    sequence = [x[0] for x in sorted(graph.values(), key=lambda x: -x[1])]
 
     text = text_lines(
         "image: agerasev/debian-psc",
@@ -58,7 +61,11 @@ if __name__ == "__main__":
         "    - target/epics_base_*",
     )
 
-    for task in tree.values():
+    text += "\nstages:\n"
+    for task in sequence:
+        text += f"  - {task.name()}\n"
+
+    for task in sequence:
         text += "\n"
         text += get_entry(task)
 
