@@ -6,7 +6,7 @@ from utils.run import run, RunError
 from manage.components.base import Component, Task, Context
 from manage.paths import TARGET_DIR
 
-def clone(path: str, remote: str, branch: str = None) -> str:
+def clone(path: str, remote: str, branch: str = None, clean: bool = False) -> str:
     # FIXME: Pull if update available
     if os.path.exists(path):
         logging.info(f"Repo '{remote}' is cloned already")
@@ -25,6 +25,8 @@ def clone(path: str, remote: str, branch: str = None) -> str:
         if os.path.exists(path):
             shutil.rmtree(path)
         raise
+    if clean:
+        shutil.rmtree(os.path.join(path, ".git"))
     return True
 
 class GitCloneTask(Task):
@@ -37,7 +39,7 @@ class GitCloneTask(Task):
         last_error = None
         for remote, branch in self.sources:
             try:
-                return clone(self.path, remote, branch)
+                return clone(self.path, remote, branch, clean=True)
             except RunError as e:
                 last_error = e
                 continue
