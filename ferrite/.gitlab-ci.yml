@@ -8,70 +8,88 @@ cache:
     - target/toolchain_*
 
 stages:
-  - "5"
-  - "4"
-  - "3"
-  - "2"
-  - "1"
   - "0"
+  - "1"
+  - "2"
+  - "3"
+  - "4"
+  - "5"
+
+mcu_toolchain.download:
+  stage: "0"
+  script:
+    - python3 -u -m manage --no-deps mcu_toolchain.download
+
+freertos.clone:
+  stage: "0"
+  script:
+    - python3 -u -m manage --no-deps freertos.clone
 
 epics_base.clone:
-  stage: "5"
+  stage: "0"
   script:
-    - python3 -u -m manage epics_base.clone
+    - python3 -u -m manage --no-deps epics_base.clone
+
+app_toolchain.download:
+  stage: "0"
+  script:
+    - python3 -u -m manage --no-deps app_toolchain.download
+
+app.build_unittest:
+  stage: "0"
+  script:
+    - python3 -u -m manage --no-deps app.build_unittest
+  artifacts:
+    paths:
+      - target/app_host
+
+mcu.build:
+  stage: "1"
+  script:
+    - python3 -u -m manage --no-deps mcu.build
+  needs:
+    - mcu_toolchain.download
+    - freertos.clone
+  artifacts:
+    paths:
+      - target/mcu
 
 epics_base.build_host:
-  stage: "4"
+  stage: "1"
   script:
-    - python3 -u -m manage epics_base.build_host
+    - python3 -u -m manage --no-deps epics_base.build_host
   needs:
     - epics_base.clone
 
-app_toolchain.download:
-  stage: "4"
+app.run_unittest:
+  stage: "1"
   script:
-    - python3 -u -m manage app_toolchain.download
+    - python3 -u -m manage --no-deps app.run_unittest
+  needs:
+    - app.build_unittest
 
 epics_base.build_cross:
-  stage: "3"
+  stage: "2"
   script:
-    - python3 -u -m manage epics_base.build_cross
+    - python3 -u -m manage --no-deps epics_base.build_cross
   needs:
     - app_toolchain.download
     - epics_base.build_host
 
 app.build_fakedev:
-  stage: "3"
+  stage: "2"
   script:
-    - python3 -u -m manage app.build_fakedev
+    - python3 -u -m manage --no-deps app.build_fakedev
   needs:
     - epics_base.build_host
   artifacts:
     paths:
       - target/app_host
 
-mcu_toolchain.download:
-  stage: "2"
-  script:
-    - python3 -u -m manage mcu_toolchain.download
-
-freertos.clone:
-  stage: "2"
-  script:
-    - python3 -u -m manage freertos.clone
-
-app.build_unittest:
-  stage: "2"
-  script:
-    - python3 -u -m manage app.build_unittest
-  artifacts:
-    paths:
-      - target/app_host
-
 ioc.build_host:
-  stage: "2"
+  stage: "3"
   script:
-    - python3 -u -m manage ioc.build_host
+    - python3 -u -m manage --no-deps ioc.build_host
   needs:
     - epics_base.build_host
     - app.build_fakedev
@@ -81,9 +99,9 @@ ioc.build_host:
       - target/ioc_host_install
 
 app.build_main_cross:
-  stage: "2"
+  stage: "3"
   script:
-    - python3 -u -m manage app.build_main_cross
+    - python3 -u -m manage --no-deps app.build_main_cross
   needs:
     - app_toolchain.download
     - epics_base.build_cross
@@ -91,21 +109,10 @@ app.build_main_cross:
     paths:
       - target/app_cross
 
-mcu.build:
-  stage: "1"
-  script:
-    - python3 -u -m manage mcu.build
-  needs:
-    - mcu_toolchain.download
-    - freertos.clone
-  artifacts:
-    paths:
-      - target/mcu
-
 ioc.build_cross:
-  stage: "1"
+  stage: "4"
   script:
-    - python3 -u -m manage ioc.build_cross
+    - python3 -u -m manage --no-deps ioc.build_cross
   needs:
     - epics_base.build_cross
     - app.build_main_cross
@@ -114,24 +121,17 @@ ioc.build_cross:
       - target/ioc_cross_build
       - target/ioc_cross_install
 
-app.run_unittest:
-  stage: "1"
-  script:
-    - python3 -u -m manage app.run_unittest
-  needs:
-    - app.build_unittest
-
 ioc.test_fakedev:
-  stage: "1"
+  stage: "4"
   script:
-    - python3 -u -m manage ioc.test_fakedev
+    - python3 -u -m manage --no-deps ioc.test_fakedev
   needs:
     - ioc.build_host
 
 all.build:
-  stage: "0"
+  stage: "5"
   script:
-    - python3 -u -m manage all.build
+    - python3 -u -m manage --no-deps all.build
   needs:
     - mcu.build
     - epics_base.build_host
@@ -142,9 +142,9 @@ all.build:
     - ioc.build_cross
 
 all.test_host:
-  stage: "0"
+  stage: "5"
   script:
-    - python3 -u -m manage all.test_host
+    - python3 -u -m manage --no-deps all.test_host
   needs:
     - app.run_unittest
     - ioc.test_fakedev

@@ -67,15 +67,16 @@ class Graph(object):
         self.jobs = {}
         self.cache = cache
 
-    def add(self, task: Task, level: int = 0) -> Job:
+    def add(self, task: Task) -> Job:
         name = task.name()
         if name in self.jobs:
-            job = self.jobs[name]
-            if job.level >= level:
-                return job
+            return self.jobs[name]
         deps = []
+        level = 0
         for dep in task.dependencies():
-            deps.append(self.add(dep, level + 1))
+            dj = self.add(dep)
+            level = max(level, dj.level + 1)
+            deps.append(dj)
         job = Job(task, level, deps)
         self.jobs[name] = job
         return job
@@ -85,10 +86,10 @@ class Graph(object):
 
         stages = sorted(set([x.stage() for x in self.jobs.values()]))
         text += "\nstages:\n"
-        for stg in reversed(stages):
+        for stg in stages:
             text += f"  - {stg}\n"
 
-        sequence = [j for j in sorted(self.jobs.values(), key=lambda j: -j.level)]
+        sequence = [j for j in sorted(self.jobs.values(), key=lambda j: j.level)]
         for job in sequence:
             text += "\n"
             text += job.text(self.cache)
