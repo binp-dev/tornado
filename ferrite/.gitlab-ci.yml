@@ -6,64 +6,54 @@ cache:
     - target/epics_base_*
 
 stages:
-  - epics_base.clone
-  - epics_base.build_host
-  - app_toolchain.download
-  - epics_base.build_cross
-  - app.build_fakedev
-  - mcu_toolchain.download
-  - freertos.clone
-  - app.build_unittest
-  - ioc.build_host
-  - app.build_main_cross
-  - mcu.build
-  - ioc.build_cross
-  - app.run_unittest
-  - ioc.test_fakedev
-  - all.build
-  - all.test_host
+  - "5"
+  - "4"
+  - "3"
+  - "2"
+  - "1"
+  - "0"
 
 epics_base.clone:
-  stage: epics_base.clone
+  stage: "5"
   script:
     - python3 -u -m manage epics_base.clone
-  artifacts:
+  cache:
     paths:
       - target/epics_base_7.0.4.1_src
 
 epics_base.build_host:
-  stage: epics_base.build_host
+  stage: "4"
   script:
     - python3 -u -m manage epics_base.build_host
   needs:
     - epics_base.clone
-  artifacts:
+  cache:
     paths:
       - target/epics_base_7.0.4.1_host_build
       - target/epics_base_7.0.4.1_host_install
 
 app_toolchain.download:
-  stage: app_toolchain.download
+  stage: "4"
   script:
     - python3 -u -m manage app_toolchain.download
-  artifacts:
+  cache:
     paths:
       - target/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf
 
 epics_base.build_cross:
-  stage: epics_base.build_cross
+  stage: "3"
   script:
     - python3 -u -m manage epics_base.build_cross
   needs:
     - app_toolchain.download
     - epics_base.build_host
-  artifacts:
+  cache:
     paths:
       - target/epics_base_7.0.4.1_cross_build
       - target/epics_base_7.0.4.1_cross_install
 
 app.build_fakedev:
-  stage: app.build_fakedev
+  stage: "3"
   script:
     - python3 -u -m manage app.build_fakedev
   needs:
@@ -73,15 +63,15 @@ app.build_fakedev:
       - target/app_host
 
 mcu_toolchain.download:
-  stage: mcu_toolchain.download
+  stage: "2"
   script:
     - python3 -u -m manage mcu_toolchain.download
-  artifacts:
+  cache:
     paths:
       - target/gcc-arm-none-eabi-5_4-2016q3
 
 freertos.clone:
-  stage: freertos.clone
+  stage: "2"
   script:
     - python3 -u -m manage freertos.clone
   artifacts:
@@ -89,7 +79,7 @@ freertos.clone:
       - target/freertos
 
 app.build_unittest:
-  stage: app.build_unittest
+  stage: "2"
   script:
     - python3 -u -m manage app.build_unittest
   artifacts:
@@ -97,7 +87,7 @@ app.build_unittest:
       - target/app_host
 
 ioc.build_host:
-  stage: ioc.build_host
+  stage: "2"
   script:
     - python3 -u -m manage ioc.build_host
   needs:
@@ -109,7 +99,7 @@ ioc.build_host:
       - target/ioc_host_install
 
 app.build_main_cross:
-  stage: app.build_main_cross
+  stage: "2"
   script:
     - python3 -u -m manage app.build_main_cross
   needs:
@@ -120,7 +110,7 @@ app.build_main_cross:
       - target/app_cross
 
 mcu.build:
-  stage: mcu.build
+  stage: "1"
   script:
     - python3 -u -m manage mcu.build
   needs:
@@ -131,7 +121,7 @@ mcu.build:
       - target/mcu
 
 ioc.build_cross:
-  stage: ioc.build_cross
+  stage: "1"
   script:
     - python3 -u -m manage ioc.build_cross
   needs:
@@ -143,21 +133,21 @@ ioc.build_cross:
       - target/ioc_cross_install
 
 app.run_unittest:
-  stage: app.run_unittest
+  stage: "1"
   script:
     - python3 -u -m manage app.run_unittest
   needs:
     - app.build_unittest
 
 ioc.test_fakedev:
-  stage: ioc.test_fakedev
+  stage: "1"
   script:
     - python3 -u -m manage ioc.test_fakedev
   needs:
     - ioc.build_host
 
 all.build:
-  stage: all.build
+  stage: "0"
   script:
     - python3 -u -m manage all.build
   needs:
@@ -170,7 +160,7 @@ all.build:
     - ioc.build_cross
 
 all.test_host:
-  stage: all.test_host
+  stage: "0"
   script:
     - python3 -u -m manage all.test_host
   needs:

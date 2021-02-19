@@ -1,17 +1,17 @@
 import os
 from manage.tree import components
 from manage.paths import BASE_DIR
+from utils.strings import quote
 
 def text_lines(*lines):
     return "".join([l + "\n" for l in lines])
 
-def get_entry(task):
+def get_entry(task, stage, cache=False):
     name = task.name()
-    stage = name
 
     text = text_lines(
         f"{name}:",
-        f"  stage: {stage}",
+        f"  stage: {quote(stage)}",
         f"  script:",
         f"    - python3 -u -m manage {name}",
     )
@@ -23,7 +23,7 @@ def get_entry(task):
 
     if len(task.artifacts()) > 0:
         text += text_lines(
-            "  artifacts:",
+            "  artifacts:" if not cache else "  cache:",
             "    paths:",
         )
         for art in task.artifacts():
@@ -45,12 +45,18 @@ if __name__ == "__main__":
         "all.build",
         "all.test_host",
     ]
+    cached = [
+        "epics_base.",
+        "_toolchain."
+    ]
+
     graph = {}
     for etn in end_tasks:
         cn, tn = etn.split(".")
         task = components[cn].tasks()[tn]
         fill_graph(graph, task)
-    sequence = [x[0] for x in sorted(graph.values(), key=lambda x: -x[1])]
+    sequence = [x for x in sorted(graph.values(), key=lambda x: -x[1])]
+    stages = sorted(set([str(x[1]) for x in sequence]))
 
     text = text_lines(
         "image: agerasev/debian-psc",
@@ -62,11 +68,13 @@ if __name__ == "__main__":
     )
 
     text += "\nstages:\n"
-    for task in sequence:
-        text += f"  - {task.name()}\n"
+    for s in reversed(stages):
+        text += f"  - {quote(s)}\n"
 
-    for task in sequence:
+    for task, stage in sequence:
+        name = task.name()
+        tc = any([p in name for p in cached])
         text += "\n"
-        text += get_entry(task)
+        text += get_entry(task, str(stage), cache=tc)
 
     print(text)
