@@ -1,4 +1,6 @@
+from __future__ import annotations
 import os
+from manage.components.base import Task
 from manage.tree import components
 from manage.paths import BASE_DIR
 from utils.strings import quote
@@ -6,75 +8,115 @@ from utils.strings import quote
 def text_lines(*lines):
     return "".join([l + "\n" for l in lines])
 
-def get_entry(task, stage, cache=False):
-    name = task.name()
+def base_path(path):
+    return os.path.relpath(path, BASE_DIR)
 
-    text = text_lines(
-        f"{name}:",
-        f"  stage: {quote(stage)}",
-        f"  script:",
-        f"    - python3 -u -m manage {name}",
-    )
+class Job(object):
+    def __init__(self, task: Task, level: int, deps: list[Job], cached: bool = False):
+        super().__init__()
+        self.task = task
+        self.level = level
+        self.deps = deps
+        self.cached = cached
 
-    if len(task.dependencies()) > 0:
-        text += "  needs:\n"
-        for dep in task.dependencies():
-            text += f"    - {dep.name()}\n"
+    def name(self) -> str:
+        return self.task.name()
 
-    if len(task.artifacts()) > 0:
-        text += text_lines(
-            "  artifacts:" if not cache else "  cache:",
-            "    paths:",
+    def stage(self) -> str:
+        return quote(str(self.level))
+
+    def text(self) -> str:
+        text = text_lines(
+            f"{self.name()}:",
+            f"  stage: {self.stage()}",
+            f"  script:",
+            f"    - python3 -u -m manage {self.name()}",
         )
-        for art in task.artifacts():
-            text += f"      - {os.path.relpath(art, BASE_DIR)}\n"
 
-    return text
+        if len(self.deps) > 0:
+            text += "  needs:\n"
+            for dep in self.deps:
+                text += f"    - {dep.name()}\n"
 
-def fill_graph(graph, task, level=0):
-    name = task.name()
-    if name in graph:
-        if graph[name][1] >= level:
-            return
-    graph[name] = (task, level)
-    for dep in task.dependencies():
-        fill_graph(graph, dep, level + 1)
+        if not self.cached and len(self.task.artifacts()) > 0:
+            text += text_lines(
+                "  artifacts:",
+                "    paths:",
+            )
+            for art in self.task.artifacts():
+                text += f"      - {base_path(art)}\n"
+
+        cache = set()
+        for dep in self.deps:
+            if dep.cached:
+                cache = cache.union(set(dep.task.artifacts()))
+        if self.cached:
+            cache = cache.union(set(self.task.artifacts()))
+
+        if len(cache) > 0:
+            text += text_lines(
+                "  cache:",
+                "    paths:",
+            )
+            for cch in cache:
+                text += f"      - {base_path(cch)}\n"
+
+        return text
+
+class Graph(object):
+    def __init__(self, is_cached):
+        self.jobs = {}
+        self.is_cached = is_cached
+
+    def add(self, task: Task, level: int = 0) -> Job:
+        name = task.name()
+        if name in self.jobs:
+            job = self.jobs[name]
+            if job.level >= level:
+                return job
+        deps = []
+        for dep in task.dependencies():
+            deps.append(self.add(dep, level + 1))
+        job = Job(task, level, deps, cached=self.is_cached(task.name()))
+        self.jobs[name] = job
+        return job
+
+    def text(self) -> str:
+        text = ""
+
+        stages = sorted(set([str(x.level) for x in self.jobs.values()]))
+        text += "\nstages:\n"
+        for stg in reversed(stages):
+            text += f"  - {quote(stg)}\n"
+
+        sequence = [j for j in sorted(self.jobs.values(), key=lambda j: -j.level)]
+        for job in sequence:
+            text += "\n"
+            text += job.text()
+        
+        return text
+
 
 if __name__ == "__main__":
     end_tasks = [
         "all.build",
         "all.test_host",
     ]
-    cached = [
+    cache_patterns = [
         "epics_base.",
         "_toolchain."
     ]
 
-    graph = {}
+    graph = Graph(
+        is_cached = lambda name: any([p in name for p in cache_patterns]),
+    )
     for etn in end_tasks:
         cn, tn = etn.split(".")
         task = components[cn].tasks()[tn]
-        fill_graph(graph, task)
-    sequence = [x for x in sorted(graph.values(), key=lambda x: -x[1])]
-    stages = sorted(set([str(x[1]) for x in sequence]))
+        graph.add(task)
 
-    text = text_lines(
-        "image: agerasev/debian-psc",
-        "",
-        "cache:",
-        "  paths:",
-        "    - target/download",
-        "    - target/epics_base_*",
-    )
+    text = "image: agerasev/debian-psc\n"
 
-    text += "\nstages:\n"
-    for s in reversed(stages):
-        text += f"  - {quote(s)}\n"
-
-    for task, stage in sequence:
-        name = task.name()
-        tc = any([p in name for p in cached])
-        text += "\n"
-        text += get_entry(task, str(stage), cache=tc)
+    text += graph.text()
 
     print(text)
