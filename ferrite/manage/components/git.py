@@ -12,6 +12,7 @@ def clone(path: str, remote: str, branch: str = None) -> str:
         logging.info(f"Repo '{remote}' is cloned already")
         return False
     try:
+        os.makedirs(TARGET_DIR, exist_ok=True)
         run(
             ["git", "clone", remote, os.path.basename(path)],
             cwd=os.path.dirname(path),
