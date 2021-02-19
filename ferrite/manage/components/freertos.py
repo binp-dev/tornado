@@ -3,12 +3,14 @@ from manage.components.git import RepoList
 
 class Freertos(RepoList):
     def __init__(self):
-        branch = "freertos_bsp_1.0.1_imx7d-var01"
+        name = "freertos_bsp_1.0.1_imx7d-var01"
+        branch = name
         super().__init__(
-            "freertos",
+            name,
             [
                 ("https://gitlab.inp.nsk.su/psc/freertos-variscite.git", branch),
                 ("https://github.com/varigit/freertos-variscite.git", branch),
             ],
         )
+        self.name = name
         self.branch = branch

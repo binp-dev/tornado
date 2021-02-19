@@ -35,7 +35,7 @@ class Toolchain(Component):
 
         self.urls = [try_format(url, **info) for url in urls]
 
-        self.path = os.path.join(TARGET_DIR, self.dir_name)
+        self.path = os.path.join(TARGET_DIR, f"toolchain_{self.dir_name}")
 
         self.download_task = ToolchainDownloadTask(self)
 
