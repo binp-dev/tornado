@@ -129,6 +129,7 @@ ioc.build_cross:
   script:
     - python3 -u -m manage --no-deps ioc.build_cross
   needs:
+    - app_toolchain.download
     - epics_base.build_cross
     - app.build_main_cross
   artifacts:
@@ -141,6 +142,7 @@ ioc.test_fakedev:
   script:
     - python3 -u -m manage --no-deps ioc.test_fakedev
   needs:
+    - epics_base.build_host
     - ioc.build_host
 
 all.build:
