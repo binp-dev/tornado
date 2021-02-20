@@ -10,9 +10,10 @@ class Context(object):
 class Task(object):
     def __init__(self):
         super().__init__()
+        self._name = None
 
     def name(self) -> str:
-        return str(self)
+        return self._name or str(self)
 
     def run(self, ctx: Context) -> bool:
         raise NotImplementedError
@@ -29,6 +30,9 @@ class Task(object):
             ret = dep.run_with_dependencies(ctx) or ret
 
         return self.run(ctx) or ret
+    
+    def artifacts(self) -> list[str]:
+        return []
 
 class FinalTask(Task):
     def __init__(self):
@@ -52,6 +56,9 @@ class TaskList(Task):
     def dependencies(self) -> list[Task]:
         return [dep for task in self.tasks for dep in task.dependencies()]
 
+    def artifacts(self) -> list[str]:
+        return [art for task in self.tasks for art in task.artifacts()]
+
 class TaskWrapper(Task):
     def __init__(
         self,
@@ -73,6 +80,12 @@ class TaskWrapper(Task):
         if self.inner is not None:
             inner_deps = self.inner.dependencies()
         return inner_deps + self.deps
+
+    def artifacts(self) -> list[str]:
+        if self.inner is not None:
+            return self.inner.artifacts()
+        else:
+            return []
 
 class Component(object):
     def __init__(self):

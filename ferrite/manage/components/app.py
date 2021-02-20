@@ -16,6 +16,9 @@ class AppBuildUnittestTask(Task):
         self.cmake.configure()
         return self.cmake.build("app_unittest")
 
+    def artifacts(self) -> str[list]:
+        return [self.cmake.build_dir]
+
 class AppRunUnittestTask(Task):
     def __init__(self, cmake: Cmake, build_task: Task):
         super().__init__()
@@ -68,6 +71,9 @@ class AppBuildWithEpicsTask(Task):
             deps.append(self.toolchain.download_task)
             deps.append(self.epics_base.cross_build_task)
         return deps
+
+    def artifacts(self) -> str[list]:
+        return [self.cmake.build_dir]
 
 class App(Component):
     def __init__(

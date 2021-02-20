@@ -101,7 +101,10 @@ class IocTestFakeDevTask(Task):
         return True
 
     def dependencies(self) -> list[Task]:
-        return [self.owner.host_build_task]
+        return [
+            self.owner.epics_base.host_build_task,
+            self.owner.host_build_task,
+        ]
 
 class IocDeployTask(EpicsDeployTask):
     def __init__(
@@ -234,6 +237,7 @@ class Ioc(Component):
             self.paths["cross_build"],
             self.paths["cross_install"],
             [
+                self.cross_toolchain.download_task,
                 self.epics_base.cross_build_task,
                 self.app.build_main_cross_task,
             ],

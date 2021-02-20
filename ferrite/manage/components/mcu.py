@@ -23,6 +23,9 @@ class McuBuildTask(McuTask):
             self.owner.freertos.clone_task,
         ]
 
+    def artifacts(self) -> str[list]:
+        return [self.owner.cmake.build_dir]
+
 class McuDeployTask(McuTask):
     def __init__(self, owner):
         super().__init__(owner)

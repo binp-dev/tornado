@@ -76,6 +76,12 @@ class EpicsBuildTask(Task):
 
     def dependencies(self) -> list[Task]:
         return self.deps
+    
+    def artifacts(self) -> list[str]:
+        return [
+            self.build_dir,
+            self.install_dir,
+        ]
 
 class EpicsDeployTask(Task):
     def __init__(

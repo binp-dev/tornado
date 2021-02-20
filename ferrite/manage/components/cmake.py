@@ -12,6 +12,9 @@ class CmakeBuildTask(CmakeTask):
     def run(self, ctx: Context) -> bool:
         self.owner.configure()
         return self.owner.build()
+    
+    def artifacts(self) -> str[list]:
+        return [self.owner.build_dir]
 
 class CmakeTestTask(CmakeTask):
     def run(self, ctx: Context):

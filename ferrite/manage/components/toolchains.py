@@ -16,6 +16,9 @@ class ToolchainDownloadTask(Task):
 
     def run(self, ctx: Context) -> bool:
         return self.owner.download()
+    
+    def artifacts(self) -> list[str]:
+        return [self.owner.path]
 
 class Toolchain(Component):
     def __init__(self, target, dir_name, archive, urls):
@@ -32,7 +35,7 @@ class Toolchain(Component):
 
         self.urls = [try_format(url, **info) for url in urls]
 
-        self.path = os.path.join(TARGET_DIR, self.dir_name)
+        self.path = os.path.join(TARGET_DIR, f"toolchain_{self.dir_name}")
 
         self.download_task = ToolchainDownloadTask(self)
 

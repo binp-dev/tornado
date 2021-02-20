@@ -17,3 +17,6 @@ RUN dpkg --add-architecture i386 && \
         libzmq3-dev \
     && \
     apt-get clean
+
+RUN pip3 install \
+        zmq
