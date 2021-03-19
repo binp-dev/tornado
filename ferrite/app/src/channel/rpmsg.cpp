@@ -18,8 +18,28 @@ Result<RpmsgChannel, RpmsgChannel::Error> RpmsgChannel::create(const std::string
     }
     return Ok(RpmsgChannel(fd, tty));
 }
+void RpmsgChannel::close() {
+    if (this->fd_ >= 0) {
+        ::close(this->fd_);
+        this->fd_ = -1;
+    }
+}
 RpmsgChannel::~RpmsgChannel() {
-    close(this->fd_);
+    this->close();
+}
+
+RpmsgChannel::RpmsgChannel(RpmsgChannel &&other) :
+    fd_(other.fd_),
+    tty_(other.tty_)
+{
+    other.fd_ = -1;
+}
+RpmsgChannel &RpmsgChannel::operator=(RpmsgChannel &&other) {
+    this->close();
+    this->fd_ = other.fd_;
+    this->tty_ = other.tty_;
+    other.fd_ = -1;
+    return *this;
 }
 
 Result<std::monostate, RpmsgChannel::Error> RpmsgChannel::send(
