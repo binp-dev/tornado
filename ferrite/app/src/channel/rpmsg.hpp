@@ -13,12 +13,13 @@ private:
     struct termios tty_;
 
     inline RpmsgChannel(int fd, struct termios tty) : fd_(fd), tty_(tty) {}
+    void close();
 
 public:
     virtual ~RpmsgChannel() override;
-    
-    RpmsgChannel(RpmsgChannel &&) = default;
-    RpmsgChannel &operator=(RpmsgChannel &&) = default;
+
+    RpmsgChannel(RpmsgChannel &&other);
+    RpmsgChannel &operator=(RpmsgChannel &&other);
 
     static Result<RpmsgChannel, Error> create(const std::string &dev);
 
