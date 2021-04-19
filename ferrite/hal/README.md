@@ -1,3 +1,0 @@
-# HAL
-
-Hardware Abstraction Layer

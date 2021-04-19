@@ -1,3 +1,8 @@
+/*!
+ * @file spi.h
+ * @brief SPI abstraction layer
+ */
+
 #pragma once
 
 #include <stdlib.h>
@@ -16,14 +21,14 @@ void hal_spi_deinit();
  * @param[in] baud_rate SPI baudrate.
  * @return Return code.
  */
-hal_retcode hal_spi_enable_channel(uint32_t channel, uint32_t baud_rate);
+hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate);
 
 /*!
  * @brief Disable single SPI controller.
  * @param[in] channel SPI controller index.
  * @return Return code.
  */
-hal_retcode hal_spi_disable_channel(uint32_t channel);
+hal_retcode hal_spi_disable(uint32_t channel);
 
 /*!
  * @brief Transfer data over SPI synchronously.
