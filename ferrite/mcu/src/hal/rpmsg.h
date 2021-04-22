@@ -4,8 +4,12 @@
 #include <stdint.h>
 #include "defs.h"
 
-/*! @brief RPMSG endpoint opaque handle. */
-typedef struct hal_rpmsg_ept hal_rpmsg_ept;
+#ifdef HAL_IMX7
+#include "imx7/rpmsg.h"
+#endif
+
+/*! @brief RPMSG channel handle. */
+typedef struct hal_rpmsg_channel hal_rpmsg_channel;
 
 /*! @brief Initialize RPMSG subsystem. */
 void hal_rpmsg_init();
@@ -14,53 +18,61 @@ void hal_rpmsg_init();
 void hal_rpmsg_deinit();
 
 /*!
- * @brief Create RPMSG endpoint.
- * @param[out] ept Pointer to store endpoint handle.
- * @param[in] addr Desired address of endpoint.
+ * @brief Create RPMSG channel.
+ * @param[out] channel Pointer to store channel handle.
+ * @param[in] remote_id Remote device ID.
  * @return Return code (see `defs.h`).
  */
-hal_retcode hal_rpmsg_create_ept(hal_rpmsg_ept **ept, uint32_t addr);
+hal_retcode hal_rpmsg_create_channel(hal_rpmsg_channel *channel, uint32_t remote_id);
 
 /*!
- * @brief Destroy RPMSG endpoint.
- * @param[in] ept Endpoint handle to destroy.
+ * @brief Destroy RPMSG channel.
+ * @param[in] channel Channel handle to destroy.
  * @return Return code (see `defs.h`).
  */
-hal_retcode hal_rpmsg_destroy_ept(hal_rpmsg_ept *ept);
+hal_retcode hal_rpmsg_destroy_channel(hal_rpmsg_channel *channel);
 
 /*!
  * @brief Allocate shared memory for message sending.
+ * @param[in] channel Channel handle.
  * @param[out] tx_buf Pointer to allocated shared memory.
  * @param[out] size Size of allocated buffer.
  * @param[in] timeout Timeout in milliseconds to wait for allocation. 0 - means non-blocking call, HAL_WAIT_FOREVER - wait forever.
  * @return Return code (see `defs.h`).
  */
-hal_retcode hal_rpmsg_alloc_tx_buffer(uint8_t **tx_buf, size_t *size, uint32_t timeout);
+hal_retcode hal_rpmsg_alloc_tx_buffer(hal_rpmsg_channel *channel, uint8_t **tx_buf, size_t *size, uint32_t timeout);
 
 /*!
- * @brief Free message buffer (rx or tx).
- * @param[in] buf Pointer to shared memory.
- * @return Status, 0 on success.
+ * @brief Free received message buffer.
+ * @param[in] channel Channel handle.
+ * @param[in] rx_buf Pointer to shared memory of received buffer.
+ * @return Return code (see `defs.h`).
  */
-hal_retcode hal_rpmsg_free_buffer(uint8_t *buf);
+hal_retcode hal_rpmsg_free_rx_buffer(hal_rpmsg_channel *channel, uint8_t *rx_buf);
+
+/*!
+ * @brief Free message buffer that was allocated for sending **but hasn't been sent**.
+ * @param[in] channel Channel handle.
+ * @param[in] tx_buf Pointer to shared memory of allocated buffer.
+ * @return Return code (see `defs.h`).
+ */
+hal_retcode hal_rpmsg_free_tx_buffer(hal_rpmsg_channel *channel, uint8_t *tx_buf);
 
 /*!
  * @brief Send RPMSG message without data copying.
- * @param[in] ept Endpoint handle.
- * @param[in] dst Address of remote endpoint.
+ * @param[in] channel Channel handle.
  * @param[in] tx_buf Pointer to shared memory with data to send.
  * @param[in] len Length of sending data.
  * @return Return code (see `defs.h`).
  */
-hal_retcode hal_rpmsg_send_nocopy(hal_rpmsg_ept *ept, uint32_t dst, uint8_t *tx_buf, uint32_t len);
+hal_retcode hal_rpmsg_send_nocopy(hal_rpmsg_channel *channel, uint8_t *tx_buf, uint32_t len);
 
 /*!
  * @brief Receive RPMSG message without data copying.
- * @param[in] ept Endpoint handle.
- * @param[out] src Address of remote endpoint.
+ * @param[in] channel Channel handle.
  * @param[out] rx_buf Pointer to shared memory where received data is stored.
  * @param[out] len Length of received data.
  * @param[in] timeout Timeout in milliseconds to wait for message. 0 - means non-blocking call, HAL_WAIT_FOREVER - wait forever.
  * @return Return code (see `defs.h`).
  */
-hal_retcode hal_rpmsg_recv_nocopy(hal_rpmsg_ept *ept, uint32_t *src, uint8_t **rx_buf, size_t *len, uint32_t timeout);
+hal_retcode hal_rpmsg_recv_nocopy(hal_rpmsg_channel *channel, uint8_t **rx_buf, size_t *len, uint32_t timeout);
