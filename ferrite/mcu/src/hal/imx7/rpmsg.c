@@ -81,7 +81,7 @@ hal_retcode hal_rpmsg_free_rx_buffer(hal_rpmsg_channel *channel, uint8_t *rx_buf
     return HAL_SUCCESS;
 }
 
-hal_retcode hal_rpmsg_send_nocopy(hal_rpmsg_channel *channel, uint8_t *tx_buf, uint32_t len) {
+hal_retcode hal_rpmsg_send_nocopy(hal_rpmsg_channel *channel, uint8_t *tx_buf, size_t len) {
     int ret = rpmsg_rtos_send_nocopy(channel->app_chnl->rp_ept, (void*)tx_buf, (int)len, channel->app_chnl->dst);
     if (ret != RPMSG_SUCCESS) {
         /// TODO: Handle different error types.

@@ -4,8 +4,10 @@
 #include <stdint.h>
 #include "defs.h"
 
-#ifdef HAL_IMX7
+#if defined(HAL_IMX7)
 #include "imx7/rpmsg.h"
+#elif defined(HAL_IMX8MN)
+#include "imx8mn/rpmsg.h"
 #endif
 
 /*! @brief RPMSG channel handle. */
@@ -65,7 +67,7 @@ hal_retcode hal_rpmsg_free_tx_buffer(hal_rpmsg_channel *channel, uint8_t *tx_buf
  * @param[in] len Length of sending data.
  * @return Return code (see `defs.h`).
  */
-hal_retcode hal_rpmsg_send_nocopy(hal_rpmsg_channel *channel, uint8_t *tx_buf, uint32_t len);
+hal_retcode hal_rpmsg_send_nocopy(hal_rpmsg_channel *channel, uint8_t *tx_buf, size_t len);
 
 /*!
  * @brief Receive RPMSG message without data copying.
