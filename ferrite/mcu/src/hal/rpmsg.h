@@ -53,14 +53,6 @@ hal_retcode hal_rpmsg_alloc_tx_buffer(hal_rpmsg_channel *channel, uint8_t **tx_b
 hal_retcode hal_rpmsg_free_rx_buffer(hal_rpmsg_channel *channel, uint8_t *rx_buf);
 
 /*!
- * @brief Free message buffer that was allocated for sending **but hasn't been sent**.
- * @param[in] channel Channel handle.
- * @param[in] tx_buf Pointer to shared memory of allocated buffer.
- * @return Return code (see `defs.h`).
- */
-hal_retcode hal_rpmsg_free_tx_buffer(hal_rpmsg_channel *channel, uint8_t *tx_buf);
-
-/*!
  * @brief Send RPMSG message without data copying.
  * @param[in] channel Channel handle.
  * @param[in] tx_buf Pointer to shared memory with data to send.
