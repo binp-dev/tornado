@@ -11,4 +11,5 @@
 struct hal_rpmsg_channel {
     rpmsg_queue_handle queue;
     struct rpmsg_lite_endpoint *ept;
+    uint32_t remote_addr;
 };

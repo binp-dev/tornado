@@ -67,11 +67,6 @@ hal_retcode hal_rpmsg_alloc_tx_buffer(hal_rpmsg_channel *channel, uint8_t **tx_b
     return HAL_SUCCESS;
 }
 
-hal_retcode hal_rpmsg_free_tx_buffer(hal_rpmsg_channel *channel, uint8_t *tx_buf) {
-    /// FIXME: Allow freeing buffers previously allocated with `hal_rpmsg_alloc_tx_buffer`.
-    return HAL_UNIMPLEMENTED;
-}
-
 hal_retcode hal_rpmsg_free_rx_buffer(hal_rpmsg_channel *channel, uint8_t *rx_buf) {
     int ret = rpmsg_rtos_recv_nocopy_free(channel->app_chnl->rp_ept, (void*)rx_buf);
     if (ret != RPMSG_SUCCESS) {
