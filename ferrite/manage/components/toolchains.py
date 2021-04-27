@@ -3,11 +3,24 @@ import os
 import shutil
 import tarfile
 import logging
-from utils.run import run
 from utils.net import download_alt
 from utils.strings import try_format
 from manage.components.base import Component, Task, Context
 from manage.paths import TARGET_DIR
+
+class Toolchain(Component):
+    def __init__(self, target):
+        super().__init__()
+
+        self.target = target
+
+class HostToolchain(Toolchain):
+    def __init__(self):
+        # FIXME: Determine host target
+        super().__init__(None)
+
+    def tasks(self) -> dict[str, Task]:
+        return {}
 
 class ToolchainDownloadTask(Task):
     def __init__(self, owner):
@@ -20,11 +33,9 @@ class ToolchainDownloadTask(Task):
     def artifacts(self) -> list[str]:
         return [self.owner.path]
 
-class Toolchain(Component):
+class RemoteToolchain(Toolchain):
     def __init__(self, target, dir_name, archive, urls):
-        super().__init__()
-
-        self.target = target
+        super().__init__(target)
         info = {"target": self.target}
 
         self.dir_name = try_format(dir_name, **info)
@@ -72,7 +83,7 @@ class Toolchain(Component):
             "download": self.download_task,
         }
 
-class AppToolchain(Toolchain):
+class AppToolchain(RemoteToolchain):
     def __init__(self):
         super().__init__(
             target="arm-linux-gnueabihf",
@@ -84,7 +95,7 @@ class AppToolchain(Toolchain):
             ],
         )
 
-class McuToolchain(Toolchain):
+class McuToolchain(RemoteToolchain):
     def __init__(self):
         super().__init__(
             target="arm-none-eabi",

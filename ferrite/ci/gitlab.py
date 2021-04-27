@@ -39,7 +39,7 @@ class Job(object):
             f"{self.name()}:",
             f"  stage: {self.stage()}",
             f"  script:",
-            f"    - python3 -u -m manage --no-deps {self.name()}",
+            f"    - python3 -u -m manage --no-deps --no-capture {self.name()}",
         )
 
         if len(self.deps) > 0:

@@ -38,6 +38,10 @@ if __name__ == "__main__":
             "+ Possibility to log in to the device via SSH by user 'root' without password (e.g. using public key)."
         ])
     )
+    parser.add_argument(
+        "--no-capture", action="store_true",
+        help="Display task stdout.",
+    )
     args = parser.parse_args()
 
     names = args.comptask.split(".")
@@ -79,8 +83,11 @@ if __name__ == "__main__":
     if args.device:
         device = SshDevice(args.device)
 
+    capture = not args.no_capture
+
     context = Context(
         device=device,
+        capture=capture,
     )
 
     def print_title(text, char="*"):

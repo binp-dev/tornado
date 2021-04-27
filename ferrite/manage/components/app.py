@@ -13,8 +13,8 @@ class AppBuildUnittestTask(Task):
         self.cmake = cmake
 
     def run(self, ctx: Context) -> bool:
-        self.cmake.configure()
-        return self.cmake.build("app_unittest")
+        self.cmake.configure(ctx)
+        return self.cmake.build(ctx, "app_unittest")
 
     def artifacts(self) -> str[list]:
         return [self.cmake.build_dir]
@@ -26,7 +26,7 @@ class AppRunUnittestTask(Task):
         self.build_task = build_task
 
     def run(self, ctx: Context) -> bool:
-        run(["./app_unittest"], cwd=self.cmake.build_dir)
+        run(["./app_unittest"], cwd=self.cmake.build_dir, quiet=ctx.capture)
         return True
 
     def dependencies(self) -> list[Task]:
@@ -50,18 +50,18 @@ class AppBuildWithEpicsTask(Task):
 
     def run(self, ctx: Context) -> bool:
         if self.toolchain is None:
-            self.cmake.configure({
+            self.cmake.configure(ctx, {
                 "EPICS_BASE": self.epics_base.paths["host_install"],
             })
         else:
             assert self.toolchain == self.epics_base.cross_toolchain
-            self.cmake.configure({
+            self.cmake.configure(ctx, {
                 "TOOLCHAIN_DIR": self.toolchain.path,
                 "TARGET_TRIPLE": self.toolchain.target,
                 "CMAKE_TOOLCHAIN_FILE": os.path.join(self.cmake.src_dir, "armgcc.cmake"),
                 "EPICS_BASE": self.epics_base.paths["cross_install"],
             })
-        return self.cmake.build(self.cmake_target)
+        return self.cmake.build(ctx, self.cmake_target)
 
     def dependencies(self) -> list[Task]:
         deps = list(self.deps)

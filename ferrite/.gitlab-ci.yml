@@ -13,7 +13,7 @@ stages:
 mcu_toolchain.download:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps mcu_toolchain.download
+    - python3 -u -m manage --no-deps --no-capture mcu_toolchain.download
   artifacts:
     paths:
       - target/toolchain_gcc-arm-none-eabi-5_4-2016q3
@@ -21,7 +21,7 @@ mcu_toolchain.download:
 freertos.clone:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps freertos.clone
+    - python3 -u -m manage --no-deps --no-capture freertos.clone
   artifacts:
     paths:
       - target/freertos_bsp_1.0.1_imx7d-var01
@@ -29,7 +29,7 @@ freertos.clone:
 epics_base.clone:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps epics_base.clone
+    - python3 -u -m manage --no-deps --no-capture epics_base.clone
   artifacts:
     paths:
       - target/epics_base_7.0.4.1_src
@@ -37,7 +37,7 @@ epics_base.clone:
 app_toolchain.download:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps app_toolchain.download
+    - python3 -u -m manage --no-deps --no-capture app_toolchain.download
   artifacts:
     paths:
       - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf
@@ -45,7 +45,7 @@ app_toolchain.download:
 app.build_unittest:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps app.build_unittest
+    - python3 -u -m manage --no-deps --no-capture app.build_unittest
   artifacts:
     paths:
       - target/app_host
@@ -53,7 +53,7 @@ app.build_unittest:
 mcu.build:
   stage: "1"
   script:
-    - python3 -u -m manage --no-deps mcu.build
+    - python3 -u -m manage --no-deps --no-capture mcu.build
   needs:
     - mcu_toolchain.download
     - freertos.clone
@@ -64,7 +64,7 @@ mcu.build:
 epics_base.build_host:
   stage: "1"
   script:
-    - python3 -u -m manage --no-deps epics_base.build_host
+    - python3 -u -m manage --no-deps --no-capture epics_base.build_host
   needs:
     - epics_base.clone
   artifacts:
@@ -75,14 +75,14 @@ epics_base.build_host:
 app.run_unittest:
   stage: "1"
   script:
-    - python3 -u -m manage --no-deps app.run_unittest
+    - python3 -u -m manage --no-deps --no-capture app.run_unittest
   needs:
     - app.build_unittest
 
 epics_base.build_cross:
   stage: "2"
   script:
-    - python3 -u -m manage --no-deps epics_base.build_cross
+    - python3 -u -m manage --no-deps --no-capture epics_base.build_cross
   needs:
     - app_toolchain.download
     - epics_base.build_host
@@ -94,7 +94,7 @@ epics_base.build_cross:
 app.build_fakedev:
   stage: "2"
   script:
-    - python3 -u -m manage --no-deps app.build_fakedev
+    - python3 -u -m manage --no-deps --no-capture app.build_fakedev
   needs:
     - epics_base.build_host
   artifacts:
@@ -104,7 +104,7 @@ app.build_fakedev:
 ioc.build_host:
   stage: "3"
   script:
-    - python3 -u -m manage --no-deps ioc.build_host
+    - python3 -u -m manage --no-deps --no-capture ioc.build_host
   needs:
     - epics_base.build_host
     - app.build_fakedev
@@ -116,7 +116,7 @@ ioc.build_host:
 app.build_main_cross:
   stage: "3"
   script:
-    - python3 -u -m manage --no-deps app.build_main_cross
+    - python3 -u -m manage --no-deps --no-capture app.build_main_cross
   needs:
     - app_toolchain.download
     - epics_base.build_cross
@@ -127,7 +127,7 @@ app.build_main_cross:
 ioc.build_cross:
   stage: "4"
   script:
-    - python3 -u -m manage --no-deps ioc.build_cross
+    - python3 -u -m manage --no-deps --no-capture ioc.build_cross
   needs:
     - app_toolchain.download
     - epics_base.build_cross
@@ -140,7 +140,7 @@ ioc.build_cross:
 ioc.test_fakedev:
   stage: "4"
   script:
-    - python3 -u -m manage --no-deps ioc.test_fakedev
+    - python3 -u -m manage --no-deps --no-capture ioc.test_fakedev
   needs:
     - epics_base.build_host
     - ioc.build_host
@@ -148,7 +148,7 @@ ioc.test_fakedev:
 all.build:
   stage: "5"
   script:
-    - python3 -u -m manage --no-deps all.build
+    - python3 -u -m manage --no-deps --no-capture all.build
   needs:
     - mcu.build
     - epics_base.build_host
@@ -161,7 +161,7 @@ all.build:
 all.test_host:
   stage: "5"
   script:
-    - python3 -u -m manage --no-deps all.test_host
+    - python3 -u -m manage --no-deps --no-capture all.test_host
   needs:
     - app.run_unittest
     - ioc.test_fakedev
