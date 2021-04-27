@@ -17,7 +17,6 @@ static struct rpmsg_lite_instance *RPMSG = RL_NULL;
 
 void hal_rpmsg_init() {
     RPMSG = rpmsg_lite_remote_init(RPMSG_LITE_SHMEM_BASE, RPMSG_LITE_LINK_ID, RL_NO_FLAGS);
-    /// FIXME: Wait using FreeRTOS instead of this spinlock.
     while (!rpmsg_lite_is_link_up(RPMSG));
 }
 
@@ -57,7 +56,6 @@ hal_retcode hal_rpmsg_destroy_channel(hal_rpmsg_channel *channel) {
 
 hal_retcode hal_rpmsg_alloc_tx_buffer(hal_rpmsg_channel *channel, uint8_t **tx_buf, size_t *size, uint32_t timeout) {
     uint32_t size_uint = 0;
-    /// TODO: Does timeout implemented with FreeRTOS?
     char *buffer = rpmsg_lite_alloc_tx_buffer(RPMSG, &size_uint, timeout);
     if (buffer == RL_NULL) {
         return HAL_BAD_ALLOC;
@@ -77,7 +75,6 @@ hal_retcode hal_rpmsg_free_rx_buffer(hal_rpmsg_channel *channel, uint8_t *rx_buf
 }
 
 hal_retcode hal_rpmsg_send_nocopy(hal_rpmsg_channel *channel, uint8_t *tx_buf, size_t len) {
-    /// TODO: Does timeout implemented with FreeRTOS?
     /// TODO: Check that we have set channel->remote_address
     int ret = rpmsg_lite_send_nocopy(RPMSG, channel->ept, channel->remote_addr, (char*)tx_buf, (uint32_t)len);
     if (ret != RL_SUCCESS) {
@@ -89,7 +86,6 @@ hal_retcode hal_rpmsg_send_nocopy(hal_rpmsg_channel *channel, uint8_t *tx_buf, s
 
 hal_retcode hal_rpmsg_recv_nocopy(hal_rpmsg_channel *channel, uint8_t **rx_buf, size_t *len, uint32_t timeout) {
     uint32_t len_uint = 0;
-    /// TODO: Does timeout implemented with FreeRTOS?
     int ret = rpmsg_queue_recv_nocopy(RPMSG, channel->queue, &channel->remote_addr, (char**)rx_buf, &len_uint, timeout);
     if (ret != RL_SUCCESS) {
         /// TODO: Handle different error types.
