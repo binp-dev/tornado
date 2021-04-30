@@ -5,7 +5,7 @@ import logging
 from utils.files import substitute, allow_patterns
 from manage.components.base import Component, Task
 from manage.components.git import RepoList
-from manage.components.toolchains import Toolchain
+from manage.components.toolchains import Toolchain, HostToolchain, RemoteToolchain
 from manage.paths import TARGET_DIR
 from .base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch, epics_arch_by_target
 
@@ -42,7 +42,7 @@ class EpicsBaseBuildTask(EpicsBuildTask):
         substitute(rules, os.path.join(self.build_dir, "configure/CONFIG_COMMON"))
 
     def _configure_toolchain(self):
-        if self.toolchain is None:
+        if isinstance(self.toolchain, HostToolchain):
             substitute([
                 ("^(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", "\\1"),
             ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
@@ -75,7 +75,7 @@ class EpicsBaseBuildTask(EpicsBuildTask):
 
     def _install(self):
         host_arch = epics_host_arch(self.build_dir)
-        arch = epics_arch(self.build_dir, self.toolchain and self.toolchain.target)
+        arch = epics_arch(self.build_dir, self.toolchain.target)
         paths = [
             "bin",
             "cfg",
@@ -118,8 +118,14 @@ class EpicsBaseBuildTask(EpicsBuildTask):
         return True
 
 class EpicsBase(Component):
-    def __init__(self, cross_toolchain: Toolchain=None):
+    def __init__(self):
         super().__init__()
+
+class EpicsBaseHost(EpicsBase):
+    def __init__(self, toolchain: HostToolchain):
+        super().__init__()
+
+        self.toolchain = toolchain
 
         self.version = "7.0.4.1"
         self.prefix = f"epics_base_{self.version}"
@@ -132,51 +138,68 @@ class EpicsBase(Component):
                 ("https://github.com/epics-base/epics-base.git", f"R{self.version}"),
             ],
         )
-        self.cross_toolchain = cross_toolchain
 
         self.names = {
-            "host_build":    f"{self.prefix}_host_build",
-            "cross_build":   f"{self.prefix}_cross_build",
-            "host_install":  f"{self.prefix}_host_install",
-            "cross_install": f"{self.prefix}_cross_install",
+            "build":   f"{self.prefix}_build_{self.toolchain.name}",
+            "install": f"{self.prefix}_install_{self.toolchain.name}",
         }
         self.paths = {k: os.path.join(TARGET_DIR, v) for k, v in self.names.items()}
-        self.deploy_path = "/opt/epics_base"
 
-        self.host_build_task = EpicsBaseBuildTask(
+        self.build_task = EpicsBaseBuildTask(
             self.src_path,
-            self.paths["host_build"],
-            self.paths["host_install"],
+            self.paths["build"],
+            self.paths["install"],
             [self.repo.clone_task],
-            None,
-        )
-        self.cross_build_task = EpicsBaseBuildTask(
-            self.paths["host_build"],
-            self.paths["cross_build"],
-            self.paths["cross_install"],
-            [
-                self.cross_toolchain.download_task,
-                self.host_build_task,
-            ],
-            self.cross_toolchain,
-        )
-        self.deploy_task = EpicsDeployTask(
-            self.paths["cross_install"],
-            self.deploy_path,
-            [self.cross_build_task],
+            self.toolchain,
         )
 
-    def host_arch(self) -> str:
+    def arch(self) -> str:
         return epics_host_arch(self.src_path)
-    
-    def cross_arch(self) -> str:
-        tc = self.cross_toolchain
-        return tc and epics_arch_by_target(tc.target)
 
     def tasks(self) -> dict[str, Task]:
         return {
             "clone": self.repo.clone_task,
-            "build_host": self.host_build_task,
-            "build_cross": self.cross_build_task,
+            "build": self.build_task,
+        }
+
+
+class EpicsBaseCross(EpicsBase):
+    def __init__(self, toolchain: RemoteToolchain, host_base: EpicsBaseHost):
+        super().__init__()
+
+        self.toolchain = toolchain
+        self.host_base = host_base
+
+        self.prefix = self.host_base.prefix
+
+        self.names = {
+            "build":   f"{self.prefix}_build_{self.toolchain.name}",
+            "install": f"{self.prefix}_install_{self.toolchain.name}",
+        }
+        self.paths = {k: os.path.join(TARGET_DIR, v) for k, v in self.names.items()}
+        self.deploy_path = "/opt/epics_base"
+
+        self.build_task = EpicsBaseBuildTask(
+            self.host_base.paths["build"],
+            self.paths["build"],
+            self.paths["install"],
+            [
+                self.toolchain.download_task,
+                self.host_base.build_task,
+            ],
+            self.toolchain,
+        )
+        self.deploy_task = EpicsDeployTask(
+            self.paths["install"],
+            self.deploy_path,
+            [self.build_task],
+        )
+
+    def arch(self) -> str:
+        return epics_arch_by_target(self.toolchain.target)
+
+    def tasks(self) -> dict[str, Task]:
+        return {
+            "build": self.build_task,
             "deploy": self.deploy_task,
         }

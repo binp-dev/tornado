@@ -66,8 +66,8 @@ class EpicsBuildTask(Task):
             "make",
             "--jobs",
             *([self.mk_target] if self.mk_target is not None else []),
-        ], cwd=self.build_dir)
-        
+        ], cwd=self.build_dir, quiet=ctx.capture)
+
         logging.info(f"Install {self.build_dir} to {self.install_dir}")
         os.makedirs(self.install_dir, exist_ok=True)
         self._install()

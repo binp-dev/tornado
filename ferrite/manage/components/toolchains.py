@@ -3,14 +3,28 @@ import os
 import shutil
 import tarfile
 import logging
-from utils.run import run
 from utils.net import download_alt
 from utils.strings import try_format
 from manage.components.base import Component, Task, Context
 from manage.paths import TARGET_DIR
 
+class Toolchain(Component):
+    def __init__(self, name: str, target: str):
+        super().__init__()
+
+        self.name = name
+        self.target = target
+
+class HostToolchain(Toolchain):
+    def __init__(self):
+        # FIXME: Determine host target
+        super().__init__("host", None)
+
+    def tasks(self) -> dict[str, Task]:
+        return {}
+
 class ToolchainDownloadTask(Task):
-    def __init__(self, owner):
+    def __init__(self, owner: RemoteToolchain):
         super().__init__()
         self.owner = owner
 
@@ -20,11 +34,9 @@ class ToolchainDownloadTask(Task):
     def artifacts(self) -> list[str]:
         return [self.owner.path]
 
-class Toolchain(Component):
-    def __init__(self, target, dir_name, archive, urls):
-        super().__init__()
-
-        self.target = target
+class RemoteToolchain(Toolchain):
+    def __init__(self, name, target, dir_name, archive, urls):
+        super().__init__(name, target)
         info = {"target": self.target}
 
         self.dir_name = try_format(dir_name, **info)
@@ -72,9 +84,10 @@ class Toolchain(Component):
             "download": self.download_task,
         }
 
-class AppToolchain(Toolchain):
+class AppToolchain(RemoteToolchain):
     def __init__(self):
         super().__init__(
+            name="app_imx7",
             target="arm-linux-gnueabihf",
             dir_name="gcc-linaro-7.5.0-2019.12-x86_64_{target}",
             archive="{dir_name}.tar.xz",
@@ -84,9 +97,10 @@ class AppToolchain(Toolchain):
             ],
         )
 
-class McuToolchain(Toolchain):
+class McuToolchain(RemoteToolchain):
     def __init__(self):
         super().__init__(
+            name="mcu_imx7",
             target="arm-none-eabi",
             dir_name="gcc-{target}-5_4-2016q3",
             archive="{dir_name}-20160926-linux.tar.bz2",

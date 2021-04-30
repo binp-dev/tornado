@@ -10,15 +10,15 @@ class CmakeTask(Task):
 
 class CmakeBuildTask(CmakeTask):
     def run(self, ctx: Context) -> bool:
-        self.owner.configure()
-        return self.owner.build()
+        self.owner.configure(ctx)
+        return self.owner.build(ctx)
     
     def artifacts(self) -> str[list]:
         return [self.owner.build_dir]
 
 class CmakeTestTask(CmakeTask):
     def run(self, ctx: Context):
-        self.owner.test()
+        self.owner.test(ctx)
     
     def dependencies(self) -> list[Task]:
         return [self.owner.build_task]
@@ -41,7 +41,7 @@ class Cmake(Component):
         self.build_task = CmakeBuildTask(self)
         self.test_task = CmakeTestTask(self)
 
-    def configure(self, cvars: dict[str, str] = {}):
+    def configure(self, ctx: Context, cvars: dict[str, str] = {}):
         os.makedirs(self.build_dir, exist_ok=True)
         run(
             [
@@ -52,10 +52,11 @@ class Cmake(Component):
             ],
             cwd=self.build_dir,
             add_env=self.env,
+            quiet=ctx.capture,
         )
 
     # TODO: Detect that project is already built
-    def build(self, target=None) -> bool:
+    def build(self, ctx: Context, target=None) -> bool:
         run(
             [
                 "cmake",
@@ -64,11 +65,12 @@ class Cmake(Component):
                 "--parallel",
             ],
             cwd=self.build_dir,
+            quiet=ctx.capture,
         )
         return True
 
-    def test(self):
-        run(["ctest", "--verbose"], cwd=self.build_dir)
+    def test(self, ctx: Context):
+        run(["ctest", "--verbose"], cwd=self.build_dir, quiet=ctx.capture)
 
     def tasks(self) -> dict[str, Task]:
         return {

@@ -10,159 +10,155 @@ stages:
   - "4"
   - "5"
 
-mcu_toolchain.download:
+host_app.build_unittest:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps mcu_toolchain.download
+    - python3 -u -m manage --no-deps --no-capture host_app.build_unittest
   artifacts:
     paths:
-      - target/toolchain_gcc-arm-none-eabi-5_4-2016q3
+      - target/app_host
 
-freertos.clone:
+host_epics_base.clone:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps freertos.clone
-  artifacts:
-    paths:
-      - target/freertos_bsp_1.0.1_imx7d-var01
-
-epics_base.clone:
-  stage: "0"
-  script:
-    - python3 -u -m manage --no-deps epics_base.clone
+    - python3 -u -m manage --no-deps --no-capture host_epics_base.clone
   artifacts:
     paths:
       - target/epics_base_7.0.4.1_src
 
-app_toolchain.download:
+imx7_mcu_toolchain.download:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps app_toolchain.download
+    - python3 -u -m manage --no-deps --no-capture imx7_mcu_toolchain.download
+  artifacts:
+    paths:
+      - target/toolchain_gcc-arm-none-eabi-5_4-2016q3
+
+imx7_freertos.clone:
+  stage: "0"
+  script:
+    - python3 -u -m manage --no-deps --no-capture imx7_freertos.clone
+  artifacts:
+    paths:
+      - target/freertos_bsp_1.0.1_imx7d-var01
+
+imx7_app_toolchain.download:
+  stage: "0"
+  script:
+    - python3 -u -m manage --no-deps --no-capture imx7_app_toolchain.download
   artifacts:
     paths:
       - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf
 
-app.build_unittest:
-  stage: "0"
-  script:
-    - python3 -u -m manage --no-deps app.build_unittest
-  artifacts:
-    paths:
-      - target/app_host
-
-mcu.build:
+host_app.run_unittest:
   stage: "1"
   script:
-    - python3 -u -m manage --no-deps mcu.build
+    - python3 -u -m manage --no-deps --no-capture host_app.run_unittest
   needs:
-    - mcu_toolchain.download
-    - freertos.clone
+    - host_app.build_unittest
+
+host_epics_base.build:
+  stage: "1"
+  script:
+    - python3 -u -m manage --no-deps --no-capture host_epics_base.build
+  needs:
+    - host_epics_base.clone
+  artifacts:
+    paths:
+      - target/epics_base_7.0.4.1_build_host
+      - target/epics_base_7.0.4.1_install_host
+
+imx7_mcu.build:
+  stage: "1"
+  script:
+    - python3 -u -m manage --no-deps --no-capture imx7_mcu.build
+  needs:
+    - imx7_mcu_toolchain.download
+    - imx7_freertos.clone
   artifacts:
     paths:
       - target/mcu
 
-epics_base.build_host:
-  stage: "1"
-  script:
-    - python3 -u -m manage --no-deps epics_base.build_host
-  needs:
-    - epics_base.clone
-  artifacts:
-    paths:
-      - target/epics_base_7.0.4.1_host_build
-      - target/epics_base_7.0.4.1_host_install
-
-app.run_unittest:
-  stage: "1"
-  script:
-    - python3 -u -m manage --no-deps app.run_unittest
-  needs:
-    - app.build_unittest
-
-epics_base.build_cross:
+host_app.build_fakedev:
   stage: "2"
   script:
-    - python3 -u -m manage --no-deps epics_base.build_cross
+    - python3 -u -m manage --no-deps --no-capture host_app.build_fakedev
   needs:
-    - app_toolchain.download
-    - epics_base.build_host
-  artifacts:
-    paths:
-      - target/epics_base_7.0.4.1_cross_build
-      - target/epics_base_7.0.4.1_cross_install
-
-app.build_fakedev:
-  stage: "2"
-  script:
-    - python3 -u -m manage --no-deps app.build_fakedev
-  needs:
-    - epics_base.build_host
+    - host_epics_base.build
   artifacts:
     paths:
       - target/app_host
 
-ioc.build_host:
+imx7_epics_base.build:
+  stage: "2"
+  script:
+    - python3 -u -m manage --no-deps --no-capture imx7_epics_base.build
+  needs:
+    - imx7_app_toolchain.download
+    - host_epics_base.build
+  artifacts:
+    paths:
+      - target/epics_base_7.0.4.1_build_app_imx7
+      - target/epics_base_7.0.4.1_install_app_imx7
+
+host_ioc.build:
   stage: "3"
   script:
-    - python3 -u -m manage --no-deps ioc.build_host
+    - python3 -u -m manage --no-deps --no-capture host_ioc.build
   needs:
-    - epics_base.build_host
-    - app.build_fakedev
+    - host_epics_base.build
+    - host_app.build_fakedev
   artifacts:
     paths:
-      - target/ioc_host_build
-      - target/ioc_host_install
+      - target/ioc_build_host
+      - target/ioc_install_host
 
-app.build_main_cross:
+imx7_app.build_main:
   stage: "3"
   script:
-    - python3 -u -m manage --no-deps app.build_main_cross
+    - python3 -u -m manage --no-deps --no-capture imx7_app.build_main
   needs:
-    - app_toolchain.download
-    - epics_base.build_cross
+    - imx7_app_toolchain.download
+    - imx7_epics_base.build
   artifacts:
     paths:
-      - target/app_cross
+      - target/app_app_imx7
 
-ioc.build_cross:
+host_ioc.test_fakedev:
   stage: "4"
   script:
-    - python3 -u -m manage --no-deps ioc.build_cross
+    - python3 -u -m manage --no-deps --no-capture host_ioc.test_fakedev
   needs:
-    - app_toolchain.download
-    - epics_base.build_cross
-    - app.build_main_cross
+    - host_epics_base.build
+    - host_ioc.build
+
+imx7_ioc.build:
+  stage: "4"
+  script:
+    - python3 -u -m manage --no-deps --no-capture imx7_ioc.build
+  needs:
+    - imx7_app_toolchain.download
+    - imx7_epics_base.build
+    - imx7_app.build_main
   artifacts:
     paths:
-      - target/ioc_cross_build
-      - target/ioc_cross_install
+      - target/ioc_build_app_imx7
+      - target/ioc_install_app_imx7
 
-ioc.test_fakedev:
-  stage: "4"
-  script:
-    - python3 -u -m manage --no-deps ioc.test_fakedev
-  needs:
-    - epics_base.build_host
-    - ioc.build_host
-
-all.build:
+host_all.test:
   stage: "5"
   script:
-    - python3 -u -m manage --no-deps all.build
+    - python3 -u -m manage --no-deps --no-capture host_all.test
   needs:
-    - mcu.build
-    - epics_base.build_host
-    - epics_base.build_cross
-    - app.build_unittest
-    - app.build_fakedev
-    - ioc.build_host
-    - ioc.build_cross
+    - host_app.run_unittest
+    - host_ioc.test_fakedev
 
-all.test_host:
+imx7_all.build:
   stage: "5"
   script:
-    - python3 -u -m manage --no-deps all.test_host
+    - python3 -u -m manage --no-deps --no-capture imx7_all.build
   needs:
-    - app.run_unittest
-    - ioc.test_fakedev
+    - imx7_mcu.build
+    - imx7_epics_base.build
+    - imx7_ioc.build
 

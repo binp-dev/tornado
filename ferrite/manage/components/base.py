@@ -3,9 +3,10 @@ import logging
 from manage.remote.base import Device
 
 class Context(object):
-    def __init__(self, device: Device = None):
+    def __init__(self, device: Device = None, capture: bool = False):
         super().__init__()
         self.device = device
+        self.capture = capture
 
 class Task(object):
     def __init__(self):
