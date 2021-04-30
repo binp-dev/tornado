@@ -119,8 +119,8 @@ class PatternCache(Cache):
 
 if __name__ == "__main__":
     end_tasks = [
-        "all.build",
-        "all.test_host",
+        "host_all.test",
+        "imx7_all.build",
     ]
     cache = PatternCache([
         #"target/epics_base_*",
