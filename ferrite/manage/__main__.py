@@ -44,7 +44,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    names = args.comptask.split(".")
+    names = args.comptask.rsplit(".", 1)
     component_name = names[0]
     try:
         component = components[component_name]
