@@ -16,10 +16,11 @@ devPSC_SRCS += \
 # Link with the libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)
 
+# Workaround to link shared library
 ifeq ($(APP_FAKEDEV),)
-	devPSC_LIBS += app
+	PSC_LDFLAGS += -Wl,-Bdynamic -l:libapp.so
 else
-	devPSC_LIBS += app_fakedev
+	PSC_LIBS += app_fakedev
 endif
 
 # Install .dbd and .db files

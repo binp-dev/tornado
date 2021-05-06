@@ -85,10 +85,10 @@ class RemoteToolchain(Toolchain):
         }
 
 class AppToolchain(RemoteToolchain):
-    def __init__(self):
+    def __init__(self, name, target):
         super().__init__(
-            name="app_imx7",
-            target="arm-linux-gnueabihf",
+            name=name,
+            target=target,
             dir_name="gcc-linaro-7.5.0-2019.12-x86_64_{target}",
             archive="{dir_name}.tar.xz",
             urls=[
@@ -97,15 +97,42 @@ class AppToolchain(RemoteToolchain):
             ],
         )
 
-class McuToolchain(RemoteToolchain):
+class AppToolchainImx7(AppToolchain):
     def __init__(self):
         super().__init__(
-            name="mcu_imx7",
+            name="imx7",
+            target="arm-linux-gnueabihf",
+        )
+
+class AppToolchainImx8mn(AppToolchain):
+    def __init__(self):
+        super().__init__(
+            name="imx8mn",
+            target="aarch64-linux-gnu",
+        )
+
+class McuToolchainImx7(RemoteToolchain):
+    def __init__(self):
+        super().__init__(
+            name="imx7",
             target="arm-none-eabi",
             dir_name="gcc-{target}-5_4-2016q3",
             archive="{dir_name}-20160926-linux.tar.bz2",
             urls=[
                 "https://gitlab.inp.nsk.su/psc/storage/-/raw/master/toolchains/{archive}",
                 "https://developer.arm.com/-/media/Files/downloads/gnu-rm/5_4-2016q3/{archive}",
+            ],
+        )
+
+class McuToolchainImx8mn(RemoteToolchain):
+    def __init__(self):
+        super().__init__(
+            name="imx8mn",
+            target="arm-none-eabi",
+            dir_name="gcc-{target}-9-2020-q2-update",
+            archive="{dir_name}-x86_64-linux.tar.bz2",
+            urls=[
+                "https://gitlab.inp.nsk.su/psc/storage/-/raw/master/toolchains/{archive}",
+                "https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2020q2/{archive}",
             ],
         )

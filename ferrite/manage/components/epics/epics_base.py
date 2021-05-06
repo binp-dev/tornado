@@ -49,11 +49,10 @@ class EpicsBaseBuildTask(EpicsBuildTask):
 
         else:
             host_arch = epics_host_arch(self.src_dir)
-            if host_arch.endswith("-x86_64"):
-                # Trim '_64'
-                host_arch = host_arch[:-3]
             cross_arch = epics_arch_by_target(self.toolchain.target)
-            
+            if cross_arch == "linux-arm" and host_arch.endswith("-x86_64"):
+                host_arch = host_arch[:-3] # Trim '_64'
+
             substitute([
                 ("^(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {cross_arch}"),
             ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
