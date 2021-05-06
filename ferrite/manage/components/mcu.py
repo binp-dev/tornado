@@ -19,7 +19,7 @@ class McuBuildTask(McuTask):
     
     def dependencies(self) -> list[Task]:
         return [
-            self.owner.cross_toolchain.download_task,
+            self.owner.toolchain.download_task,
             self.owner.freertos.clone_task,
         ]
 
@@ -46,16 +46,16 @@ class McuDeployTask(McuTask):
         return [self.owner.tasks()["build"]]
 
 class Mcu(Component):
-    def __init__(self, freertos, cross_toolchain):
+    def __init__(self, freertos, toolchain):
         super().__init__()
 
         self.src_dir = os.path.join(BASE_DIR, "mcu")
         self.freertos = freertos
-        self.cross_toolchain = cross_toolchain
-        
+        self.toolchain = toolchain
+
         self.cmake = Cmake(
             self.src_dir,
-            os.path.join(TARGET_DIR, "mcu"),
+            os.path.join(TARGET_DIR, f"mcu_{self.toolchain.name}"),
             opt=[
                 "-DCMAKE_TOOLCHAIN_FILE={}".format(os.path.join(
                     self.freertos.path,
@@ -65,7 +65,7 @@ class Mcu(Component):
             ],
             env={
                 "FREERTOS_DIR": self.freertos.path,
-                "ARMGCC_DIR": self.cross_toolchain.path,
+                "ARMGCC_DIR": self.toolchain.path,
             }
         )
         self.build_task = McuBuildTask(self)

@@ -14,6 +14,8 @@ def epics_host_arch(epics_base_dir: str):
 def epics_arch_by_target(target: str) -> str:
     if target.startswith("arm-linux-"):
         return "linux-arm"
+    elif target.startswith("aarch64-linux-"):
+        return "linux-aarch64"
     # TODO: Add some other archs
     raise Exception(f"Unknown target: {target}")
 

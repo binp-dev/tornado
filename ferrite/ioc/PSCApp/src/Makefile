@@ -23,8 +23,9 @@ PSC_DBD += devPSC.dbd
 # Add all the support libraries needed by this IOC
 PSC_LIBS += devPSC
 
+# Workaround to link shared library
 ifeq ($(APP_FAKEDEV),)
-	PSC_LIBS += app
+	PSC_LDFLAGS += -Wl,-Bdynamic -l:libapp.so
 else
 	PSC_LIBS += app_fakedev
 endif
