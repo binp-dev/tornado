@@ -50,6 +50,14 @@ imx7_app_toolchain.download:
     paths:
       - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf
 
+imx8mn_app_toolchain.download:
+  stage: "0"
+  script:
+    - python3 -u -m manage --no-deps --no-capture imx8mn_app_toolchain.download
+  artifacts:
+    paths:
+      - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
+
 host_app.run_unittest:
   stage: "1"
   script:
@@ -77,7 +85,7 @@ imx7_mcu.build:
     - imx7_freertos.clone
   artifacts:
     paths:
-      - target/mcu
+      - target/mcu_imx7
 
 host_app.build_fakedev:
   stage: "2"
@@ -98,8 +106,20 @@ imx7_epics_base.build:
     - host_epics_base.build
   artifacts:
     paths:
-      - target/epics_base_7.0.4.1_build_app_imx7
-      - target/epics_base_7.0.4.1_install_app_imx7
+      - target/epics_base_7.0.4.1_build_imx7
+      - target/epics_base_7.0.4.1_install_imx7
+
+imx8mn_epics_base.build:
+  stage: "2"
+  script:
+    - python3 -u -m manage --no-deps --no-capture imx8mn_epics_base.build
+  needs:
+    - imx8mn_app_toolchain.download
+    - host_epics_base.build
+  artifacts:
+    paths:
+      - target/epics_base_7.0.4.1_build_imx8mn
+      - target/epics_base_7.0.4.1_install_imx8mn
 
 host_ioc.build:
   stage: "3"
@@ -122,7 +142,18 @@ imx7_app.build_main:
     - imx7_epics_base.build
   artifacts:
     paths:
-      - target/app_app_imx7
+      - target/app_imx7
+
+imx8mn_app.build_main:
+  stage: "3"
+  script:
+    - python3 -u -m manage --no-deps --no-capture imx8mn_app.build_main
+  needs:
+    - imx8mn_app_toolchain.download
+    - imx8mn_epics_base.build
+  artifacts:
+    paths:
+      - target/app_imx8mn
 
 host_ioc.test_fakedev:
   stage: "4"
@@ -142,8 +173,21 @@ imx7_ioc.build:
     - imx7_app.build_main
   artifacts:
     paths:
-      - target/ioc_build_app_imx7
-      - target/ioc_install_app_imx7
+      - target/ioc_build_imx7
+      - target/ioc_install_imx7
+
+imx8mn_ioc.build:
+  stage: "4"
+  script:
+    - python3 -u -m manage --no-deps --no-capture imx8mn_ioc.build
+  needs:
+    - imx8mn_app_toolchain.download
+    - imx8mn_epics_base.build
+    - imx8mn_app.build_main
+  artifacts:
+    paths:
+      - target/ioc_build_imx8mn
+      - target/ioc_install_imx8mn
 
 host_all.test:
   stage: "5"
