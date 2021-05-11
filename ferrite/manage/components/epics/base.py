@@ -14,6 +14,8 @@ def epics_host_arch(epics_base_dir: str):
 def epics_arch_by_target(target: str) -> str:
     if target.startswith("arm-linux-"):
         return "linux-arm"
+    elif target.startswith("aarch64-linux-"):
+        return "linux-aarch64"
     # TODO: Add some other archs
     raise Exception(f"Unknown target: {target}")
 
@@ -66,8 +68,8 @@ class EpicsBuildTask(Task):
             "make",
             "--jobs",
             *([self.mk_target] if self.mk_target is not None else []),
-        ], cwd=self.build_dir)
-        
+        ], cwd=self.build_dir, quiet=ctx.capture)
+
         logging.info(f"Install {self.build_dir} to {self.install_dir}")
         os.makedirs(self.install_dir, exist_ok=True)
         self._install()

@@ -1,29 +1,61 @@
-from manage.components.toolchains import AppToolchain, McuToolchain
-from manage.components.freertos import Freertos
-from manage.components.epics.epics_base import EpicsBase
+import manage.components.toolchains as toolchains
+from manage.components.freertos import FreertosImx7, FreertosImx8mn
+from manage.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 from manage.components.mcu import Mcu
 from manage.components.app import App
 from manage.components.epics.ioc import AppIoc
-from manage.components.all_ import All
+from manage.components.all_ import AllHost, AllCross
 
-mcu_toolchain = McuToolchain()
-app_toolchain = AppToolchain()
-freertos = Freertos()
-epics_base = EpicsBase(app_toolchain)
-mcu = Mcu(freertos, mcu_toolchain)
-app = App(epics_base, app_toolchain)
-ioc = AppIoc(epics_base, app, app_toolchain)
-all_ = All(epics_base, app, ioc, mcu)
+def host_components(toolchain):
+    epics_base = EpicsBaseHost(toolchain)
+    app = App(epics_base, toolchain)
+    ioc = AppIoc(epics_base, app, toolchain)
+    all_ = AllHost(epics_base, app, ioc)
+    return {
+        "toolchain": toolchain,
+        "epics_base": epics_base,
+        "app": app,
+        "ioc": ioc,
+        "all": all_,
+    }
+
+def cross_components(host_components, app_toolchain, mcu_toolchain, freertos):
+    epics_base = EpicsBaseCross(app_toolchain, host["epics_base"])
+    app = App(epics_base, app_toolchain)
+    ioc = AppIoc(epics_base, app, app_toolchain)
+    mcu = Mcu(freertos, mcu_toolchain)
+    all_ = AllCross(epics_base, app, ioc, mcu)
+    return {
+        "app_toolchain": app_toolchain,
+        "mcu_toolchain": mcu_toolchain,
+        "freertos": freertos,
+        "mcu": mcu,
+        "epics_base": epics_base,
+        "app": app,
+        "ioc": ioc,
+        "all": all_,
+    }
+
+host = host_components(
+    toolchains.HostToolchain()
+)
+imx7 = cross_components(
+    host,
+    toolchains.AppToolchainImx7(),
+    toolchains.McuToolchainImx7(),
+    FreertosImx7(),
+)
+imx8mn = cross_components(
+    host,
+    toolchains.AppToolchainImx8mn(),
+    toolchains.McuToolchainImx8mn(),
+    FreertosImx8mn(),
+)
 
 components = {
-    "mcu_toolchain": mcu_toolchain,
-    "app_toolchain": app_toolchain,
-    "freertos": freertos,
-    "epics_base": epics_base,
-    "mcu": mcu,
-    "app": app,
-    "ioc": ioc,
-    "all": all_,
+    **{f"host_{k}": c for k, c in host.items()},
+    **{f"imx7_{k}": c for k, c in imx7.items()},
+    **{f"imx8mn_{k}": c for k, c in imx8mn.items()},
 }
 
 for cname, comp in components.items():
