@@ -20,7 +20,7 @@ def host_components(toolchain):
     }
 
 def cross_components(host_components, app_toolchain, mcu_toolchain, freertos):
-    epics_base = EpicsBaseCross(app_toolchain, host["epics_base"])
+    epics_base = EpicsBaseCross(app_toolchain, host_components["epics_base"])
     app = App(epics_base, app_toolchain)
     ioc = AppIoc(epics_base, app, app_toolchain)
     mcu = Mcu(freertos, mcu_toolchain)

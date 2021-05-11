@@ -6,7 +6,7 @@
 #endif // APP_DEBUG_IO_UART
 
 #ifdef APP_DEBUG_IO_RPMSG
-#include "../../common/proto.h"
+#include <proto.h>
 #include <stdio.h>
 #include <stdint.h>
 #include "app_rpmsg.h"

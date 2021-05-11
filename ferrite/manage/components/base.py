@@ -70,6 +70,12 @@ class TaskWrapper(Task):
         self.inner = inner
         self.deps = deps
 
+    def name(self) -> str:
+        if self.inner is not None:
+            return self.inner.name()
+        else:
+            return super().name()
+
     def run(self, ctx: Context) -> bool:
         if self.inner is not None:
             return self.inner.run(ctx)

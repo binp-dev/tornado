@@ -17,7 +17,7 @@
 #include "app_log.h"
 #include "app_gpio.h"
 
-#include "../../common/proto.h"
+#include <proto.h>
 
 
 #define APP_TASK_STACK_SIZE    256
