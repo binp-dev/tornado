@@ -50,6 +50,22 @@ imx7_app_toolchain.download:
     paths:
       - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf
 
+imx8mn_mcu_toolchain.download:
+  stage: "0"
+  script:
+    - python3 -u -m manage --no-deps --no-capture imx8mn_mcu_toolchain.download
+  artifacts:
+    paths:
+      - target/toolchain_gcc-arm-none-eabi-9-2020-q2-update
+
+imx8mn_freertos.clone:
+  stage: "0"
+  script:
+    - python3 -u -m manage --no-deps --no-capture imx8mn_freertos.clone
+  artifacts:
+    paths:
+      - target/mcuxpresso_sdk_2.9.x-var01
+
 imx8mn_app_toolchain.download:
   stage: "0"
   script:
@@ -86,6 +102,17 @@ imx7_mcu.build:
   artifacts:
     paths:
       - target/mcu_imx7
+
+imx8mn_mcu.build:
+  stage: "1"
+  script:
+    - python3 -u -m manage --no-deps --no-capture imx8mn_mcu.build
+  needs:
+    - imx8mn_mcu_toolchain.download
+    - imx8mn_freertos.clone
+  artifacts:
+    paths:
+      - target/mcu_imx8mn
 
 host_app.build_fakedev:
   stage: "2"
@@ -205,4 +232,13 @@ imx7_all.build:
     - imx7_mcu.build
     - imx7_epics_base.build
     - imx7_ioc.build
+
+imx8mn_all.build:
+  stage: "5"
+  script:
+    - python3 -u -m manage --no-deps --no-capture imx8mn_all.build
+  needs:
+    - imx8mn_mcu.build
+    - imx8mn_epics_base.build
+    - imx8mn_ioc.build
 

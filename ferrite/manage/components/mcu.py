@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import shutil
 from manage.paths import BASE_DIR, TARGET_DIR
 from manage.components.base import Component, Task, Context, TaskWrapper
 from manage.components.cmake import Cmake
@@ -15,8 +16,13 @@ class McuBuildTask(McuTask):
         super().__init__(owner)
 
     def run(self, ctx: Context) -> bool:
+        # Workaround to disable cmake caching (incremental build is broken anyway)
+        build_dir = self.owner.cmake.build_dir
+        if os.path.exists(build_dir):
+            shutil.rmtree(build_dir)
+
         return self.owner.cmake.build_task.run(ctx)
-    
+
     def dependencies(self) -> list[Task]:
         return [
             self.owner.toolchain.download_task,
@@ -49,7 +55,7 @@ class Mcu(Component):
     def __init__(self, freertos, toolchain):
         super().__init__()
 
-        self.src_dir = os.path.join(BASE_DIR, "mcu")
+        self.src_dir = os.path.join(BASE_DIR, f"mcu/{toolchain.name}")
         self.freertos = freertos
         self.toolchain = toolchain
 
@@ -64,6 +70,7 @@ class Mcu(Component):
                 "-DCMAKE_BUILD_TYPE=Release",
             ],
             env={
+                "COMMON_DIR": os.path.join(BASE_DIR, "common"),
                 "FREERTOS_DIR": self.freertos.path,
                 "ARMGCC_DIR": self.toolchain.path,
             }

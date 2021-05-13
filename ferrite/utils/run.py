@@ -31,7 +31,8 @@ def run(
     try:
         ret = subprocess.run(cmd, check=True, env=env, **params, **kwargs)
     except RunError as e:
-        sys.stdout.buffer.write(e.output)
+        if capture or quiet:
+            sys.stdout.buffer.write(e.output)
         raise
 
     if capture:
