@@ -64,11 +64,13 @@ def run_test(
 
         socket.send(encode(IDS["PSCM_MESSAGE"], "Hello from MCU!".encode("utf-8")))
 
+        # Empty PV
         queue = [0]*wfs*2
         for _ in range(4):
             socket.send(encode(IDS["PSCM_WF_REQ"]))
             queue = assert_pop(queue, decode_wf_data(socket.recv()))
         
+        # Linear ascend
         wf = list(range(wfs))
         ca.put(prefix, "WAVEFORM", wf, array=True)
         queue += wf*2
@@ -76,6 +78,7 @@ def run_test(
             socket.send(encode(IDS["PSCM_WF_REQ"]))
             queue = assert_pop(queue, decode_wf_data(socket.recv()))
 
+        # Linear descend
         wf = [wfs - x - 1 for x in range(wfs)]
         ca.put(prefix, "WAVEFORM", wf, array=True)
         queue += wf*2
@@ -83,6 +86,7 @@ def run_test(
             socket.send(encode(IDS["PSCM_WF_REQ"]))
             queue = assert_pop(queue, decode_wf_data(socket.recv()))
 
+        # Double write
         wf = [wfs + x for x in range(wfs)]
         ca.put(prefix, "WAVEFORM", range(0, 2*wfs, 2), array=True)
         ca.put(prefix, "WAVEFORM", wf, array=True)

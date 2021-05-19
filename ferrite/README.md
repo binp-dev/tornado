@@ -22,6 +22,10 @@ pip3 install -r requirements.txt
 + `libgtest-dev`
 + `libzmq3-dev`
 
+## Deploy dependencies
+
++ `ssh`
++ `rsync`
 
 ## Usage
 
