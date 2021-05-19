@@ -16,35 +16,35 @@
 #include <channel/rpmsg.hpp>
 #endif // FAKEDEV
 
-typedef std::unique_ptr<Device> DevicePtr;
+void init_device(MaybeUninit<Device> &mem) {
+    std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
 
-const class : public LazyStatic<Mutex<DevicePtr>> {
-    virtual Mutex<DevicePtr> init_value() const override {
-        std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
-        return Mutex(std::make_unique<Device>(
+    mem.init_in_place(
 #ifdef FAKEDEV
-            std::unique_ptr<Channel>(new ZmqChannel(std::move(ZmqChannel::create("tcp://127.0.0.1:8321").unwrap()))),
+        std::unique_ptr<Channel>(new ZmqChannel(std::move(ZmqChannel::create("tcp://127.0.0.1:8321").unwrap()))),
 #else // FAKEDEV
-            std::unique_ptr<Channel>(new RpmsgChannel(std::move(RpmsgChannel::create("/dev/ttyRPMSG0").unwrap()))),
+        std::unique_ptr<Channel>(new RpmsgChannel(std::move(RpmsgChannel::create("/dev/ttyRPMSG0").unwrap()))),
 #endif // FAKEDEV
-            std::move(std::make_unique<LinearEncoder>(0, (1<<24) - 1, 3)),
-            200,
-            256
-        ));
-    }
-} DEVICE;
+        std::move(std::make_unique<LinearEncoder>(0, (1<<24) - 1, 3)),
+        200,
+        256
+    );
+}
 
+/// We use LazyStatic to initialize global Device without global constructor. 
+LazyStatic<Device, init_device> DEVICE = {};
+static_assert(std::is_pod_v<decltype(DEVICE)>);
 
 class SendWaveform : public WaveformHandler {
     private:
-    const Mutex<DevicePtr> *device;
+    Device *device;
 
     public:
     SendWaveform(
-        const Mutex<DevicePtr> *device,
+        Device *device,
         WaveformRecord &record
     ) : device(device) {
-        size_t dev_len = (*device->lock())->max_points();
+        size_t dev_len = device->max_points();
         size_t rec_len = record.waveform_max_length();
         if (dev_len != rec_len) {
             panic(
@@ -57,11 +57,15 @@ class SendWaveform : public WaveformHandler {
 
     void read(WaveformRecord &record) override {
         auto [wf_data, wf_len] = record.waveform_slice<double>();
-        (*device->lock())->set_waveform(wf_data, wf_len);
+        device->set_waveform(wf_data, wf_len);
     }
 };
 
-[[nodiscard]]
+void framework_init_device() {
+    // Explicitly initialize device.
+    *DEVICE;
+}
+
 std::unique_ptr<WaveformHandler> framework_record_init_waveform(WaveformRecord &record) {
     if (strcmp(record.name(), "WAVEFORM") == 0) {
         return std::make_unique<SendWaveform>(&*DEVICE, record);
