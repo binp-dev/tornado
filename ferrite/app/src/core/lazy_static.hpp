@@ -7,7 +7,7 @@
 template <typename T>
 class LazyStatic {
 private:
-    mutable std::atomic_bool initialized;
+    mutable std::atomic_bool initialized = false;
     mutable std::mutex mutex;
     mutable T value;
 
@@ -15,7 +15,7 @@ protected:
     virtual T init_value() const = 0;
 
 public:
-    LazyStatic() : initialized(false) {}
+    LazyStatic() = default;
     ~LazyStatic() = default;
 
     LazyStatic(const LazyStatic &) = delete;

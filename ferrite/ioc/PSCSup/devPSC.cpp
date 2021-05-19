@@ -16,7 +16,8 @@
 typedef menuFtype abc;
 
 void init(void) {
-    printf("init\n");
+    std::cout << "init" << std::endl;
+    framework_init_device();
 }
 
 long record_waveform_init(waveformRecord *raw) {

@@ -19,6 +19,10 @@ private:
     const size_t _max_points;
     const size_t _max_transfer;
 
+    // Global mutex
+    // FIXME: Allow concurrent operation.
+    std::mutex device_mutex;
+
     // Shared data
     std::vector<double> waveforms[3];
     std::atomic_bool swap_ready;
@@ -145,6 +149,8 @@ public:
         send_buffer(max_transfer, 0),
         recv_buffer(max_transfer, 0)
     {
+        std::lock_guard<std::mutex> device_guard(device_mutex);
+
         for (int i = 0; i < 3; ++i) {
             waveforms[i].resize(max_points, 0.0);
         }
@@ -158,6 +164,8 @@ public:
     }
 
     void set_waveform(const double *wf_data, const size_t wf_len) {
+        std::lock_guard<std::mutex> device_guard(device_mutex);
+
         assert(wf_len <= max_points());
         if (!swap_ready.load()) {
             std::copy(wf_data, wf_data + wf_len, waveforms[1].begin());
