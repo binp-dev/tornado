@@ -2,17 +2,23 @@
 
 #include <atomic>
 #include <mutex>
-#include <memory>
 
-template <typename T>
+#include "maybe_uninit.hpp"
+
+template <typename T, void F(MaybeUninit<T> &)>
 class LazyStatic {
 private:
-    mutable std::atomic_bool initialized = false;
-    mutable std::mutex mutex;
-    mutable T value;
+    std::atomic_bool initialized;
+    MaybeUninit<std::mutex> mutex_;
+    MaybeUninit<T> value_;
 
-protected:
-    virtual T init_value() const = 0;
+private:
+    std::mutex &mutex() {
+        return mutex_.assume_init();
+    }
+    T &value() {
+        return value_.assume_init();
+    }
 
 public:
     LazyStatic() = default;
@@ -23,20 +29,21 @@ public:
     LazyStatic(LazyStatic &&) = delete;
     LazyStatic &operator=(LazyStatic &&) = delete;
 
-    void try_init() const {
+    void try_init() {
         if (!initialized.load()) {
-            std::lock_guard<std::mutex> guard(mutex);
+            mutex_.init_in_place();
+            std::lock_guard<std::mutex> guard(mutex());
             if (!initialized.load()) {
-                value = std::move(init_value());
+                F(value_);
                 initialized.store(true);
             }
         }
     }
-    const T &operator*() const {
+    T &operator*() {
         try_init();
-        return value;
+        return value();
     }
-    const T *operator->() const {
+    T *operator->() {
         return &*this;
     }
 };
