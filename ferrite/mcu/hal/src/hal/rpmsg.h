@@ -8,6 +8,8 @@
 #include "imx7/rpmsg.h"
 #elif defined(HAL_IMX8MN)
 #include "imx8mn/rpmsg.h"
+#else
+#error "Unknown target"
 #endif
 
 /*! @brief RPMSG channel handle. */

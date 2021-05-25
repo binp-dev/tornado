@@ -56,13 +56,14 @@ class Cmake(Component):
         )
 
     # TODO: Detect that project is already built
-    def build(self, ctx: Context, target=None) -> bool:
+    def build(self, ctx: Context, target=None, verbose=False) -> bool:
         run(
             [
                 "cmake",
                 "--build", self.build_dir,
                 *(["--target", target] if target else []),
                 "--parallel",
+                *(["--verbose"] if verbose else []),
             ],
             cwd=self.build_dir,
             quiet=ctx.capture,

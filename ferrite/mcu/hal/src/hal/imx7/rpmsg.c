@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include <hal/rpmsg.h>
 #include "rpmsg.h"
 
@@ -6,8 +8,6 @@
 
 #include <FreeRTOS.h>
 #include <rpmsg/rpmsg_rtos.h>
-
-#define HAL_MU_IRQ_PRIORITY 3
 
 /*! MU Interrrupt ISR */
 void BOARD_MU_HANDLER(void) {
@@ -26,7 +26,7 @@ void hal_rpmsg_init() {
      * MU must be initialized before rpmsg init is called
      */
     MU_Init(BOARD_MU_BASE_ADDR);
-    NVIC_SetPriority(BOARD_MU_IRQ_NUM, APP_MU_IRQ_PRIORITY);
+    NVIC_SetPriority(BOARD_MU_IRQ_NUM, HAL_MU_IRQ_PRIORITY);
     NVIC_EnableIRQ(BOARD_MU_IRQ_NUM);
 }
 

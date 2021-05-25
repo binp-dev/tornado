@@ -101,3 +101,13 @@ ADD_CUSTOM_COMMAND(TARGET ${MCUX_SDK_PROJECT_NAME} POST_BUILD COMMAND ${CMAKE_OB
     ${EXECUTABLE_OUTPUT_PATH}/${MCUX_SDK_PROJECT_NAME}
     ${EXECUTABLE_OUTPUT_PATH}/rpmsg_lite_str_echo_rtos.bin
 )
+
+
+# Link HAL
+
+add_subdirectory("../hal" "hal" EXCLUDE_FROM_ALL)
+target_link_libraries(${MCUX_SDK_PROJECT_NAME} PRIVATE "hal_imx8mn")
+
+# Workaround to pass include directories to HAL
+get_target_property(MCUX_SDK_INCLUDE_DIRECTORIES ${MCUX_SDK_PROJECT_NAME} INCLUDE_DIRECTORIES)
+target_include_directories("hal_imx8mn" PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})
