@@ -1,3 +1,7 @@
+/*!
+ * @file rpmsg.h
+ * @brief RPMSG abstraction layer
+ */
 #pragma once
 
 #include <stdlib.h>

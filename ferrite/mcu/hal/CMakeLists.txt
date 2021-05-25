@@ -8,11 +8,17 @@ include_directories(
 set(COMMON_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/hal/defs.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/hal/rpmsg.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/hal/gpt.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/hal/spi.h"
 )
 set(IMX7_SRC
     ${COMMON_SRC}
     "${CMAKE_CURRENT_SOURCE_DIR}/src/hal/imx7/rpmsg.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/hal/imx7/rpmsg.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/hal/imx7/gpt.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/hal/imx7/gpt.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/hal/imx7/spi.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/hal/imx7/spi.c"
 )
 set(IMX8MN_SRC
     ${COMMON_SRC}
