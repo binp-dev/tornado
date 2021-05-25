@@ -7,17 +7,27 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include "semphr.h"
+#include "defs.h"
 
-/*! @brief Ticks per second. */
-extern const uint32_t hal_gpt_ticks_per_second;
+#if defined(HAL_IMX7)
+#include "imx7/gpt.h"
+#else
+#error "Unknown target"
+#endif
 
 /*!
- * @brief Configure GPT hardware.
+ * @brief Initialize GPT hardware.
  * @param[in] instance GPT instance index.
  * @return Return code.
  */
-uint8_t hal_gpt_init(uint32_t instance);
+hal_retcode hal_gpt_init(uint32_t instance);
+
+/*!
+ * @brief Deinitialize GPT hardware.
+ * @param[in] instance GPT instance index.
+ * @return Return code.
+ */
+hal_retcode hal_gpt_deinit(uint32_t instance);
 
 /*!
  * @brief Start GPT.
@@ -26,11 +36,11 @@ uint8_t hal_gpt_init(uint32_t instance);
  * @param[in] target Semaphore to be given on timer event.
  * @return Return code.
  */
-uint8_t hal_gpt_start(uint32_t instance, uint32_t period, SemaphoreHandle_t target);
+hal_retcode hal_gpt_start(uint32_t instance, uint32_t period, SemaphoreHandle_t target);
 
 /*!
  * @brief Stop GPT.
  * @param[in] instance GPT instance index.
  * @return Return code.
  */
-uint8_t hal_gpt_stop(uint32_t instance);
+hal_retcode hal_gpt_stop(uint32_t instance);
