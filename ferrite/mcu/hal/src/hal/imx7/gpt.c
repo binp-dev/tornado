@@ -8,7 +8,7 @@
 
 #define HAL_GPT_IRQ_PRIORITY 3
 
-static SemaphoreHandle_t l_targets[HAL_GPT_INSTANCE_COUNT] = {NULL};
+static SemaphoreHandle_t targets[HAL_GPT_INSTANCE_COUNT] = {NULL};
 
 /*! @brief GPT interrupt handlers. */
 void BOARD_GPTA_HANDLER();
@@ -91,7 +91,7 @@ hal_retcode hal_gpt_start(uint32_t instance, uint32_t period, SemaphoreHandle_t 
     GPT_SetOscPrescaler(baseaddr, 1);
     GPT_SetPrescaler(baseaddr, 1);
 
-    l_targets[instance] = target;
+    targets[instance] = target;
 
     /* Get GPT clock frequency */
     //period = 24000000/4; /* GPT is bound to OSC directly, with OSC divider 2 */
@@ -131,12 +131,12 @@ hal_retcode hal_gpt_stop(uint32_t instance) {
 }
 
 
-static void l_handle_gpt(uint32_t instance) {
-    if (l_targets[instance] != NULL) {
+static void handle_gpt(uint32_t instance) {
+    if (targets[instance] != NULL) {
         BaseType_t hptw = pdFALSE;
 
         /* Notify target task */
-        xSemaphoreGiveFromISR(l_targets[instance], &hptw);
+        xSemaphoreGiveFromISR(targets[instance], &hptw);
 
         /* Yield to higher priority task */
         portYIELD_FROM_ISR(hptw);
@@ -145,10 +145,10 @@ static void l_handle_gpt(uint32_t instance) {
 
 void BOARD_GPTA_HANDLER() {
     GPT_ClearStatusFlag(BOARD_GPTA_BASEADDR, gptStatusFlagOutputCompare1);
-    l_handle_gpt(0);
+    handle_gpt(0);
 }
 
 void BOARD_GPTB_HANDLER() {
     GPT_ClearStatusFlag(BOARD_GPTB_BASEADDR, gptStatusFlagOutputCompare2);
-    l_handle_gpt(1);
+    handle_gpt(1);
 }
