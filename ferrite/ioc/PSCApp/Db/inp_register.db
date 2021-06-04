@@ -1,0 +1,3 @@
+record(bi, "di$(INP_REGISTER_NUMBER)") {
+	field(DTYP, "devsup")
+}

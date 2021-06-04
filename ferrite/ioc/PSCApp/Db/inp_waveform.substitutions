@@ -1,0 +1,4 @@
+file db/inp_waveform.db {
+    pattern {INP_CHANNEL_NUMBER}
+        {"1"}
+}

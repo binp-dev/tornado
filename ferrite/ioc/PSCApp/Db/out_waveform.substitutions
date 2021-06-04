@@ -1,0 +1,4 @@
+file db/out_waveform.db {
+    pattern {OUT_CHANNEL_NUMBER}
+        {"1"}
+}

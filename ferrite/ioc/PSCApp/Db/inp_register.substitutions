@@ -1,0 +1,4 @@
+file db/inp_register.db {
+    pattern {INP_REGISTER_NUMBER}
+        {"1"}
+}

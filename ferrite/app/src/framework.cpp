@@ -61,8 +61,10 @@ class SendWaveform : public WaveformHandler {
     ~SendWaveform() override = default;
 
     void read(WaveformRecord &record) override {
+        std::cout << "SendWaveform.read() before" << std::endl;
         auto [wf_data, wf_len] = record.waveform_slice<double>();
         device->set_waveform(wf_data, wf_len);
+        std::cout << "SendWaveform.read() after" << std::endl;
     }
 };
 

@@ -25,6 +25,8 @@ set(BASE_SRC
 set(EPICS_SRC
     "src/record/base.cpp"
     "src/record/waveform.cpp"
+    "src/record/analogArrayIO.cpp"
+    "src/record/ioscan.cpp"
 )
 set(MAIN_SRC
     ${BASE_SRC}

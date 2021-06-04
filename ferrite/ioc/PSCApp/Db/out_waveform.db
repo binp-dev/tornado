@@ -1,0 +1,5 @@
+record(aao, "ao$(OUT_CHANNEL_NUMBER)") {
+	field(DTYP, "devsup")
+	field(NELM, 10)
+	field(FTVL, "LONG")
+}

@@ -1,0 +1,3 @@
+record(bo, "do$(OUT_REGISTER_NUMBER)") {
+	field(DTYP, "devsup")
+}

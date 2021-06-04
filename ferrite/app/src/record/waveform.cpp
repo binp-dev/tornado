@@ -26,8 +26,8 @@ size_t WaveformRecord::waveform_length() const {
     return raw()->nord;
 }
 const WaveformHandler &WaveformRecord::handler() const {
-    return *(const WaveformHandler *)private_data();
+    return *(const WaveformHandler *)get_private_data();
 }
 WaveformHandler &WaveformRecord::handler() {
-    return *(WaveformHandler *)private_data();
+    return *(WaveformHandler *)get_private_data();
 }
