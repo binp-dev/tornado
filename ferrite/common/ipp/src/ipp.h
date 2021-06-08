@@ -94,5 +94,5 @@ IppMsgMcuAny ipp_msg_mcu_load(const uint8_t *src);
 void ipp_msg_mcu_store(const IppMsgMcuAny *src, uint8_t *dst);
 
 #ifdef __cplusplus
-}; // extern "C"
+} // extern "C"
 #endif // __cplusplus
