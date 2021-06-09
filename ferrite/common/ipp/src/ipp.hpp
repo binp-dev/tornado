@@ -1,8 +1,12 @@
 #pragma once
 
+#include <type_traits>
+#include <algorithm>
 #include <vector>
 #include <string>
+#include <optional>
 #include <variant>
+#include <cassert>
 
 #include "ipp.h"
 
@@ -26,12 +30,17 @@ public:
     virtual R raw() const = 0;
 };
 
+template <typename Self>
 class MsgEmpty : public virtual MsgPrim {
 public:
     virtual size_t size() const override {
         return 0;
     }
     virtual void store(uint8_t *) const override {}
+
+    static Self load(const uint8_t *) {
+        return Self {};
+    }
 };
 
 template <IppTypeApp T>
@@ -42,11 +51,21 @@ public:
     virtual IppMsgAppAny raw_any() const = 0;
 };
 
-template <IppTypeApp T>
-class MsgAppEmpty : public virtual MsgAppPrim<T>, public virtual MsgEmpty {
+template <typename Self, IppTypeApp T>
+class MsgAppEmpty : public virtual MsgAppPrim<T>, public virtual MsgEmpty<Self> {
+public:
+    static constexpr IppTypeApp TYPE = T;
+
     virtual IppMsgAppAny raw_any() const override {
-        return IppMsgAppAny { T };
+        IppMsgAppAny any;
+        any.type = T;
+        return any;
     };
+
+    static Self from_raw_any(const IppMsgAppAny &any) {
+        assert(any.type == TYPE);
+        return Self {};
+    }
 };
 
 template <IppTypeMcu T>
@@ -57,16 +76,26 @@ public:
     virtual IppMsgMcuAny raw_any() const = 0;
 };
 
-template <IppTypeMcu T>
-class MsgMcuEmpty : public virtual MsgMcuPrim<T>, public virtual MsgEmpty {
+template <typename Self, IppTypeMcu T>
+class MsgMcuEmpty : public virtual MsgMcuPrim<T>, public virtual MsgEmpty<Self> {
+public:
+    static constexpr IppTypeMcu TYPE = T;
+
     virtual IppMsgMcuAny raw_any() const override {
-        return IppMsgMcuAny { T };
+        IppMsgMcuAny any;
+        any.type = T;
+        return any;
     };
+
+    static Self from_raw_any(const IppMsgMcuAny &any) {
+        assert(any.type == TYPE);
+        return Self {};
+    }
 };
 
-class MsgAppNone final : public virtual MsgAppEmpty<IPP_APP_NONE> {};
-class MsgAppStart final : public virtual MsgAppEmpty<IPP_APP_START> {};
-class MsgAppStop final : public virtual MsgAppEmpty<IPP_APP_STOP> {};
+class MsgAppNone final : public virtual MsgAppEmpty<MsgAppNone, IPP_APP_NONE> {};
+class MsgAppStart final : public virtual MsgAppEmpty<MsgAppStart, IPP_APP_START> {};
+class MsgAppStop final : public virtual MsgAppEmpty<MsgAppStop, IPP_APP_STOP> {};
 
 class MsgAppWfData final :
     public virtual MsgAppPrim<IPP_APP_WF_DATA>,
@@ -96,10 +125,22 @@ public:
         const auto raw = this->raw();
         _ipp_msg_app_store_wf_data(&raw, data);
     }
+
+    static MsgAppWfData from_raw(const Raw &raw) {
+        return MsgAppWfData(std::vector<uint8_t>(raw.data, raw.data + raw.len));
+    }
+    static MsgAppWfData from_raw_any(const IppMsgAppAny &any) {
+        assert(any.type == TYPE);
+        return from_raw(any.wf_data);
+    }
+
+    static MsgAppWfData load(uint8_t *data) {
+        return from_raw(_ipp_msg_app_load_wf_data(data));
+    }
 };
 
-class MsgMcuNone final : public MsgMcuEmpty<IPP_MCU_NONE> {};
-class MsgMcuWfReq final : public MsgMcuEmpty<IPP_MCU_WF_REQ> {};
+class MsgMcuNone final : public MsgMcuEmpty<MsgMcuNone, IPP_MCU_NONE> {};
+class MsgMcuWfReq final : public MsgMcuEmpty<MsgMcuWfReq, IPP_MCU_WF_REQ> {};
 
 class MsgMcuError final :
     public virtual MsgMcuPrim<IPP_MCU_ERROR>,
@@ -130,6 +171,18 @@ public:
     virtual void store(uint8_t *data) const override {
         const auto raw = this->raw();
         _ipp_msg_mcu_store_error(&raw, data);
+    }
+
+    static MsgMcuError from_raw(const Raw &raw) {
+        return MsgMcuError(raw.code, std::string(raw.message));
+    }
+    static MsgMcuError from_raw_any(const IppMsgMcuAny &any) {
+        assert(any.type == TYPE);
+        return from_raw(any.error);
+    }
+
+    static MsgMcuError load(uint8_t *data) {
+        return from_raw(_ipp_msg_mcu_load_error(data));
     }
 };
 
@@ -163,61 +216,112 @@ public:
         const auto raw = this->raw();
         _ipp_msg_mcu_store_debug(&raw, data);
     }
+
+    static MsgMcuDebug from_raw(const Raw &raw) {
+        return MsgMcuDebug(std::string(raw.message));
+    }
+    static MsgMcuDebug from_raw_any(const IppMsgMcuAny &any) {
+        assert(any.type == TYPE);
+        return from_raw(any.debug);
+    }
+
+    static MsgMcuDebug load(uint8_t *data) {
+        return from_raw(_ipp_msg_mcu_load_debug(data));
+    }
 };
 
-class MsgAppAny final : public virtual MsgState<IppMsgAppAny> {
+template <typename A, typename K, typename ...Vs>
+class MsgAny : public virtual MsgState<A> {
+public:
+    typedef std::variant<Vs...> Variant;
+    typedef typename MsgState<A>::Raw Raw;
+
 private:
-    std::variant<
-        MsgAppNone,
-        MsgAppStart,
-        MsgAppStop,
-        MsgAppWfData
-    > variant_;
+    Variant variant_;
 
 public:
+    explicit MsgAny(Variant &&variant) : variant_(std::move(variant)) {}
+
     const auto &variant() const {
         return this->variant_;
     }
 
+    virtual Raw raw() const override {
+        return std::visit([&](const auto &inner) {
+            return inner.raw_any();
+        }, this->variant());
+    }
+
+    static std::variant<Vs...> variant_from_raw(const Raw &raw) {
+        static constexpr size_t N = sizeof...(Vs);
+        static constexpr K ids[] = { Vs::TYPE... };
+        const size_t i = std::find_if(ids, ids + N, [&](K t) { return t == raw.type; }) - ids;
+        static constexpr std::variant<Vs*...> types[] = { (Vs*)nullptr... };
+        return std::visit([&](auto *ptr) {
+            return std::variant<Vs...>(
+                std::remove_reference_t<decltype(*ptr)>::from_raw_any(raw)
+            );
+        }, types[i]);
+    }
+};
+
+class MsgAppAny final : public virtual MsgAny<
+    IppMsgAppAny,
+    IppTypeApp,
+    // Vs...
+    MsgAppNone,
+    MsgAppStart,
+    MsgAppStop,
+    MsgAppWfData
+> {
+public:
+    explicit MsgAppAny(Variant &&variant) : MsgAny(std::move(variant)) {}
+
     virtual size_t size() const override {
-        return std::visit([&](const auto &&inner) {
-            const auto any = inner.raw_any();
+        return std::visit([&](const auto &inner) {
+            const IppMsgAppAny any = inner.raw_any();
             return ipp_msg_app_len(&any);
         }, this->variant());
     }
     virtual void store(uint8_t *data) const override {
-        std::visit([&](const auto &&inner) {
-            const auto any = inner.raw_any();
+        std::visit([&](const auto &inner) {
+            const IppMsgAppAny any = inner.raw_any();
             ipp_msg_app_store(&any, data);
         }, this->variant());
     }
+
+    static MsgAppAny load(uint8_t *data) {
+        return MsgAppAny(variant_from_raw(ipp_msg_app_load(data)));
+    }
 };
 
-class MsgMcuAny final : public virtual MsgState<IppMsgMcuAny> {
-private:
-    std::variant<
-        MsgMcuNone,
-        MsgMcuWfReq,
-        MsgMcuError,
-        MsgMcuDebug
-    > variant_;
-
+class MsgMcuAny final : public virtual MsgAny<
+    IppMsgMcuAny,
+    IppTypeMcu,
+    // Vs...
+    MsgMcuNone,
+    MsgMcuWfReq,
+    MsgMcuError,
+    MsgMcuDebug
+> {
 public:
-    const auto &variant() const {
-        return this->variant_;
-    }
+    explicit MsgMcuAny(Variant &&variant) : MsgAny(std::move(variant)) {}
 
     virtual size_t size() const override {
-        return std::visit([&](const auto &&inner) {
-            const auto any = inner.raw_any();
+        return std::visit([&](const auto &inner) {
+            const IppMsgMcuAny any = inner.raw_any();
             return ipp_msg_mcu_len(&any);
         }, this->variant());
     }
     virtual void store(uint8_t *data) const override {
-        std::visit([&](const auto &&inner) {
-            const auto any = inner.raw_any();
+        std::visit([&](const auto &inner) {
+            const IppMsgMcuAny any = inner.raw_any();
             ipp_msg_mcu_store(&any, data);
         }, this->variant());
+    }
+
+    static MsgMcuAny load(uint8_t *data) {
+        return MsgMcuAny(variant_from_raw(ipp_msg_mcu_load(data)));
     }
 };
 
