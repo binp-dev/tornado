@@ -36,7 +36,7 @@ void _ipp_msg_app_store_wf_data(const _IppMsgAppWfData *src, uint8_t *dst) {
 
 
 size_t _ipp_msg_mcu_len_error(const _IppMsgMcuError *msg) {
-    return 1 + strlen(msg->message);
+    return 1 + strlen(msg->message) + 1;
 }
 
 _IppMsgMcuError _ipp_msg_mcu_load_error(const uint8_t *src) {
@@ -56,7 +56,7 @@ void _ipp_msg_mcu_store_error(const _IppMsgMcuError *src, uint8_t *dst) {
 
 
 size_t _ipp_msg_mcu_len_debug(const _IppMsgMcuDebug *msg) {
-    return 2 + strlen(msg->message);
+    return strlen(msg->message) + 1;
 }
 
 _IppMsgMcuDebug _ipp_msg_mcu_load_debug(const uint8_t *src) {

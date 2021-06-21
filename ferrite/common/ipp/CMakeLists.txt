@@ -14,6 +14,7 @@ include_directories(
 
 set(SRC
     "src/ipp.c"
+    "src/ipp.cpp"
 )
 set(UNITTEST_SRC
     ${SRC}

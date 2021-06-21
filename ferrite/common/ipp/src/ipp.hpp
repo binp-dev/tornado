@@ -102,40 +102,44 @@ class MsgAppWfData final :
     public virtual MsgState<_IppMsgAppWfData>
 {
 private:
-    std::vector<uint8_t> data;
+    std::vector<uint8_t> data_;
 
 public:
-    MsgAppWfData(std::vector<uint8_t> &&data) : data(std::move(data)) {}
+    inline explicit MsgAppWfData(std::vector<uint8_t> &&data) : data_(std::move(data)) {}
 
-    virtual Raw raw() const override {
-        return Raw { data.data(), data.size() };
+    inline virtual Raw raw() const override {
+        return Raw { data_.data(), data_.size() };
     }
-    virtual IppMsgAppAny raw_any() const override {
+    inline virtual IppMsgAppAny raw_any() const override {
         IppMsgAppAny any;
         any.type = TYPE;
         any.wf_data = this->raw();
         return any;
     }
 
-    virtual size_t size() const override {
+    inline virtual size_t size() const override {
         const auto raw = this->raw();
         return _ipp_msg_app_len_wf_data(&raw);
     }
-    virtual void store(uint8_t *data) const override {
+    inline virtual void store(uint8_t *data) const override {
         const auto raw = this->raw();
         _ipp_msg_app_store_wf_data(&raw, data);
     }
 
-    static MsgAppWfData from_raw(const Raw &raw) {
+    inline static MsgAppWfData from_raw(const Raw &raw) {
         return MsgAppWfData(std::vector<uint8_t>(raw.data, raw.data + raw.len));
     }
-    static MsgAppWfData from_raw_any(const IppMsgAppAny &any) {
+    inline static MsgAppWfData from_raw_any(const IppMsgAppAny &any) {
         assert(any.type == TYPE);
         return from_raw(any.wf_data);
     }
 
-    static MsgAppWfData load(uint8_t *data) {
+    inline static MsgAppWfData load(uint8_t *data) {
         return from_raw(_ipp_msg_app_load_wf_data(data));
+    }
+
+    inline const std::vector<uint8_t> &data() const {
+        return this->data_;
     }
 };
 
@@ -147,42 +151,49 @@ class MsgMcuError final :
     public virtual MsgState<_IppMsgMcuError>
 {
 private:
-    uint8_t code;
-    std::string message;
+    uint8_t code_;
+    std::string message_;
 
 public:
-    MsgMcuError(uint8_t code, std::string &&message) : code(code), message(std::move(message)) {}
-    MsgMcuError(uint8_t code, const char *message) : code(code), message(message) {}
+    inline MsgMcuError(uint8_t code, std::string &&message) : code_(code), message_(std::move(message)) {}
+    inline MsgMcuError(uint8_t code, const char *message) : code_(code), message_(message) {}
 
-    virtual Raw raw() const override {
-        return Raw { code, message.c_str() };
+    inline virtual Raw raw() const override {
+        return Raw { code_, message_.c_str() };
     }
-    virtual IppMsgMcuAny raw_any() const override {
+    inline virtual IppMsgMcuAny raw_any() const override {
         IppMsgMcuAny any;
         any.type = TYPE;
         any.error = this->raw();
         return any;
     }
 
-    virtual size_t size() const override {
+    inline virtual size_t size() const override {
         const auto raw = this->raw();
         return _ipp_msg_mcu_len_error(&raw);
     }
-    virtual void store(uint8_t *data) const override {
+    inline virtual void store(uint8_t *data) const override {
         const auto raw = this->raw();
         _ipp_msg_mcu_store_error(&raw, data);
     }
 
-    static MsgMcuError from_raw(const Raw &raw) {
+    inline static MsgMcuError from_raw(const Raw &raw) {
         return MsgMcuError(raw.code, std::string(raw.message));
     }
-    static MsgMcuError from_raw_any(const IppMsgMcuAny &any) {
+    inline static MsgMcuError from_raw_any(const IppMsgMcuAny &any) {
         assert(any.type == TYPE);
         return from_raw(any.error);
     }
 
-    static MsgMcuError load(uint8_t *data) {
+    inline static MsgMcuError load(uint8_t *data) {
         return from_raw(_ipp_msg_mcu_load_error(data));
+    }
+
+    inline uint8_t code() const {
+        return this->code_;
+    }
+    inline const std::string &message() const {
+        return this->message_;
     }
 };
 
@@ -192,41 +203,45 @@ class MsgMcuDebug final :
     public virtual MsgState<_IppMsgMcuDebug>
 {
 private:
-    std::string message;
+    std::string message_;
 
 public:
-    MsgMcuDebug(std::string &&message) : message(std::move(message)) {}
-    MsgMcuDebug(const char *message) : message(message) {}
+    MsgMcuDebug(std::string &&message) : message_(std::move(message)) {}
+    MsgMcuDebug(const char *message) : message_(message) {}
 
-    virtual Raw raw() const override {
-        return Raw { message.c_str() };
+    inline virtual Raw raw() const override {
+        return Raw { message_.c_str() };
     }
-    virtual IppMsgMcuAny raw_any() const override {
+    inline virtual IppMsgMcuAny raw_any() const override {
         IppMsgMcuAny any;
         any.type = TYPE;
         any.debug = this->raw();
         return any;
     }
 
-    virtual size_t size() const override {
+    inline virtual size_t size() const override {
         const auto raw = this->raw();
         return _ipp_msg_mcu_len_debug(&raw);
     }
-    virtual void store(uint8_t *data) const override {
+    inline virtual void store(uint8_t *data) const override {
         const auto raw = this->raw();
         _ipp_msg_mcu_store_debug(&raw, data);
     }
 
-    static MsgMcuDebug from_raw(const Raw &raw) {
+    inline static MsgMcuDebug from_raw(const Raw &raw) {
         return MsgMcuDebug(std::string(raw.message));
     }
-    static MsgMcuDebug from_raw_any(const IppMsgMcuAny &any) {
+    inline static MsgMcuDebug from_raw_any(const IppMsgMcuAny &any) {
         assert(any.type == TYPE);
         return from_raw(any.debug);
     }
 
-    static MsgMcuDebug load(uint8_t *data) {
+    inline static MsgMcuDebug load(uint8_t *data) {
         return from_raw(_ipp_msg_mcu_load_debug(data));
+    }
+
+    inline const std::string &message() const {
+        return this->message_;
     }
 };
 
@@ -268,29 +283,29 @@ public:
 class MsgAppAny final : public virtual MsgAny<
     IppMsgAppAny,
     IppTypeApp,
-    // Vs...
+    // Variants
     MsgAppNone,
     MsgAppStart,
     MsgAppStop,
     MsgAppWfData
 > {
 public:
-    explicit MsgAppAny(Variant &&variant) : MsgAny(std::move(variant)) {}
+    inline explicit MsgAppAny(Variant &&variant) : MsgAny(std::move(variant)) {}
 
-    virtual size_t size() const override {
+    inline virtual size_t size() const override {
         return std::visit([&](const auto &inner) {
             const IppMsgAppAny any = inner.raw_any();
             return ipp_msg_app_len(&any);
         }, this->variant());
     }
-    virtual void store(uint8_t *data) const override {
+    inline virtual void store(uint8_t *data) const override {
         std::visit([&](const auto &inner) {
             const IppMsgAppAny any = inner.raw_any();
             ipp_msg_app_store(&any, data);
         }, this->variant());
     }
 
-    static MsgAppAny load(uint8_t *data) {
+    inline static MsgAppAny load(uint8_t *data) {
         return MsgAppAny(variant_from_raw(ipp_msg_app_load(data)));
     }
 };
@@ -298,29 +313,29 @@ public:
 class MsgMcuAny final : public virtual MsgAny<
     IppMsgMcuAny,
     IppTypeMcu,
-    // Vs...
+    // Variants
     MsgMcuNone,
     MsgMcuWfReq,
     MsgMcuError,
     MsgMcuDebug
 > {
 public:
-    explicit MsgMcuAny(Variant &&variant) : MsgAny(std::move(variant)) {}
+    inline explicit MsgMcuAny(Variant &&variant) : MsgAny(std::move(variant)) {}
 
-    virtual size_t size() const override {
+    inline virtual size_t size() const override {
         return std::visit([&](const auto &inner) {
             const IppMsgMcuAny any = inner.raw_any();
             return ipp_msg_mcu_len(&any);
         }, this->variant());
     }
-    virtual void store(uint8_t *data) const override {
+    inline virtual void store(uint8_t *data) const override {
         std::visit([&](const auto &inner) {
             const IppMsgMcuAny any = inner.raw_any();
             ipp_msg_mcu_store(&any, data);
         }, this->variant());
     }
 
-    static MsgMcuAny load(uint8_t *data) {
+    inline static MsgMcuAny load(uint8_t *data) {
         return MsgMcuAny(variant_from_raw(ipp_msg_mcu_load(data)));
     }
 };
