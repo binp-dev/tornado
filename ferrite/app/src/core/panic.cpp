@@ -64,3 +64,7 @@ void print_backtrace() {
     std::abort();
 #endif // EPICS
 }
+
+[[noreturn]] void unreachable() {
+    panic("Unreachable");
+}
