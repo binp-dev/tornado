@@ -34,15 +34,15 @@ pip3 install -r requirements.txt
 This command will build and test IOC locally with fake device:
 
 ```bash
-python3 -m manage ioc.test_fakedev
+python3 -m manage host_ioc.test_fakedev
 ```
 
 ### Run on the device
 
-To build, deploy and run both aplication and real-time code and run it on the real device:
+To build, deploy and run both aplication and real-time code and run it on the i.MX7 device:
 
 ```bash
-python3 -m manage all.run --device <ip-addr>[:port]
+python3 -m manage imx7_all.run --device <ip-addr>[:port]
 ```
 
 ### More information
