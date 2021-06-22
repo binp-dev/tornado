@@ -2,18 +2,21 @@ import manage.components.toolchains as toolchains
 from manage.components.freertos import FreertosImx7, FreertosImx8mn
 from manage.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 from manage.components.mcu import Mcu
+from manage.components.ipp import Ipp
 from manage.components.app import App
 from manage.components.epics.ioc import AppIoc
 from manage.components.all_ import AllHost, AllCross
 
 def host_components(toolchain):
     epics_base = EpicsBaseHost(toolchain)
+    ipp = Ipp(toolchain)
     app = App(epics_base, toolchain)
     ioc = AppIoc(epics_base, app, toolchain)
-    all_ = AllHost(epics_base, app, ioc)
+    all_ = AllHost(epics_base, ipp, app, ioc)
     return {
         "toolchain": toolchain,
         "epics_base": epics_base,
+        "ipp": ipp,
         "app": app,
         "ioc": ioc,
         "all": all_,

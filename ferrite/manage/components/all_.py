@@ -3,6 +3,7 @@ import os
 from manage.components.base import Component, Task, TaskWrapper, TaskList
 from manage.components.epics.epics_base import EpicsBase
 from manage.components.app import App
+from manage.components.ipp import Ipp
 from manage.components.epics.ioc import AppIoc
 from manage.components.mcu import Mcu
 from manage.remote.tasks import RebootTask
@@ -11,11 +12,13 @@ class AllHost(Component):
     def __init__(
         self,
         epics_base: EpicsBase,
+        ipp: Ipp,
         app: App,
         ioc: AppIoc,
     ):
         super().__init__()
         self.epics_base = epics_base
+        self.ipp = ipp
         self.app = app
         self.ioc = ioc
 
@@ -23,10 +26,12 @@ class AllHost(Component):
             self.epics_base.tasks()["build"],
             self.app.tasks()["build_unittest"],
             self.app.tasks()["build_fakedev"],
+            self.ipp.tasks()["build"],
             self.ioc.tasks()["build"],
         ])
         self.test_task = TaskWrapper(deps=[
             self.app.tasks()["run_unittest"],
+            self.ipp.tasks()["test"],
             self.ioc.tasks()["test_fakedev"],
         ])
 
