@@ -134,8 +134,13 @@ public:
         return from_raw(any.wf_data);
     }
 
-    inline static MsgAppWfData load(uint8_t *data) {
-        return from_raw(_ipp_msg_app_load_wf_data(data));
+    inline static std::variant<MsgAppWfData, IppLoadStatus> load(uint8_t *data, size_t max_length) {
+        _IppMsgAppWfData dst;
+        const auto status = _ipp_msg_app_load_wf_data(&dst, data, max_length);
+        if (IPP_LOAD_OK != status) {
+            return status;
+        }
+        return from_raw(dst);
     }
 
     inline const std::vector<uint8_t> &data() const {
@@ -185,8 +190,13 @@ public:
         return from_raw(any.error);
     }
 
-    inline static MsgMcuError load(uint8_t *data) {
-        return from_raw(_ipp_msg_mcu_load_error(data));
+    inline static std::variant<MsgMcuError, IppLoadStatus> load(uint8_t *data, size_t max_length) {
+        _IppMsgMcuError dst;
+        const auto status = _ipp_msg_mcu_load_error(&dst, data, max_length);
+        if (IPP_LOAD_OK != status) {
+            return status;
+        }
+        return from_raw(dst);
     }
 
     inline uint8_t code() const {
@@ -236,8 +246,13 @@ public:
         return from_raw(any.debug);
     }
 
-    inline static MsgMcuDebug load(uint8_t *data) {
-        return from_raw(_ipp_msg_mcu_load_debug(data));
+    inline static std::variant<MsgMcuDebug, IppLoadStatus> load(uint8_t *data, size_t max_length) {
+        _IppMsgMcuDebug dst;
+        const auto status = _ipp_msg_mcu_load_debug(&dst, data, max_length);
+        if (IPP_LOAD_OK != status) {
+            return status;
+        }
+        return from_raw(dst);
     }
 
     inline const std::string &message() const {
@@ -260,6 +275,9 @@ public:
     const auto &variant() const {
         return this->variant_;
     }
+    auto &variant() {
+        return this->variant_;
+    }
 
     virtual Raw raw() const override {
         return std::visit([&](const auto &inner) {
@@ -280,7 +298,8 @@ public:
     }
 };
 
-class MsgAppAny final : public virtual MsgAny<
+namespace detail {
+using MsgAppAnyBase = MsgAny<
     IppMsgAppAny,
     IppTypeApp,
     // Variants
@@ -288,9 +307,18 @@ class MsgAppAny final : public virtual MsgAny<
     MsgAppStart,
     MsgAppStop,
     MsgAppWfData
-> {
+>;
+}
+
+class MsgAppAny final : public virtual detail::MsgAppAnyBase {
 public:
     inline explicit MsgAppAny(Variant &&variant) : MsgAny(std::move(variant)) {}
+
+    inline MsgAppAny(MsgAppAny &&other) : MsgAny(std::move(other.variant())) {}
+    inline MsgAppAny &operator=(MsgAppAny &&other) {
+        this->variant() = std::move(other.variant());
+        return *this;
+    }
 
     inline virtual size_t size() const override {
         return std::visit([&](const auto &inner) {
@@ -305,12 +333,18 @@ public:
         }, this->variant());
     }
 
-    inline static MsgAppAny load(uint8_t *data) {
-        return MsgAppAny(variant_from_raw(ipp_msg_app_load(data)));
+    inline static std::variant<MsgAppAny, IppLoadStatus> load(uint8_t *data, size_t max_length) {
+        IppMsgAppAny dst;
+        const auto status = ipp_msg_app_load(&dst, data, max_length);
+        if (IPP_LOAD_OK != status) {
+            return status;
+        }
+        return MsgAppAny(variant_from_raw(dst));
     }
 };
 
-class MsgMcuAny final : public virtual MsgAny<
+namespace detail {
+using MsgMcuAnyBase = MsgAny<
     IppMsgMcuAny,
     IppTypeMcu,
     // Variants
@@ -318,9 +352,18 @@ class MsgMcuAny final : public virtual MsgAny<
     MsgMcuWfReq,
     MsgMcuError,
     MsgMcuDebug
-> {
+>;
+}
+
+class MsgMcuAny final : public virtual detail::MsgMcuAnyBase {
 public:
     inline explicit MsgMcuAny(Variant &&variant) : MsgAny(std::move(variant)) {}
+
+    inline MsgMcuAny(MsgMcuAny &&other) : MsgAny(std::move(other.variant())) {}
+    inline MsgMcuAny &operator=(MsgMcuAny &&other) {
+        this->variant() = std::move(other.variant());
+        return *this;
+    }
 
     inline virtual size_t size() const override {
         return std::visit([&](const auto &inner) {
@@ -335,8 +378,13 @@ public:
         }, this->variant());
     }
 
-    inline static MsgMcuAny load(uint8_t *data) {
-        return MsgMcuAny(variant_from_raw(ipp_msg_mcu_load(data)));
+    inline static std::variant<MsgMcuAny, IppLoadStatus> load(uint8_t *data, size_t max_length) {
+        IppMsgMcuAny dst;
+        const auto status = ipp_msg_mcu_load(&dst, data, max_length);
+        if (IPP_LOAD_OK != status) {
+            return status;
+        }
+        return MsgMcuAny(variant_from_raw(dst));
     }
 };
 

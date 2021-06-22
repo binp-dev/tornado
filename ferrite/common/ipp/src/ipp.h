@@ -24,6 +24,13 @@ typedef enum {
 } IppTypeMcu;
 
 
+//! @brief IPP load message status
+typedef enum {
+    IPP_LOAD_OK                 = 0x00, /* ok */
+    IPP_LOAD_OUT_OF_BOUNDS      = 0x01, /* max buffer length is too short */
+    IPP_LOAD_PARSE_ERROR        = 0x02, /* message parse error */
+} IppLoadStatus;
+
 /* Concrete message types */
 
 /* App -> MCU */
@@ -34,7 +41,7 @@ typedef struct {
 } _IppMsgAppWfData;
 
 size_t _ipp_msg_app_len_wf_data(const _IppMsgAppWfData *msg);
-_IppMsgAppWfData _ipp_msg_app_load_wf_data(const uint8_t *src);
+IppLoadStatus _ipp_msg_app_load_wf_data(_IppMsgAppWfData *dst, const uint8_t *src, size_t max_length);
 void _ipp_msg_app_store_wf_data(const _IppMsgAppWfData *src, uint8_t *dst);
 
 /* MCU -> App */
@@ -46,7 +53,7 @@ typedef struct {
 } _IppMsgMcuError;
 
 size_t _ipp_msg_mcu_len_error(const _IppMsgMcuError *msg);
-_IppMsgMcuError _ipp_msg_mcu_load_error(const uint8_t *src);
+IppLoadStatus _ipp_msg_mcu_load_error(_IppMsgMcuError *dst, const uint8_t *src, size_t max_length);
 void _ipp_msg_mcu_store_error(const _IppMsgMcuError *src, uint8_t *dst);
 
 typedef struct {
@@ -54,7 +61,7 @@ typedef struct {
 } _IppMsgMcuDebug;
 
 size_t _ipp_msg_mcu_len_debug(const _IppMsgMcuDebug *msg);
-_IppMsgMcuDebug _ipp_msg_mcu_load_debug(const uint8_t *src);
+IppLoadStatus _ipp_msg_mcu_load_debug(_IppMsgMcuDebug *dst, const uint8_t *src, size_t max_length);
 void _ipp_msg_mcu_store_debug(const _IppMsgMcuDebug *src, uint8_t *dst);
 
 
@@ -70,7 +77,7 @@ typedef struct {
 size_t ipp_msg_app_len(const IppMsgAppAny *msg);
 
 //! @brief Load App message from bytes.
-IppMsgAppAny ipp_msg_app_load(const uint8_t *src);
+IppLoadStatus ipp_msg_app_load(IppMsgAppAny *dst, const uint8_t *src, size_t max_length);
 
 //! @brief Store App message to bytes.
 void ipp_msg_app_store(const IppMsgAppAny *src, uint8_t *dst);
@@ -88,7 +95,7 @@ typedef struct {
 size_t ipp_msg_mcu_len(const IppMsgMcuAny *msg);
 
 //! @brief Load MCU message from bytes.
-IppMsgMcuAny ipp_msg_mcu_load(const uint8_t *src);
+IppLoadStatus ipp_msg_mcu_load(IppMsgMcuAny *dst, const uint8_t *src, size_t max_length);
 
 //! @brief Store MCU message to bytes.
 void ipp_msg_mcu_store(const IppMsgMcuAny *src, uint8_t *dst);

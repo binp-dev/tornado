@@ -37,7 +37,9 @@ TEST(IppTest, MsgAppWfData) {
     }
     {
         std::vector<uint8_t> buffer{4, 0, 3, 2, 1, 0};
-        const auto in = ipp::MsgAppWfData::load(buffer.data());
+        const auto result = ipp::MsgAppWfData::load(buffer.data(), buffer.size());
+        ASSERT_EQ(result.index(), 0);
+        const auto &in = std::get<0>(result);
         const auto &data = in.data();
         ASSERT_EQ(data.size(), 4);
         for (size_t i = 0; i < data.size(); ++i) {
@@ -73,7 +75,9 @@ TEST(IppTest, MsgMcuError) {
     }
     {
         std::vector<uint8_t> buffer{24, 'F', 'o', 'o', 0};
-        const auto in = ipp::MsgMcuError::load(buffer.data());
+        const auto result = ipp::MsgMcuError::load(buffer.data(), buffer.size());
+        ASSERT_EQ(result.index(), 0);
+        const auto &in = std::get<0>(result);
         ASSERT_EQ(in.code(), 24);
         ASSERT_EQ(in.message(), std::string{"Foo"});
     }
@@ -94,7 +98,9 @@ TEST(IppTest, MsgMcuDebug) {
     }
     {
         std::vector<uint8_t> buffer{'B', 'a', 'r', 0};
-        const auto in = ipp::MsgMcuDebug::load(buffer.data());
+        const auto result = ipp::MsgMcuDebug::load(buffer.data(), buffer.size());
+        ASSERT_EQ(result.index(), 0);
+        const auto &in = std::get<0>(result);
         ASSERT_EQ(in.message(), std::string{"Bar"});
     }
 }
@@ -115,7 +121,9 @@ TEST(IppTest, MsgAppAny) {
     }
     {
         std::vector<uint8_t> buffer{IppTypeApp::IPP_APP_START};
-        const auto in = ipp::MsgAppAny::load(buffer.data());
+        const auto result = ipp::MsgAppAny::load(buffer.data(), buffer.size());
+        ASSERT_EQ(result.index(), 0);
+        const auto &in = std::get<0>(result);
         ASSERT_TRUE(std::holds_alternative<ipp::MsgAppStart>(in.variant()));
     }
 }
@@ -130,7 +138,9 @@ TEST(IppTest, MsgMcuAny) {
     }
     {
         std::vector<uint8_t> buffer{IppTypeMcu::IPP_MCU_DEBUG, 'F', 'o', 'o', 0};
-        const auto in = ipp::MsgMcuAny::load(buffer.data());
+        const auto result = ipp::MsgMcuAny::load(buffer.data(), buffer.size());
+        ASSERT_EQ(result.index(), 0);
+        const auto &in = std::get<0>(result);
         ASSERT_TRUE(std::holds_alternative<ipp::MsgMcuDebug>(in.variant()));
         ASSERT_EQ(std::get<ipp::MsgMcuDebug>(in.variant()).message(), std::string{"Foo"});
     }
