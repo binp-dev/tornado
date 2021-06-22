@@ -18,6 +18,14 @@ host_app.build_unittest:
     paths:
       - target/app_host
 
+host_ipp.build:
+  stage: "0"
+  script:
+    - python3 -u -m manage --no-deps --no-capture host_ipp.build
+  artifacts:
+    paths:
+      - target/ipp_host
+
 host_epics_base.clone:
   stage: "0"
   script:
@@ -80,6 +88,13 @@ host_app.run_unittest:
     - python3 -u -m manage --no-deps --no-capture host_app.run_unittest
   needs:
     - host_app.build_unittest
+
+host_ipp.test:
+  stage: "1"
+  script:
+    - python3 -u -m manage --no-deps --no-capture host_ipp.test
+  needs:
+    - host_ipp.build
 
 host_epics_base.build:
   stage: "1"
@@ -222,6 +237,7 @@ host_all.test:
     - python3 -u -m manage --no-deps --no-capture host_all.test
   needs:
     - host_app.run_unittest
+    - host_ipp.test
     - host_ioc.test_fakedev
 
 imx7_all.build:
