@@ -1,6 +1,6 @@
 record(aai, "ai$(INP_CHANNEL_NUMBER)") {
-	field(SCAN, "I/O Intr")
-	field(DTYP, "devsup")
-	field(NELM, 10)
-	field(FTVL, "LONG")
+    field(DTYP, "devsup")
+    field(NELM, 10)
+    field(FTVL, "LONG")
+    field(SCAN, "I/O Intr")
 }

@@ -13,10 +13,10 @@ PSC_registerRecordDeviceDriver(pdbbase)
 
 ## Load record instances
 dbLoadRecords("db/devPSC.db")
-dbLoadTemplate("db/inp_waveform.substitutions")
-# dbLoadTemplate("db/out_waveform.substitutions")
+# dbLoadTemplate("db/inp_waveform.substitutions")
+dbLoadTemplate("db/out_waveform.substitutions")
 # dbLoadTemplate("db/inp_register.substitutions")
-# dbLoadTemplate("db/out_register.substitutions")
+dbLoadTemplate("db/out_register.substitutions")
 
 cd "${TOP}/iocBoot/${IOC}"
 iocInit()

@@ -1,3 +1,4 @@
-record(bo, "do$(OUT_REGISTER_NUMBER)") {
+record(mbboDirect, "do$(OUT_REGISTER_NUMBER)") {
 	field(DTYP, "devsup")
+	field(OMSL, "closed_loop")
 }

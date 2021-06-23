@@ -4,27 +4,3 @@ record(waveform, "WAVEFORM")
     field(NELM, 200)
     field(FTVL, "DOUBLE")
 }
-
-record(waveform, "test_waveform")
-{
-    field(DTYP, "Zero Copy Demo")
-    field(FTVL, "SHORT")
-    field(NELM, 100)
-    field(SCAN, "I/O Intr")
-}
-
-record(mbboDirect, "dowX") {
-	
-}
-
-record(mbbiDirect, "diwX") {
-	
-}
-
-record(mbbo, "mode") {
-	
-}
-
-record(mbbi, "state") {
-	
-}

@@ -1,10 +1,9 @@
 #pragma once
 
-#include <typeinfo>
-
-#include <aaiRecord.h>
 #include <cantProceed.h>
 #include <dbAccess.h>
+#include <aaiRecord.h>
+#include <aaoRecord.h>
 
 #include "base.hpp"
 
@@ -13,7 +12,15 @@ class AnalogArray : public Record {
 public:
     virtual ~AnalogArray() override = default;
 
+    unsigned long get_length() { return raw()->nord; }
+    unsigned long get_length() const { return raw()->nord; };
+    void set_length(unsigned long nord) { raw()->nord = nord; }
 
+    unsigned long get_max_length() { return raw()->nelm; }
+    unsigned long get_max_length() const { return raw()->nelm; };
+
+    void *get_raw_data() { return raw()->bptr; }
+    void *get_raw_data() const { return raw()->bptr; }
 protected:
     explicit AnalogArray(aaType *raw) : Record((dbCommon *)raw) {
         allocate_data_buff();
@@ -36,11 +43,20 @@ protected:
 
 class AnalogArrayInput final :
     public AnalogArray<aaiRecord>, 
-    public ReadableRecord 
-{
+    public InputRecord {
 public:
     explicit AnalogArrayInput(aaiRecord *raw);
     virtual ~AnalogArrayInput() override = default;
 
     virtual void read() override;
+};
+
+class AnalogArrayOutput final :
+    public AnalogArray<aaoRecord>, 
+    public OutputRecord {
+public:
+    explicit AnalogArrayOutput(aaoRecord *raw);
+    virtual ~AnalogArrayOutput() override = default;
+
+    virtual void write() override;
 };

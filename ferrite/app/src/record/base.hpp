@@ -3,6 +3,8 @@
 #include <dbCommon.h>
 #include <callback.h>
 
+#include "recordDebugBuild.hpp"
+
 typedef void(*callback_function)(CALLBACK *);
 
 class Record {
@@ -71,16 +73,30 @@ public:
     Handler &operator=(Handler &&) = default;
 };
 
-class ReadableRecord {
+class InputRecord {
 public:
-    ReadableRecord() = default;
-    ReadableRecord(const ReadableRecord &) = delete;
-    ReadableRecord(ReadableRecord &&) = delete;
+    InputRecord() = default;
+    InputRecord(const InputRecord &) = delete;
+    InputRecord(InputRecord &&) = delete;
 
-    ReadableRecord &operator=(const ReadableRecord &) = delete;
-    ReadableRecord &operator=(ReadableRecord &&) = delete;
+    InputRecord &operator=(const InputRecord &) = delete;
+    InputRecord &operator=(InputRecord &&) = delete;
     
-    virtual ~ReadableRecord() = default;
+    virtual ~InputRecord() = default;
 
     virtual void read() = 0;
+};
+
+class OutputRecord {
+public:
+    OutputRecord() = default;
+    OutputRecord(const OutputRecord &) = delete;
+    OutputRecord(OutputRecord &&) = delete;
+
+    OutputRecord &operator=(const OutputRecord &) = delete;
+    OutputRecord &operator=(OutputRecord &&) = delete;
+    
+    virtual ~OutputRecord() = default;
+
+    virtual void write() = 0;
 };
