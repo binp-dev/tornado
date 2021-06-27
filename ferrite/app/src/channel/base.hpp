@@ -39,6 +39,8 @@ public:
     Channel(const Channel &ch) = delete;
     Channel &operator=(const Channel &ch) = delete;
 
+    inline size_t max_length() const { return buffer_.size(); }
+
     virtual Result<std::monostate, Error> send_raw(const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout) = 0;
     virtual Result<size_t, Error> receive_raw(uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout) = 0;
 

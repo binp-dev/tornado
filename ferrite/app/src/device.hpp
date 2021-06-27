@@ -8,10 +8,11 @@
 #include <cstring>
 #include <cassert>
 
+#include <core/assert.hpp>
 #include <core/panic.hpp>
 #include <channel/base.hpp>
 #include <encoder.hpp>
-#include <../../common/proto.h>
+#include <ipp.hpp>
 
 
 class Device {
@@ -32,7 +33,6 @@ private:
     // Worker data
     std::unique_ptr<Channel> channel;
     std::unique_ptr<const ArrayEncoder<double>> encoder;
-    std::vector<uint8_t> send_buffer, recv_buffer;
     size_t waveform_pos = 0;
 
     // Device support data
@@ -84,45 +84,50 @@ private:
 
     void serve_loop() {
         std::cout << "[ioc] Channel serve thread started" << std::endl;
-        auto timeout = std::chrono::milliseconds(10);
-        
-        uint8_t start_msg[2] = {PSCA_START, 0};
-        channel->send(start_msg, 2, std::nullopt).unwrap(); // Wait forever
+        const auto timeout = std::chrono::milliseconds(10);
+
+        channel->send(ipp::MsgAppAny{ipp::MsgAppStart{}}, std::nullopt).unwrap(); // Wait forever
 
         while(!this->done.load()) {
-            size_t size = 0;
-            auto result = channel->receive(recv_buffer.data(), recv_buffer.size(), timeout);
-            if (result.is_ok()) {
-                size = result.unwrap();
-            } else {
+            auto result = channel->receive(timeout);
+            if (result.is_err()) {
                 auto err = result.unwrap_err();
                 if (err.kind == Channel::ErrorKind::TimedOut) {
                     continue;
                 } else {
-                    panic("IO Error: " + err.message);
+                    // TODO: Use fmt
+                    std::stringstream text;
+                    text << err;
+                    panic("IO Error: " + text.str());
                 }
             }
+            auto incoming = result.unwrap();
 
-            uint8_t cmd = recv_buffer[0];
-            std::cout << "Received command: 0x" << std::hex << int(cmd) << std::dec << std::endl;
+            std::cout << "Received command: ";
+            std::visit([](const auto &m) {
+                using Msg = typename std::remove_reference_t<decltype(m)>;
+                std::cout << typeid(Msg).name() << " (0x" << std::hex << Msg::TYPE << std::dec << ")";
+            }, incoming.variant());
+            std::cout << std::endl;
 
-            if(cmd == PSCM_WF_REQ) {
-                if (size != 2) {
-                    panic("Bad size of PSCM_WF_REQ command");
-                }
-                send_buffer[0] = PSCA_WF_DATA; 
-                size_t shift = 2;
-                size_t msg_size = fill_until_full(
-                    send_buffer.data() + shift,
-                    send_buffer.size() - shift
-                );
-                send_buffer[1] = msg_size;
-                channel->send(send_buffer.data(), msg_size + shift, timeout).unwrap();
-            } else if (cmd == PSCM_MESSAGE) {
-                uint8_t len = recv_buffer[1];
-                std::cout << "Message(" << int(len) << "): " << recv_buffer.data() + 2 << std::endl;
+            if(std::holds_alternative<ipp::MsgMcuWfReq>(incoming.variant())) {
+                ipp::MsgAppWfData outgoing;
+                auto &buffer = outgoing.data();
+                const size_t min_size = ipp::MsgAppAny{ipp::MsgAppWfData{}}.size();
+                assert_true(min_size < _max_transfer);
+                buffer.resize(_max_transfer - min_size, 0);
+                buffer.resize(fill_until_full(buffer.data(), buffer.size()));
+                channel->send(ipp::MsgAppAny{std::move(outgoing)}, timeout).unwrap();
+
+            } else if (std::holds_alternative<ipp::MsgMcuDebug>(incoming.variant())) {
+                std::cout << "Debug: " << std::get<ipp::MsgMcuDebug>(incoming.variant()).message() << std::endl;
+
+            } else if (std::holds_alternative<ipp::MsgMcuError>(incoming.variant())) {
+                const auto &inc_err = std::get<ipp::MsgMcuError>(incoming.variant());
+                std::cout << "Error[0x" << std::hex << inc_err.code() << std::dec << "]: " << inc_err.message() << std::endl;
+
             } else {
-                panic("Unknown PSCM command: " + std::to_string(cmd));
+                panic("Unexpected command");
             }
         }
     }
@@ -144,10 +149,7 @@ public:
         swap_ready(false),
 
         channel(std::move(channel)),
-        encoder(std::move(encoder)),
-
-        send_buffer(max_transfer, 0),
-        recv_buffer(max_transfer, 0)
+        encoder(std::move(encoder))
     {
         std::lock_guard<std::mutex> device_guard(device_mutex);
 

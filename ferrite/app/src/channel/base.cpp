@@ -32,6 +32,12 @@ std::ostream &operator<<(std::ostream &o, const Channel::ErrorKind &ek) {
     case Channel::ErrorKind::IoError:
         o << "IoError";
         break;
+    case Channel::ErrorKind::OutOfBounds:
+        o << "OutOfBounds";
+        break;
+    case Channel::ErrorKind::ParseError:
+        o << "ParseError";
+        break;
     case Channel::ErrorKind::TimedOut:
         o << "TimedOut";
         break;

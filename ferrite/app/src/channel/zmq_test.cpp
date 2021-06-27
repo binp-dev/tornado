@@ -105,7 +105,7 @@ TEST(ZmqTest, channel) {
     ASSERT_TRUE(bool(rp));
     uint16_t port = *rp;
 
-    auto cr = ZmqChannel::create("tcp://127.0.0.1:" + std::to_string(port));
+    auto cr = ZmqChannel::create("tcp://127.0.0.1:" + std::to_string(port), 256);
     ASSERT_TRUE(cr.is_ok()) << cr.err().message;
     ZmqChannel channel = cr.unwrap();
 
@@ -114,13 +114,13 @@ TEST(ZmqTest, channel) {
         ASSERT_TRUE(try_send(socket, (const uint8_t *)src, 6).is_ok());
 
         char dst[10];
-        ASSERT_EQ(channel.receive((uint8_t *)dst, 10, std::chrono::milliseconds(10)), Ok<size_t>(6));
+        ASSERT_EQ(channel.receive_raw((uint8_t *)dst, 10, std::chrono::milliseconds(10)), Ok<size_t>(6));
         ASSERT_EQ(strcmp(src, dst), 0);
     }
 
     { // Send
         const char *src = "World";
-        ASSERT_TRUE(channel.send((const uint8_t *)src, 6, std::chrono::milliseconds(10)).is_ok());
+        ASSERT_TRUE(channel.send_raw((const uint8_t *)src, 6, std::chrono::milliseconds(10)).is_ok());
 
         char dst[10];
         ASSERT_EQ(try_recv(socket, (uint8_t *)dst, 10), Ok<size_t>(6));

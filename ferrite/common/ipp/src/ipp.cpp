@@ -1,3 +1,5 @@
+#ifdef UNITTEST
+
 #include "ipp.hpp"
 
 #include <vector>
@@ -145,3 +147,5 @@ TEST(IppTest, MsgMcuAny) {
         ASSERT_EQ(std::get<ipp::MsgMcuDebug>(in.variant()).message(), std::string{"Foo"});
     }
 }
+
+#endif // UNITTEST

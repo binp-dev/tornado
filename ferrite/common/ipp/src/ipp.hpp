@@ -105,7 +105,7 @@ private:
     std::vector<uint8_t> data_;
 
 public:
-    inline explicit MsgAppWfData(std::vector<uint8_t> &&data) : data_(std::move(data)) {}
+    inline explicit MsgAppWfData(std::vector<uint8_t> &&data = {}) : data_(std::move(data)) {}
 
     inline virtual Raw raw() const override {
         return Raw { data_.data(), data_.size() };
@@ -144,6 +144,9 @@ public:
     }
 
     inline const std::vector<uint8_t> &data() const {
+        return this->data_;
+    }
+    inline std::vector<uint8_t> &data() {
         return this->data_;
     }
 };
@@ -205,6 +208,9 @@ public:
     inline const std::string &message() const {
         return this->message_;
     }
+    inline std::string &message() {
+        return this->message_;
+    }
 };
 
 
@@ -256,6 +262,9 @@ public:
     }
 
     inline const std::string &message() const {
+        return this->message_;
+    }
+    inline std::string &message() {
         return this->message_;
     }
 };
