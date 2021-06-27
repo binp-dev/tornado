@@ -10,18 +10,19 @@ IDS = None
 
 def decode_wf_data(data, nbytes=3, dlen=256):
     cmd = int(data[0])
-    assert(cmd == IDS["PSCA_WF_DATA"])
-    assert(int(data[1]) == len(data) - 2)
+    assert(cmd == IDS["IPP_APP_WF_DATA"])
+    length = int(data[1]) | (int(data[2]) << 8)
+    assert(length == len(data) - 3)
 
-    arr = data[2:]
+    arr = data[3:]
     arr = [arr[i : i + nbytes] for i in range(0, len(arr), nbytes)]
     assert(all([len(a) == nbytes for a in arr]))
     arr = [int.from_bytes(a, "little") for a in arr]
     return arr
 
 def encode(id, data=b""):
-    assert(len(data) <= 256 - 2)
-    return bytes([id, len(data)]) + data
+    assert(len(data) <= 256 - 1)
+    return bytes([id]) + data
 
 def assert_pop(queue, arr):
     print(arr)
@@ -58,16 +59,15 @@ def run_test(
     wfs = 200
     with ca.Repeater(prefix), ioc:
         start_msg = socket.recv()
-        assert(int(start_msg[0]) == IDS["PSCA_START"])
-        assert(int(start_msg[1]) == 0)
+        assert(int(start_msg[0]) == IDS["IPP_APP_START"])
         print("Received start signal")
 
-        socket.send(encode(IDS["PSCM_MESSAGE"], "Hello from MCU!".encode("utf-8")))
+        socket.send(encode(IDS["IPP_MCU_DEBUG"], "Hello from MCU!".encode("utf-8") + b"\0"))
 
         # Empty PV
         queue = [0]*wfs*2
         for _ in range(4):
-            socket.send(encode(IDS["PSCM_WF_REQ"]))
+            socket.send(encode(IDS["IPP_MCU_WF_REQ"]))
             queue = assert_pop(queue, decode_wf_data(socket.recv()))
         
         # Linear ascend
@@ -75,7 +75,7 @@ def run_test(
         ca.put(prefix, "WAVEFORM", wf, array=True)
         queue += wf*2
         for _ in range(5):
-            socket.send(encode(IDS["PSCM_WF_REQ"]))
+            socket.send(encode(IDS["IPP_MCU_WF_REQ"]))
             queue = assert_pop(queue, decode_wf_data(socket.recv()))
 
         # Linear descend
@@ -83,7 +83,7 @@ def run_test(
         ca.put(prefix, "WAVEFORM", wf, array=True)
         queue += wf*2
         for _ in range(5):
-            socket.send(encode(IDS["PSCM_WF_REQ"]))
+            socket.send(encode(IDS["IPP_MCU_WF_REQ"]))
             queue = assert_pop(queue, decode_wf_data(socket.recv()))
 
         # Double write
@@ -92,7 +92,7 @@ def run_test(
         ca.put(prefix, "WAVEFORM", wf, array=True)
         queue += wf*4
         for _ in range(9):
-            socket.send(encode(IDS["PSCM_WF_REQ"]))
+            socket.send(encode(IDS["IPP_MCU_WF_REQ"]))
             queue = assert_pop(queue, decode_wf_data(socket.recv()))
 
     print("Test passed!")

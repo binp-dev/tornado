@@ -19,7 +19,7 @@
 void init_device(MaybeUninit<Device> &mem) {
     std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
 
-    const size_t message_max_length = 255;
+    const size_t message_max_length = 256;
     mem.init_in_place(
 #ifdef FAKEDEV
         std::unique_ptr<Channel>(new ZmqChannel(std::move(
