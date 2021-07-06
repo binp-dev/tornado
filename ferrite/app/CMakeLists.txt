@@ -8,8 +8,11 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -fno-exceptions -pedantic")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+add_subdirectory("../common/ipp" "ipp")
+
 include_directories(
     "src"
+    "../common/ipp/src"
     "${EPICS_BASE}/include"
     "${EPICS_BASE}/include/os/Linux"
     "${EPICS_BASE}/include/compiler/gcc"
@@ -56,7 +59,9 @@ set(UNITTEST_DEFS
     "UNITTEST"
 )
 
-set(COMMON_LIBS)
+set(COMMON_LIBS
+    "ipp_cpp"
+)
 set(MAIN_LIBS
     ${COMMON_LIBS}
 )

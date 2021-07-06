@@ -14,17 +14,21 @@ static uint8_t store_size16(uint8_t *ptr, const size_t val) {
     return 0;
 }
 
-
 size_t _ipp_msg_app_len_wf_data(const _IppMsgAppWfData *msg) {
     return 2 + msg->len;
 }
 
-_IppMsgAppWfData _ipp_msg_app_load_wf_data(const uint8_t *src) {
-    _IppMsgAppWfData msg = {
-        .data = src + 2,
-        .len = load_size16(src)
-    };
-    return msg;
+IppLoadStatus _ipp_msg_app_load_wf_data(_IppMsgAppWfData *dst, const uint8_t *src, size_t max_length) {
+    if (max_length < 2) {
+        return IPP_LOAD_OUT_OF_BOUNDS;
+    }
+    size_t len = load_size16(src);
+    if (len + 2 > max_length) {
+        return IPP_LOAD_OUT_OF_BOUNDS;
+    }
+    dst->data = src + 2;
+    dst->len = len;
+    return IPP_LOAD_OK;
 }
 
 void _ipp_msg_app_store_wf_data(const _IppMsgAppWfData *src, uint8_t *dst) {
@@ -39,12 +43,16 @@ size_t _ipp_msg_mcu_len_error(const _IppMsgMcuError *msg) {
     return 1 + strlen(msg->message) + 1;
 }
 
-_IppMsgMcuError _ipp_msg_mcu_load_error(const uint8_t *src) {
-    _IppMsgMcuError msg = {
-        .code = src[0],
-        .message = (const char *)(src + 1)
-    };
-    return msg;
+IppLoadStatus _ipp_msg_mcu_load_error(_IppMsgMcuError *dst, const uint8_t *src, size_t max_length) {
+    if (max_length < 2) {
+        return IPP_LOAD_OUT_OF_BOUNDS;
+    }
+    if (strnlen((const char *)(src + 1), max_length - 1) == (max_length - 1)) {
+        return IPP_LOAD_OUT_OF_BOUNDS;
+    }
+    dst->code = src[0];
+    dst->message = (const char *)(src + 1);
+    return IPP_LOAD_OK;
 }
 
 void _ipp_msg_mcu_store_error(const _IppMsgMcuError *src, uint8_t *dst) {
@@ -59,11 +67,15 @@ size_t _ipp_msg_mcu_len_debug(const _IppMsgMcuDebug *msg) {
     return strlen(msg->message) + 1;
 }
 
-_IppMsgMcuDebug _ipp_msg_mcu_load_debug(const uint8_t *src) {
-    _IppMsgMcuDebug msg = {
-        .message = (const char *)src
-    };
-    return msg;
+IppLoadStatus _ipp_msg_mcu_load_debug(_IppMsgMcuDebug *dst, const uint8_t *src, size_t max_length) {
+    if (max_length < 1) {
+        return IPP_LOAD_OUT_OF_BOUNDS;
+    }
+    if (strnlen((const char *)src, max_length) == max_length) {
+        return IPP_LOAD_OUT_OF_BOUNDS;
+    }
+    dst->message = (const char *)src;
+    return IPP_LOAD_OK;
 }
 
 void _ipp_msg_mcu_store_debug(const _IppMsgMcuDebug *src, uint8_t *dst) {
@@ -84,15 +96,18 @@ size_t ipp_msg_app_len(const IppMsgAppAny *msg) {
     return 1 + len;
 }
 
-IppMsgAppAny ipp_msg_app_load(const uint8_t *src) {
-    IppMsgAppAny dst = { .type = (IppTypeApp)src[0] };
-    switch (dst.type) {
-    case IPP_APP_NONE: break;
-    case IPP_APP_START: break;
-    case IPP_APP_STOP: break;
-    case IPP_APP_WF_DATA: dst.wf_data = _ipp_msg_app_load_wf_data(src + 1); break;
+IppLoadStatus ipp_msg_app_load(IppMsgAppAny *dst, const uint8_t *src, size_t max_length) {
+    if (max_length < 1) {
+        return IPP_LOAD_OUT_OF_BOUNDS;
     }
-    return dst;
+    dst->type = (IppTypeApp)src[0];
+    switch (src[0]) {
+    case (uint8_t)IPP_APP_NONE: return IPP_LOAD_OK;
+    case (uint8_t)IPP_APP_START: return IPP_LOAD_OK;
+    case (uint8_t)IPP_APP_STOP: return IPP_LOAD_OK;
+    case (uint8_t)IPP_APP_WF_DATA: return _ipp_msg_app_load_wf_data(&dst->wf_data, src + 1, max_length - 1);
+    default: return IPP_LOAD_PARSE_ERROR;
+    }
 }
 
 void ipp_msg_app_store(const IppMsgAppAny *src, uint8_t *dst) {
@@ -116,15 +131,18 @@ size_t ipp_msg_mcu_len(const IppMsgMcuAny *msg) {
     return 1 + len;
 }
 
-IppMsgMcuAny ipp_msg_mcu_load(const uint8_t *src) {
-    IppMsgMcuAny dst = { .type = (IppTypeMcu)src[0] };
-    switch (dst.type) {
-    case IPP_MCU_NONE: break;
-    case IPP_MCU_WF_REQ: break;
-    case IPP_MCU_ERROR: dst.error = _ipp_msg_mcu_load_error(src + 1); break;
-    case IPP_MCU_DEBUG: dst.debug = _ipp_msg_mcu_load_debug(src + 1); break;
+IppLoadStatus ipp_msg_mcu_load(IppMsgMcuAny *dst, const uint8_t *src, size_t max_length) {
+    if (max_length < 1) {
+        return IPP_LOAD_OUT_OF_BOUNDS;
     }
-    return dst;
+    dst->type = (IppTypeMcu)src[0];
+    switch (src[0]) {
+    case (uint8_t)IPP_MCU_NONE: return IPP_LOAD_OK;
+    case (uint8_t)IPP_MCU_WF_REQ: return IPP_LOAD_OK;
+    case (uint8_t)IPP_MCU_ERROR: return _ipp_msg_mcu_load_error(&dst->error, src + 1, max_length - 1);
+    case (uint8_t)IPP_MCU_DEBUG: return _ipp_msg_mcu_load_debug(&dst->debug, src + 1, max_length - 1);
+    default: return IPP_LOAD_PARSE_ERROR; 
+    }
 }
 
 void ipp_msg_mcu_store(const IppMsgMcuAny *src, uint8_t *dst) {

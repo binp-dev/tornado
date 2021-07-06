@@ -19,15 +19,20 @@
 void init_device(MaybeUninit<Device> &mem) {
     std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
 
+    const size_t message_max_length = 256;
     mem.init_in_place(
 #ifdef FAKEDEV
-        std::unique_ptr<Channel>(new ZmqChannel(std::move(ZmqChannel::create("tcp://127.0.0.1:8321").unwrap()))),
+        std::unique_ptr<Channel>(new ZmqChannel(std::move(
+            ZmqChannel::create("tcp://127.0.0.1:8321", message_max_length).unwrap()
+        ))),
 #else // FAKEDEV
-        std::unique_ptr<Channel>(new RpmsgChannel(std::move(RpmsgChannel::create("/dev/ttyRPMSG0").unwrap()))),
+        std::unique_ptr<Channel>(new RpmsgChannel(std::move(
+            RpmsgChannel::create("/dev/ttyRPMSG0", message_max_length).unwrap()
+        ))),
 #endif // FAKEDEV
         std::move(std::make_unique<LinearEncoder>(0, (1<<24) - 1, 3)),
         200,
-        256
+        message_max_length
     );
 }
 

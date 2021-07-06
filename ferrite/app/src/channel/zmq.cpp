@@ -24,7 +24,7 @@ SocketGuard guard_socket(void *socket) {
 
 } // namespace zmq_helper
 
-Result<ZmqChannel, ZmqChannel::Error> ZmqChannel::create(const std::string &host) {
+Result<ZmqChannel, ZmqChannel::Error> ZmqChannel::create(const std::string &host, const size_t max_length) {
     void *raw_context = zmq_ctx_new();
     if (raw_context == nullptr) {
         return Err(Error{ErrorKind::IoError, "Cannot create ZMQ context"});
@@ -42,10 +42,10 @@ Result<ZmqChannel, ZmqChannel::Error> ZmqChannel::create(const std::string &host
         return Err(Error{ErrorKind::IoError, "Error connecting ZMQ socket"});
     }
 
-    return Ok(ZmqChannel(host, std::move(context), std::move(socket)));
+    return Ok(ZmqChannel(host, std::move(context), std::move(socket), max_length));
 }
 
-Result<std::monostate, ZmqChannel::Error> ZmqChannel::send(
+Result<std::monostate, ZmqChannel::Error> ZmqChannel::send_raw(
     const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout
 ) {
     zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLOUT, 0};
@@ -59,7 +59,7 @@ Result<std::monostate, ZmqChannel::Error> ZmqChannel::send(
         return Err(Error{ErrorKind::TimedOut, "Timed out send"});
     }
 }
-Result<size_t, ZmqChannel::Error> ZmqChannel::receive(
+Result<size_t, ZmqChannel::Error> ZmqChannel::receive_raw(
     uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout
 ) {
     zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLIN, 0};

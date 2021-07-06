@@ -215,6 +215,11 @@ SET(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}  -Xlinker 
 ADD_CUSTOM_COMMAND(TARGET psc_m4 POST_BUILD COMMAND ${CMAKE_OBJCOPY} -Oihex ${EXECUTABLE_OUTPUT_PATH}/m4image.elf ${EXECUTABLE_OUTPUT_PATH}/m4image.hex)
 ADD_CUSTOM_COMMAND(TARGET psc_m4 POST_BUILD COMMAND ${CMAKE_OBJCOPY} -Obinary ${EXECUTABLE_OUTPUT_PATH}/m4image.elf ${EXECUTABLE_OUTPUT_PATH}/m4image.bin)
 
+# Link IPP proto
+add_subdirectory("../../common/ipp" "ipp" EXCLUDE_FROM_ALL)
+include_directories("../../common/ipp/src")
+target_link_libraries(psc_m4 PRIVATE "ipp")
+
 # Link HAL
 add_subdirectory("../hal" "hal" EXCLUDE_FROM_ALL)
 target_link_libraries(psc_m4 PRIVATE "hal_imx7")
