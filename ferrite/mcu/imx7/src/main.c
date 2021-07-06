@@ -17,14 +17,11 @@
 #include "app_log.h"
 #include "app_gpio.h"
 
-#include <proto.h>
+#include <ipp.h>
 
 
 #define APP_TASK_STACK_SIZE    256
 #define APP_RPMSG_BUF_SIZE     256
-
-//static uint8_t buffer[APP_RPMSG_BUF_SIZE] = {0};
-
 
 static void APP_Task_Rpmsg(void *param) {
     APP_INFO("RPMSG task start");
@@ -49,13 +46,17 @@ static void APP_Task_Rpmsg(void *param) {
     APP_INFO("Init GPIO");
     ASSERT(APP_GPIO_Init(APP_GPIO_MODE_INPUT, clock_sem) == 0);
 
-    uint8_t ssid;
-    uint32_t slen = 0;
-    int32_t sst = APP_RPMSG_Receive(&ssid, &slen, 1, APP_FOREVER_MS);
-    if (sst == 0 && slen == 1 && ssid == PSCA_START) {
+    IppLoadStatus st;
+    uint8_t buffer[APP_RPMSG_BUF_SIZE];
+    uint32_t msg_len = 0;
+    int32_t sst = APP_RPMSG_Receive(buffer, &msg_len, APP_RPMSG_BUF_SIZE, APP_FOREVER_MS);
+    IppMsgAppAny msg;
+    st = ipp_msg_app_load(&msg, buffer, msg_len);
+    ASSERT(st == IPP_LOAD_OK);
+    if (msg.type == IPP_APP_START) {
         APP_INFO("RPMSG received start signal");
     } else {
-        PANIC_("RPMSG receive start signal error: { status: %d, len: %d, sid: %d }", sst, slen, (int)ssid);
+        PANIC_("RPMSG receive start signal error: { status: %d, len: %d, type: %d }", sst, msg_len, (int)msg.type);
     }
 
     const int INTR_DIV = 1000;
