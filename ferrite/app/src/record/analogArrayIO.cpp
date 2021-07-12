@@ -27,10 +27,10 @@ AnalogArray<aaoRecord>(raw) {}
 void AnalogArrayOutput::write() {
 #ifdef RECORD_DEBUG
     std::cout << name() << " AnalogArrayOutput::write(). New length = " <<
-    get_length() << ", new data = [ ";
+    length() << ", new data = [ ";
 
-    for (unsigned long i = 0; i < get_length(); ++i) {
-        std::cout << ((int *)get_raw_data())[i] << " "; 
+    for (unsigned long i = 0; i < length(); ++i) {
+        std::cout << ((int *)raw_data())[i] << " "; 
     }
 
     std::cout << " ]" << std::endl << std::flush;

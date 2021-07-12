@@ -26,7 +26,7 @@ MbbIODirect<mbboDirectRecord>(raw) {}
 void MbboDirect::write() {
 #ifdef RECORD_DEBUG
     std::cout << name() << " MbboDirect::write(). New raw value = " 
-    << get_raw_value() << ", new value = " << raw()->val << std::endl << std::flush;
+    << raw_value() << ", new value = " << raw()->val << std::endl << std::flush;
     
     
 #endif

@@ -26,10 +26,10 @@ public:
 
     const char *name() const;
 
-    bool get_pact();
-    bool get_pact() const;
+    bool pact();
+    bool pact() const;
     void set_pact(bool pact);
-    struct typed_rset *get_rset();
+    struct typed_rset *rset();
 
     void scan_lock();
     void scan_unlock();
@@ -51,15 +51,15 @@ protected:
         PrivateData &operator=(PrivateData &&) = delete;
     };
 
-    Record::PrivateData *get_dptr_struct();
-    Record::PrivateData *get_dptr_struct() const;
+    Record::PrivateData *dptr_struct();
+    Record::PrivateData *dptr_struct() const;
 public:
     const dbCommon *raw() const;
     dbCommon *raw();
 
     void set_private_data(void *data);
-    const void *get_private_data() const;
-    void *get_private_data();
+    const void *private_data() const;
+    void *private_data();
 };
 
 class Handler {

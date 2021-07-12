@@ -63,7 +63,7 @@ static long mbboDirect_record_write(mbboDirectRecord *record_pointer) {
     pthread_self() << std::endl << std::flush;
 #endif
 
-    if (mbbo_direct_record.get_pact() != true) {
+    if (mbbo_direct_record.pact() != true) {
         mbbo_direct_record.set_pact(true);
         mbbo_direct_record.request_callback();
     }

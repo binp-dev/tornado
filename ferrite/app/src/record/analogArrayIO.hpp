@@ -12,15 +12,15 @@ class AnalogArray : public Record {
 public:
     virtual ~AnalogArray() override = default;
 
-    unsigned long get_length() { return raw()->nord; }
-    unsigned long get_length() const { return raw()->nord; };
+    unsigned long length() { return raw()->nord; }
+    unsigned long length() const { return raw()->nord; };
     void set_length(unsigned long nord) { raw()->nord = nord; }
 
-    unsigned long get_max_length() { return raw()->nelm; }
-    unsigned long get_max_length() const { return raw()->nelm; };
+    unsigned long max_length() { return raw()->nelm; }
+    unsigned long max_length() const { return raw()->nelm; };
 
-    void *get_raw_data() { return raw()->bptr; }
-    void *get_raw_data() const { return raw()->bptr; }
+    void *raw_data() { return raw()->bptr; }
+    void *raw_data() const { return raw()->bptr; }
 protected:
     explicit AnalogArray(aaType *raw) : Record((dbCommon *)raw) {
         allocate_data_buff();

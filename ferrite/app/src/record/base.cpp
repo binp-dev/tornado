@@ -19,21 +19,21 @@ dbCommon *Record::raw() {
 }
 
 void Record::set_private_data(void *data) {
-    get_dptr_struct()->data = data;
+    dptr_struct()->data = data;
 }
-const void *Record::get_private_data() const {
-    return get_dptr_struct()->data;
+const void *Record::private_data() const {
+    return dptr_struct()->data;
 
 }
-void *Record::get_private_data() {
-    return get_dptr_struct()->data;
+void *Record::private_data() {
+    return dptr_struct()->data;
 }
 
-bool Record::get_pact() { 
+bool Record::pact() { 
     return raw()->pact ? true : false;
 }
 
-bool Record::get_pact() const { 
+bool Record::pact() const { 
     return raw()->pact ? true : false;
 }
 
@@ -41,7 +41,7 @@ void Record::set_pact(bool pact) {
     raw()->pact = pact ? TRUE : FALSE;
 }
 
-struct typed_rset *Record::get_rset() {
+struct typed_rset *Record::rset() {
     return static_cast<struct typed_rset *>(raw()->rset);
 }
 
@@ -53,7 +53,7 @@ void Record::scan_unlock() {
 }
 
 void Record::process_record() {
-    (*get_rset()->process)(raw());
+    (*rset()->process)(raw());
 }
 
 void Record::set_callback(callback_function callback) {
@@ -66,19 +66,19 @@ void Record::set_callback(callback_function callback) {
     callbackSetUser(raw(), callback_struct_ptr);
     callbackSetPriority(priorityLow, callback_struct_ptr);
 
-    get_dptr_struct()->callback_struct_ptr = callback_struct_ptr;
+    dptr_struct()->callback_struct_ptr = callback_struct_ptr;
 }
 
 void Record::request_callback() {
-    CALLBACK *callback_struct_ptr = get_dptr_struct()->callback_struct_ptr;
+    CALLBACK *callback_struct_ptr = dptr_struct()->callback_struct_ptr;
     if (callback_struct_ptr == nullptr) { return; }
     callbackRequest(callback_struct_ptr);
 }
 
-Record::PrivateData *Record::get_dptr_struct() {
+Record::PrivateData *Record::dptr_struct() {
     return static_cast<Record::PrivateData *>(raw()->dpvt);
 }
 
-Record::PrivateData *Record::get_dptr_struct() const {
+Record::PrivateData *Record::dptr_struct() const {
     return static_cast<Record::PrivateData *>(raw()->dpvt);
 }

@@ -83,7 +83,7 @@ static long aai_get_iointr_info(
     iointr::init_scan_list(
         scan_list_name,
         &iointr_worker,
-        aaiRec.get_private_data()
+        aaiRec.private_data()
     );
     *scan = iointr::get_scan_list(scan_list_name);
     
@@ -97,7 +97,7 @@ static long aai_record_read(aaiRecord *record_pointer) {
     pthread_self() << std::endl << std::flush;
 #endif
 
-    if (aaiRec.get_pact() != true) {
+    if (aaiRec.pact() != true) {
         aaiRec.set_pact(true);
         aaiRec.request_callback();
     }

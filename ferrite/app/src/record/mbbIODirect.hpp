@@ -11,8 +11,8 @@ class MbbIODirect : public Record {
 public:
     virtual ~MbbIODirect() override = default;
 
-    unsigned long get_raw_value() { return raw()->rval; };
-    unsigned long get_raw_value() const { return raw()->rval; };
+    unsigned long raw_value() { return raw()->rval; };
+    unsigned long raw_value() const { return raw()->rval; };
     void set_raw_value(unsigned long rval) { raw()->rval = rval; }
 protected:
     explicit MbbIODirect(mbbDirectType *raw) : Record((dbCommon *)raw) {}

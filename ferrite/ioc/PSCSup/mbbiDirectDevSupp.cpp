@@ -85,7 +85,7 @@ static long mbbiDirect_get_iointr_info(
     iointr::init_scan_list(
         scan_list_name,
         &iointr_worker,
-        mbbi_direct_record.get_private_data()
+        mbbi_direct_record.private_data()
     );
     *scan = iointr::get_scan_list(scan_list_name);
     
@@ -100,7 +100,7 @@ static long mbbiDirect_record_read(mbbiDirectRecord *record_pointer) {
     pthread_self() << std::endl << std::flush;
 #endif
 
-    if (mbbi_direct_record.get_pact() != true) {
+    if (mbbi_direct_record.pact() != true) {
         mbbi_direct_record.set_pact(true);
         mbbi_direct_record.request_callback();
     }

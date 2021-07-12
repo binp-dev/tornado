@@ -63,7 +63,7 @@ static long aao_record_write(aaoRecord *record_pointer) {
     pthread_self() << std::endl << std::flush;
 #endif
 
-    if (aaoRec.get_pact() != true) {
+    if (aaoRec.pact() != true) {
         aaoRec.set_pact(true);
         aaoRec.request_callback();
     }
