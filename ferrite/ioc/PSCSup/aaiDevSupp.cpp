@@ -62,7 +62,6 @@ static long aai_init_record(aaiRecord *record_pointer) {
 #endif
 
     aaiRec.set_callback(aai_record_read_callback);
-
     initHookRegister(&start_iointr_worker_thread);
 
     return 0;
@@ -76,15 +75,11 @@ static long aai_get_iointr_info(
     AnalogArrayInput aaiRec(record_pointer);
 
 #ifdef RECORD_DEBUG
-    std::cout << aaiRec.name() << " aai_get_iointr_info(), cmd = "
+    std::cout << aaiRec.name() << " aai_get_iointr_info(), command = "
     << cmd << std::endl << std::flush;
 #endif
 
-    iointr::init_scan_list(
-        scan_list_name,
-        &iointr_worker,
-        aaiRec.private_data()
-    );
+    iointr::init_scan_list(scan_list_name);
     *scan = iointr::get_scan_list(scan_list_name);
     
     return 0;

@@ -32,7 +32,6 @@ static long mbbiDirect_get_iointr_info(
 static long mbbiDirect_record_read(mbbiDirectRecord *record_pointer);
 
 static void mbbiDirect_record_read_callback(CALLBACK *callback_pointer);
-static void start_iointr_worker_thread(initHookState state);
 
 struct mbbiDirectDevSuppSet {
     long num;
@@ -64,7 +63,7 @@ static long mbbiDirect_init_record(mbbiDirectRecord *record_pointer) {
 
     mbbi_direct_record.set_callback(mbbiDirect_record_read_callback);
 
-    initHookRegister(&start_iointr_worker_thread);
+    iointr::init_iointr_scan_lists();
 
     return 0;
 }
@@ -78,15 +77,11 @@ static long mbbiDirect_get_iointr_info(
 
 #ifdef RECORD_DEBUG
     std::cout << mbbi_direct_record.name() <<
-    " mbbiDirect_get_iointr_info(), cmd = " <<
+    " mbbiDirect_get_iointr_info(), command = " <<
     cmd << std::endl << std::flush;
 #endif
 
-    iointr::init_scan_list(
-        scan_list_name,
-        &iointr_worker,
-        mbbi_direct_record.private_data()
-    );
+    iointr::init_scan_list(scan_list_name);
     *scan = iointr::get_scan_list(scan_list_name);
     
     return 0;
@@ -125,15 +120,4 @@ static void mbbiDirect_record_read_callback(CALLBACK *callback_struct_pointer) {
     mbbi_direct_record.read();
     mbbi_direct_record.process_record();
     mbbi_direct_record.scan_unlock();
-}
-
-static void start_iointr_worker_thread(initHookState state) {
-    if (state == initHookAfterInterruptAccept) {
-#ifdef RECORD_DEBUG
-    std::cout << "mbbiDirectDevSupp::start_iointr_worker_thread(), " << 
-    "EPICS hook state = initHookAfterInterruptAccept" << std::endl
-    << std::flush;
-#endif
-        iointr::start_scan_list_worker_thread(scan_list_name);
-    }
 }

@@ -8,7 +8,7 @@
 #include "epicsThread.h"
 #include "iocsh.h"
 
-//#define INTERACTIVE
+#define INTERACTIVE
 
 int main(int argc, char *argv[]) {
     if (argc >= 2) {

@@ -1,24 +1,32 @@
 #include "iointr.hpp"
 
 #include <iostream>
+#include <map>
 
 #include <cantProceed.h>
+#include <epicsThread.h>
+#include <callback.h>
+
+#include "core/assert.hpp"
+#include "core/lazy_static.hpp"
 
 
 namespace iointr {
 
+void init_map(MaybeUninit<std::map<std::string, IOSCANPVT *>> &mem) {
+    std::cout << "Init lazy static SCAN_LISTS" << std::endl;
+    mem.init_in_place();
+}
 
-// global static map, that contains EPICS scan lists and associated data.
-static std::map<std::string, ScanListData> scan_lists;
+LazyStatic<std::map<std::string, IOSCANPVT *>, init_map> SCAN_LISTS = {};
 
+void init_iointr_scan_lists() {
+    // Explicitly initialize device.
+    *SCAN_LISTS;
+}
 
-void init_scan_list(
-    const std::string &list_name,
-    worker_func worker,
-    void *worker_args
-) {
-    if (scan_lists.count(list_name) == 1) { return; }
-    assert(worker != nullptr);
+void init_scan_list(const std::string &list_name) {
+    if ((*SCAN_LISTS).count(list_name) == 1) { return; }
 
     IOSCANPVT *ioscan_list_ptr = (IOSCANPVT *)callocMustSucceed(
         1, 
@@ -26,39 +34,47 @@ void init_scan_list(
         "iointr::init_scan_list: Can't allocate memory for IOSCANPVT"
     );
     scanIoInit(ioscan_list_ptr);
-
-    iointr::ScanListData list_data;
-    list_data.ioscan_list_ptr = ioscan_list_ptr;
-
-    list_data.worker = worker;
-    list_data.worker_args = worker_args;
-    list_data.worker_thread_id = 0;
-    
-    scan_lists[list_name] = list_data;
+    (*SCAN_LISTS)[list_name] = ioscan_list_ptr;
 }
 
 IOSCANPVT &get_scan_list(const std::string &list_name) {
-    assert(scan_lists.count(list_name) == 1);
-    return *(scan_lists[list_name].ioscan_list_ptr);
+    assert_true((*SCAN_LISTS).count(list_name) == 1);
+    return *((*SCAN_LISTS)[list_name]);
 }
 
-void start_scan_list_worker_thread(const std::string &list_name) {
-    assert(scan_lists.count(list_name) != 0);
 
-    iointr::ScanListData list_data = scan_lists[list_name];
-    if (list_data.worker_thread_id != 0) { 
-        return;
+void worker(void *args) {
+    std::cout << "This is worker" << std::endl;
+
+   IOSCANPVT scan = iointr::get_scan_list("TEST_SCAN_LIST");
+    while (true) {
+#ifdef RECORD_DEBUG
+            std::cout << "INIT RECORD PROCESSING FOR SCAN LIST \"" 
+            << scan_list_name << "\", FROM Thread id = " << pthread_self() 
+            << std::endl << std::flush;
+#endif
+        scanIoImmediate(scan, priorityLow);
+        scanIoImmediate(scan, priorityHigh);
+        scanIoImmediate(scan, priorityMedium);
+
+        epicsThreadSleep(1.0);
     }
-    assert(list_data.worker != nullptr);
-    
-    scan_lists[list_name].worker_thread_id = epicsThreadMustCreate(
+
+
+    return;
+}
+
+void start_scan_list_worker_thread(std::string list_name) {
+    assert((*SCAN_LISTS).count(list_name) != 0);
+
+    epicsThreadMustCreate(
         list_name.c_str(),
         epicsThreadPriorityHigh,
         epicsThreadGetStackSize(epicsThreadStackSmall),
-        list_data.worker, 
-        list_data.worker_args
+        worker, 
+        nullptr
     );
+
 }
 
-
-} // namespace ioscan
+} // namespace iointr

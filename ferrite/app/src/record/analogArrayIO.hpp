@@ -5,6 +5,7 @@
 #include <aaiRecord.h>
 #include <aaoRecord.h>
 
+#include "core/assert.hpp"
 #include "base.hpp"
 
 template <typename aaType>
@@ -28,7 +29,7 @@ protected:
     
     void allocate_data_buff() {
         if (raw()->bptr != nullptr) { return; }
-        assert(raw()->nelm != 0);
+        assert_true(raw()->nelm != 0);
 
         raw()->bptr = callocMustSucceed(
             raw()->nelm,
