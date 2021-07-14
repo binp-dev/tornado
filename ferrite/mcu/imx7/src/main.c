@@ -3,101 +3,68 @@
 #include <string.h>
 
 #include "board.h"
-#include "app_debug.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
 
-#include "app.h"
-#include "app_flexcan.h"
-#include "app_gpt.h"
-#include "app_rpmsg.h"
-#include "app_time.h"
-#include "app_log.h"
-#include "app_gpio.h"
-
 #include <ipp.h>
+
+#include <hal/rpmsg.h>
 
 
 #define APP_TASK_STACK_SIZE    256
 #define APP_RPMSG_BUF_SIZE     256
 
 static void APP_Task_Rpmsg(void *param) {
-    APP_INFO("RPMSG task start");
+    hal_rpmsg_init();
 
-    if (APP_RPMSG_Init() != 0) {
-        PANIC_("RPMSG init error");
-    }
+    hal_rpmsg_channel channel;
+    // FIXME: Check retcode
+    hal_rpmsg_create_channel(&channel, 0);
 
-#ifdef APP_DEBUG_IO_RPMSG
-    APP_Debug_IO_RPMSG_Enable();
-#endif // APP_DEBUG_IO_RPMSG
+    uint8_t *buffer = NULL;
+    size_t len = 0;
+    hal_rpmsg_recv_nocopy(&channel, &buffer, &len, HAL_WAIT_FOREVER);
 
-    /* Initialize GPIO */
-    APP_GPIO_HardwareInit();
+    //IppLoadStatus st;
+    IppMsgAppAny app_msg;
+    /*st = */ipp_msg_app_load(&app_msg, buffer, len);
+    // FIXME: ASSERT(st == IPP_LOAD_OK);
+    // if (msg.type == IPP_APP_START) {
+    //     APP_INFO("RPMSG received start signal");
+    // } else {
+    //     PANIC_("RPMSG receive start signal error: { status: %d, len: %d, type: %d }", sst, msg_len, (int)msg.type);
+    // }
+    hal_rpmsg_free_rx_buffer(&channel, buffer);
+    buffer = NULL;
+    len = 0;
 
-    SemaphoreHandle_t clock_sem = xSemaphoreCreateBinary();
-    ASSERT(clock_sem);
+    // FIXME: Check retcode
+    hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER);
+    
+    IppMsgMcuAny mcu_msg = {
+        .type = IPP_MCU_DEBUG,
+        .debug = {
+            .message = "Start signal received",
+        },
+    };
 
-    //APP_INFO("Start GPT");
-    //APP_GPT_Init(APP_GPT_SEC, clock_sem);
+    ipp_msg_mcu_store(&mcu_msg, buffer);
 
-    APP_INFO("Init GPIO");
-    ASSERT(APP_GPIO_Init(APP_GPIO_MODE_INPUT, clock_sem) == 0);
+    // FIXME: Check retcode
+    hal_rpmsg_send_nocopy(&channel, buffer, ipp_msg_mcu_len(&mcu_msg));
 
-    IppLoadStatus st;
-    uint8_t buffer[APP_RPMSG_BUF_SIZE];
-    uint32_t msg_len = 0;
-    int32_t sst = APP_RPMSG_Receive(buffer, &msg_len, APP_RPMSG_BUF_SIZE, APP_FOREVER_MS);
-    IppMsgAppAny msg;
-    st = ipp_msg_app_load(&msg, buffer, msg_len);
-    ASSERT(st == IPP_LOAD_OK);
-    if (msg.type == IPP_APP_START) {
-        APP_INFO("RPMSG received start signal");
-    } else {
-        PANIC_("RPMSG receive start signal error: { status: %d, len: %d, type: %d }", sst, msg_len, (int)msg.type);
-    }
-
-    const int INTR_DIV = 1000;
-    int counter = 0;
-    while (true) {
-        for (int i = 0; i < INTR_DIV; ++i) {
-            ASSERT(xSemaphoreTake(clock_sem, portMAX_DELAY) == pdTRUE);
-        }
-        //APP_INFO("Clock: %d bunch of %d interrupts received!", counter, INTR_DIV);
-        counter += 1;
-    }
-
-    /*
-    while(true) {
-        uint32_t len = 0;
-        // FIXME: Avoid buffer switching while receiving data.
-        int32_t status = APP_RPMSG_Receive(buffer, &len, APP_RPMSG_BUF_SIZE, APP_FOREVER_MS);
-        APP_INFO("RPMSG receive status: %d", status);
-        if (status == 0) {
-            APP_INFO("RPMSG mesage received: { len: %d, sid: %d }", len, (int)buffer[0]);
-            PRINTF("[INFO] RPMSG: [%d] ", len);
-            for (uint32_t i = 0; i < len; ++i) {
-                PRINTF("%02X ", buffer[i]);
-            }
-            PRINTF("\r\n");
-        } else {
-            PANIC_("RPMSG receive error");
-        }
-    }
-    */
-
-    APP_RPMSG_Deinit();
+    // FIXME: Check retcode
+    hal_rpmsg_destroy_channel(&channel);
+    hal_rpmsg_deinit();
 }
 
 int main(void) {
-    /* Initialize board specified hardware. */
-    hardware_init();
+    BOARD_RdcInit();
+    BOARD_ClockInit();
 
-    PRINTF("\r\n\r\n");
-    APP_INFO("Program start");
-    
+
     /* Create tasks. */
     xTaskCreate(
         APP_Task_Rpmsg, "RPMSG task",
@@ -109,6 +76,6 @@ int main(void) {
     vTaskStartScheduler();
 
     /* Should never reach this point. */
-    PANIC_("End of main()");
+    //PANIC_("End of main()");
     return 0;
 }
