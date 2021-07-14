@@ -27,9 +27,9 @@ set(IMX8MN_SRC
 )
 
 set(IMX7_NAME "${PROJECT_NAME}_imx7")
-add_library(${IMX7_NAME} MODULE ${IMX7_SRC})
+add_library(${IMX7_NAME} OBJECT ${IMX7_SRC})
 target_compile_definitions(${IMX7_NAME} PRIVATE "HAL_IMX7")
 
 set(IMX8MN_NAME "${PROJECT_NAME}_imx8mn")
-add_library(${IMX8MN_NAME} MODULE ${IMX8MN_SRC})
+add_library(${IMX8MN_NAME} OBJECT ${IMX8MN_SRC})
 target_compile_definitions(${IMX8MN_NAME} PRIVATE "HAL_IMX8MN")

@@ -10,7 +10,7 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/main.c"
 )
 
-add_library(${PROJECT_NAME} MODULE ${SRC})
+add_library(${PROJECT_NAME} OBJECT ${SRC})
 include_directories(${PROJECT_NAME} "include")
 
 # Link IPP proto
@@ -21,4 +21,4 @@ target_link_libraries(${PROJECT_NAME} PRIVATE "ipp")
 # Link HAL
 add_subdirectory("../hal" "hal")
 include_directories("../hal/src")
-target_link_libraries(${PROJECT_NAME} PRIVATE "hal_imx7")
+target_link_libraries(${PROJECT_NAME} PRIVATE ${HAL_TARGET})

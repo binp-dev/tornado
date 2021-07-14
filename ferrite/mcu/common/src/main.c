@@ -12,9 +12,9 @@
 #include <hal/rpmsg.h>
 
 
-#define APP_TASK_STACK_SIZE    256
+#define TASK_STACK_SIZE 256
 
-static void APP_Task_Rpmsg(void *param) {
+static void task_rpmsg(void *param) {
     hal_rpmsg_init();
 
     hal_rpmsg_channel channel;
@@ -59,14 +59,10 @@ static void APP_Task_Rpmsg(void *param) {
 }
 
 int common_main() {
-    BOARD_RdcInit();
-    BOARD_ClockInit();
-
-
     /* Create tasks. */
     xTaskCreate(
-        APP_Task_Rpmsg, "RPMSG task",
-        APP_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL
+        task_rpmsg, "RPMSG task",
+        TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL
     );
 
     /* Start FreeRTOS scheduler. */

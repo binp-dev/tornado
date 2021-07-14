@@ -1,3 +1,5 @@
+#include <board.h>
+
 #include <common/main.h>
 
 int main(void) {

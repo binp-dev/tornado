@@ -31,19 +31,20 @@ include(${ProjDirPath}/flags.cmake)
 include(${ProjDirPath}/config.cmake)
 
 add_executable(${MCUX_SDK_PROJECT_NAME} 
-    "${ProjDirPath}/src/main_remote.c"
+    "${ProjDirPath}/src/main.c"
+    #"${ProjDirPath}/src/main_remote.c"
     "${ProjDirPath}/src/FreeRTOSConfig.h"
     "${ProjDirPath}/src/pin_mux.c"
     "${ProjDirPath}/src/pin_mux.h"
-    "${ProjDirPath}/src/rpmsg_config.h"
+    #"${ProjDirPath}/src/rpmsg_config.h"
     "${ProjDirPath}/src/rsc_table.c"
     "${ProjDirPath}/src/rsc_table.h"
-    "${ProjDirPath}/src/remoteproc.h"
+    #"${ProjDirPath}/src/remoteproc.h"
     "${ProjDirPath}/src/board.c"
     "${ProjDirPath}/src/board.h"
     "${ProjDirPath}/src/clock_config.c"
     "${ProjDirPath}/src/clock_config.h"
-    "${ProjDirPath}/src/fsl_iomuxc.h"
+    #"${ProjDirPath}/src/fsl_iomuxc.h"
 )
 
 target_include_directories(${MCUX_SDK_PROJECT_NAME} PRIVATE
@@ -102,12 +103,18 @@ ADD_CUSTOM_COMMAND(TARGET ${MCUX_SDK_PROJECT_NAME} POST_BUILD COMMAND ${CMAKE_OB
     ${EXECUTABLE_OUTPUT_PATH}/rpmsg_lite_str_echo_rtos.bin
 )
 
+# Link common code
+set(HAL_TARGET "hal_imx8mn")
+add_definitions("-DHAL_IMX8MN")
+add_subdirectory("../common" "common" EXCLUDE_FROM_ALL)
+include_directories("../common/include")
+target_link_libraries(${MCUX_SDK_PROJECT_NAME} PRIVATE
+    "common"
+    "ipp"
+    ${HAL_TARGET}
+)
 
-# Link HAL
-
-add_subdirectory("../hal" "hal" EXCLUDE_FROM_ALL)
-target_link_libraries(${MCUX_SDK_PROJECT_NAME} PRIVATE "hal_imx8mn")
-
-# Workaround to pass include directories to HAL
+# Workaround to pass include directories to subprojects
 get_target_property(MCUX_SDK_INCLUDE_DIRECTORIES ${MCUX_SDK_PROJECT_NAME} INCLUDE_DIRECTORIES)
-target_include_directories("hal_imx8mn" PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})
+target_include_directories("common" PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})
+target_include_directories(${HAL_TARGET} PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})

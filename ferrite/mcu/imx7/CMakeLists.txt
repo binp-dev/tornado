@@ -197,7 +197,12 @@ ADD_CUSTOM_COMMAND(TARGET psc_m4 POST_BUILD COMMAND ${CMAKE_OBJCOPY} -Oihex ${EX
 ADD_CUSTOM_COMMAND(TARGET psc_m4 POST_BUILD COMMAND ${CMAKE_OBJCOPY} -Obinary ${EXECUTABLE_OUTPUT_PATH}/m4image.elf ${EXECUTABLE_OUTPUT_PATH}/m4image.bin)
 
 # Link common code
+set(HAL_TARGET "hal_imx7")
 add_definitions("-DHAL_IMX7")
 add_subdirectory("../common" "common" EXCLUDE_FROM_ALL)
 include_directories("../common/include")
-target_link_libraries(psc_m4 PRIVATE "common")
+target_link_libraries(psc_m4 PRIVATE
+    "common"
+    "ipp"
+    ${HAL_TARGET}
+)
