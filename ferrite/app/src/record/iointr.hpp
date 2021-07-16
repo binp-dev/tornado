@@ -13,8 +13,9 @@ in which events associated with the corresponding scan list should be checked.
 */
 namespace iointr {
 
+
 /*
-Init EPICS scan list and save associated name and worker thread.
+Init EPICS scan list and save associated name.
 If scan list with that name already exist, then nothing happend. 
 */
 void init_scan_list(const std::string &list_name);

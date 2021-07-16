@@ -32,7 +32,7 @@ static long aai_get_iointr_info(
 static long aai_record_read(aaiRecord *record_pointer);
 
 static void aai_record_read_callback(CALLBACK *callback_pointer);
-static void start_iointr_worker_thread(initHookState state);
+// static void start_iointr_worker_thread(initHookState state);
 
 struct AaiDevSuppSet {
     long num;
@@ -62,7 +62,7 @@ static long aai_init_record(aaiRecord *record_pointer) {
 #endif
 
     aaiRec.set_callback(aai_record_read_callback);
-    initHookRegister(&start_iointr_worker_thread);
+    // initHookRegister(&start_iointr_worker_thread);
 
     return 0;
 }
@@ -118,13 +118,13 @@ static void aai_record_read_callback(CALLBACK *callback_struct_pointer) {
     aaiRec.scan_unlock();
 }
 
-static void start_iointr_worker_thread(initHookState state) {
-    if (state == initHookAfterInterruptAccept) {
-#ifdef RECORD_DEBUG
-    std::cout << "aaiDevSupp::start_iointr_worker_thread(), " << 
-    "EPICS hook state = initHookAfterInterruptAccept" << std::endl
-    << std::flush;
-#endif
-        iointr::start_scan_list_worker_thread(scan_list_name);
-    }
-}
+// static void start_iointr_worker_thread(initHookState state) {
+//     if (state == initHookAfterInterruptAccept) {
+// #ifdef RECORD_DEBUG
+//     std::cout << "aaiDevSupp::start_iointr_worker_thread(), " << 
+//     "EPICS hook state = initHookAfterInterruptAccept" << std::endl
+//     << std::flush;
+// #endif
+//         iointr::start_scan_list_worker_thread(scan_list_name);
+//     }
+// }

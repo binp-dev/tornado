@@ -13,15 +13,17 @@
 
 namespace iointr {
 
+
 void init_map(MaybeUninit<std::map<std::string, IOSCANPVT *>> &mem) {
     std::cout << "Init lazy static SCAN_LISTS" << std::endl;
     mem.init_in_place();
 }
 
+// Static global map which stores scan lists and associated names
 LazyStatic<std::map<std::string, IOSCANPVT *>, init_map> SCAN_LISTS = {};
 
 void init_iointr_scan_lists() {
-    // Explicitly initialize device.
+    // Explicitly initialize SCAN_LISTS map.
     *SCAN_LISTS;
 }
 
@@ -60,7 +62,6 @@ void worker(void *args) {
         epicsThreadSleep(1.0);
     }
 
-
     return;
 }
 
@@ -76,5 +77,6 @@ void start_scan_list_worker_thread(std::string list_name) {
     );
 
 }
+
 
 } // namespace iointr

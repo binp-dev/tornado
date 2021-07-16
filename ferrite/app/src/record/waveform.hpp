@@ -62,9 +62,18 @@ public:
     WaveformHandler &handler();
 };
 
+
+// class WaveformHandler : public Handler {
+// public:
+//     WaveformHandler() = default;
+//     virtual ~WaveformHandler() override = default;
+
+//     virtual void read(WaveformRecord &record) = 0;
+// };
+
 class WaveformHandler : public Handler {
 public:
-    WaveformHandler() = default;
+    WaveformHandler(dbCommon *raw_record) : Handler(raw_record) {}
     virtual ~WaveformHandler() override = default;
 
     virtual void read(WaveformRecord &record) = 0;

@@ -49,9 +49,13 @@ epicsExportAddress(dset, mbboDirect_device_support_handler);
 static long mbboDirect_init_record(mbboDirectRecord *record_pointer) {
     MbboDirect mbbo_direct_record(record_pointer);
 #ifdef RECORD_DEBUG
-    std::cout << mbbo_direct_record.name() << " mbboDirect_init_record()" << std::endl << std::flush;
+    std::cout << mbbo_direct_record.name() << " mbboDirect_init_record()" << 
+    std::endl << std::flush;
 #endif
-    mbbo_direct_record.set_callback(mbboDirect_record_write_callback);
+    // mbbo_direct_record.set_callback(mbboDirect_record_write_callback);
+
+    MbboHandler *handler = new MbboHandler(mbbo_direct_record.Record::raw());
+    mbbo_direct_record.set_private_data((void *)handler);
 
     return 0;
 }
@@ -63,11 +67,14 @@ static long mbboDirect_record_write(mbboDirectRecord *record_pointer) {
     pthread_self() << std::endl << std::flush;
 #endif
 
-    if (mbbo_direct_record.pact() != true) {
-        mbbo_direct_record.set_pact(true);
-        mbbo_direct_record.request_callback();
-    }
+    // if (mbbo_direct_record.pact() != true) {
+    //     mbbo_direct_record.set_pact(true);
+    //     mbbo_direct_record.request_callback();
+    // }
     
+    MbboHandler *handler = (MbboHandler *)mbbo_direct_record.private_data();
+    handler->epics_read_write();
+
     return 0;
 }
 
@@ -79,7 +86,8 @@ static void mbboDirect_record_write_callback(CALLBACK *callback_struct_pointer) 
 
     MbboDirect mbbo_direct_record((mbboDirectRecord *)record_pointer);
 #ifdef RECORD_DEBUG
-    std::cout << mbbo_direct_record.name() << " mbboDirect_record_write_callback() Thread id = " << 
+    std::cout << mbbo_direct_record.name() << 
+    " mbboDirect_record_write_callback() Thread id = " << 
     pthread_self() << std::endl << std::flush;
 #endif
 
