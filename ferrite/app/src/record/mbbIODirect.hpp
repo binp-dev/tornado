@@ -6,7 +6,7 @@
 
 #include "base.hpp"
 
-template <typename mbbDirectType>
+template <typename mbbIODirectType>
 class MbbIODirect : public Record {
 public:
     virtual ~MbbIODirect() override = default;
@@ -18,12 +18,15 @@ public:
     long value() { return raw()->val; };
     long value() const { return raw()->val; };
 
-protected:
-    explicit MbbIODirect(mbbDirectType *raw) : Record((dbCommon *)raw) {}
+// protected:
+    explicit MbbIODirect(mbbIODirectType *raw) : Record((dbCommon *)raw) {}
+    
+    mbbIODirectType *raw() { 
+        return (mbbIODirectType *)Record::raw(); 
+    }
 
-    mbbDirectType *raw() { return (mbbDirectType *)Record::raw(); }
-    const mbbDirectType *raw() const { 
-    	return (const mbbDirectType *)Record::raw(); 
+    const mbbIODirectType *raw() const { 
+    	return (const mbbIODirectType *)Record::raw(); 
    }
 };
 
@@ -39,31 +42,31 @@ public:
 };
 
 
-class MbboDirect final : 
-    public MbbIODirect<mbboDirectRecord>,
-    public OutputRecord {
-public:
-    explicit MbboDirect(mbboDirectRecord *raw);
-    virtual ~MbboDirect() override = default;
+// class MbboDirect final : 
+//     public MbbIODirect<mbboDirectRecord>,
+//     public OutputRecord {
+// public:
+//     explicit MbboDirect(mbboDirectRecord *raw);
+//     virtual ~MbboDirect() override = default;
 
-    virtual void write() override;
-};
+//     virtual void write() override;
+// };
 
 //---------------------------------------------------
 
-class MbboHandler final : public WriteHandler {
+class MbboDirectHandler final : public WriteHandler {
 public:
-    MbboHandler(dbCommon *raw_record);
-    MbboHandler(
+    MbboDirectHandler(dbCommon *raw_record);
+    MbboDirectHandler(
         dbCommon *raw_record, 
-        std::function<callback_func_t> write_callback
+        bool asyn_process
     );
-    virtual ~MbboHandler() override = default;
+    virtual ~MbboDirectHandler() override = default;
 
-    MbboHandler(const MbboHandler &) = delete;
-    MbboHandler &operator=(const MbboHandler &) = delete;
-    MbboHandler(MbboHandler &&) = default;
-    MbboHandler &operator=(MbboHandler &&) = default;
+    MbboDirectHandler(const MbboDirectHandler &) = delete;
+    MbboDirectHandler &operator=(const MbboDirectHandler &) = delete;
+    MbboDirectHandler(MbboDirectHandler &&) = default;
+    MbboDirectHandler &operator=(MbboDirectHandler &&) = default;
 
     virtual void write() override;
 };

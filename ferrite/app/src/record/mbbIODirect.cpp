@@ -20,38 +20,39 @@ void MbbiDirect::read() {
 //  MbboDirect
 //===========================
 
-MbboDirect::MbboDirect(mbboDirectRecord *raw) :
-MbbIODirect<mbboDirectRecord>(raw) {}
+// MbboDirect::MbboDirect(mbboDirectRecord *raw) :
+// MbbIODirect<mbboDirectRecord>(raw) {}
 
-void MbboDirect::write() {
-#ifdef RECORD_DEBUG
-    std::cout << name() << " MbboDirect::write(). New raw value = " 
-    << raw_value() << ", new value = " << raw()->val << std::endl << std::flush;
-#endif
-}
+// void MbboDirect::write() {
+// #ifdef RECORD_DEBUG
+//     std::cout << name() << " MbboDirect::write(). New raw value = " 
+//     << raw_value() << ", new value = " << raw()->val << std::endl << std::flush;
+// #endif
+// }
 
 //===========================
-//  MbboHandler
+//  MbboDirectHandler
 //===========================
 
-MbboHandler::MbboHandler(dbCommon *raw_record) : WriteHandler(raw_record) {
-    read_write_func = std::bind(&MbboHandler::write, this);
+MbboDirectHandler::MbboDirectHandler(dbCommon *raw_record) 
+: WriteHandler(raw_record) {
+    // read_write_func = std::bind(&MbboDirectHandler::write, this);
 }
 
-MbboHandler::MbboHandler(
+MbboDirectHandler::MbboDirectHandler(
     dbCommon *raw_record,
-    std::function<callback_func_t> write_callback
-): WriteHandler(raw_record, true) {
-    read_write_func = std::bind(&MbboHandler::write, this);
+    bool asyn_process
+): WriteHandler(raw_record, asyn_process) {
+    // read_write_func = std::bind(&MbboDirectHandler::write, this);
 
-    Record record(raw_record);
-    record.set_callback(write_callback);
+    // Record record(raw_record);
+    // record.set_callback(write_callback);
 }
 
-void MbboHandler::write() {
+void MbboDirectHandler::write() {
 #ifdef RECORD_DEBUG
-    MbboDirect record((mbboDirectRecord *)raw_record_);
-    std::cout << record.name() << " MbboHandler::write(). New raw value = " 
+    MbbIODirect<mbboDirectRecord> record((mbboDirectRecord *)raw_record_);
+    std::cout << record.name() << " MbboDirectHandler::write(). New raw value = " 
     << record.raw_value() << ", new value = " << record.value() << 
     std::endl << std::flush;
 #endif

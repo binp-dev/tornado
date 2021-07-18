@@ -98,8 +98,6 @@ public:
 
 class Handler {
 public:
-    Handler(dbCommon *raw_record);
-    Handler(dbCommon *raw_record, bool asyn_process);
     virtual ~Handler() = default;
 
     Handler(const Handler &) = delete;
@@ -108,10 +106,19 @@ public:
     Handler &operator=(Handler &&) = default;
 
     void epics_read_write();
+    static void epics_read_write_callback(CALLBACK *callback_struct_pointer);
 protected:
+    Handler(dbCommon *raw_record, std::function<void()> read_write);
+    Handler(
+        dbCommon *raw_record,
+        bool asyn_process,
+        std::function<void()> read_write
+    );
+
     bool asyn_process;
     dbCommon *raw_record_;
-    std::function<void()> read_write_func;
+public: // protected???
+    std::function<void()> read_write;
 };
 
 

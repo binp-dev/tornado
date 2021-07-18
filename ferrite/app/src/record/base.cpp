@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <cantProceed.h>
 #include <dbAccess.h>
 
@@ -56,21 +58,6 @@ void Record::process_record() {
     (*rset()->process)(raw());
 }
 
-// void Record::set_callback(std::function<void(CALLBACK *)> callback) {
-//     callback_func_ptr *function_ptr = callback.target<void(*)(CALLBACK *)>();
-
-//     CALLBACK *callback_struct_ptr = (CALLBACK *)callocMustSucceed(
-//         1, 
-//         sizeof(CALLBACK), 
-//         "Can't allocate memory for CALLBACK"
-//     );
-//     callbackSetCallback(*function_ptr, callback_struct_ptr);
-//     callbackSetUser(raw(), callback_struct_ptr);
-//     callbackSetPriority(priorityLow, callback_struct_ptr);
-
-//     dptr_struct()->callback_struct_ptr = callback_struct_ptr;
-// }
-
 void Record::set_callback(std::function<callback_func_t> callback) {
     callback_func_t **function_ptr = callback.target<callback_func_t *>();
 
@@ -103,30 +90,45 @@ Record::PrivateData *Record::dptr_struct() const {
 //===========================
 //  Handler
 //===========================
-Handler::Handler(dbCommon *raw_record) : asyn_process(false), raw_record_(raw_record) {}
+Handler::Handler(dbCommon *raw_record, std::function<void()> read_write) 
+: asyn_process(false), raw_record_(raw_record) {
+    this->read_write = read_write;
+}
 
-Handler::Handler(dbCommon *raw_record, bool asyn_process)
-: asyn_process(asyn_process), raw_record_(raw_record) {}
+Handler::Handler(
+    dbCommon *raw_record,
+    bool asyn_process,
+    std::function<void()> read_write
+) : asyn_process(asyn_process), raw_record_(raw_record) {
+    this->read_write = read_write;
 
-// void mbboDirect_record_write_callback(CALLBACK *callback_struct_pointer) {
-//     struct dbCommon *record_pointer;
-//     // Line below doesn't work, because in C++ cast result is not lvalue
-//     // callbackGetUser((void *)(record_pointer), callback_struct_pointer);
-//     record_pointer = (dbCommon *)callback_struct_pointer->user;
+    if (asyn_process) {
+        Record record(raw_record);
+        record.set_callback(Handler::epics_read_write_callback);
+    }
+}
 
-//     MbboDirect mbbo_direct_record((mbboDirectRecord *)record_pointer);
-// #ifdef RECORD_DEBUG
-//     std::cout << mbbo_direct_record.name() << 
-//     " mbboDirect_record_write_callback() Thread id = " << 
-//     pthread_self() << std::endl << std::flush;
-// #endif
+void Handler::epics_read_write_callback(CALLBACK *callback_struct_pointer) {
+    struct dbCommon *record_pointer;
+    // Line below doesn't work, because in C++ cast result is not lvalue
+    // callbackGetUser((void *)(record_pointer), callback_struct_pointer);
+    record_pointer = (dbCommon *)callback_struct_pointer->user;
 
-//     mbbo_direct_record.scan_lock();
-//     mbbo_direct_record.write();
-//     mbbo_direct_record.process_record();
-//     mbbo_direct_record.scan_unlock();
-// }
+    Record record(record_pointer);
+#ifdef RECORD_DEBUG
+    std::cout << record.name() << 
+    " Handler::epics_read_write_callback() Thread id = " << 
+    pthread_self() << std::endl << std::flush;
+#endif
 
+    record.scan_lock();
+
+    Handler *record_handler = (Handler *)record.private_data();
+    record_handler->read_write();
+
+    record.process_record();
+    record.scan_unlock();
+}
 
 void Handler::epics_read_write() {
     Record record(raw_record_);
@@ -136,22 +138,36 @@ void Handler::epics_read_write() {
             record.request_callback();
         }
     } else {
-        read_write_func();
+        read_write();
     }
 }
 
 //===========================
 //  ReadHandler
 //===========================
-ReadHandler::ReadHandler(dbCommon *raw_record) : Handler(raw_record) {}
+
+// ReadHandler::ReadHandler(dbCommon *raw_record) : Handler(raw_record) {}
+
+// ReadHandler::ReadHandler(dbCommon *raw_record, bool asyn_process)
+// : Handler(raw_record, asyn_process) {}
+
+ReadHandler::ReadHandler(dbCommon *raw_record) 
+: Handler(raw_record, std::bind(&ReadHandler::read, this)) {}
 
 ReadHandler::ReadHandler(dbCommon *raw_record, bool asyn_process)
-: Handler(raw_record, asyn_process) {}
+: Handler(raw_record, asyn_process, std::bind(&ReadHandler::read, this)) {}
 
 //===========================
 //  WriteHandler
 //===========================
-WriteHandler::WriteHandler(dbCommon *raw_record) : Handler(raw_record) {}
+
+// WriteHandler::WriteHandler(dbCommon *raw_record) : Handler(raw_record) {}
+
+// WriteHandler::WriteHandler(dbCommon *raw_record, bool asyn_process)
+// : Handler(raw_record, asyn_process) {}
+
+WriteHandler::WriteHandler(dbCommon *raw_record) 
+: Handler(raw_record, std::bind(&WriteHandler::write, this)) {}
 
 WriteHandler::WriteHandler(dbCommon *raw_record, bool asyn_process)
-: Handler(raw_record, asyn_process) {}
+: Handler(raw_record, asyn_process, std::bind(&WriteHandler::write, this)) {}

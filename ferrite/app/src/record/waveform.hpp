@@ -71,10 +71,12 @@ public:
 //     virtual void read(WaveformRecord &record) = 0;
 // };
 
-class WaveformHandler : public Handler {
+class WaveformHandler : public ReadHandler {
 public:
-    WaveformHandler(dbCommon *raw_record) : Handler(raw_record) {}
+    WaveformHandler(dbCommon *raw_record) : ReadHandler(raw_record) {}
     virtual ~WaveformHandler() override = default;
 
     virtual void read(WaveformRecord &record) = 0;
+
+    virtual void read() override {}; // TODO remove this
 };
