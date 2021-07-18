@@ -20,5 +20,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE "ipp")
 
 # Link HAL
 add_subdirectory("../hal" "hal")
-include_directories("../hal/src")
+include_directories("../hal/include")
 target_link_libraries(${PROJECT_NAME} PRIVATE ${HAL_TARGET})

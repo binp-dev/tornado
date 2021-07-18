@@ -198,7 +198,7 @@ ADD_CUSTOM_COMMAND(TARGET psc_m4 POST_BUILD COMMAND ${CMAKE_OBJCOPY} -Obinary ${
 
 # Link common code
 set(HAL_TARGET "hal_imx7")
-add_definitions("-DHAL_IMX7")
+add_definitions("-DHAL_IMX7" "-DHAL_PRINT_RPMSG" "-DHAL_LOG_LEVEL=4")
 add_subdirectory("../common" "common" EXCLUDE_FROM_ALL)
 include_directories("../common/include")
 target_link_libraries(psc_m4 PRIVATE
