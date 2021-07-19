@@ -2,9 +2,13 @@
 
 #include <string>
 #include <utility>
+#include <mutex>
 
 #include <dbScan.h>
 
+// Need for I/O Intr scan test, delete after
+
+extern const std::string scan_list_name;
 
 /*
 Namespace with functions for work witch EPICS scan mode "I/O Intr". This functions is 
@@ -24,6 +28,7 @@ IOSCANPVT &get_scan_list(const std::string &list_name);
 
 void init_iointr_scan_lists();
 
+// Need for I/O Intr scan test, delete after
 void start_scan_list_worker_thread(std::string scan_list_name);
 
 

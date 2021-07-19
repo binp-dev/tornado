@@ -49,7 +49,7 @@ class SendWaveform : public WaveformHandler {
         Device *device,
         WaveformRecord &record
     ) : 
-    WaveformHandler(record.Record::raw()), /*TODO Remove this*/
+    WaveformHandler(record.Record::raw()),
     device(device) {
         size_t dev_len = device->max_points();
         size_t rec_len = record.waveform_max_length();

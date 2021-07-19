@@ -12,7 +12,6 @@ aaiDevSupp_INCLUDES += -I$(APP_SRC_DIR)/src
 aaoDevSupp_INCLUDES += -I$(APP_SRC_DIR)/src
 mbbiDirectDevSupp_INCLUDES += -I$(APP_SRC_DIR)/src
 mbboDirectDevSupp_INCLUDES += -I$(APP_SRC_DIR)/src
-iointrScanWorkers_INCLUDES += -I$(APP_SRC_DIR)/src
 
 # Library Source files
 devPSC_SRCS += \
@@ -21,7 +20,6 @@ devPSC_SRCS += aaiDevSupp.cpp
 devPSC_SRCS += aaoDevSupp.cpp
 devPSC_SRCS += mbbiDirectDevSupp.cpp
 devPSC_SRCS += mbboDirectDevSupp.cpp
-devPSC_SRCS += iointrScanWorkers.cpp
 
 # Link with the libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)

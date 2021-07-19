@@ -21,7 +21,6 @@
 #include "record/iointr.hpp" 
 #include "record/mbbIODirect.hpp"
 
-#include "iointrScanWorkers.hpp" 
 
 static long mbbiDirect_init_record(mbbiDirectRecord *record_pointer);
 static long mbbiDirect_get_iointr_info(
@@ -30,8 +29,6 @@ static long mbbiDirect_get_iointr_info(
     IOSCANPVT *scan
 );
 static long mbbiDirect_record_read(mbbiDirectRecord *record_pointer);
-
-static void mbbiDirect_record_read_callback(CALLBACK *callback_pointer);
 
 struct mbbiDirectDevSuppSet {
     long num;
@@ -56,12 +53,17 @@ epicsExportAddress(dset, mbbiDirect_device_support_handler);
 
 static long mbbiDirect_init_record(mbbiDirectRecord *record_pointer) {
     MbbiDirect mbbi_direct_record(record_pointer);
+
 #ifdef RECORD_DEBUG
     std::cout << mbbi_direct_record.name() << " mbbiDirect_init_record()" << 
     std::endl << std::flush;
 #endif
 
-    mbbi_direct_record.set_callback(mbbiDirect_record_read_callback);
+    MbbiDirectHandler *handler = new MbbiDirectHandler(
+        mbbi_direct_record.Record::raw(),
+        true
+    );
+    mbbi_direct_record.set_private_data((void *)handler);
 
     iointr::init_iointr_scan_lists();
 
@@ -89,35 +91,15 @@ static long mbbiDirect_get_iointr_info(
 
 static long mbbiDirect_record_read(mbbiDirectRecord *record_pointer) {
     MbbiDirect mbbi_direct_record(record_pointer);
+
 #ifdef RECORD_DEBUG
     std::cout << mbbi_direct_record.name() << 
     " mbbiDirect_record_read() Thread id = " << 
     pthread_self() << std::endl << std::flush;
 #endif
 
-    if (mbbi_direct_record.pact() != true) {
-        mbbi_direct_record.set_pact(true);
-        mbbi_direct_record.request_callback();
-    }
+    MbbiDirectHandler *handler = (MbbiDirectHandler *)mbbi_direct_record.private_data();
+    handler->epics_devsup_readwrite();
     
     return 0;
-}
-
-static void mbbiDirect_record_read_callback(CALLBACK *callback_struct_pointer) {
-    struct dbCommon *record_pointer;
-    // Line below doesn't work, because in C++ cast result is not lvalue
-    // callbackGetUser((void *)(record_pointer), callback_struct_pointer);
-    record_pointer = (dbCommon *)callback_struct_pointer->user;
-    MbbiDirect mbbi_direct_record((mbbiDirectRecord *)record_pointer);
-
-#ifdef RECORD_DEBUG
-    std::cout << mbbi_direct_record.name() << 
-    " mbbiDirect_record_read_callback() Thread id = " << 
-    pthread_self() << std::endl << std::flush;
-#endif
-
-    mbbi_direct_record.scan_lock();
-    mbbi_direct_record.read();
-    mbbi_direct_record.process_record();
-    mbbi_direct_record.scan_unlock();
 }

@@ -23,8 +23,6 @@
 static long aao_init_record(aaoRecord *record_pointer);
 static long aao_record_write(aaoRecord *record_pointer);
 
-static void aao_record_write_callback(CALLBACK *callback_pointer);
-
 struct AaoDevSuppSet {
     long num;
     DEVSUPFUN report;
@@ -47,44 +45,32 @@ epicsExportAddress(dset, aao_device_support_handler);
 
 
 static long aao_init_record(aaoRecord *record_pointer) {
-    AnalogArrayOutput aaoRec(record_pointer);
+    Aao aao_record(record_pointer);
+
 #ifdef RECORD_DEBUG
-    std::cout << aaoRec.name() << " aao_init_record()" << std::endl << std::flush;
+    std::cout << aao_record.name() << " aao_init_record()" << std::endl << std::flush;
 #endif
-    aaoRec.set_callback(aao_record_write_callback);
+
+    AaoHandler *handler = new AaoHandler(
+        aao_record.Record::raw(),
+        true
+    );
+    aao_record.set_private_data((void *)handler);
+
 
     return 0;
 }
 
 static long aao_record_write(aaoRecord *record_pointer) {
-    AnalogArrayOutput aaoRec(record_pointer);
+    Aao aao_record(record_pointer);
+
 #ifdef RECORD_DEBUG
-    std::cout << aaoRec.name() << " aao_record_write() Thread id = " << 
+    std::cout << aao_record.name() << " aao_record_write() Thread id = " << 
     pthread_self() << std::endl << std::flush;
 #endif
 
-    if (aaoRec.pact() != true) {
-        aaoRec.set_pact(true);
-        aaoRec.request_callback();
-    }
-    
+    AaoHandler *handler = (AaoHandler *)aao_record.private_data();
+    handler->epics_devsup_readwrite();
+
     return 0;
-}
-
-static void aao_record_write_callback(CALLBACK *callback_struct_pointer) {
-    struct dbCommon *record_pointer;
-    // Line below doesn't work, because in C++ cast result is not lvalue
-    // callbackGetUser((void *)(record_pointer), callback_struct_pointer);
-    record_pointer = (dbCommon *)callback_struct_pointer->user;
-
-    AnalogArrayOutput aaoRec((aaoRecord *)record_pointer);
-#ifdef RECORD_DEBUG
-    std::cout << aaoRec.name() << " aao_record_write_callback() Thread id = " << 
-    pthread_self() << std::endl << std::flush;
-#endif
-
-    aaoRec.scan_lock();
-    aaoRec.write();
-    aaoRec.process_record();
-    aaoRec.scan_unlock();
 }

@@ -4,6 +4,7 @@
 #include <dbAccess.h>
 #include <aaiRecord.h>
 #include <aaoRecord.h>
+#include <epicsTypes.h>
 
 #include "core/assert.hpp"
 #include "base.hpp"
@@ -13,15 +14,21 @@ class AnalogArray : public Record {
 public:
     virtual ~AnalogArray() override = default;
 
-    unsigned long length() { return raw()->nord; }
-    unsigned long length() const { return raw()->nord; };
-    void set_length(unsigned long nord) { raw()->nord = nord; }
+    epicsUInt32 length() { return raw()->nord; }
+    epicsUInt32 length() const { return raw()->nord; };
+    void set_length(epicsUInt32 nord) { raw()->nord = nord; }
 
-    unsigned long max_length() { return raw()->nelm; }
-    unsigned long max_length() const { return raw()->nelm; };
+    epicsUInt32 max_length() { return raw()->nelm; }
+    epicsUInt32 max_length() const { return raw()->nelm; };
 
     void *raw_data() { return raw()->bptr; }
     void *raw_data() const { return raw()->bptr; }
+
+    template <typename T>
+    T *array_data() { return (T *)raw_data(); }
+
+    template <typename T>
+    const T *array_data() const { return (const T *)raw_data(); }
 protected:
     explicit AnalogArray(aaType *raw) : Record((dbCommon *)raw) {
         allocate_data_buff();
@@ -42,22 +49,51 @@ protected:
     const aaType *raw() const { return (const aaType *)Record::raw(); }
 };
 
-class AnalogArrayInput final :
-    public AnalogArray<aaiRecord>, 
-    public InputRecord {
+class Aai final : public AnalogArray<aaiRecord> {
 public:
-    explicit AnalogArrayInput(aaiRecord *raw);
-    virtual ~AnalogArrayInput() override = default;
-
-    virtual void read() override;
+    explicit Aai(aaiRecord *raw);
+    virtual ~Aai() override = default;
 };
 
-class AnalogArrayOutput final :
-    public AnalogArray<aaoRecord>, 
-    public OutputRecord {
-public:
-    explicit AnalogArrayOutput(aaoRecord *raw);
-    virtual ~AnalogArrayOutput() override = default;
 
-    virtual void write() override;
+class AaiHandler final : public Handler {
+public:
+    AaiHandler(dbCommon *raw_record);
+    AaiHandler(
+        dbCommon *raw_record, 
+        bool asyn_process
+    );
+    virtual ~AaiHandler() override = default;
+
+    AaiHandler(const AaiHandler &) = delete;
+    AaiHandler &operator=(const AaiHandler &) = delete;
+    AaiHandler(AaiHandler &&) = default;
+    AaiHandler &operator=(AaiHandler &&) = default;
+
+    virtual void readwrite() override;
+};
+
+
+class Aao final : public AnalogArray<aaoRecord> {
+public:
+    explicit Aao(aaoRecord *raw);
+    virtual ~Aao() override = default;
+};
+
+
+class AaoHandler final : public Handler {
+public:
+    AaoHandler(dbCommon *raw_record);
+    AaoHandler(
+        dbCommon *raw_record, 
+        bool asyn_process
+    );
+    virtual ~AaoHandler() override = default;
+
+    AaoHandler(const AaoHandler &) = delete;
+    AaoHandler &operator=(const AaoHandler &) = delete;
+    AaoHandler(AaoHandler &&) = default;
+    AaoHandler &operator=(AaoHandler &&) = default;
+
+    virtual void readwrite() override;
 };

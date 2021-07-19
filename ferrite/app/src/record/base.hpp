@@ -64,38 +64,6 @@ public:
 };
 
 
-class InputRecord {
-public:
-    InputRecord() = default;
-    InputRecord(const InputRecord &) = delete;
-    InputRecord(InputRecord &&) = delete;
-
-    InputRecord &operator=(const InputRecord &) = delete;
-    InputRecord &operator=(InputRecord &&) = delete;
-    
-    virtual ~InputRecord() = default;
-
-    virtual void read() = 0;
-};
-
-
-class OutputRecord {
-public:
-    OutputRecord() = default;
-    OutputRecord(const OutputRecord &) = delete;
-    OutputRecord(OutputRecord &&) = delete;
-
-    OutputRecord &operator=(const OutputRecord &) = delete;
-    OutputRecord &operator=(OutputRecord &&) = delete;
-    
-    virtual ~OutputRecord() = default;
-
-    virtual void write() = 0;
-};
-
-
-//--------------------------------------------------------
-
 class Handler {
 public:
     virtual ~Handler() = default;
@@ -105,50 +73,21 @@ public:
     Handler(Handler &&) = default;
     Handler &operator=(Handler &&) = default;
 
-    void epics_read_write();
-    static void epics_read_write_callback(CALLBACK *callback_struct_pointer);
+    // Function that encapsulate EPICS logic of read or write function.
+    // This function used in record device support. 
+    void epics_devsup_readwrite();
+
+    // Function that implements the logic of reading/writing data from/to device.
+    virtual void readwrite() = 0;
+
+
+    // Function that encapsulate EPICS logic of read or write callback function.
+    // This function used for asynchronous reading/writing mode.
+    static void epics_readwrite_callback(CALLBACK *callback_struct_pointer);
 protected:
-    Handler(dbCommon *raw_record, std::function<void()> read_write);
-    Handler(
-        dbCommon *raw_record,
-        bool asyn_process,
-        std::function<void()> read_write
-    );
+    Handler(dbCommon *raw_record);
+    Handler(dbCommon *raw_record, bool asyn_process);
 
     bool asyn_process;
     dbCommon *raw_record_;
-public: // protected???
-    std::function<void()> read_write;
 };
-
-
-class ReadHandler : public Handler {
-public:
-    ReadHandler(dbCommon *raw_record);
-    ReadHandler(dbCommon *raw_record, bool asyn_process);
-    virtual ~ReadHandler() = default;
-
-    ReadHandler(const ReadHandler &) = delete;
-    ReadHandler &operator=(const ReadHandler &) = delete;
-    ReadHandler(ReadHandler &&) = default;
-    ReadHandler &operator=(ReadHandler &&) = default;
-
-    virtual void read() = 0;
-};
-
-
-class WriteHandler : public Handler {
-public:
-    WriteHandler(dbCommon *raw_record);
-    WriteHandler(dbCommon *raw_record, bool asyn_process);
-    virtual ~WriteHandler() = default;
-
-    WriteHandler(const WriteHandler &) = delete;
-    WriteHandler &operator=(const WriteHandler &) = delete;
-    WriteHandler(WriteHandler &&) = default;
-    WriteHandler &operator=(WriteHandler &&) = default;
-
-    virtual void write() = 0;
-};
-
-

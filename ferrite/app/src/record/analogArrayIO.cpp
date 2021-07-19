@@ -4,35 +4,69 @@
 #include "analogArrayIO.hpp"
 
 //===========================
-//  AnalogArrayInput
+//  Aai
 //===========================
 
-AnalogArrayInput::AnalogArrayInput(aaiRecord *raw) : 
+Aai::Aai(aaiRecord *raw) : 
 AnalogArray<aaiRecord>(raw) {}
 
-void AnalogArrayInput::read() {
+//===========================
+//  AaiHandler
+//===========================
+
+AaiHandler::AaiHandler(dbCommon *raw_record) 
+: Handler(raw_record) {}
+
+AaiHandler::AaiHandler(
+    dbCommon *raw_record,
+    bool asyn_process
+): Handler(raw_record, asyn_process) {}
+
+void AaiHandler::readwrite() {
 #ifdef RECORD_DEBUG
-    std::cout << name() << " AnalogArrayInput::read()" << std::endl
-    << std::flush;
+    Aai aai_record((aaiRecord *)raw_record_);
+
+    std::cout << aai_record.name() << " AaiHandler::readwrite(). New length = " <<
+    aai_record.length() << ", new data = [ ";
+
+    for (epicsUInt32 i = 0; i < aai_record.length(); ++i) {
+        std::cout << aai_record.array_data<epicsInt32>()[i] << " "; 
+    }
+
+    std::cout << "]" << std::endl << std::flush;
 #endif
 }
 
 //===========================
-//  AnalogArrayOutput
+//  Aao
 //===========================
 
-AnalogArrayOutput::AnalogArrayOutput(aaoRecord *raw) : 
+Aao::Aao(aaoRecord *raw) : 
 AnalogArray<aaoRecord>(raw) {}
 
-void AnalogArrayOutput::write() {
-#ifdef RECORD_DEBUG
-    std::cout << name() << " AnalogArrayOutput::write(). New length = " <<
-    length() << ", new data = [ ";
+//===========================
+//  AaoHandler
+//===========================
 
-    for (unsigned long i = 0; i < length(); ++i) {
-        std::cout << ((int *)raw_data())[i] << " "; 
+AaoHandler::AaoHandler(dbCommon *raw_record) 
+: Handler(raw_record) {}
+
+AaoHandler::AaoHandler(
+    dbCommon *raw_record,
+    bool asyn_process
+): Handler(raw_record, asyn_process) {}
+
+void AaoHandler::readwrite() {
+#ifdef RECORD_DEBUG
+    Aao aao_record((aaoRecord *)raw_record_);
+
+    std::cout << aao_record.name() << " AaoHandler::readwrite(). New length = " <<
+    aao_record.length() << ", new data = [ ";
+
+    for (epicsUInt32 i = 0; i < aao_record.length(); ++i) {
+        std::cout << aao_record.array_data<epicsInt32>()[i] << " "; 
     }
 
-    std::cout << " ]" << std::endl << std::flush;
+    std::cout << "]" << std::endl << std::flush;
 #endif
 }

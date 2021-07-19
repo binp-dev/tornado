@@ -11,14 +11,14 @@ class MbbIODirect : public Record {
 public:
     virtual ~MbbIODirect() override = default;
 
-    unsigned long raw_value() { return raw()->rval; };
-    unsigned long raw_value() const { return raw()->rval; };
-    void set_raw_value(unsigned long rval) { raw()->rval = rval; }
+    epicsUInt32 raw_value() { return raw()->rval; };
+    epicsUInt32 raw_value() const { return raw()->rval; };
+    void set_raw_value(epicsUInt32 rval) { raw()->rval = rval; }
 
-    long value() { return raw()->val; };
-    long value() const { return raw()->val; };
+    epicsInt32 value() { return raw()->val; };
+    epicsInt32 value() const { return raw()->val; };
 
-// protected:
+protected:
     explicit MbbIODirect(mbbIODirectType *raw) : Record((dbCommon *)raw) {}
     
     mbbIODirectType *raw() { 
@@ -31,30 +31,39 @@ public:
 };
 
 
-class MbbiDirect final : 
-	public MbbIODirect<mbbiDirectRecord>,
-	public InputRecord {
+class MbbiDirect final : public MbbIODirect<mbbiDirectRecord> {
 public:
 	explicit MbbiDirect(mbbiDirectRecord *raw);
     virtual ~MbbiDirect() override = default;
-
-    virtual void read() override;
 };
 
 
-// class MbboDirect final : 
-//     public MbbIODirect<mbboDirectRecord>,
-//     public OutputRecord {
-// public:
-//     explicit MbboDirect(mbboDirectRecord *raw);
-//     virtual ~MbboDirect() override = default;
+class MbbiDirectHandler final : public Handler {
+public:
+    MbbiDirectHandler(dbCommon *raw_record);
+    MbbiDirectHandler(
+        dbCommon *raw_record, 
+        bool asyn_process
+    );
+    virtual ~MbbiDirectHandler() override = default;
 
-//     virtual void write() override;
-// };
+    MbbiDirectHandler(const MbbiDirectHandler &) = delete;
+    MbbiDirectHandler &operator=(const MbbiDirectHandler &) = delete;
+    MbbiDirectHandler(MbbiDirectHandler &&) = default;
+    MbbiDirectHandler &operator=(MbbiDirectHandler &&) = default;
 
-//---------------------------------------------------
+    virtual void readwrite() override;
+};
 
-class MbboDirectHandler final : public WriteHandler {
+
+class MbboDirect final : public MbbIODirect<mbboDirectRecord> {
+public:
+    explicit MbboDirect(mbboDirectRecord *raw);
+    virtual ~MbboDirect() override = default;
+};
+
+
+class MbboDirectHandler final : public Handler {
 public:
     MbboDirectHandler(dbCommon *raw_record);
     MbboDirectHandler(
@@ -68,5 +77,5 @@ public:
     MbboDirectHandler(MbboDirectHandler &&) = default;
     MbboDirectHandler &operator=(MbboDirectHandler &&) = default;
 
-    virtual void write() override;
+    virtual void readwrite() override;
 };

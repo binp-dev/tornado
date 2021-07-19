@@ -20,8 +20,6 @@
 #include "record/iointr.hpp" 
 #include "record/analogArrayIO.hpp"
 
-#include "iointrScanWorkers.hpp" 
-
 
 static long aai_init_record(aaiRecord *record_pointer);
 static long aai_get_iointr_info(
@@ -31,8 +29,8 @@ static long aai_get_iointr_info(
 );
 static long aai_record_read(aaiRecord *record_pointer);
 
-static void aai_record_read_callback(CALLBACK *callback_pointer);
-// static void start_iointr_worker_thread(initHookState state);
+// Need for I/O Intr scan test, delete after
+static void start_iointr_worker_thread(initHookState state); 
 
 struct AaiDevSuppSet {
     long num;
@@ -56,13 +54,21 @@ epicsExportAddress(dset, aai_device_support_handler);
 
 
 static long aai_init_record(aaiRecord *record_pointer) {
-    AnalogArrayInput aaiRec(record_pointer);
+    Aai aai_record(record_pointer);
+
 #ifdef RECORD_DEBUG
-    std::cout << aaiRec.name() << " aai_init_record()" << std::endl << std::flush;
+    std::cout << aai_record.name() << " aai_init_record()" << std::endl << std::flush;
 #endif
 
-    aaiRec.set_callback(aai_record_read_callback);
-    // initHookRegister(&start_iointr_worker_thread);
+    AaiHandler *handler = new AaiHandler(
+        aai_record.Record::raw(),
+        true
+    );
+    aai_record.set_private_data((void *)handler);
+
+    iointr::init_iointr_scan_lists();
+    // Need for I/O Intr scan test, delete after
+    initHookRegister(&start_iointr_worker_thread);
 
     return 0;
 }
@@ -72,10 +78,10 @@ static long aai_get_iointr_info(
     aaiRecord *record_pointer,
     IOSCANPVT *scan
 ) {
-    AnalogArrayInput aaiRec(record_pointer);
+    Aai aai_record(record_pointer);
 
 #ifdef RECORD_DEBUG
-    std::cout << aaiRec.name() << " aai_get_iointr_info(), command = "
+    std::cout << aai_record.name() << " aai_get_iointr_info(), command = "
     << cmd << std::endl << std::flush;
 #endif
 
@@ -86,45 +92,28 @@ static long aai_get_iointr_info(
 }
 
 static long aai_record_read(aaiRecord *record_pointer) {
-    AnalogArrayInput aaiRec(record_pointer);
+    Aai aai_record(record_pointer);
+
 #ifdef RECORD_DEBUG
-    std::cout << aaiRec.name() << " aai_record_read() Thread id = " << 
+    std::cout << aai_record.name() << " aai_record_read() Thread id = " << 
     pthread_self() << std::endl << std::flush;
 #endif
 
-    if (aaiRec.pact() != true) {
-        aaiRec.set_pact(true);
-        aaiRec.request_callback();
-    }
-    
+    AaiHandler *handler = (AaiHandler *)aai_record.private_data();
+    handler->epics_devsup_readwrite();
+
     return 0;
 }
 
-static void aai_record_read_callback(CALLBACK *callback_struct_pointer) {
-    struct dbCommon *record_pointer;
-    // Line below doesn't work, because in C++ cast result is not lvalue
-    // callbackGetUser((void *)(record_pointer), callback_struct_pointer);
-    record_pointer = (dbCommon *)callback_struct_pointer->user;
-    AnalogArrayInput aaiRec((aaiRecord *)record_pointer);
 
+// Need for I/O Intr scan test, delete after
+static void start_iointr_worker_thread(initHookState state) {
+    if (state == initHookAfterInterruptAccept) {
 #ifdef RECORD_DEBUG
-    std::cout << aaiRec.name() << " aai_record_read_callback() Thread id = " << 
-    pthread_self() << std::endl << std::flush;
+    std::cout << "aaiDevSupp::start_iointr_worker_thread(), " << 
+    "EPICS hook state = initHookAfterInterruptAccept" << std::endl
+    << std::flush;
 #endif
-
-    aaiRec.scan_lock();
-    aaiRec.read();
-    aaiRec.process_record();
-    aaiRec.scan_unlock();
+        iointr::start_scan_list_worker_thread(scan_list_name);
+    }
 }
-
-// static void start_iointr_worker_thread(initHookState state) {
-//     if (state == initHookAfterInterruptAccept) {
-// #ifdef RECORD_DEBUG
-//     std::cout << "aaiDevSupp::start_iointr_worker_thread(), " << 
-//     "EPICS hook state = initHookAfterInterruptAccept" << std::endl
-//     << std::flush;
-// #endif
-//         iointr::start_scan_list_worker_thread(scan_list_name);
-//     }
-// }

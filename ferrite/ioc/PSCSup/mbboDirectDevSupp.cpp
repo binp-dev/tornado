@@ -45,7 +45,8 @@ epicsExportAddress(dset, mbboDirect_device_support_handler);
 
 
 static long mbboDirect_init_record(mbboDirectRecord *record_pointer) {
-    MbbIODirect<mbboDirectRecord> mbbo_direct_record(record_pointer);
+    MbboDirect mbbo_direct_record(record_pointer);
+
 #ifdef RECORD_DEBUG
     std::cout << mbbo_direct_record.name() << " mbboDirect_init_record()" << 
     std::endl << std::flush;
@@ -61,7 +62,8 @@ static long mbboDirect_init_record(mbboDirectRecord *record_pointer) {
 }
 
 static long mbboDirect_record_write(mbboDirectRecord *record_pointer) {
-    MbbIODirect<mbboDirectRecord> mbbo_direct_record(record_pointer);
+    MbboDirect mbbo_direct_record(record_pointer);
+    
 #ifdef RECORD_DEBUG
     std::cout << mbbo_direct_record.name() << 
     " mbboDirect_record_write() Thread id = " <<
@@ -69,26 +71,7 @@ static long mbboDirect_record_write(mbboDirectRecord *record_pointer) {
 #endif
     
     MbboDirectHandler *handler = (MbboDirectHandler *)mbbo_direct_record.private_data();
-    handler->epics_read_write();
+    handler->epics_devsup_readwrite();
 
     return 0;
 }
-
-// static void mbboDirect_record_write_callback(CALLBACK *callback_struct_pointer) {
-//     struct dbCommon *record_pointer;
-//     // Line below doesn't work, because in C++ cast result is not lvalue
-//     // callbackGetUser((void *)(record_pointer), callback_struct_pointer);
-//     record_pointer = (dbCommon *)callback_struct_pointer->user;
-
-//     MbbIODirect<mbboDirectRecord> mbbo_direct_record((mbboDirectRecord *)record_pointer);
-// #ifdef RECORD_DEBUG
-//     std::cout << mbbo_direct_record.name() << 
-//     " mbboDirect_record_write_callback() Thread id = " << 
-//     pthread_self() << std::endl << std::flush;
-// #endif
-
-//     mbbo_direct_record.scan_lock();
-//     mbbo_direct_record.write();
-//     mbbo_direct_record.process_record();
-//     mbbo_direct_record.scan_unlock();
-// }
