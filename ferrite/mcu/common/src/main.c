@@ -55,6 +55,10 @@ static void task_rpmsg(void *param) {
     ipp_msg_mcu_store(&mcu_msg, buffer);
     hal_assert(HAL_SUCCESS == hal_rpmsg_send_nocopy(&channel, buffer, ipp_msg_mcu_len(&mcu_msg)));
 
+    /* FIXME: Should never reach this point - otherwise virtio hangs */
+    hal_log_error("End of task_rpmsg()");
+    hal_panic();
+
     hal_assert(HAL_SUCCESS == hal_rpmsg_destroy_channel(&channel));
     hal_rpmsg_deinit();
 }
@@ -70,6 +74,8 @@ int common_main() {
     vTaskStartScheduler();
 
     /* Should never reach this point. */
-    //PANIC_("End of main()");
+    hal_log_error("End of main()");
+    hal_panic();
+
     return 0;
 }

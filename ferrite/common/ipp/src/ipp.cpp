@@ -8,17 +8,17 @@
 
 TEST(IppTest, MsgAppNone) {
     ipp::MsgAppNone msg;
-    ASSERT_EQ(msg.size(), 0);
+    ASSERT_EQ(msg.length(), 0);
 }
 
 TEST(IppTest, MsgAppStart) {
     ipp::MsgAppStart msg;
-    ASSERT_EQ(msg.size(), 0);
+    ASSERT_EQ(msg.length(), 0);
 }
 
 TEST(IppTest, MsgAppStop) {
     ipp::MsgAppStop msg;
-    ASSERT_EQ(msg.size(), 0);
+    ASSERT_EQ(msg.length(), 0);
 }
 
 TEST(IppTest, MsgAppWfData) {
@@ -27,9 +27,9 @@ TEST(IppTest, MsgAppWfData) {
             std::vector<uint8_t> data{0, 1, 2, 3};
             return ipp::MsgAppWfData{std::move(data)};
         }();
-        ASSERT_EQ(out.size(), 2 + 4);
+        ASSERT_EQ(out.length(), 2 + 4);
 
-        std::vector<uint8_t> buffer(out.size(), 0);
+        std::vector<uint8_t> buffer(out.length(), 0);
         out.store(buffer.data());
         ASSERT_EQ(4, buffer[0]);
         ASSERT_EQ(0, buffer[1]);
@@ -52,12 +52,12 @@ TEST(IppTest, MsgAppWfData) {
 
 TEST(IppTest, MsgMcuNone) {
     ipp::MsgMcuNone msg;
-    ASSERT_EQ(msg.size(), 0);
+    ASSERT_EQ(msg.length(), 0);
 }
 
 TEST(IppTest, MsgMcuWfReq) {
     ipp::MsgMcuWfReq msg;
-    ASSERT_EQ(msg.size(), 0);
+    ASSERT_EQ(msg.length(), 0);
 }
 
 TEST(IppTest, MsgMcuError) {
@@ -65,9 +65,9 @@ TEST(IppTest, MsgMcuError) {
         uint8_t code = 42;
         std::string text{"Error message"};
         const ipp::MsgMcuError out{code, std::string{text}};
-        ASSERT_EQ(out.size(), 1 + 13 + 1);
+        ASSERT_EQ(out.length(), 1 + 13 + 1);
 
-        std::vector<uint8_t> buffer(out.size(), 0);
+        std::vector<uint8_t> buffer(out.length(), 0);
         out.store(buffer.data());
         ASSERT_EQ(code, buffer[0]);
         for (size_t i = 1; i < buffer.size() - 1; ++i) {
@@ -89,9 +89,9 @@ TEST(IppTest, MsgMcuDebug) {
     {
         std::string text{"Debug message"};
         const ipp::MsgMcuDebug out{std::string{text}};
-        ASSERT_EQ(out.size(), 13 + 1);
+        ASSERT_EQ(out.length(), 13 + 1);
 
-        std::vector<uint8_t> buffer(out.size(), 0);
+        std::vector<uint8_t> buffer(out.length(), 0);
         out.store(buffer.data());
         for (size_t i = 0; i < buffer.size() - 1; ++i) {
             ASSERT_EQ(text[i], static_cast<char>(buffer[i]));
@@ -111,8 +111,8 @@ TEST(IppTest, MsgAppAny) {
     {
         std::vector<uint8_t> data{0, 1, 2, 3};
         const ipp::MsgAppAny out{ipp::MsgAppWfData{std::move(data)}};
-        ASSERT_EQ(out.size(), 7);
-        std::vector<uint8_t> buffer(out.size(), 0);
+        ASSERT_EQ(out.length(), 7);
+        std::vector<uint8_t> buffer(out.length(), 0);
         out.store(buffer.data());
         ASSERT_EQ(buffer[0], IppTypeApp::IPP_APP_WF_DATA);
         ASSERT_EQ(4, buffer[1]);
@@ -133,8 +133,8 @@ TEST(IppTest, MsgAppAny) {
 TEST(IppTest, MsgMcuAny) {
     {
         const ipp::MsgMcuAny out{ipp::MsgMcuWfReq{}};
-        ASSERT_EQ(out.size(), 1);
-        std::vector<uint8_t> buffer(out.size(), 0);
+        ASSERT_EQ(out.length(), 1);
+        std::vector<uint8_t> buffer(out.length(), 0);
         out.store(buffer.data());
         ASSERT_EQ(buffer[0], IppTypeMcu::IPP_MCU_WF_REQ);
     }

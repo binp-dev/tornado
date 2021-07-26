@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
-#include "log.h"
+#include "io.h"
 
 __attribute__((noreturn))
 void __hal_panic();
@@ -12,7 +12,7 @@ extern bool __hal_panicked;
     bool __panicked = __hal_panicked; \
     __hal_panicked = true; \
     if (!__panicked) { \
-        hal_log_error("\r\nProgram panicked in %s at %s:%d\r\n", __FUNCTION__, __FILE__, __LINE__); \
+        hal_error(0xFF, "Panic in %s at %s:%d", __FUNCTION__, __FILE__, __LINE__); \
     } \
     __hal_panic(); \
 } while(0)

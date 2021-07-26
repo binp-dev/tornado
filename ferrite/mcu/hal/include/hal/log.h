@@ -16,7 +16,7 @@ extern const char *const __hal_log_level_name[6];
 
 #define hal_log(level, format, ...) do { \
     if (HAL_LOG_LEVEL >= level) { \
-        hal_print("[%s]" format "\r\n", __hal_log_level_name[level] __HAL_VA_ARGS_WITH_COMMA(__VA_ARGS__)); \
+        hal_debug("[%s] " format, __hal_log_level_name[level] __HAL_VA_ARGS_WITH_COMMA(__VA_ARGS__)); \
     } \
 } while(0)
 

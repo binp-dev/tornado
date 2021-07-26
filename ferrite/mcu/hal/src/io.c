@@ -31,10 +31,19 @@ uint8_t *__hal_io_rpmsg_alloc_buffer(size_t *size) {
     return buffer;
 }
 
-void __hal_io_rpmsg_send_buffer(uint8_t *buffer, size_t size) {
+void __hal_io_rpmsg_send_debug_buffer(uint8_t *buffer, size_t size) {
     hal_assert(io_rpmsg_initialized);
-    // IPP debug message format is hardcoded here.
+    // FIXME: IPP debug message format is hardcoded here.
     buffer[0] = 0xE1;
+    buffer[size - 1] = '\0';
+    hal_assert(HAL_SUCCESS == hal_rpmsg_send_nocopy(&io_rpmsg_channel, buffer, size));
+}
+
+void __hal_io_rpmsg_send_error_buffer(uint8_t code, uint8_t *buffer, size_t size) {
+    hal_assert(io_rpmsg_initialized);
+    // FIXME: IPP error message format is hardcoded here.
+    buffer[0] = 0xE0;
+    buffer[1] = code;
     buffer[size - 1] = '\0';
     hal_assert(HAL_SUCCESS == hal_rpmsg_send_nocopy(&io_rpmsg_channel, buffer, size));
 }

@@ -16,7 +16,7 @@ class Msg {
 public:
     virtual ~Msg() = default;
 
-    virtual size_t size() const = 0;
+    virtual size_t length() const = 0;
     virtual void store(uint8_t *data) const = 0;
 };
 
@@ -33,7 +33,7 @@ public:
 template <typename Self>
 class MsgEmpty : public virtual MsgPrim {
 public:
-    virtual size_t size() const override {
+    virtual size_t length() const override {
         return 0;
     }
     virtual void store(uint8_t *) const override {}
@@ -117,7 +117,7 @@ public:
         return any;
     }
 
-    inline virtual size_t size() const override {
+    inline virtual size_t length() const override {
         const auto raw = this->raw();
         return _ipp_msg_app_len_wf_data(&raw);
     }
@@ -176,7 +176,7 @@ public:
         return any;
     }
 
-    inline virtual size_t size() const override {
+    inline virtual size_t length() const override {
         const auto raw = this->raw();
         return _ipp_msg_mcu_len_error(&raw);
     }
@@ -235,7 +235,7 @@ public:
         return any;
     }
 
-    inline virtual size_t size() const override {
+    inline virtual size_t length() const override {
         const auto raw = this->raw();
         return _ipp_msg_mcu_len_debug(&raw);
     }
@@ -329,7 +329,7 @@ public:
         return *this;
     }
 
-    inline virtual size_t size() const override {
+    inline virtual size_t length() const override {
         return std::visit([&](const auto &inner) {
             const IppMsgAppAny any = inner.raw_any();
             return ipp_msg_app_len(&any);
@@ -374,7 +374,7 @@ public:
         return *this;
     }
 
-    inline virtual size_t size() const override {
+    inline virtual size_t length() const override {
         return std::visit([&](const auto &inner) {
             const IppMsgMcuAny any = inner.raw_any();
             return ipp_msg_mcu_len(&any);
