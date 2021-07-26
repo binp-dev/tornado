@@ -103,28 +103,31 @@ private:
             }
             auto incoming = result.unwrap();
 
+            /*
             std::cout << "Received command: ";
             std::visit([](const auto &m) {
                 using Msg = typename std::remove_reference_t<decltype(m)>;
                 std::cout << typeid(Msg).name() << " (0x" << std::hex << Msg::TYPE << std::dec << ")";
             }, incoming.variant());
             std::cout << std::endl;
+            */
 
+            // TODO: Use visit with overloaded lambda
             if(std::holds_alternative<ipp::MsgMcuWfReq>(incoming.variant())) {
                 ipp::MsgAppWfData outgoing;
                 auto &buffer = outgoing.data();
-                const size_t min_size = ipp::MsgAppAny{ipp::MsgAppWfData{}}.size();
-                assert_true(min_size < _max_transfer);
-                buffer.resize(_max_transfer - min_size, 0);
+                const size_t min_len = ipp::MsgAppAny{ipp::MsgAppWfData{}}.length();
+                assert_true(min_len < _max_transfer);
+                buffer.resize(_max_transfer - min_len, 0);
                 buffer.resize(fill_until_full(buffer.data(), buffer.size()));
                 channel->send(ipp::MsgAppAny{std::move(outgoing)}, timeout).unwrap();
 
             } else if (std::holds_alternative<ipp::MsgMcuDebug>(incoming.variant())) {
-                std::cout << "Debug: " << std::get<ipp::MsgMcuDebug>(incoming.variant()).message() << std::endl;
+                std::cout << "Device: " << std::get<ipp::MsgMcuDebug>(incoming.variant()).message() << std::endl;
 
             } else if (std::holds_alternative<ipp::MsgMcuError>(incoming.variant())) {
                 const auto &inc_err = std::get<ipp::MsgMcuError>(incoming.variant());
-                std::cout << "Error[0x" << std::hex << inc_err.code() << std::dec << "]: " << inc_err.message() << std::endl;
+                std::cout << "Device Error (0x" << std::hex << int(inc_err.code()) << std::dec << "): " << inc_err.message() << std::endl;
 
             } else {
                 panic("Unexpected command");

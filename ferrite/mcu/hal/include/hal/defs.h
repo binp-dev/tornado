@@ -18,3 +18,11 @@ typedef uint8_t hal_retcode;
 // ...
 #define HAL_UNIMPLEMENTED      ((hal_retcode)0xFE) // Functionality isn't implemented yet
 #define HAL_TIMED_OUT          ((hal_retcode)0xFF) // Timeout exceeded
+
+// Helper macros
+
+#ifdef __GNUC__
+#define __HAL_VA_ARGS_WITH_COMMA(...) , ##__VA_ARGS__
+#else
+#error "Compilers other than GCC are not supported yet"
+#endif

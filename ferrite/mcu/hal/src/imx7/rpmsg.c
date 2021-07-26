@@ -1,7 +1,7 @@
-#include "config.h"
-
 #include <hal/rpmsg.h>
-#include "rpmsg.h"
+#include <hal/imx7/rpmsg.h>
+
+#include <hal/imx7/config.h>
 
 #include <board.h>
 #include <mu_imx.h>

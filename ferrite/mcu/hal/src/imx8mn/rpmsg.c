@@ -1,5 +1,5 @@
 #include <hal/rpmsg.h>
-#include "rpmsg.h"
+#include <hal/imx8mn/rpmsg.h>
 
 #include "FreeRTOS.h"
 

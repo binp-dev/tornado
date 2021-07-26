@@ -28,6 +28,8 @@ public:
 
 private:
     std::vector<uint8_t> buffer_;
+    size_t data_start_ = 0;
+    size_t data_end_ = 0;
 
 public:
     explicit Channel(size_t max_length);

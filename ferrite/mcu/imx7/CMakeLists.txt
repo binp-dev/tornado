@@ -170,26 +170,7 @@ ADD_EXECUTABLE(psc_m4
     "$ENV{FREERTOS_DIR}/platform/drivers/inc/rdc_semaphore.h"
     "$ENV{FREERTOS_DIR}/platform/drivers/src/flexcan.c"
     "$ENV{FREERTOS_DIR}/platform/drivers/inc/flexcan.h"
-    "${ProjDirPath}/src/app.c"
-    "${ProjDirPath}/src/app.h"
-    "${ProjDirPath}/src/app_debug.h"
-    "${ProjDirPath}/src/app_debug.c"
-    "${ProjDirPath}/src/app_log.c"
-    "${ProjDirPath}/src/app_log.h"
-    "${ProjDirPath}/src/app_gpio.c"
-    "${ProjDirPath}/src/app_gpio.h"
-    "${ProjDirPath}/src/app_time.c"
-    "${ProjDirPath}/src/app_time.h"
-    "${ProjDirPath}/src/app_gpt.c"
-    "${ProjDirPath}/src/app_gpt.h"
-    "${ProjDirPath}/src/app_flexcan.c"
-    "${ProjDirPath}/src/app_flexcan.h"
-    "${ProjDirPath}/src/app_ecspi.c"
-    "${ProjDirPath}/src/app_ecspi.h"
-    "${ProjDirPath}/src/app_rpmsg.c"
-    "${ProjDirPath}/src/app_rpmsg.h"
     "${ProjDirPath}/src/FreeRTOSConfig.h"
-    "${ProjDirPath}/src/hardware_init.c"
     "${ProjDirPath}/src/main.c"
 )
 SET_TARGET_PROPERTIES(psc_m4 PROPERTIES OUTPUT_NAME "m4image.elf")
@@ -215,11 +196,13 @@ SET(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}  -Xlinker 
 ADD_CUSTOM_COMMAND(TARGET psc_m4 POST_BUILD COMMAND ${CMAKE_OBJCOPY} -Oihex ${EXECUTABLE_OUTPUT_PATH}/m4image.elf ${EXECUTABLE_OUTPUT_PATH}/m4image.hex)
 ADD_CUSTOM_COMMAND(TARGET psc_m4 POST_BUILD COMMAND ${CMAKE_OBJCOPY} -Obinary ${EXECUTABLE_OUTPUT_PATH}/m4image.elf ${EXECUTABLE_OUTPUT_PATH}/m4image.bin)
 
-# Link IPP proto
-add_subdirectory("../../common/ipp" "ipp" EXCLUDE_FROM_ALL)
-include_directories("../../common/ipp/src")
-target_link_libraries(psc_m4 PRIVATE "ipp")
-
-# Link HAL
-add_subdirectory("../hal" "hal" EXCLUDE_FROM_ALL)
-target_link_libraries(psc_m4 PRIVATE "hal_imx7")
+# Link common code
+set(HAL_TARGET "hal_imx7")
+add_definitions("-DHAL_IMX7" "-DHAL_PRINT_RPMSG" "-DHAL_LOG_LEVEL=4")
+add_subdirectory("../common" "common" EXCLUDE_FROM_ALL)
+include_directories("../common/include")
+target_link_libraries(psc_m4 PRIVATE
+    "common"
+    "ipp"
+    ${HAL_TARGET}
+)
