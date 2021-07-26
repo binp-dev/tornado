@@ -1,4 +1,4 @@
-record(waveform, "WAVEFORM")
+record(aao, "WAVEFORM")
 {
     field(DTYP, "devsup")
     field(NELM, 200)

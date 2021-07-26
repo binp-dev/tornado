@@ -56,7 +56,7 @@ public:
 };
 
 
-class AaiHandler final : public Handler {
+class AaiHandler : public Handler {
 public:
     AaiHandler(dbCommon *raw_record);
     AaiHandler(
@@ -81,7 +81,7 @@ public:
 };
 
 
-class AaoHandler final : public Handler {
+class AaoHandler : public Handler {
 public:
     AaoHandler(dbCommon *raw_record);
     AaoHandler(

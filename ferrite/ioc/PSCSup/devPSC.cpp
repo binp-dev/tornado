@@ -8,62 +8,59 @@
 #include <epicsExit.h>
 #include <epicsExport.h>
 #include <iocsh.h>
-#include <waveformRecord.h>
+#include <aaoRecord.h>
 
 #include "framework.hpp"
-
-
-typedef menuFtype abc;
 
 void init(void) {
     std::cout << "init" << std::endl;
     framework_init_device();
 }
 
-long record_waveform_init(waveformRecord *raw) {
-    WaveformRecord record(raw);
-    std::cout << "record_waveform_init: " << record.name() << std::endl;
+long record_aao_init(aaoRecord *raw) {
+    Aao record(raw);
+    std::cout << "record_aao_init: " << record.name() << std::endl;
 
-    std::unique_ptr<WaveformHandler> handler = framework_record_init_waveform(record);
+    std::unique_ptr<AaoHandler> handler = framework_record_init_dac(record);
     if (!bool(handler)) {
-        std::cerr << "framework_record_init_waveform returned NULL" << std::endl;
+        std::cerr << "framework_record_init_dac returned NULL" << std::endl;
         epicsExit(1);
     }
     record.set_private_data((void *)handler.release());
     return 0;
 }
-long record_waveform_get_ioint_info(int cmd, waveformRecord *raw, IOSCANPVT *ppvt) {
-    std::cout << "record_waveform_get_ioint_info: " << raw->name << std::endl;
+long record_aao_get_ioint_info(int cmd, aaoRecord *raw, IOSCANPVT *ppvt) {
+    std::cout << "record_aao_get_ioint_info: " << raw->name << std::endl;
     std::cerr << "unimplemented" << std::endl;
     return 0;
 }
-long record_waveform_read(waveformRecord *raw) {
-    WaveformRecord record(raw);
-    std::cout << "record_waveform_read: " << record.name() << std::endl;
+long record_aao_write(aaoRecord *raw) {
+    Aao record(raw);
+    std::cout << "record_aao_write: " << record.name() << std::endl;
 
     // FIXME: Check result
-    record.handler().read(record);
+    ((AaoHandler *)record.private_data())->readwrite();
     return 0;
 }
 
-struct WaveformRecordCallbacks {
+struct AaoRecordCallbacks {
     long number;
     DEVSUPFUN report;
     DEVSUPFUN init;
     DEVSUPFUN init_record;
     DEVSUPFUN get_ioint_info;
-    DEVSUPFUN read_waveform;
+    DEVSUPFUN write_aao;
 };
 
-struct WaveformRecordCallbacks waveform_record_handler = {
+struct AaoRecordCallbacks aao_record_handler = {
     5,
     nullptr,
     nullptr,
-    reinterpret_cast<DEVSUPFUN>(record_waveform_init),
-    reinterpret_cast<DEVSUPFUN>(record_waveform_get_ioint_info),
-    reinterpret_cast<DEVSUPFUN>(record_waveform_read)
+    reinterpret_cast<DEVSUPFUN>(record_aao_init),
+    reinterpret_cast<DEVSUPFUN>(record_aao_get_ioint_info),
+    reinterpret_cast<DEVSUPFUN>(record_aao_write)
 };
 
-epicsExportAddress(dset, waveform_record_handler);
+epicsExportAddress(dset, aao_record_handler);
 
 epicsExportRegistrar(init);

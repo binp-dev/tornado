@@ -16,10 +16,6 @@ mbboDirectDevSupp_INCLUDES += -I$(APP_SRC_DIR)/src
 # Library Source files
 devPSC_SRCS += \
 	devPSC.cpp
-devPSC_SRCS += aaiDevSupp.cpp
-devPSC_SRCS += aaoDevSupp.cpp
-devPSC_SRCS += mbbiDirectDevSupp.cpp
-devPSC_SRCS += mbboDirectDevSupp.cpp
 
 # Link with the libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)

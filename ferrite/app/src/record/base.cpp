@@ -91,9 +91,6 @@ Record::PrivateData *Record::dptr_struct() const {
 //  Handler
 //===========================
 
-Handler::Handler(dbCommon *raw_record) 
-: asyn_process(false), raw_record_(raw_record) {}
-
 Handler::Handler(
     dbCommon *raw_record,
     bool asyn_process

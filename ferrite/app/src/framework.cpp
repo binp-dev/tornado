@@ -5,7 +5,7 @@
 
 #include <core/lazy_static.hpp>
 #include <core/mutex.hpp>
-#include <record/waveform.hpp>
+#include <record/analogArrayIO.hpp>
 #include <encoder.hpp>
 #include <device.hpp>
 
@@ -40,19 +40,19 @@ void init_device(MaybeUninit<Device> &mem) {
 LazyStatic<Device, init_device> DEVICE = {};
 static_assert(std::is_pod_v<decltype(DEVICE)>);
 
-class SendWaveform : public WaveformHandler {
+class DacHandler final : public AaoHandler {
     private:
     Device *device;
 
     public:
-    SendWaveform(
+    DacHandler(
         Device *device,
-        WaveformRecord &record
+        Aao &record
     ) : 
-    WaveformHandler(record.Record::raw()),
+    AaoHandler(record.Record::raw(), true),
     device(device) {
         size_t dev_len = device->max_points();
-        size_t rec_len = record.waveform_max_length();
+        size_t rec_len = record.max_length();
         if (dev_len != rec_len) {
             panic(
                 "Device waveform size (" + std::to_string(dev_len) +
@@ -60,13 +60,14 @@ class SendWaveform : public WaveformHandler {
             );
         }
     }
-    ~SendWaveform() override = default;
+    ~DacHandler() override = default;
 
-    void read(WaveformRecord &record) override {
-        std::cout << "SendWaveform.read() before" << std::endl;
-        auto [wf_data, wf_len] = record.waveform_slice<double>();
-        device->set_waveform(wf_data, wf_len);
-        std::cout << "SendWaveform.read() after" << std::endl;
+    virtual void readwrite() override {
+        Aao record((aaoRecord *)raw_record_);
+
+        std::cout << "DacHandler.readwrite() before" << std::endl;
+        device->set_waveform(record.array_data<double>(), record.length());
+        std::cout << "DacHandler.readwrite() after" << std::endl;
     }
 };
 
@@ -75,9 +76,9 @@ void framework_init_device() {
     *DEVICE;
 }
 
-std::unique_ptr<WaveformHandler> framework_record_init_waveform(WaveformRecord &record) {
+std::unique_ptr<AaoHandler> framework_record_init_dac(Aao &record) {
     if (strcmp(record.name(), "WAVEFORM") == 0) {
-        return std::make_unique<SendWaveform>(&*DEVICE, record);
+        return std::make_unique<DacHandler>(&*DEVICE, record);
     } else {
         assert(false);
     }

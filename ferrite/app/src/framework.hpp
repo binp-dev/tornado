@@ -2,9 +2,9 @@
 
 #include <memory>
 
-#include <record/waveform.hpp>
+#include <record/analogArrayIO.hpp>
 
 void framework_init_device();
 
 [[nodiscard]]
-std::unique_ptr<WaveformHandler> framework_record_init_waveform(WaveformRecord &record);
+std::unique_ptr<AaoHandler> framework_record_init_dac(Aao &record);

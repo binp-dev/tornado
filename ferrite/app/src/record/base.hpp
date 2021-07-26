@@ -85,8 +85,7 @@ public:
     // This function used for asynchronous reading/writing mode.
     static void epics_readwrite_callback(CALLBACK *callback_struct_pointer);
 protected:
-    Handler(dbCommon *raw_record);
-    Handler(dbCommon *raw_record, bool asyn_process);
+    Handler(dbCommon *raw_record, bool asyn_process = false);
 
     bool asyn_process;
     dbCommon *raw_record_;
