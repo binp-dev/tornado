@@ -23,10 +23,9 @@ set(BASE_SRC
     "src/channel/base.cpp"
 )
 set(EPICS_SRC
-    "src/record/base.cpp"
-    "src/record/waveform.cpp"
+    #"src/record/waveform.cpp"
     "src/record/analogArrayIO.cpp"
-    "src/record/mbbIODirect.cpp"
+    #"src/record/mbbIODirect.cpp"
     "src/record/iointr.cpp"
 )
 set(MAIN_SRC

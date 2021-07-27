@@ -1,13 +1,13 @@
 #pragma once
 
-#include <functional>
-#include <string_view>
-#include <memory>
+#include "base.hpp"
 
 // Abstract record interface.
-class Record {
+template <typename T>
+class AaoRecord : public virtual Record {
 public:
-    virtual std::string_view name() const = 0;
+    virtual size_t length() const = 0;
+    virtual size_t max_length() const = 0;
 };
 
 // Abstract record handler.
