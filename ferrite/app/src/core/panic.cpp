@@ -65,6 +65,8 @@ void print_backtrace() {
 #endif // EPICS
 }
 
-[[noreturn]] void unreachable() {
-    panic("Unreachable");
-}
+#define unimplemented() panic("Unimplemented")
+
+#define unreachable() \
+    __builtin_unreachable(); \
+    panic("Unreachable code reached")
