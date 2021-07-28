@@ -4,51 +4,18 @@
 #include <dbAccess.h>
 #include <callback.h>
 
-class ScanLockGuard final {
-private:
-    dbCommon *db_common_;
-
-public:
-    explicit ScanLockGuard(dbCommon *db_common) : db_common_(db_common) {
-        dbScanLock(db_common_);
-    }
-    ~ScanLockGuard() {
-        unlock();
-    }
-
-    void unlock() {
-        if (db_common_ != nullptr) {
-            dbScanUnlock(db_common_);
-            db_common_ = nullptr;
-        }
-    }
-
-    ScanLockGuard(const ScanLockGuard &) = delete;
-    ScanLockGuard &operator=(const ScanLockGuard &) = delete;
-
-    ScanLockGuard(ScanLockGuard &&other) : db_common_(other.db_common_) {
-        other.db_common_ = nullptr;
-    }
-    ScanLockGuard &operator=(const ScanLockGuard &&other) {
-        unlock();
-        db_common_ = other.db_common_;
-        return *this;
-    }
-};
-
-template <typename FinalHandler>
-struct PrivateData {
-    std::unique_ptr<FinalHandler> handler;
-    std::optional<epicsCallback> async_callback_data;
-};
-
 // A non-owning wrapper around EPICS record.
 template <
     typename RawRecord,
-    typename FinalHandler,
-    typename FinalPrivateData
+    typename FinalHandler
 >
 class EpicsRecord : public virtual Record {
+protected:
+    struct PrivateData {
+        std::unique_ptr<FinalHandler> handler;
+        std::optional<epicsCallback> async_callback_data;
+    };
+
 private:
     RawRecord &raw_;
 
@@ -64,14 +31,14 @@ protected:
     virtual void process_sync() = 0;
 
 private:
-    void set_private_data(std::unique_ptr<FinalPrivateData> &&data) {
+    void set_private_data(std::unique_ptr<PrivateData> &&data) {
         raw_common().dpvt = static_cast<void *>(data.release());
     }
-    const FinalPrivateData &private_data() const {
-        return *static_cast<const FinalPrivateData *>(raw_common().dpvt);
+    const PrivateData &private_data() const {
+        return *static_cast<const PrivateData *>(raw_common().dpvt);
     }
-    FinalPrivateData &private_data() {
-        return *static_cast<FinalPrivateData *>(raw_common().dpvt);
+    PrivateData &private_data() {
+        return *static_cast<PrivateData *>(raw_common().dpvt);
     }
 
     bool is_process_active() const {
@@ -131,7 +98,7 @@ public:
     }
 
     void initialize() {
-        set_private_data(std::make_unique<FinalPrivateData>());
+        set_private_data(std::make_unique<PrivateData>());
     }
 
     void set_handler() {
