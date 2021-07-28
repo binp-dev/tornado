@@ -24,9 +24,9 @@ set(BASE_SRC
 )
 set(EPICS_SRC
     #"src/record/waveform.cpp"
-    "src/record/analogArrayIO.cpp"
+    #"src/record/analogArrayIO.cpp"
     #"src/record/mbbIODirect.cpp"
-    "src/record/iointr.cpp"
+    #"src/record/iointr.cpp"
 )
 set(MAIN_SRC
     ${BASE_SRC}

@@ -3,6 +3,7 @@
 #include <functional>
 #include <string_view>
 #include <memory>
+#include <type_traits>
 
 // Abstract record interface.
 class Record {
@@ -12,14 +13,14 @@ public:
 
 // Abstract record handler.
 class Handler {
-private:
-    const bool async_;
-
 public:
-    Handler(bool async) : async_(async) {}
     virtual ~Handler() = default;
+    [[nodiscard]] virtual bool is_async() const = 0;
+};
 
-    inline bool is_async() const {
-        return async_;
-    }
+template <typename H>
+class HandledRecord : public virtual Record {
+public:
+    static_assert(std::is_base_of_v<Handler, H>);
+    virtual void set_handler(std::unique_ptr<H> &&handler) = 0;
 };

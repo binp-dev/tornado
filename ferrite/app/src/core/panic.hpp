@@ -3,4 +3,9 @@
 #include <string>
 
 [[noreturn]] void panic(const std::string &message = "");
-[[noreturn]] void unreachable();
+
+#define unimplemented() panic("Unimplemented")
+
+#define unreachable() \
+    __builtin_unreachable(); \
+    panic("Unreachable code reached")

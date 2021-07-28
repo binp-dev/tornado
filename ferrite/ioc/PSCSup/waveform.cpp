@@ -4,10 +4,7 @@
 
 #include <devSup.h>
 #include <recGbl.h>
-#include <alarm.h>
-#include <epicsExit.h>
 #include <epicsExport.h>
-#include <iocsh.h>
 #include <waveformRecord.h>
 
 #include "waveform.hpp"
@@ -15,19 +12,20 @@
 #include <core/panic.hpp>
 #include <framework.hpp>
 
-template <typename T, typename Visitor>
-decltype(auto) with_record(waveformRecord &raw, Visitor &&visitor) {
-    WaveformRecord<T> record(raw);
-    return visitor(record);
+template <typename Visitor>
+void visit_record(waveformRecord *raw, Visitor &&visitor) {
+    std::visit([&](const auto &phantom) {
+        WaveformRecord<typename std::remove_reference_t<decltype(phantom)>::Type> record(raw);
+        visitor(record);
+    }, epics_enum_type_variant(static_cast<menuFtype>(raw->ftvl)));
 }
 
 static long record_waveform_init(waveformRecord *raw) {
-    return visit_epics_enum<with_record>(static_cast<menuFtype>(raw->ftvl), *raw, [&](auto &record) {
-        auto handler = framework_record_init(record);
-        assert_ne(handler, nullptr);
-        record.set_handler(handler);
-        return 0;
+    visit_record(raw, [](auto &record) {
+        record.initialize();
+        framework_record_init(record);
     });
+    return 0;
 }
 
 static long record_waveform_get_ioint_info(int cmd, waveformRecord *raw, IOSCANPVT *ppvt) {
@@ -35,10 +33,10 @@ static long record_waveform_get_ioint_info(int cmd, waveformRecord *raw, IOSCANP
 }
 
 static long record_waveform_read(waveformRecord *raw) {
-    return visit_epics_enum<with_record>(static_cast<menuFtype>(raw->ftvl), *raw, [&](auto &record) {
+    visit_record(raw, [](auto &record) {
         record.process();
-        return 0;
     });
+    return 0;
 }
 
 struct WaveformRecordCallbacks {

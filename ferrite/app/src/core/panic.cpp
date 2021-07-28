@@ -64,9 +64,3 @@ void print_backtrace() {
     std::abort();
 #endif // EPICS
 }
-
-#define unimplemented() panic("Unimplemented")
-
-#define unreachable() \
-    __builtin_unreachable(); \
-    panic("Unreachable code reached")

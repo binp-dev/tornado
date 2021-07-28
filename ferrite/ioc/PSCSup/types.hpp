@@ -8,20 +8,7 @@
 
 #include <menuFtype.h>
 
-using EpicsTypeVariant = std::variant<
-    int8_t,
-    uint8_t,
-    int16_t,
-    uint16_t,
-    int32_t,
-    uint32_t,
-    int64_t,
-    uint64_t,
-    float,
-    double
->;
-
-template <typename T>
+template <typename>
 struct EpicsTypeEnum;
 
 template <> struct EpicsTypeEnum<int8_t> :
@@ -46,40 +33,64 @@ template <> struct EpicsTypeEnum<double> :
     std::integral_constant<menuFtype, menuFtypeDOUBLE> {};
 
 template <typename T>
-inline constexpr menuFtype epics_type_enum() {
-    return EpicsTypeEnum<T>::value;
-}
+inline constexpr const menuFtype epics_type_enum = EpicsTypeEnum<T>::value;
 
 template <typename T>
-struct EpicsEnumType;
+struct Phantom {
+    using Type = T;
+};
 
-template <template <typename, typename ...> typename Visitor, typename ...Args>
-constexpr decltype(auto) visit_epics_enum(menuFtype enum_value, Args &&...args) {
-    switch (enum_value) {
-    case menuFtypeCHAR:
-        return Visitor<int8_t>(std::forward(args)...);
-    case menuFtypeUCHAR:
-        return Visitor<uint8_t>(std::forward(args)...);
-    case menuFtypeSHORT:
-        return Visitor<int16_t>(std::forward(args)...);
-    case menuFtypeUSHORT:
-        return Visitor<uint16_t>(std::forward(args)...);
-    case menuFtypeLONG:
-        return Visitor<int32_t>(std::forward(args)...);
-    case menuFtypeULONG:
-        return Visitor<uint32_t>(std::forward(args)...);
-    case menuFtypeINT64:
-        return Visitor<int64_t>(std::forward(args)...);
-    case menuFtypeUINT64:
-        return Visitor<uint64_t>(std::forward(args)...);
-    case menuFtypeFLOAT:
-        return Visitor<float>(std::forward(args)...);
-    case menuFtypeDOUBLE:
-        return Visitor<double>(std::forward(args)...);
-    case menuFtypeSTRING:
-        panic("menuFtypeSTRING is not supported yet");
-    case menuFtypeENUM:
-        panic("menuFtypeENUM is not supported yet");
+using EpicsTypeVariant = std::variant<
+    Phantom<int8_t>,
+    Phantom<uint8_t>,
+    Phantom<int16_t>,
+    Phantom<uint16_t>,
+    Phantom<int32_t>,
+    Phantom<uint32_t>,
+    Phantom<int64_t>,
+    Phantom<uint64_t>,
+    Phantom<float>,
+    Phantom<double>
+>;
+
+template <typename>
+struct VariantsCount;
+
+template <typename ...Types>
+struct VariantsCount<std::variant<Types...>> :
+    std::integral_constant<size_t, sizeof...(Types)> {};
+
+template <typename V>
+inline constexpr const size_t variants_count = VariantsCount<V>::value;
+
+template <typename V>
+struct TypeVariantTable;
+
+template <typename ...Types>
+struct TypeVariantTable<std::variant<Types...>> {
+    static inline constexpr const EpicsTypeVariant value[] = { Types{}... };
+};
+
+using EpicsTypeVariantTable = TypeVariantTable<EpicsTypeVariant>;
+
+inline constexpr const EpicsTypeVariant
+    epics_type_variant_table[variants_count<EpicsTypeVariant>] = {};
+
+template <typename V>
+struct TypeEnumTable;
+
+template <typename ...Args>
+struct TypeEnumTable<std::variant<Args...>> {
+    static inline constexpr const menuFtype value[] = { epics_type_enum<typename Args::Type>... };
+};
+
+using EpicsTypeEnumTable = TypeEnumTable<EpicsTypeVariant>;
+
+EpicsTypeVariant epics_enum_type_variant(menuFtype enum_value) {
+    for (size_t i = 0; i < variants_count<EpicsTypeVariant>; ++i) {
+        if (EpicsTypeEnumTable::value[i] == enum_value) {
+            return EpicsTypeVariantTable::value[i];
+        }
     }
-    unreachable();
+    unimplemented();
 }

@@ -5,10 +5,10 @@
 
 #include <core/lazy_static.hpp>
 #include <core/mutex.hpp>
-#include <record/analogArrayIO.hpp>
+#include <record/array.hpp>
 #include <encoder.hpp>
 #include <device.hpp>
-
+#include "framework.hpp"
 
 #ifdef FAKEDEV
 #include <channel/zmq.hpp>
@@ -40,46 +40,38 @@ void init_device(MaybeUninit<Device> &mem) {
 LazyStatic<Device, init_device> DEVICE = {};
 static_assert(std::is_pod_v<decltype(DEVICE)>);
 
-class DacHandler final : public AaoHandler {
+class DacHandler final : public InputArrayHandler<double> {
     private:
-    Device *device;
+    Device &device;
 
     public:
     DacHandler(
-        Device *device,
-        Aao &record
-    ) : 
-    AaoHandler(record.Record::raw(), true),
-    device(device) {
-        size_t dev_len = device->max_points();
-        size_t rec_len = record.max_length();
-        if (dev_len != rec_len) {
-            panic(
-                "Device waveform size (" + std::to_string(dev_len) +
-                ") doesn't match to the one of the record (" + std::to_string(rec_len) + ")"
-            );
-        }
+        Device &device,
+        InputArrayRecord<double> &record
+    ) :
+        device(device)
+    {
+        assert_eq(device.max_points(), record.max_length());
     }
-    ~DacHandler() override = default;
 
-    virtual void readwrite() override {
-        Aao record((aaoRecord *)raw_record_);
+    virtual void read(InputArrayRecord<double> &record) override {
+        std::cout << "DacHandler.read() before" << std::endl;
+        device.set_waveform(record.data(), record.length());
+        std::cout << "DacHandler.read() after" << std::endl;
+    }
 
-        std::cout << "DacHandler.readwrite() before" << std::endl;
-        device->set_waveform(record.array_data<double>(), record.length());
-        std::cout << "DacHandler.readwrite() after" << std::endl;
+    virtual bool is_async() const override {
+        return true;
     }
 };
 
-void framework_init_device() {
+void framework_init() {
     // Explicitly initialize device.
     *DEVICE;
 }
 
-std::unique_ptr<AaoHandler> framework_record_init_dac(Aao &record) {
-    if (strcmp(record.name(), "WAVEFORM") == 0) {
-        return std::make_unique<DacHandler>(&*DEVICE, record);
-    } else {
-        assert(false);
-    }
+void framework_record_init(Record &record) {
+    assert_eq(record.name(), "WAVEFORM");
+    auto &waveform_record = dynamic_cast<InputArrayRecord<double> &>(record);
+    waveform_record.set_handler(std::make_unique<DacHandler>(*DEVICE, waveform_record));
 }
