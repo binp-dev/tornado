@@ -53,25 +53,34 @@ ScanLockGuard EpicsRecord::scan_lock() {
 }
 
 void EpicsRecord::notify_async_process_complete() {
+    std::cout << "notify_async_process_complete" << std::endl;
     auto rset = static_cast<struct typed_rset *>(raw()->rset);
     (*rset->process)(raw());
 }
 
 void EpicsRecord::schedule_async_process() {
+    std::cout << "schedule_async_process: " << std::endl;
     callbackRequest(&private_data().async_callback_data);
 }
 
 void EpicsRecord::process_async() {
+    std::cout << "process_async" << std::endl;
     const auto guard = scan_lock();
     process_sync();
     notify_async_process_complete();
 }
 
+void EpicsRecord::async_process_callback(epicsCallback *callback) {
+    std::cout << "async_process_callback: " << (size_t)(callback->user) << std::endl;
+    static_cast<EpicsRecord *>(callback->user)->process_async();
+}
+
 epicsCallback EpicsRecord::make_async_process_callback() {
     epicsCallback callback;
 
-    callbackSetCallback(get_async_process_callback(), &callback);
-    callbackSetUser(static_cast<void *>(raw()), &callback);
+    callbackSetCallback(&EpicsRecord::async_process_callback, &callback);
+    std::cout << "make_async_process_callback: " << (size_t)this << std::endl;
+    callbackSetUser(static_cast<void *>(this), &callback);
     callbackSetPriority(priorityLow, &callback);
 
     return callback;
@@ -118,5 +127,6 @@ std::string_view EpicsRecord::name() const {
 }
 
 void EpicsRecord::set_handler(std::unique_ptr<Handler> &&handler) {
+    std::cout << "set_handler: " << (size_t)handler.get() << std::endl;
     private_data().handler = std::move(handler);
 }

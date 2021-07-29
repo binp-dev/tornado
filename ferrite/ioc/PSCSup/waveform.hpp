@@ -11,16 +11,12 @@
 #include "base.hpp"
 #include "types.hpp"
 
-void waveform_async_process_callback(epicsCallback *callback);
-
 template <typename T>
 class WaveformRecord final :
     public virtual InputArrayRecord<T>,
     public EpicsRecord
 {
 public:
-    friend void waveform_async_process_callback(epicsCallback *callback);
-
     explicit WaveformRecord(waveformRecord *raw) : EpicsRecord((dbCommon *)raw) {
         assert_eq(epics_type_enum<T>, data_type());
     }
@@ -52,11 +48,8 @@ protected:
         return static_cast<InputArrayHandler<T> *>(EpicsRecord::handler());
     }
 
-    virtual async_process_callback get_async_process_callback() const override {
-        return &waveform_async_process_callback;
-    }
- 
     virtual void process_sync() override {
+        std::cout << "process_sync: " << (size_t)handler() << std::endl;
         if (handler() != nullptr) {
             handler()->read(*this);
         }

@@ -9,8 +9,6 @@
 
 #include <record/base.hpp>
 
-typedef void (*async_process_callback)(epicsCallback *callback);
-
 class ScanLockGuard final {
 private:
     dbCommon *db_common_;
@@ -49,9 +47,7 @@ public:
     EpicsRecord &operator=(const EpicsRecord &) = delete;
 
 protected:
-    virtual async_process_callback get_async_process_callback() const = 0;
     virtual void process_sync() = 0;
-    void process_async();
 
 private:
     void set_private_data(std::unique_ptr<PrivateData> &&data);
@@ -64,6 +60,8 @@ private:
 
     void notify_async_process_complete();
     void schedule_async_process();
+    void process_async();
+    static void async_process_callback(epicsCallback *callback);
     [[nodiscard]] epicsCallback make_async_process_callback();
 
 public:
