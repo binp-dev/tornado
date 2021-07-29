@@ -26,17 +26,13 @@ public:
     ScanLockGuard &operator=(const ScanLockGuard &&other);
 };
 
-// A non-owning wrapper around EPICS record.
+// A *persistent* EPICS record wrapper and private data container.
 class EpicsRecord : public virtual Record
 {
-protected:
-    struct PrivateData {
-        std::unique_ptr<Handler> handler;
-        epicsCallback async_callback_data;
-    };
-
 private:
     dbCommon *const raw_;
+    epicsCallback async_callback_;
+    std::unique_ptr<Handler> handler_;
 
 public:
     explicit EpicsRecord(dbCommon *raw);
@@ -46,14 +42,14 @@ public:
     EpicsRecord(const EpicsRecord &) = delete;
     EpicsRecord &operator=(const EpicsRecord &) = delete;
 
+    static void set_private_data(dbCommon *raw, std::unique_ptr<EpicsRecord> &&record);
+    static const EpicsRecord *get_private_data(const dbCommon *raw);
+    static EpicsRecord *get_private_data(dbCommon *raw);
+
 protected:
     virtual void process_sync() = 0;
 
 private:
-    void set_private_data(std::unique_ptr<PrivateData> &&data);
-    const PrivateData &private_data() const;
-    PrivateData &private_data();
-
     bool is_process_active() const;
     void set_process_active(bool pact);
     [[nodiscard]] ScanLockGuard scan_lock();
@@ -62,13 +58,11 @@ private:
     void schedule_async_process();
     void process_async();
     static void async_process_callback(epicsCallback *callback);
-    [[nodiscard]] epicsCallback make_async_process_callback();
+    void init_async_process_callback(epicsCallback *callback);
 
 public:
     const dbCommon *raw() const;
     dbCommon *raw();
-
-    void initialize();
 
     const Handler *handler() const;
     Handler *handler();
