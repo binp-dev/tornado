@@ -1,6 +1,8 @@
 #include <iostream>
 #include <string>
 #include <regex>
+#include <atomic>
+#include <type_traits>
 
 #include <string.h>
 #include <stdlib.h>
@@ -9,20 +11,23 @@
 
 #include <cxxabi.h>
 
-#ifdef EPICS
-#include <epicsExit.h>
-#endif // EPICS
+using PanicHook = std::atomic<void (*)()>;
+static_assert(std::is_pod_v<PanicHook>);
+static PanicHook panic_hook;
 
-inline namespace {
-void print_backtrace() {
+void set_panic_hook(void(*hook)()) {
+    panic_hook.store(hook);
+}
+
+static void print_backtrace() {
     static const size_t MAX_SIZE = 64; 
     void *array[MAX_SIZE];
     const size_t size = backtrace(array, MAX_SIZE);
-    std::cerr << "BACKTRACE (" << size << "):" << std::endl;
+    std::cout << "BACKTRACE (" << size << "):" << std::endl;
 
     char **symbols = backtrace_symbols(array, size);
     if (symbols == nullptr) {
-        std::cerr << "Error obtaining symbols" << std::endl;
+        std::cout << "Error obtaining symbols" << std::endl;
         return;
     }
     const std::regex regex("(.*)\\s*\\((.*)\\+(0x[0-9a-fA-F]+)\\)\\s*\\[(.*)\\]");
@@ -31,7 +36,7 @@ void print_backtrace() {
 
         std::smatch match;
         if (!std::regex_match(symbol, match, regex)) {
-            std::cerr << symbol << ": match failed" << std::endl;
+            std::cout << symbol << ": match failed" << std::endl;
             continue;
         }
         const std::string loc = match[1], shift = match[3], addr = match[4];
@@ -44,23 +49,27 @@ void print_backtrace() {
                 name = std::string(name_ptr);
                 free(name_ptr);
             } else {
-                std::cerr << "demangle status: " << status << std::endl;
+                std::cout << "demangle status: " << status << std::endl;
                 name = match[2].str();
             }
         }
 
-        std::cerr << "    " << loc << " (" << name << " + " << shift << ") [" << addr << "]" << std::endl;
+        std::cout << "    " << loc << " (" << name << " + " << shift << ") [" << addr << "]" << std::endl;
     }
     free(symbols);
 }
-} // inline namespace
 
-[[noreturn]] void panic(const std::string &message = "") {
+[[noreturn]] void __panic_with_location(const char *func, const char *file, size_t line, const std::string &message = "") {
     print_backtrace();
-    std::cerr << "PANIC: " << message << "." << std::endl;
-#ifdef EPICS
-    epicsExit(1);
-#else // !EPICS
+    if (!message.empty()) {
+        std::cout << message;
+    } else {
+        std::cout << "Thread panicked";
+    }
+    std::cout << " in " << func << ", at " << file << ":" << line << std::endl;
+
+    if (panic_hook != nullptr) {
+        panic_hook.load();
+    }
     std::abort();
-#endif // EPICS
 }
