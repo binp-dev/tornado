@@ -13,9 +13,6 @@ add_subdirectory("../common/ipp" "ipp")
 include_directories(
     "src"
     "../common/ipp/src"
-    "${EPICS_BASE}/include"
-    "${EPICS_BASE}/include/os/Linux"
-    "${EPICS_BASE}/include/compiler/gcc"
 )
 
 set(BASE_SRC

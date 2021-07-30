@@ -2,8 +2,6 @@
 
 #include <memory>
 
-#define USE_TYPED_RSET
-
 #include <dbCommon.h>
 #include <callback.h>
 
@@ -26,7 +24,7 @@ public:
     ScanLockGuard &operator=(const ScanLockGuard &&other);
 };
 
-// A *persistent* EPICS record wrapper and private data container.
+// A persistent EPICS record wrapper and private data container.
 class EpicsRecord : public virtual Record
 {
 private:

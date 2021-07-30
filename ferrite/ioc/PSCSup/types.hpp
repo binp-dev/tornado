@@ -86,7 +86,7 @@ struct TypeEnumTable<std::variant<Args...>> {
 
 using EpicsTypeEnumTable = TypeEnumTable<EpicsTypeVariant>;
 
-EpicsTypeVariant epics_enum_type_variant(menuFtype enum_value) {
+inline EpicsTypeVariant epics_enum_type_variant(menuFtype enum_value) {
     for (size_t i = 0; i < variants_count<EpicsTypeVariant>; ++i) {
         if (EpicsTypeEnumTable::value[i] == enum_value) {
             return EpicsTypeVariantTable::value[i];

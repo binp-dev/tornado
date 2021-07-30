@@ -1,1 +1,3 @@
 device(waveform, INST_IO, waveform_record_handler, "devsup")
+device(aai, INST_IO, aai_record_handler, "devsup")
+device(aao, INST_IO, aao_record_handler, "devsup")

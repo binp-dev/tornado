@@ -7,13 +7,17 @@ LIBRARY_$(APP_ARCH) += devPSC
 LIBRARY = $(LIBRARY_$(T_A))
 
 # Library includes
-INCLUDES += -I$(APP_SRC_DIR)/src
+INCLUDES += \
+	-I$(APP_SRC_DIR)/src \
+	-DUSE_TYPED_RSET
 
 # Library Source files
 devPSC_SRCS += \
 	devPSC.cpp \
 	base.cpp \
-	waveform.cpp
+	waveform.cpp \
+	aai.cpp \
+	aao.cpp
 
 # Link with the libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)
