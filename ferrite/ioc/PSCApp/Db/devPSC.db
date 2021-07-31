@@ -1,6 +1,24 @@
-record(aai, "WAVEFORM")
+record(aao, "ao$(AO_INDEX)")
 {
     field(DTYP, "devsup")
     field(NELM, 200)
     field(FTVL, "DOUBLE")
+}
+
+record(aai, "ai$(AI_INDEX)")
+{
+    field(DTYP, "devsup")
+    field(NELM, 200)
+    field(FTVL, "DOUBLE")
+    field(SCAN, "I/O Intr")
+}
+
+record(mbboDirect, "do$(DO_INDEX)") {
+	field(DTYP, "devsup")
+	field(OMSL, "closed_loop")
+}
+
+record(mbbiDirect, "di$(DI_INDEX)") {
+	field(DTYP, "devsup")
+	field(SCAN, "I/O Intr")
 }

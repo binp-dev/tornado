@@ -1,4 +1,0 @@
-record(mbbiDirect, "di$(INP_REGISTER_NUMBER)") {
-	field(DTYP, "devsup")
-	field(SCAN, "I/O Intr")
-}
