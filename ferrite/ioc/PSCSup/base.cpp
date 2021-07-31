@@ -1,5 +1,7 @@
 #include "base.hpp"
 
+#include <iostream>
+
 #include <core/assert.hpp>
 
 #include <dbAccess.h>
@@ -31,7 +33,7 @@ ScanLockGuard &ScanLockGuard::operator=(const ScanLockGuard &&other) {
 EpicsRecord::EpicsRecord(dbCommon *raw) :
     raw_(raw)
 {
-    init_async_process_callback(&async_callback_);
+    init_async_processing_callback(&async_callback_);
 }
 
 void EpicsRecord::set_private_data(dbCommon *raw, std::unique_ptr<EpicsRecord> &&record) {
@@ -47,10 +49,10 @@ EpicsRecord *EpicsRecord::get_private_data(dbCommon *raw) {
     return (EpicsRecord *)(raw->dpvt);
 }
 
-bool EpicsRecord::is_process_active() const {
+bool EpicsRecord::is_processing_active() const {
     return raw()->pact != FALSE;
 }
-void EpicsRecord::set_process_active(bool pact) {
+void EpicsRecord::set_processing_active(bool pact) {
     raw()->pact = pact ? TRUE : FALSE;
 }
 
@@ -58,27 +60,27 @@ ScanLockGuard EpicsRecord::scan_lock() {
     return ScanLockGuard(raw());
 }
 
-void EpicsRecord::notify_async_process_complete() {
+void EpicsRecord::notify_async_processing_complete() {
     auto rset = static_cast<struct typed_rset *>(raw()->rset);
     (*rset->process)(raw());
 }
 
-void EpicsRecord::schedule_async_process() {
+void EpicsRecord::schedule_async_processing() {
     callbackRequest(&async_callback_);
 }
 
 void EpicsRecord::process_async() {
     const auto guard = scan_lock();
     process_sync();
-    notify_async_process_complete();
+    notify_async_processing_complete();
 }
 
-void EpicsRecord::async_process_callback(epicsCallback *callback) {
+void EpicsRecord::async_processing_callback(epicsCallback *callback) {
     static_cast<EpicsRecord *>(callback->user)->process_async();
 }
 
-void EpicsRecord::init_async_process_callback(epicsCallback *callback) {
-    callbackSetCallback(&EpicsRecord::async_process_callback, callback);
+void EpicsRecord::init_async_processing_callback(epicsCallback *callback) {
+    callbackSetCallback(&EpicsRecord::async_processing_callback, callback);
     callbackSetUser(static_cast<void *>(this), callback);
     callbackSetPriority(priorityLow, callback);
 }
@@ -102,14 +104,34 @@ void EpicsRecord::process() {
         return;
     }
     if (handler()->is_async()) {
-        if (!is_process_active()) {
-            set_process_active(true);
-            schedule_async_process();
+        if (!is_processing_active()) {
+            set_processing_active(true);
+            schedule_async_processing();
         } else {
-            set_process_active(false);
+            set_processing_active(false);
         }
     } else {
         process_sync();
+    }
+}
+
+const std::optional<ScanList> &EpicsRecord::scan_list() const {
+    return scan_list_;
+}
+std::optional<ScanList> &EpicsRecord::scan_list() {
+    return scan_list_;
+}
+void EpicsRecord::set_scan_list(std::optional<ScanList> &&scan_list) {
+    scan_list_ = std::move(scan_list);
+}
+
+bool EpicsRecord::request_processing() {
+    if (scan_list_.has_value()) {
+        scan_list_->scan();
+        return true;
+    } else {
+        std::cout << "No scan list registered for record '" << name() << "'" << std::endl;
+        return false;
     }
 }
 

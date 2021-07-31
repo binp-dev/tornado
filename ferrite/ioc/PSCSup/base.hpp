@@ -7,6 +7,8 @@
 
 #include <record/base.hpp>
 
+#include "iointr.hpp"
+
 class ScanLockGuard final {
 private:
     dbCommon *db_common_;
@@ -31,6 +33,7 @@ private:
     dbCommon *const raw_;
     epicsCallback async_callback_;
     std::unique_ptr<Handler> handler_;
+    std::optional<ScanList> scan_list_;
 
 public:
     explicit EpicsRecord(dbCommon *raw);
@@ -48,15 +51,15 @@ protected:
     virtual void process_sync() = 0;
 
 private:
-    bool is_process_active() const;
-    void set_process_active(bool pact);
+    bool is_processing_active() const;
+    void set_processing_active(bool pact);
     [[nodiscard]] ScanLockGuard scan_lock();
 
-    void notify_async_process_complete();
-    void schedule_async_process();
+    void notify_async_processing_complete();
+    void schedule_async_processing();
     void process_async();
-    static void async_process_callback(epicsCallback *callback);
-    void init_async_process_callback(epicsCallback *callback);
+    static void async_processing_callback(epicsCallback *callback);
+    void init_async_processing_callback(epicsCallback *callback);
 
 public:
     const dbCommon *raw() const;
@@ -67,8 +70,14 @@ public:
 
     void process();
 
+    const std::optional<ScanList> &scan_list() const;
+    std::optional<ScanList> &scan_list();
+    void set_scan_list(std::optional<ScanList> &&scan_list);
+
 public:
     virtual std::string_view name() const override;
+
+    virtual bool request_processing() override;
 
 protected:
     void set_handler(std::unique_ptr<Handler> &&handler);

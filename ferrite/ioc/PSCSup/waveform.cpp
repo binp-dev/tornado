@@ -27,7 +27,11 @@ static long record_waveform_init(waveformRecord *raw) {
 }
 
 static long record_waveform_get_ioint_info(int cmd, waveformRecord *raw, IOSCANPVT *ppvt) {
-    unimplemented();
+    ScanList scan_list;
+    *ppvt = scan_list.raw();
+    EpicsRecord::get_private_data((dbCommon *)raw)->set_scan_list(std::move(scan_list));
+    // TODO: Notify handler
+    return 0;
 }
 
 static long record_waveform_read(waveformRecord *raw) {
