@@ -17,7 +17,9 @@ devPSC_SRCS += \
 	base.cpp \
 	waveform.cpp \
 	aai.cpp \
-	aao.cpp
+	aao.cpp \
+	mbbi_direct.cpp \
+	mbbo_direct.cpp
 
 # Link with the libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)
