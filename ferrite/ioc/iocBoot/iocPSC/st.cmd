@@ -12,7 +12,7 @@ dbLoadDatabase("dbd/PSC.dbd",0,0)
 PSC_registerRecordDeviceDriver(pdbbase) 
 
 ## Load record instances
-dbLoadTemplate("db/devPSC.substitutions")
+dbLoadRecords("db/devPSC.db")
 
 cd "${TOP}/iocBoot/${IOC}"
 iocInit()

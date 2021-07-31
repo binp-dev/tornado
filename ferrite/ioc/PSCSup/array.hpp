@@ -62,56 +62,16 @@ protected:
         }
     }
 
-public:
-    virtual void set_handler(std::unique_ptr<InputArrayHandler<T>> &&handler) override {
-        EpicsRecord::set_handler(std::move(handler));
-    }
-
-public:
-    virtual const T *data() const override {
-        return (const T *)this->raw_data();
-    }
-
-    virtual size_t max_length() const override {
-        return this->raw()->nelm;
-    }
-    virtual size_t length() const override {
-        return this->raw()->nord;
-    }
-};
-
-template <typename T, typename Raw>
-class EpicsOutputArrayRecord :
-    public virtual OutputArrayRecord<T>,
-    public EpicsArrayRecordBase<T, Raw>
-{
-public:
-    explicit EpicsOutputArrayRecord(Raw *raw) : EpicsArrayRecordBase<T, Raw>(raw) {}
-
-protected:
-    const OutputArrayHandler<T> *handler() const {
-        return static_cast<const OutputArrayHandler<T> *>(EpicsRecord::handler());
-    }
-    OutputArrayHandler<T> *handler() {
-        return static_cast<OutputArrayHandler<T> *>(EpicsRecord::handler());
-    }
-
-    virtual void process_sync() override {
-        if (handler() != nullptr) {
-            handler()->write(*this);
-        }
-    }
-
     virtual void register_processing_request() override {
         if (handler() != nullptr) {
-            handler()->set_write_request(*this, [this]() {
+            handler()->set_read_request(*this, [this]() {
                 this->request_processing();
             });
         }
     }
 
 public:
-    virtual void set_handler(std::unique_ptr<OutputArrayHandler<T>> &&handler) override {
+    virtual void set_handler(std::unique_ptr<InputArrayHandler<T>> &&handler) override {
         EpicsRecord::set_handler(std::move(handler));
     }
 
@@ -137,5 +97,45 @@ public:
         } else {
             return false;
         }
+    }
+};
+
+template <typename T, typename Raw>
+class EpicsOutputArrayRecord :
+    public virtual OutputArrayRecord<T>,
+    public EpicsArrayRecordBase<T, Raw>
+{
+public:
+    explicit EpicsOutputArrayRecord(Raw *raw) : EpicsArrayRecordBase<T, Raw>(raw) {}
+
+protected:
+    const OutputArrayHandler<T> *handler() const {
+        return static_cast<const OutputArrayHandler<T> *>(EpicsRecord::handler());
+    }
+    OutputArrayHandler<T> *handler() {
+        return static_cast<OutputArrayHandler<T> *>(EpicsRecord::handler());
+    }
+
+    virtual void process_sync() override {
+        if (handler() != nullptr) {
+            handler()->write(*this);
+        }
+    }
+
+public:
+    virtual void set_handler(std::unique_ptr<OutputArrayHandler<T>> &&handler) override {
+        EpicsRecord::set_handler(std::move(handler));
+    }
+
+public:
+    virtual const T *data() const override {
+        return (const T *)this->raw_data();
+    }
+
+    virtual size_t max_length() const override {
+        return this->raw()->nelm;
+    }
+    virtual size_t length() const override {
+        return this->raw()->nord;
     }
 };

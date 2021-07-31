@@ -20,11 +20,7 @@ static long record_mbbo_direct_init(mbboDirectRecord *raw) {
 }
 
 static long record_mbbo_direct_get_ioint_info(int cmd, mbboDirectRecord *raw, IOSCANPVT *ppvt) {
-    auto *record = EpicsRecord::get_private_data((dbCommon *)raw);
-    ScanList scan_list;
-    *ppvt = scan_list.raw();
-    record->set_scan_list(std::move(scan_list));
-    return 0;
+    unimplemented();
 }
 
 static long record_mbbo_direct_read(mbboDirectRecord *raw) {

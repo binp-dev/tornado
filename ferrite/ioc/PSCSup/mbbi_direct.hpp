@@ -6,6 +6,7 @@
 
 #include <record/value.hpp>
 
+// TODO: derive from generic EpicsInputValueRecord.
 class MbbiDirectRecord :
     public EpicsRecord,
     public virtual InputValueRecord<uint16_t>
@@ -34,6 +35,14 @@ protected:
         }
     }
 
+    virtual void register_processing_request() override {
+        if (handler() != nullptr) {
+            handler()->set_read_request(*this, [this]() {
+                request_processing();
+            });
+        }
+    }
+
 public:
     virtual void set_handler(std::unique_ptr<InputValueHandler<uint16_t>> &&handler) override {
         EpicsRecord::set_handler(std::move(handler));
@@ -43,9 +52,7 @@ public:
     virtual uint16_t value() const {
         return static_cast<uint16_t>(raw()->rval);
     }
-};
-
-class MbbiDirectHandler : public InputValueHandler<uint16_t> {
-public:
-    virtual void read(InputValueRecord<uint16_t> &record) = 0;
+    virtual void set_value(uint16_t value) override {
+        raw()->rval = static_cast<epicsUInt32>(value);
+    }
 };

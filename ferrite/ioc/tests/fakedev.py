@@ -72,7 +72,7 @@ def run_test(
         
         # Linear ascend
         wf = list(range(wfs))
-        ca.put(prefix, "WAVEFORM", wf, array=True)
+        ca.put(prefix, "ao0", wf, array=True)
         queue += wf*2
         for _ in range(5):
             socket.send(encode(IDS["IPP_MCU_WF_REQ"]))
@@ -80,7 +80,7 @@ def run_test(
 
         # Linear descend
         wf = [wfs - x - 1 for x in range(wfs)]
-        ca.put(prefix, "WAVEFORM", wf, array=True)
+        ca.put(prefix, "ao0", wf, array=True)
         queue += wf*2
         for _ in range(5):
             socket.send(encode(IDS["IPP_MCU_WF_REQ"]))
@@ -88,8 +88,8 @@ def run_test(
 
         # Double write
         wf = [wfs + x for x in range(wfs)]
-        ca.put(prefix, "WAVEFORM", range(0, 2*wfs, 2), array=True)
-        ca.put(prefix, "WAVEFORM", wf, array=True)
+        ca.put(prefix, "ao0", range(0, 2*wfs, 2), array=True)
+        ca.put(prefix, "ao0", wf, array=True)
         queue += wf*4
         for _ in range(9):
             socket.send(encode(IDS["IPP_MCU_WF_REQ"]))

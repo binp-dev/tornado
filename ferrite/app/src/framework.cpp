@@ -40,24 +40,22 @@ void init_device(MaybeUninit<Device> &mem) {
 LazyStatic<Device, init_device> DEVICE = {};
 static_assert(std::is_pod_v<decltype(DEVICE)>);
 
-class DacHandler final : public InputArrayHandler<double> {
+class DacHandler final : public OutputArrayHandler<double> {
     private:
     Device &device;
 
     public:
     DacHandler(
         Device &device,
-        InputArrayRecord<double> &record
+        OutputArrayRecord<double> &record
     ) :
         device(device)
     {
         assert_eq(device.max_points(), record.max_length());
     }
 
-    virtual void read(InputArrayRecord<double> &record) override {
-        std::cout << "DacHandler.read() before" << std::endl;
+    virtual void write(OutputArrayRecord<double> &record) override {
         device.set_waveform(record.data(), record.length());
-        std::cout << "DacHandler.read() after" << std::endl;
     }
 
     virtual bool is_async() const override {
@@ -71,7 +69,9 @@ void framework_init() {
 }
 
 void framework_record_init(Record &record) {
-    assert_eq(record.name(), "WAVEFORM");
-    auto &waveform_record = dynamic_cast<InputArrayRecord<double> &>(record);
-    waveform_record.set_handler(std::make_unique<DacHandler>(*DEVICE, waveform_record));
+    std::cout << "Initializing record '" << record.name() << "'" << std::endl;
+    if (record.name() == "ao0") {
+        auto &waveform_record = dynamic_cast<OutputArrayRecord<double> &>(record);
+        waveform_record.set_handler(std::make_unique<DacHandler>(*DEVICE, waveform_record));
+    }
 }

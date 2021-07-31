@@ -1,11 +1,11 @@
-record(aao, "ao$(AO_INDEX)")
+record(aai, "ai0")
 {
     field(DTYP, "devsup")
     field(NELM, 200)
     field(FTVL, "DOUBLE")
+    field(SCAN, "I/O Intr")
 }
-
-record(aai, "ai$(AI_INDEX)")
+record(aai, "ai1")
 {
     field(DTYP, "devsup")
     field(NELM, 200)
@@ -13,12 +13,18 @@ record(aai, "ai$(AI_INDEX)")
     field(SCAN, "I/O Intr")
 }
 
-record(mbboDirect, "do$(DO_INDEX)") {
-	field(DTYP, "devsup")
-	field(OMSL, "closed_loop")
+record(aao, "ao0")
+{
+    field(DTYP, "devsup")
+    field(NELM, 200)
+    field(FTVL, "DOUBLE")
 }
 
-record(mbbiDirect, "di$(DI_INDEX)") {
+record(mbbiDirect, "di0") {
 	field(DTYP, "devsup")
 	field(SCAN, "I/O Intr")
+}
+record(mbboDirect, "do0") {
+	field(DTYP, "devsup")
+	field(OMSL, "closed_loop")
 }
