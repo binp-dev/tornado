@@ -1,7 +1,5 @@
 #include "base.hpp"
 
-#include <iostream>
-
 #include <core/assert.hpp>
 
 #include <dbAccess.h>
@@ -123,16 +121,16 @@ std::optional<ScanList> &EpicsRecord::scan_list() {
 }
 void EpicsRecord::set_scan_list(std::optional<ScanList> &&scan_list) {
     scan_list_ = std::move(scan_list);
+    register_processing_request();
 }
 
-bool EpicsRecord::request_processing() {
-    if (scan_list_.has_value()) {
-        scan_list_->scan();
-        return true;
-    } else {
-        std::cout << "No scan list registered for record '" << name() << "'" << std::endl;
-        return false;
-    }
+void EpicsRecord::request_processing() {
+    assert_true(scan_list_.has_value());
+    scan_list_->scan();
+}
+
+void EpicsRecord::register_processing_request() {
+    unreachable();
 }
 
 std::string_view EpicsRecord::name() const {

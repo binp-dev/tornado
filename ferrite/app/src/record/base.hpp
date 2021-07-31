@@ -9,7 +9,6 @@
 class Record {
 public:
     virtual std::string_view name() const = 0;
-    [[nodiscard]] virtual bool request_processing() = 0;
 };
 
 // Abstract record handler.

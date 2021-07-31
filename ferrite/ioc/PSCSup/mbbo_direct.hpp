@@ -34,6 +34,14 @@ protected:
         }
     }
 
+    virtual void register_processing_request() override {
+        if (handler() != nullptr) {
+            handler()->set_write_request(*this, [this]() {
+                request_processing();
+            });
+        }
+    }
+
 public:
     virtual void set_handler(std::unique_ptr<OutputValueHandler<uint16_t>> &&handler) override {
         EpicsRecord::set_handler(std::move(handler));

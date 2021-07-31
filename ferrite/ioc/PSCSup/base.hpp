@@ -9,6 +9,7 @@
 
 #include "iointr.hpp"
 
+// Record scan lock guard.
 class ScanLockGuard final {
 private:
     dbCommon *db_common_;
@@ -49,6 +50,7 @@ public:
 
 protected:
     virtual void process_sync() = 0;
+    virtual void register_processing_request();
 
 private:
     bool is_processing_active() const;
@@ -74,10 +76,10 @@ public:
     std::optional<ScanList> &scan_list();
     void set_scan_list(std::optional<ScanList> &&scan_list);
 
+    void request_processing();
+
 public:
     virtual std::string_view name() const override;
-
-    virtual bool request_processing() override;
 
 protected:
     void set_handler(std::unique_ptr<Handler> &&handler);

@@ -46,4 +46,5 @@ template <typename T>
 class OutputArrayHandler : public Handler {
 public:
     virtual void write(OutputArrayRecord<T> &record) = 0;
+    virtual void set_write_request(OutputArrayRecord<T> &record, std::function<void()> &&callback) = 0;
 };

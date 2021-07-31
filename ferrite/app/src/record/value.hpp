@@ -36,4 +36,5 @@ template <typename T>
 class OutputValueHandler : public Handler {
 public:
     virtual void write(OutputValueRecord<T> &record) = 0;
+    virtual void set_write_request(OutputValueRecord<T> &record, std::function<void()> &&callback) = 0;
 };

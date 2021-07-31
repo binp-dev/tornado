@@ -27,7 +27,11 @@ static long record_aao_init(aaoRecord *raw) {
 }
 
 static long record_aao_get_ioint_info(int cmd, aaoRecord *raw, IOSCANPVT *ppvt) {
-    unimplemented();
+    auto *record = EpicsRecord::get_private_data((dbCommon *)raw);
+    ScanList scan_list;
+    *ppvt = scan_list.raw();
+    record->set_scan_list(std::move(scan_list));
+    return 0;
 }
 
 static long record_aao_write(aaoRecord *raw) {
