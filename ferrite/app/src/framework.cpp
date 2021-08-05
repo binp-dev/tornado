@@ -5,10 +5,10 @@
 
 #include <core/lazy_static.hpp>
 #include <core/mutex.hpp>
-#include <record/waveform.hpp>
+#include <record/array.hpp>
 #include <encoder.hpp>
 #include <device.hpp>
-
+#include "framework.hpp"
 
 #ifdef FAKEDEV
 #include <channel/zmq.hpp>
@@ -40,45 +40,38 @@ void init_device(MaybeUninit<Device> &mem) {
 LazyStatic<Device, init_device> DEVICE = {};
 static_assert(std::is_pod_v<decltype(DEVICE)>);
 
-class SendWaveform : public WaveformHandler {
+class DacHandler final : public OutputArrayHandler<double> {
     private:
-    Device *device;
+    Device &device;
 
     public:
-    SendWaveform(
-        Device *device,
-        WaveformRecord &record
-    ) : 
-    WaveformHandler(record.Record::raw()),
-    device(device) {
-        size_t dev_len = device->max_points();
-        size_t rec_len = record.waveform_max_length();
-        if (dev_len != rec_len) {
-            panic(
-                "Device waveform size (" + std::to_string(dev_len) +
-                ") doesn't match to the one of the record (" + std::to_string(rec_len) + ")"
-            );
-        }
+    DacHandler(
+        Device &device,
+        OutputArrayRecord<double> &record
+    ) :
+        device(device)
+    {
+        assert_eq(device.max_points(), record.max_length());
     }
-    ~SendWaveform() override = default;
 
-    void read(WaveformRecord &record) override {
-        std::cout << "SendWaveform.read() before" << std::endl;
-        auto [wf_data, wf_len] = record.waveform_slice<double>();
-        device->set_waveform(wf_data, wf_len);
-        std::cout << "SendWaveform.read() after" << std::endl;
+    virtual void write(OutputArrayRecord<double> &record) override {
+        device.set_waveform(record.data(), record.length());
+    }
+
+    virtual bool is_async() const override {
+        return true;
     }
 };
 
-void framework_init_device() {
+void framework_init() {
     // Explicitly initialize device.
     *DEVICE;
 }
 
-std::unique_ptr<WaveformHandler> framework_record_init_waveform(WaveformRecord &record) {
-    if (strcmp(record.name(), "WAVEFORM") == 0) {
-        return std::make_unique<SendWaveform>(&*DEVICE, record);
-    } else {
-        assert(false);
+void framework_record_init(Record &record) {
+    std::cout << "Initializing record '" << record.name() << "'" << std::endl;
+    if (record.name() == "ao0") {
+        auto &waveform_record = dynamic_cast<OutputArrayRecord<double> &>(record);
+        waveform_record.set_handler(std::make_unique<DacHandler>(*DEVICE, waveform_record));
     }
 }

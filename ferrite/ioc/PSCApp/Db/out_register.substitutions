@@ -1,4 +1,0 @@
-file db/out_register.db {
-    pattern {OUT_REGISTER_NUMBER}
-        {"1"}
-}
