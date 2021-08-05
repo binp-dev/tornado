@@ -35,5 +35,7 @@ const IOSCANPVT &ScanList::raw() const {
 
 void ScanList::scan() {
     assert_true(ioscan_list_ != nullptr);
+    // Runs record scanning in separate EPICS thread.
+    // TODO: In case of performance issues consider using `scanIoImmediate` instead.
     scanIoRequest(ioscan_list_);
 }

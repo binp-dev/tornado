@@ -11,6 +11,7 @@
 #include <core/panic.hpp>
 #include <framework.hpp>
 
+// FIXME: Figure out why this function isn't called anymore.
 void init(void) {
     std::cout << "*** PSC Device Support ***" << std::endl;
     set_panic_hook([]() {

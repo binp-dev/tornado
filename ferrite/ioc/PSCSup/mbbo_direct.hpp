@@ -29,6 +29,7 @@ protected:
         return static_cast<OutputValueHandler<uint16_t> *>(EpicsRecord::handler());
     }
 
+    // TODO: Fix possible issues: https://epics-base.github.io/epics-base/mbboDirectRecord.html
     virtual void process_sync() override {
         if (handler() != nullptr) {
             handler()->write(*this);

@@ -40,11 +40,17 @@ void EpicsRecord::set_private_data(dbCommon *raw, std::unique_ptr<EpicsRecord> &
 }
 const EpicsRecord *EpicsRecord::get_private_data(const dbCommon *raw) {
     assert_true(raw->dpvt != nullptr);
-    return (const EpicsRecord *)(raw->dpvt);
+    const auto *record = (const EpicsRecord *)(raw->dpvt);
+    // This assert fails if `raw` address change.
+    assert_true(raw == record->raw());
+    return record;
 }
 EpicsRecord *EpicsRecord::get_private_data(dbCommon *raw) {
     assert_true(raw->dpvt != nullptr);
-    return (EpicsRecord *)(raw->dpvt);
+    auto *record = (EpicsRecord *)(raw->dpvt);
+    // This assert fails if `raw` address change.
+    assert_true(raw == record->raw());
+    return record;
 }
 
 bool EpicsRecord::is_processing_active() const {

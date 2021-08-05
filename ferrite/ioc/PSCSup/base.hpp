@@ -32,6 +32,7 @@ class EpicsRecord : public virtual Record
 {
 private:
     // Raw record pointer. *Must be always valid.*
+    // TODO: Does EPICS guarantee that this pointer has persistent address?
     dbCommon *const raw_;
     // Callback for asynchronous processing.
     epicsCallback async_callback_;
