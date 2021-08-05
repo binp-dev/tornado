@@ -1,10 +1,7 @@
 #pragma once
 
-#include <memory>
+#include <record/base.hpp>
 
-#include <record/waveform.hpp>
+void framework_init();
 
-void framework_init_device();
-
-[[nodiscard]]
-std::unique_ptr<WaveformHandler> framework_record_init_waveform(WaveformRecord &record);
+void framework_record_init(Record &record);

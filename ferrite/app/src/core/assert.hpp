@@ -2,28 +2,38 @@
 
 #include "panic.hpp"
 
-inline void assert_true(bool value) {
-    if (!value) {
-        panic("Assertion failed");
-    }
-}
+#include <sstream>
 
-inline void assert_false(bool value) {
-    if (value) {
-        panic("Assertion failed");
-    }
-}
+#define assert_true(value) do { \
+    if (__builtin_expect(!(value), 0)) { \
+        std::stringstream ss; \
+        ss << "Assertion failed: " << #value << " is false"; \
+        panic(ss.str()); \
+    } \
+} while(0)
 
-template <typename T, typename U>
-void assert_eq(const T &left, const U &right) {
-    if (!(left == right)) {
-        panic("Assertion failed");
-    }
-}
+#define assert_false(value) do { \
+    if (__builtin_expect((value), 0)) { \
+        std::stringstream ss; \
+        ss << "Assertion failed: " << #value << " is true"; \
+        panic(ss.str()); \
+    } \
+} while(0)
 
-template <typename T, typename U>
-void assert_ne(const T &left, const U &right) {
-    if (!(left != right)) {
-        panic("Assertion failed");
-    }
-}
+#define assert_eq(left, right) do { \
+    if (__builtin_expect(!((left) == (right)), 0)) { \
+        std::stringstream ss; \
+        ss << "Assertion failed: expected " << #left << " == " << #right \
+            << ", but got " << (left) << " != " << (right); \
+        panic(ss.str()); \
+    } \
+} while(0)
+
+#define assert_ne(left, right) do { \
+    if (__builtin_expect(!((left) != (right)), 0)) { \
+        std::stringstream ss; \
+        ss << "Assertion failed: expected " << #left << " != " << #right \
+            << ", but got " << (left) << " == " << (right); \
+        panic(ss.str()); \
+    } \
+} while(0)

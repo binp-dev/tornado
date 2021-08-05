@@ -7,11 +7,20 @@ LIBRARY_$(APP_ARCH) += devPSC
 LIBRARY = $(LIBRARY_$(T_A))
 
 # Library includes
-devPSC_INCLUDES += -I$(APP_SRC_DIR)/src
+INCLUDES += \
+	-I$(APP_SRC_DIR)/src \
+	-DUSE_TYPED_RSET
 
 # Library Source files
 devPSC_SRCS += \
-	devPSC.cpp
+	devPSC.cpp \
+	base.cpp \
+	iointr.cpp \
+	waveform.cpp \
+	aai.cpp \
+	aao.cpp \
+	mbbi_direct.cpp \
+	mbbo_direct.cpp
 
 # Link with the libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)
@@ -25,7 +34,6 @@ endif
 
 # Install .dbd and .db files
 DBD += devPSC.dbd
-DB_INSTALLS += $(TOP)/PSCSup/devPSC.db
 
 #=======================================
 include $(TOP)/configure/RULES

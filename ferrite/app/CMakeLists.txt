@@ -13,9 +13,6 @@ add_subdirectory("../common/ipp" "ipp")
 include_directories(
     "src"
     "../common/ipp/src"
-    "${EPICS_BASE}/include"
-    "${EPICS_BASE}/include/os/Linux"
-    "${EPICS_BASE}/include/compiler/gcc"
 )
 
 set(BASE_SRC
@@ -23,8 +20,10 @@ set(BASE_SRC
     "src/channel/base.cpp"
 )
 set(EPICS_SRC
-    "src/record/base.cpp"
-    "src/record/waveform.cpp"
+    #"src/record/waveform.cpp"
+    #"src/record/analogArrayIO.cpp"
+    #"src/record/mbbIODirect.cpp"
+    #"src/record/iointr.cpp"
 )
 set(MAIN_SRC
     ${BASE_SRC}

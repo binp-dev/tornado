@@ -1,40 +1,29 @@
 #pragma once
 
-#include <dbCommon.h>
+#include <functional>
+#include <string_view>
+#include <memory>
+#include <type_traits>
 
-
+// Abstract record interface.
 class Record {
-private:
-    dbCommon *raw_;
-
 public:
-    inline explicit Record(dbCommon *raw) : raw_(raw) {}
-    virtual ~Record() = default;
-
-    Record(const Record &) = delete;
-    Record &operator=(const Record &) = delete;
-    Record(Record &&) = delete;
-    Record &operator=(Record &&) = delete;
-
-    const char *name() const;
-
-//protected:
-public:
-    const dbCommon *raw() const;
-    dbCommon *raw();
-
-    void set_private_data(void *data);
-    const void *private_data() const;
-    void *private_data();
+    virtual std::string_view name() const = 0;
 };
 
+// Abstract record handler.
 class Handler {
 public:
-    Handler() = default;
     virtual ~Handler() = default;
+    // Specifies if the record must be processed asynchronously.
+    [[nodiscard]] virtual bool is_async() const = 0;
+};
 
-    Handler(const Handler &) = delete;
-    Handler &operator=(const Handler &) = delete;
-    Handler(Handler &&) = default;
-    Handler &operator=(Handler &&) = default;
+// Helper class for typed handler setting.
+template <typename H>
+class HandledRecord : public virtual Record {
+public:
+    static_assert(std::is_base_of_v<Handler, H>);
+    // Sets a handler for the record.
+    virtual void set_handler(std::unique_ptr<H> &&handler) = 0;
 };

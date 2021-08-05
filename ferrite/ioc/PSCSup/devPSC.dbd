@@ -1,1 +1,5 @@
-device (waveform, INST_IO, waveform_record_handler, "devsup")
+device(waveform, INST_IO, waveform_record_handler, "devsup")
+device(aai, INST_IO, aai_record_handler, "devsup")
+device(aao, INST_IO, aao_record_handler, "devsup")
+device(mbbiDirect, INST_IO, mbbi_direct_record_handler, "devsup")
+device(mbboDirect, INST_IO, mbbo_direct_record_handler, "devsup")
