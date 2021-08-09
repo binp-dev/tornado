@@ -96,7 +96,7 @@ hal_retcode hal_spi_disable(uint32_t channel) {
     return HAL_UNIMPLEMENTED;
 }
 
-hal_retcode hal_spi_xfer(uint32_t channel, uint8_t* tx_buf, uint8_t* rx_buf, size_t len, uint32_t timeout) {
+hal_retcode hal_spi_xfer(uint32_t channel, uint8_t *tx_buf, uint8_t *rx_buf, size_t len, uint32_t timeout) {
     /// FIXME: Use all available controllers.
     if (channel != 0) {
         return HAL_OUT_OF_BOUNDS;

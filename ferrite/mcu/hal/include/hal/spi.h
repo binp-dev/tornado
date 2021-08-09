@@ -45,4 +45,4 @@ hal_retcode hal_spi_disable(uint32_t channel);
  * @param[in] timeout Timeout in milliseconds to wait for transfer. 0 - means non-blocking call, HAL_WAIT_FOREVER - wait forever.
  * @return Operation status, zero on success.
  */
-hal_retcode hal_spi_xfer(uint32_t channel, uint8_t* tx_buf, uint8_t* rx_buf, size_t len, uint32_t timeout);
+hal_retcode hal_spi_xfer(uint32_t channel, uint8_t *tx_buf, uint8_t *rx_buf, size_t len, uint32_t timeout);

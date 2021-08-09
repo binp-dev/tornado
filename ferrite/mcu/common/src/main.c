@@ -9,21 +9,25 @@
 
 #include <ipp.h>
 
-#include <hal/rpmsg.h>
 #include <hal/assert.h>
 #include <hal/io.h>
+#include <hal/rpmsg.h>
+#include <hal/spi.h>
 
 
 #define TASK_STACK_SIZE 256
 
 static void task_rpmsg(void *param) {
     hal_rpmsg_init();
+    hal_spi_init();
 
     hal_rpmsg_channel channel;
-    hal_assert(HAL_SUCCESS == hal_rpmsg_create_channel(&channel, 0));
+    hal_assert(hal_rpmsg_create_channel(&channel, 0) == HAL_SUCCESS);
 #ifdef HAL_PRINT_RPMSG
     hal_io_rpmsg_init(&channel);
 #endif
+
+    hal_assert(hal_spi_enable(0, 1000000) == HAL_SUCCESS);
 
     // Receive message
 
@@ -44,6 +48,13 @@ static void task_rpmsg(void *param) {
     buffer = NULL;
     len = 0;
 
+    uint32_t spi_rx = 0x00000000;
+    uint32_t spi_tx = 0xC0000000;
+    hal_assert(hal_spi_xfer(0, (uint8_t*)&spi_tx, (uint8_t*)spi_rx, 4, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+    spi_tx = 0x00000000;
+    hal_assert(hal_spi_xfer(0, (uint8_t*)&spi_tx, (uint8_t*)spi_rx, 4, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+    hal_log_info("SPI Received: %d", spi_rx);
+
     // Send message back
     hal_assert(HAL_SUCCESS == hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER));
     IppMsgMcuAny mcu_msg = {
@@ -53,14 +64,17 @@ static void task_rpmsg(void *param) {
         },
     };
     ipp_msg_mcu_store(&mcu_msg, buffer);
-    hal_assert(HAL_SUCCESS == hal_rpmsg_send_nocopy(&channel, buffer, ipp_msg_mcu_len(&mcu_msg)));
+    hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_msg_mcu_len(&mcu_msg)) == HAL_SUCCESS);
 
     /* FIXME: Should never reach this point - otherwise virtio hangs */
     hal_log_error("End of task_rpmsg()");
     hal_panic();
 
-    hal_assert(HAL_SUCCESS == hal_rpmsg_destroy_channel(&channel));
+    hal_assert(hal_rpmsg_destroy_channel(&channel) == HAL_SUCCESS);
+    hal_assert(hal_spi_disable(0) == HAL_SUCCESS);
+    
     hal_rpmsg_deinit();
+    hal_spi_deinit();
 }
 
 int common_main() {
