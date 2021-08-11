@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 class Msg:
     def store(self) -> bytes:
         raise NotImplementedError
@@ -7,3 +8,5 @@ class Msg:
     @classmethod
     def load(data: bytes):
         raise NotImplementedError
+
+class AnyMsg:
