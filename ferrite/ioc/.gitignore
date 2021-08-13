@@ -1,8 +1,0 @@
-/bin
-/db
-/dbd
-/lib
-/iocBoot/iocPSC/envPaths
-O.*
-
-__pycache__

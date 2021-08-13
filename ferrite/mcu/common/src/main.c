@@ -50,10 +50,11 @@ static void task_rpmsg(void *param) {
 
     uint32_t spi_rx = 0x00000000;
     uint32_t spi_tx = 0xC0000000;
+    hal_log_info("SPI Send: %x", spi_tx);
     hal_assert(hal_spi_xfer(0, (uint8_t*)&spi_tx, (uint8_t*)spi_rx, 4, HAL_WAIT_FOREVER) == HAL_SUCCESS);
     spi_tx = 0x00000000;
     hal_assert(hal_spi_xfer(0, (uint8_t*)&spi_tx, (uint8_t*)spi_rx, 4, HAL_WAIT_FOREVER) == HAL_SUCCESS);
-    hal_log_info("SPI Received: %d", spi_rx);
+    hal_log_info("SPI Received: %x", spi_rx);
 
     // Send message back
     hal_assert(HAL_SUCCESS == hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER));
