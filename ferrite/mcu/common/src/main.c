@@ -19,15 +19,12 @@
 
 static void task_rpmsg(void *param) {
     hal_rpmsg_init();
-    hal_spi_init();
 
     hal_rpmsg_channel channel;
     hal_assert(hal_rpmsg_create_channel(&channel, 0) == HAL_SUCCESS);
 #ifdef HAL_PRINT_RPMSG
     hal_io_rpmsg_init(&channel);
 #endif
-
-    hal_assert(hal_spi_enable(0, 1000000) == HAL_SUCCESS);
 
     // Receive message
 
@@ -47,6 +44,11 @@ static void task_rpmsg(void *param) {
     hal_rpmsg_free_rx_buffer(&channel, buffer);
     buffer = NULL;
     len = 0;
+
+    hal_log_info("SPI init");
+    hal_spi_init();
+    hal_log_info("SPI enable");
+    hal_assert(hal_spi_enable(0, 25000000) == HAL_SUCCESS);
 
     uint32_t spi_rx = 0x00000000;
     uint32_t spi_tx = 0xC0000000;
