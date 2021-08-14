@@ -17,6 +17,8 @@
 
 #define TASK_STACK_SIZE 256
 
+#define SPI_XFER_LEN 4
+
 static void task_rpmsg(void *param) {
     hal_rpmsg_init();
 
@@ -50,13 +52,20 @@ static void task_rpmsg(void *param) {
     hal_log_info("SPI enable");
     hal_assert(hal_spi_enable(0, 25000000) == HAL_SUCCESS);
 
-    uint32_t spi_rx = 0x00000000;
-    uint32_t spi_tx = 0xC0000000;
-    hal_log_info("SPI Send: %x", spi_tx);
-    hal_assert(hal_spi_xfer(0, (uint8_t*)&spi_tx, (uint8_t*)spi_rx, 4, HAL_WAIT_FOREVER) == HAL_SUCCESS);
-    spi_tx = 0x00000000;
-    hal_assert(hal_spi_xfer(0, (uint8_t*)&spi_tx, (uint8_t*)spi_rx, 4, HAL_WAIT_FOREVER) == HAL_SUCCESS);
-    hal_log_info("SPI Received: %x", spi_rx);
+    uint8_t spi_rx[SPI_XFER_LEN] = {0};
+    uint8_t spi_tx[SPI_XFER_LEN] = {0xC0, 0, 0, 0};
+    for (size_t i = 0; i < 7; ++i) {
+        spi_tx[3] = (uint8_t)i;
+        hal_log_info("SPI Send: %02x%02x%02x%02x", (uint32_t)spi_tx[0], (uint32_t)spi_tx[1], (uint32_t)spi_tx[2], (uint32_t)spi_tx[3]);
+        hal_assert(hal_spi_xfer(0, spi_tx, spi_rx, SPI_XFER_LEN, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+        hal_log_info("SPI Received: %02x%02x%02x%02x", (uint32_t)spi_rx[0], (uint32_t)spi_rx[1], (uint32_t)spi_rx[2], (uint32_t)spi_rx[3]);
+        vTaskDelay(1);
+
+        //spi_tx[0] = 0;
+        hal_assert(hal_spi_xfer(0, spi_tx, spi_rx, SPI_XFER_LEN, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+        hal_log_info("SPI Received: %02x%02x%02x%02x", (uint32_t)spi_rx[0], (uint32_t)spi_rx[1], (uint32_t)spi_rx[2], (uint32_t)spi_rx[3]);
+        vTaskDelay(100);
+    }
 
     // Send message back
     hal_assert(HAL_SUCCESS == hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER));
