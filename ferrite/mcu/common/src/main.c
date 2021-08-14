@@ -50,7 +50,9 @@ static void task_rpmsg(void *param) {
     hal_log_info("SPI init");
     hal_spi_init();
     hal_log_info("SPI enable");
-    hal_assert(hal_spi_enable(0, 25000000) == HAL_SUCCESS);
+    // FIXME: The response bits are shifted when using 25 Mbps
+    // Maybe baud rate is multiplied here?
+    hal_assert(hal_spi_enable(0, 10000000) == HAL_SUCCESS);
 
     uint8_t spi_rx[SPI_XFER_LEN] = {0};
     uint8_t spi_tx[SPI_XFER_LEN] = {0xC0, 0, 0, 0};

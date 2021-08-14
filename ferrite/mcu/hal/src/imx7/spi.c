@@ -6,9 +6,6 @@
 #include "semphr.h"
 #include <hal/spi.h>
 
-#include <hal/assert.h>
-#include <hal/log.h>
-
 #define HAL_SPI_IRQ_PRIORITY 3
 
 /* define ECSPI master mode parameters configuration. */
