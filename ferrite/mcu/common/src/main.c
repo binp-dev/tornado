@@ -12,7 +12,8 @@
 #include <hal/assert.h>
 #include <hal/io.h>
 #include <hal/rpmsg.h>
-#include <hal/spi.h>
+
+#include "senkov.h"
 
 
 #define TASK_STACK_SIZE 256
@@ -47,25 +48,13 @@ static void task_rpmsg(void *param) {
     buffer = NULL;
     len = 0;
 
-    hal_log_info("SPI init");
-    hal_spi_init();
-    hal_log_info("SPI enable");
-    // FIXME: The response bits are shifted when using 25 Mbps
-    // Maybe baud rate is multiplied here?
-    hal_assert(hal_spi_enable(0, 10000000) == HAL_SUCCESS);
+    hal_log_info("Senkov driver init");
+    hal_assert(senkov_init() == HAL_SUCCESS);
 
-    uint8_t spi_rx[SPI_XFER_LEN] = {0};
-    uint8_t spi_tx[SPI_XFER_LEN] = {0xC0, 0, 0, 0};
     for (size_t i = 0; i < 7; ++i) {
-        spi_tx[3] = (uint8_t)i;
-        hal_log_info("SPI Send: %02x%02x%02x%02x", (uint32_t)spi_tx[0], (uint32_t)spi_tx[1], (uint32_t)spi_tx[2], (uint32_t)spi_tx[3]);
-        hal_assert(hal_spi_xfer(0, spi_tx, spi_rx, SPI_XFER_LEN, HAL_WAIT_FOREVER) == HAL_SUCCESS);
-        hal_log_info("SPI Received: %02x%02x%02x%02x", (uint32_t)spi_rx[0], (uint32_t)spi_rx[1], (uint32_t)spi_rx[2], (uint32_t)spi_rx[3]);
-        vTaskDelay(1);
-
-        //spi_tx[0] = 0;
-        hal_assert(hal_spi_xfer(0, spi_tx, spi_rx, SPI_XFER_LEN, HAL_WAIT_FOREVER) == HAL_SUCCESS);
-        hal_log_info("SPI Received: %02x%02x%02x%02x", (uint32_t)spi_rx[0], (uint32_t)spi_rx[1], (uint32_t)spi_rx[2], (uint32_t)spi_rx[3]);
+        uint32_t value;
+        hal_assert(senkov_read_adc(i, &value) == HAL_SUCCESS);
+        hal_log_info("ADC%d: 0x%06x", i, value);
         vTaskDelay(100);
     }
 
@@ -84,11 +73,11 @@ static void task_rpmsg(void *param) {
     hal_log_error("End of task_rpmsg()");
     hal_panic();
 
+    hal_assert(senkov_deinit() == HAL_SUCCESS);
+
     hal_assert(hal_rpmsg_destroy_channel(&channel) == HAL_SUCCESS);
-    hal_assert(hal_spi_disable(0) == HAL_SUCCESS);
     
     hal_rpmsg_deinit();
-    hal_spi_deinit();
 }
 
 int common_main() {

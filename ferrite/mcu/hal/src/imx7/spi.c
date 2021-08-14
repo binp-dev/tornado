@@ -59,10 +59,30 @@ void hal_spi_deinit() {
     /// FIXME: Implement SPI deinitialization.
 }
 
-hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate) {
+hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate, HalSpiPhase phase, HalSpiPolarity polarity) {
     /// FIXME: Use all available controllers.
     if (channel != 0) {
         return HAL_OUT_OF_BOUNDS;
+    }
+
+    uint32_t clockPhase;
+    switch (phase) {
+    case HAL_SPI_PHASE_FIRST_EDGE:
+        clockPhase = ecspiClockPhaseFirstEdge;
+        break;
+    case HAL_SPI_PHASE_SECOND_EDGE:
+        clockPhase = ecspiClockPhaseSecondEdge;
+        break;
+    }
+
+    uint32_t clockPolarity;
+    switch (polarity) {
+    case HAL_SPI_POLARITY_ACTIVE_HIGH:
+        clockPolarity = ecspiClockPolarityActiveHigh;
+        break;
+    case HAL_SPI_POLARITY_ACTIVE_LOW:
+        clockPolarity = ecspiClockPolarityActiveLow;
+        break;
     }
 
     ecspi_init_config_t ecspiMasterInitConfig = {
@@ -70,8 +90,8 @@ hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate) {
         .mode = ecspiMasterMode,
         .burstLength = ECSPI_MASTER_BURSTLENGTH,
         .channelSelect = BOARD_ECSPI_MASTER_CHANNEL,
-        .clockPhase = ecspiClockPhaseSecondEdge,
-        .clockPolarity = ecspiClockPolarityActiveHigh,
+        .clockPhase = clockPhase,
+        .clockPolarity = clockPolarity,
         .ecspiAutoStart = ECSPI_MASTER_STARTMODE
     };
 

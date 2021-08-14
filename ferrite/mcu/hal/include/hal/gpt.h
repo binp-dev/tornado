@@ -1,8 +1,3 @@
-/*!
- * @file gpt.h
- * @brief Application-specific GPT (general purpose timer) abstraction layer
- */
-
 #pragma once
 
 #include <stdlib.h>

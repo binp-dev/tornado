@@ -1,8 +1,3 @@
-/*!
- * @file spi.h
- * @brief SPI abstraction layer
- */
-
 #pragma once
 
 #include <stdlib.h>
@@ -15,6 +10,16 @@
 #error "Unknown target"
 #endif
 
+typedef enum {
+    HAL_SPI_PHASE_FIRST_EDGE = 0,
+    HAL_SPI_PHASE_SECOND_EDGE = 1,
+} HalSpiPhase;
+
+typedef enum {
+    HAL_SPI_POLARITY_ACTIVE_HIGH = 0,
+    HAL_SPI_POLARITY_ACTIVE_LOW = 1,
+} HalSpiPolarity;
+
 /*! @brief Initialize SPI subsystem. */
 void hal_spi_init();
 
@@ -25,9 +30,11 @@ void hal_spi_deinit();
  * @brief Enable and configure single SPI controller as master.
  * @param[in] channel SPI controller index.
  * @param[in] baud_rate SPI baudrate.
+ * @param[in] phase SPI phase (CPHA).
+ * @param[in] polarity SPI polarity (CPOL).
  * @return Return code.
  */
-hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate);
+hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate, HalSpiPhase phase, HalSpiPolarity polarity);
 
 /*!
  * @brief Disable single SPI controller.

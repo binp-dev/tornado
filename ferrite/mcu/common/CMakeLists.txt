@@ -8,6 +8,8 @@ include_directories(
 set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/include/common/main.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/main.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/senkov.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/senkov.c"
 )
 
 add_library(${PROJECT_NAME} OBJECT ${SRC})
