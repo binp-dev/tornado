@@ -13,12 +13,8 @@
 #include <hal/io.h>
 #include <hal/rpmsg.h>
 
-#include "senkov.h"
-
 
 #define TASK_STACK_SIZE 256
-
-#define SPI_XFER_LEN 4
 
 static void task_rpmsg(void *param) {
     hal_rpmsg_init();
@@ -48,18 +44,6 @@ static void task_rpmsg(void *param) {
     buffer = NULL;
     len = 0;
 
-    hal_log_info("Senkov driver init");
-    hal_assert(senkov_init() == HAL_SUCCESS);
-
-    senkov_write_dac(0);
-
-    for (size_t i = 0; i < 7; ++i) {
-        uint32_t value;
-        hal_assert(senkov_read_adc(i, &value) == HAL_SUCCESS);
-        hal_log_info("ADC%d: 0x%06x", i, value);
-        vTaskDelay(100);
-    }
-
     // Send message back
     hal_assert(HAL_SUCCESS == hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER));
     IppMsgMcuAny mcu_msg = {
@@ -74,8 +58,6 @@ static void task_rpmsg(void *param) {
     /* FIXME: Should never reach this point - otherwise virtio hangs */
     hal_log_error("End of task_rpmsg()");
     hal_panic();
-
-    hal_assert(senkov_deinit() == HAL_SUCCESS);
 
     hal_assert(hal_rpmsg_destroy_channel(&channel) == HAL_SUCCESS);
     
