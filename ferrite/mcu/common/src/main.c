@@ -9,9 +9,9 @@
 
 #include <ipp.h>
 
-#include <hal/rpmsg.h>
 #include <hal/assert.h>
 #include <hal/io.h>
+#include <hal/rpmsg.h>
 
 
 #define TASK_STACK_SIZE 256
@@ -20,7 +20,7 @@ static void task_rpmsg(void *param) {
     hal_rpmsg_init();
 
     hal_rpmsg_channel channel;
-    hal_assert(HAL_SUCCESS == hal_rpmsg_create_channel(&channel, 0));
+    hal_assert(hal_rpmsg_create_channel(&channel, 0) == HAL_SUCCESS);
 #ifdef HAL_PRINT_RPMSG
     hal_io_rpmsg_init(&channel);
 #endif
@@ -53,13 +53,14 @@ static void task_rpmsg(void *param) {
         },
     };
     ipp_msg_mcu_store(&mcu_msg, buffer);
-    hal_assert(HAL_SUCCESS == hal_rpmsg_send_nocopy(&channel, buffer, ipp_msg_mcu_len(&mcu_msg)));
+    hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_msg_mcu_len(&mcu_msg)) == HAL_SUCCESS);
 
     /* FIXME: Should never reach this point - otherwise virtio hangs */
     hal_log_error("End of task_rpmsg()");
     hal_panic();
 
-    hal_assert(HAL_SUCCESS == hal_rpmsg_destroy_channel(&channel));
+    hal_assert(hal_rpmsg_destroy_channel(&channel) == HAL_SUCCESS);
+    
     hal_rpmsg_deinit();
 }
 

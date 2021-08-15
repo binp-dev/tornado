@@ -6,6 +6,8 @@
 #include "semphr.h"
 #include <hal/spi.h>
 
+#define HAL_SPI_IRQ_PRIORITY 3
+
 /* define ECSPI master mode parameters configuration. */
 #define ECSPI_MASTER_BURSTLENGTH        (7)
 #define ECSPI_MASTER_STARTMODE          (0)
@@ -33,10 +35,10 @@ static volatile ecspi_state_t ecspiState;
 
 static SemaphoreHandle_t xferSemaphore = NULL;
 
-static bool ECSPI_TransmitBurst();
-static bool ECSPI_ReceiveBurst();
-//static bool ECSPI_GetTransferStatus();
-static void ECSPI_Config(ecspi_init_config_t* initConfig);
+static bool _ECSPI_TransmitBurst();
+static bool _ECSPI_ReceiveBurst();
+static bool _ECSPI_GetTransferStatus();
+static void _ECSPI_Configure(ecspi_init_config_t* initConfig);
 
 /*! @brief ECSPI interrupt handler. */
 void BOARD_ECSPI_MASTER_HANDLER();
@@ -57,10 +59,30 @@ void hal_spi_deinit() {
     /// FIXME: Implement SPI deinitialization.
 }
 
-hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate) {
+hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate, HalSpiPhase phase, HalSpiPolarity polarity) {
     /// FIXME: Use all available controllers.
     if (channel != 0) {
         return HAL_OUT_OF_BOUNDS;
+    }
+
+    uint32_t clockPhase;
+    switch (phase) {
+    case HAL_SPI_PHASE_FIRST_EDGE:
+        clockPhase = ecspiClockPhaseFirstEdge;
+        break;
+    case HAL_SPI_PHASE_SECOND_EDGE:
+        clockPhase = ecspiClockPhaseSecondEdge;
+        break;
+    }
+
+    uint32_t clockPolarity;
+    switch (polarity) {
+    case HAL_SPI_POLARITY_ACTIVE_HIGH:
+        clockPolarity = ecspiClockPolarityActiveHigh;
+        break;
+    case HAL_SPI_POLARITY_ACTIVE_LOW:
+        clockPolarity = ecspiClockPolarityActiveLow;
+        break;
     }
 
     ecspi_init_config_t ecspiMasterInitConfig = {
@@ -68,8 +90,8 @@ hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate) {
         .mode = ecspiMasterMode,
         .burstLength = ECSPI_MASTER_BURSTLENGTH,
         .channelSelect = BOARD_ECSPI_MASTER_CHANNEL,
-        .clockPhase = ecspiClockPhaseSecondEdge,
-        .clockPolarity = ecspiClockPolarityActiveHigh,
+        .clockPhase = clockPhase,
+        .clockPolarity = clockPolarity,
         .ecspiAutoStart = ECSPI_MASTER_STARTMODE
     };
 
@@ -77,10 +99,10 @@ hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate) {
     ecspiMasterInitConfig.clockRate = get_ecspi_clock_freq(BOARD_ECSPI_MASTER_BASEADDR);
 
     /* Ecspi module initialize, include configure parameters */
-    ECSPI_Config(&ecspiMasterInitConfig);
+    _ECSPI_Configure(&ecspiMasterInitConfig);
 
     xferSemaphore = xSemaphoreCreateBinary();
-    if (!xferSemaphore) {
+    if (xferSemaphore == NULL) {
         return HAL_BAD_ALLOC;
     }
 
@@ -96,7 +118,8 @@ hal_retcode hal_spi_disable(uint32_t channel) {
     return HAL_UNIMPLEMENTED;
 }
 
-hal_retcode hal_spi_xfer(uint32_t channel, uint8_t* tx_buf, uint8_t* rx_buf, size_t len, uint32_t timeout) {
+
+hal_retcode hal_spi_xfer(uint32_t channel, uint8_t *tx_buf, uint8_t *rx_buf, size_t len, uint32_t timeout) {
     /// FIXME: Use all available controllers.
     if (channel != 0) {
         return HAL_OUT_OF_BOUNDS;
@@ -119,7 +142,7 @@ hal_retcode hal_spi_xfer(uint32_t channel, uint8_t* tx_buf, uint8_t* rx_buf, siz
     ecspiState.rxSize = 0;
 
     /* Fill the TXFIFO */
-    ECSPI_TransmitBurst();
+    _ECSPI_TransmitBurst();
     /* Enable interrupts */
     ECSPI_SetIntCmd(BOARD_ECSPI_MASTER_BASEADDR, ecspiFlagTxfifoEmpty, true);
 
@@ -133,7 +156,7 @@ hal_retcode hal_spi_xfer(uint32_t channel, uint8_t* tx_buf, uint8_t* rx_buf, siz
 }
 
 /* Fill the TXFIFO. */
-static bool ECSPI_TransmitBurst() {
+static bool _ECSPI_TransmitBurst() {
     uint8_t bytes;
     uint32_t data;
     uint8_t i;
@@ -167,9 +190,8 @@ static bool ECSPI_TransmitBurst() {
     return true;
 }
 
-
 /* Receive data from RXFIFO */
-static bool ECSPI_ReceiveBurst() {
+static bool _ECSPI_ReceiveBurst() {
     uint32_t data;
     uint32_t bytes;
     uint32_t i;
@@ -195,19 +217,20 @@ static bool ECSPI_ReceiveBurst() {
 }
 
 /* Get transfer status. */
-/*
-static bool ECSPI_GetTransferStatus() {
+static bool _ECSPI_GetTransferStatus() {
     return ecspiState.isBusy;
 }
-*/
 
 /* ECSPI module initialize */
-static void ECSPI_Config(ecspi_init_config_t* initConfig) {
+static void _ECSPI_Configure(ecspi_init_config_t* initConfig) {
     /* Initialize ECSPI transfer state. */
     ecspiState.isBusy = false;
 
     /* Initialize ECSPI, parameter configure */
     ECSPI_Init(BOARD_ECSPI_MASTER_BASEADDR, initConfig);
+
+    /* Set ECSPI interrupt priority */
+    NVIC_SetPriority(BOARD_ECSPI_MASTER_IRQ_NUM, HAL_SPI_IRQ_PRIORITY);
 
     /* Call core API to enable the IRQ. */
     NVIC_EnableIRQ(BOARD_ECSPI_MASTER_IRQ_NUM);
@@ -218,11 +241,11 @@ void BOARD_ECSPI_MASTER_HANDLER() {
     BaseType_t txHptw = pdFALSE;
 
     /* Receive data from RXFIFO */
-    ECSPI_ReceiveBurst();
+    _ECSPI_ReceiveBurst();
 
     /* Push data left */
     if(ecspiState.txSize) {
-        ECSPI_TransmitBurst();
+        _ECSPI_TransmitBurst();
         return;
     }
 

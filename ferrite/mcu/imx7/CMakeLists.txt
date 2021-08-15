@@ -170,6 +170,8 @@ ADD_EXECUTABLE(psc_m4
     "$ENV{FREERTOS_DIR}/platform/drivers/inc/rdc_semaphore.h"
     "$ENV{FREERTOS_DIR}/platform/drivers/src/flexcan.c"
     "$ENV{FREERTOS_DIR}/platform/drivers/inc/flexcan.h"
+    "${ProjDirPath}/src/senkov.h"
+    "${ProjDirPath}/src/senkov.c"
     "${ProjDirPath}/src/FreeRTOSConfig.h"
     "${ProjDirPath}/src/main.c"
 )
@@ -195,6 +197,10 @@ SET(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}  -Xlinker 
 # BIN AND HEX
 ADD_CUSTOM_COMMAND(TARGET psc_m4 POST_BUILD COMMAND ${CMAKE_OBJCOPY} -Oihex ${EXECUTABLE_OUTPUT_PATH}/m4image.elf ${EXECUTABLE_OUTPUT_PATH}/m4image.hex)
 ADD_CUSTOM_COMMAND(TARGET psc_m4 POST_BUILD COMMAND ${CMAKE_OBJCOPY} -Obinary ${EXECUTABLE_OUTPUT_PATH}/m4image.elf ${EXECUTABLE_OUTPUT_PATH}/m4image.bin)
+
+# Include HAL and IPP
+include_directories("../../common/ipp/src")
+include_directories("../hal/include")
 
 # Link common code
 set(HAL_TARGET "hal_imx7")

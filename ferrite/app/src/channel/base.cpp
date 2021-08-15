@@ -24,7 +24,7 @@ Result<ipp::MsgMcuAny, Channel::Error> Channel::receive(std::optional<std::chron
         }
         data_start_ = 0;
         data_end_ = recv_res.ok();
-        // TODO: We don't support multi-buffer messages yet.
+        // FIXME: We don't support multi-buffer messages yet.
     }
     auto msg_res = ipp::MsgMcuAny::load(buffer_.data() + data_start_, data_end_ - data_start_);
     // TODO: Skip all buffers on error.

@@ -100,7 +100,11 @@ if __name__ == "__main__":
             char * length,
         ]), flush=True)
 
+    complete_tasks = {}
     def run_task(context, task, no_deps=False, title_length=64):
+        if task.name() in complete_tasks:
+            return
+
         if not no_deps:
             for dep in task.dependencies():
                 run_task(context, dep, no_deps=no_deps, title_length=title_length)
@@ -112,5 +116,6 @@ if __name__ == "__main__":
         except:
             print_title(f"Task '{task.name()}' failed!", "!")
             raise
+        complete_tasks[task.name()] = task
 
     run_task(context, task, no_deps=args.no_deps)
