@@ -51,6 +51,8 @@ static void task_rpmsg(void *param) {
     hal_log_info("Senkov driver init");
     hal_assert(senkov_init() == HAL_SUCCESS);
 
+    senkov_write_dac(0);
+
     for (size_t i = 0; i < 7; ++i) {
         uint32_t value;
         hal_assert(senkov_read_adc(i, &value) == HAL_SUCCESS);
