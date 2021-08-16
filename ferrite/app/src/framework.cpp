@@ -2,7 +2,6 @@
 #include <string>
 #include <type_traits>
 #include <memory>
-#include <charconv>
 
 #include <core/lazy_static.hpp>
 #include <core/mutex.hpp>
@@ -88,8 +87,7 @@ void framework_record_init(Record &record) {
         ao_record.set_handler(std::make_unique<DacHandler>(*DEVICE));
     } else if (name.rfind("ai", 0) == 0) { // name.startswith("ai")
         const auto index_str = name.substr(2);
-        uint8_t index;
-        assert_true(std::from_chars(index_str.begin(), index_str.end(), index).ec == std::errc());
+        uint8_t index = std::stoi(std::string(index_str));
         auto &ai_record = dynamic_cast<InputValueRecord<uint32_t> &>(record);
         ai_record.set_handler(std::make_unique<AdcHandler>(*DEVICE, index));
     } else if (name.rfind("di", 0) == 0 || name.rfind("do", 0) == 0) {

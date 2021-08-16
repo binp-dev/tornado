@@ -1,12 +1,12 @@
 record(ai, "ai1")
 {
     field(DTYP, "devsup")
-    field(SCAN, ".1 second")
+    field(SCAN, "1 second")
 }
 record(ai, "ai2")
 {
     field(DTYP, "devsup")
-    field(SCAN, ".1 second")
+    field(SCAN, "1 second")
 }
 
 record(ao, "ao0")
