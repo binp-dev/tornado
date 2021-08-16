@@ -12,13 +12,13 @@ def _env():
 def get(prefix, pv):
     print("caget %s ..." % pv)
     out = run(
-        [os.path.join(prefix, "caget"), "-t", pv],
+        [os.path.join(prefix, "caget"), "-t", "-f 3", pv],
         add_env=_env(),
         capture=True,
         log=False,
     ).strip()
     print("  %s" % out)
-    return out
+    return float(out)
 
 def put(prefix, pv, value, array=False):
     print("caput %s %s ..." % (pv, str(value)))

@@ -146,7 +146,7 @@ public:
         return this->value_;
     }
     inline void set_value(uint32_t value) {
-        this->value_ = value_;
+        this->value_ = value;
     }
 };
 
@@ -199,7 +199,7 @@ public:
         return this->index_;
     }
     inline void set_index(uint8_t index) {
-        this->index_ = index_;
+        this->index_ = index;
     }
 };
 
