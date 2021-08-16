@@ -12,13 +12,14 @@ typedef enum {
     IPP_APP_NONE               = 0x00, /* none */
     IPP_APP_START              = 0x01, /* start signal */
     IPP_APP_STOP               = 0x02, /* stop all operation */
-    IPP_APP_WF_DATA            = 0x11, /* waveform data */
+    IPP_APP_DAC_SET            = 0x11, /* set DAC value */
+    IPP_APP_ADC_REQ            = 0x12, /* request ADC value */
 } IppTypeApp;
 
 //! @brief IPP message types from MCU to App
 typedef enum {
     IPP_MCU_NONE               = 0x00, /* none */
-    IPP_MCU_WF_REQ             = 0x10, /* waveform request */
+    IPP_MCU_ADC_VAL            = 0x10, /* ADC value */
     IPP_MCU_ERROR              = 0xE0, /* error report */
     IPP_MCU_DEBUG              = 0xE1  /* debug message */
 } IppTypeMcu;
@@ -36,15 +37,31 @@ typedef enum {
 /* App -> MCU */
 
 typedef struct {
-    const uint8_t *data;
-    size_t len;
-} _IppMsgAppWfData;
+    uint32_t value;
+} _IppMsgAppDacSet;
 
-size_t _ipp_msg_app_len_wf_data(const _IppMsgAppWfData *msg);
-IppLoadStatus _ipp_msg_app_load_wf_data(_IppMsgAppWfData *dst, const uint8_t *src, size_t max_length);
-void _ipp_msg_app_store_wf_data(const _IppMsgAppWfData *src, uint8_t *dst);
+#define _IPP_MSG_APP_DAC_SET_LEN 3
+IppLoadStatus _ipp_msg_app_load_dac_set(_IppMsgAppDacSet *dst, const uint8_t *src, size_t max_length);
+void _ipp_msg_app_store_dac_set(const _IppMsgAppDacSet *src, uint8_t *dst);
+
+typedef struct {
+    uint8_t index;
+} _IppMsgAppAdcReq;
+
+#define _IPP_MSG_APP_ADC_REQ_LEN 1
+IppLoadStatus _ipp_msg_app_load_adc_req(_IppMsgAppAdcReq *dst, const uint8_t *src, size_t max_length);
+void _ipp_msg_app_store_adc_req(const _IppMsgAppAdcReq *src, uint8_t *dst);
 
 /* MCU -> App */
+
+typedef struct {
+    uint8_t index;
+    uint32_t value;
+} _IppMsgMcuAdcVal;
+
+#define _IPP_MSG_MCU_ADC_VAL_LEN (1 + 3)
+IppLoadStatus _ipp_msg_mcu_load_adc_val(_IppMsgMcuAdcVal *dst, const uint8_t *src, size_t max_length);
+void _ipp_msg_mcu_store_adc_val(const _IppMsgMcuAdcVal *src, uint8_t *dst);
 
 typedef struct {
     //! TODO: Use enum for error codes.
@@ -69,7 +86,8 @@ void _ipp_msg_mcu_store_debug(const _IppMsgMcuDebug *src, uint8_t *dst);
 typedef struct {
     IppTypeApp type;
     union {
-        _IppMsgAppWfData wf_data;
+        _IppMsgAppDacSet dac_set;
+        _IppMsgAppAdcReq adc_req;
     };
 } IppMsgAppAny;
 
@@ -86,6 +104,7 @@ void ipp_msg_app_store(const IppMsgAppAny *src, uint8_t *dst);
 typedef struct {
     IppTypeMcu type;
     union {
+        _IppMsgMcuAdcVal adc_val;
         _IppMsgMcuError error;
         _IppMsgMcuDebug debug;
     };

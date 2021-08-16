@@ -97,62 +97,168 @@ class MsgAppNone final : public virtual MsgAppEmpty<MsgAppNone, IPP_APP_NONE> {}
 class MsgAppStart final : public virtual MsgAppEmpty<MsgAppStart, IPP_APP_START> {};
 class MsgAppStop final : public virtual MsgAppEmpty<MsgAppStop, IPP_APP_STOP> {};
 
-class MsgAppWfData final :
-    public virtual MsgAppPrim<IPP_APP_WF_DATA>,
-    public virtual MsgState<_IppMsgAppWfData>
+class MsgAppDacSet final :
+    public virtual MsgAppPrim<IPP_APP_DAC_SET>,
+    public virtual MsgState<_IppMsgAppDacSet>
 {
 private:
-    std::vector<uint8_t> data_;
+    uint32_t value_;
 
 public:
-    inline explicit MsgAppWfData(std::vector<uint8_t> &&data = {}) : data_(std::move(data)) {}
+    inline explicit MsgAppDacSet(uint32_t value) : value_(value) {}
 
     inline virtual Raw raw() const override {
-        return Raw { data_.data(), data_.size() };
+        return Raw { value_ };
     }
     inline virtual IppMsgAppAny raw_any() const override {
         IppMsgAppAny any;
         any.type = TYPE;
-        any.wf_data = this->raw();
+        any.dac_set = this->raw();
         return any;
     }
 
     inline virtual size_t length() const override {
-        const auto raw = this->raw();
-        return _ipp_msg_app_len_wf_data(&raw);
+        return _IPP_MSG_APP_DAC_SET_LEN;
     }
     inline virtual void store(uint8_t *data) const override {
         const auto raw = this->raw();
-        _ipp_msg_app_store_wf_data(&raw, data);
+        _ipp_msg_app_store_dac_set(&raw, data);
     }
 
-    inline static MsgAppWfData from_raw(const Raw &raw) {
-        return MsgAppWfData(std::vector<uint8_t>(raw.data, raw.data + raw.len));
+    inline static MsgAppDacSet from_raw(const Raw &raw) {
+        return MsgAppDacSet(raw.value);
     }
-    inline static MsgAppWfData from_raw_any(const IppMsgAppAny &any) {
+    inline static MsgAppDacSet from_raw_any(const IppMsgAppAny &any) {
         assert(any.type == TYPE);
-        return from_raw(any.wf_data);
+        return from_raw(any.dac_set);
     }
 
-    inline static std::variant<MsgAppWfData, IppLoadStatus> load(uint8_t *data, size_t max_length) {
-        _IppMsgAppWfData dst;
-        const auto status = _ipp_msg_app_load_wf_data(&dst, data, max_length);
+    inline static std::variant<MsgAppDacSet, IppLoadStatus> load(uint8_t *data, size_t max_length) {
+        _IppMsgAppDacSet dst;
+        const auto status = _ipp_msg_app_load_dac_set(&dst, data, max_length);
         if (IPP_LOAD_OK != status) {
             return status;
         }
         return from_raw(dst);
     }
 
-    inline const std::vector<uint8_t> &data() const {
-        return this->data_;
+    inline uint32_t value() const {
+        return this->value_;
     }
-    inline std::vector<uint8_t> &data() {
-        return this->data_;
+    inline void set_value(uint32_t value) {
+        this->value_ = value_;
+    }
+};
+
+class MsgAppAdcReq final :
+    public virtual MsgAppPrim<IPP_APP_ADC_REQ>,
+    public virtual MsgState<_IppMsgAppAdcReq>
+{
+private:
+    uint8_t index_;
+
+public:
+    inline explicit MsgAppAdcReq(uint8_t index) : index_(index) {}
+
+    inline virtual Raw raw() const override {
+        return Raw { index_ };
+    }
+    inline virtual IppMsgAppAny raw_any() const override {
+        IppMsgAppAny any;
+        any.type = TYPE;
+        any.adc_req = this->raw();
+        return any;
+    }
+
+    inline virtual size_t length() const override {
+        return _IPP_MSG_APP_ADC_REQ_LEN;
+    }
+    inline virtual void store(uint8_t *data) const override {
+        const auto raw = this->raw();
+        _ipp_msg_app_store_adc_req(&raw, data);
+    }
+
+    inline static MsgAppAdcReq from_raw(const Raw &raw) {
+        return MsgAppAdcReq(raw.index);
+    }
+    inline static MsgAppAdcReq from_raw_any(const IppMsgAppAny &any) {
+        assert(any.type == TYPE);
+        return from_raw(any.adc_req);
+    }
+
+    inline static std::variant<MsgAppAdcReq, IppLoadStatus> load(uint8_t *data, size_t max_length) {
+        _IppMsgAppAdcReq dst;
+        const auto status = _ipp_msg_app_load_adc_req(&dst, data, max_length);
+        if (IPP_LOAD_OK != status) {
+            return status;
+        }
+        return from_raw(dst);
+    }
+
+    inline uint8_t index() const {
+        return this->index_;
+    }
+    inline void set_index(uint8_t index) {
+        this->index_ = index_;
     }
 };
 
 class MsgMcuNone final : public MsgMcuEmpty<MsgMcuNone, IPP_MCU_NONE> {};
-class MsgMcuWfReq final : public MsgMcuEmpty<MsgMcuWfReq, IPP_MCU_WF_REQ> {};
+
+
+class MsgMcuAdcVal final :
+    public virtual MsgMcuPrim<IPP_MCU_ADC_VAL>,
+    public virtual MsgState<_IppMsgMcuAdcVal>
+{
+private:
+    uint8_t index_;
+    uint32_t value_;
+
+public:
+    inline MsgMcuAdcVal(uint8_t index, uint32_t value) : index_(index), value_(value) {}
+
+    inline virtual Raw raw() const override {
+        return Raw { index_, value_ };
+    }
+    inline virtual IppMsgMcuAny raw_any() const override {
+        IppMsgMcuAny any;
+        any.type = TYPE;
+        any.adc_val = this->raw();
+        return any;
+    }
+
+    inline virtual size_t length() const override {
+        return _IPP_MSG_MCU_ADC_VAL_LEN;
+    }
+    inline virtual void store(uint8_t *data) const override {
+        const auto raw = this->raw();
+        _ipp_msg_mcu_store_adc_val(&raw, data);
+    }
+
+    inline static MsgMcuAdcVal from_raw(const Raw &raw) {
+        return MsgMcuAdcVal(raw.index, raw.value);
+    }
+    inline static MsgMcuAdcVal from_raw_any(const IppMsgMcuAny &any) {
+        assert(any.type == TYPE);
+        return from_raw(any.adc_val);
+    }
+
+    inline static std::variant<MsgMcuAdcVal, IppLoadStatus> load(uint8_t *data, size_t max_length) {
+        _IppMsgMcuAdcVal dst;
+        const auto status = _ipp_msg_mcu_load_adc_val(&dst, data, max_length);
+        if (IPP_LOAD_OK != status) {
+            return status;
+        }
+        return from_raw(dst);
+    }
+
+    inline uint8_t index() const {
+        return this->index_;
+    }
+    inline uint32_t value() const {
+        return this->value_;
+    }
+};
 
 class MsgMcuError final :
     public virtual MsgMcuPrim<IPP_MCU_ERROR>,
@@ -212,7 +318,6 @@ public:
         return this->message_;
     }
 };
-
 
 class MsgMcuDebug final :
     public virtual MsgMcuPrim<IPP_MCU_DEBUG>,
@@ -315,7 +420,8 @@ using MsgAppAnyBase = MsgAny<
     MsgAppNone,
     MsgAppStart,
     MsgAppStop,
-    MsgAppWfData
+    MsgAppDacSet,
+    MsgAppAdcReq
 >;
 }
 
@@ -358,7 +464,7 @@ using MsgMcuAnyBase = MsgAny<
     IppTypeMcu,
     // Variants
     MsgMcuNone,
-    MsgMcuWfReq,
+    MsgMcuAdcVal,
     MsgMcuError,
     MsgMcuDebug
 >;

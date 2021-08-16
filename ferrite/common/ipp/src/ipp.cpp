@@ -21,32 +21,46 @@ TEST(IppTest, MsgAppStop) {
     ASSERT_EQ(msg.length(), 0);
 }
 
-TEST(IppTest, MsgAppWfData) {
+TEST(IppTest, MsgAppDacSet) {
     {
-        const auto out = [&]() {
-            std::vector<uint8_t> data{0, 1, 2, 3};
-            return ipp::MsgAppWfData{std::move(data)};
-        }();
-        ASSERT_EQ(out.length(), 2 + 4);
+        const uint32_t value = (1 << 16) | (2 << 8) | 3;
+        const ipp::MsgAppDacSet out{value};
+        ASSERT_EQ(out.value(), value);
+        ASSERT_EQ(out.length(), 3);
 
         std::vector<uint8_t> buffer(out.length(), 0);
         out.store(buffer.data());
-        ASSERT_EQ(4, buffer[0]);
-        ASSERT_EQ(0, buffer[1]);
-        for (size_t i = 2; i < buffer.size(); ++i) {
-            ASSERT_EQ(static_cast<uint8_t>(i) - 2, buffer[i]);
-        }
+        ASSERT_EQ(3, buffer[0]);
+        ASSERT_EQ(2, buffer[1]);
+        ASSERT_EQ(1, buffer[2]);
     }
     {
-        std::vector<uint8_t> buffer{4, 0, 3, 2, 1, 0};
-        const auto result = ipp::MsgAppWfData::load(buffer.data(), buffer.size());
+        std::vector<uint8_t> buffer{1, 2, 3};
+        const auto result = ipp::MsgAppDacSet::load(buffer.data(), buffer.size());
         ASSERT_EQ(result.index(), 0);
         const auto &in = std::get<0>(result);
-        const auto &data = in.data();
-        ASSERT_EQ(data.size(), 4);
-        for (size_t i = 0; i < data.size(); ++i) {
-            ASSERT_EQ(static_cast<uint8_t>(data.size() - i - 1), data[i]);
-        }
+        ASSERT_EQ(in.value(), (3 << 16) | (2 << 8) | 1);
+    }
+}
+
+TEST(IppTest, MsgAppAdcReq) {
+    {
+        const uint8_t index = 42;
+        const ipp::MsgAppAdcReq out{index};
+        ASSERT_EQ(out.index(), index);
+        ASSERT_EQ(out.length(), 1);
+
+        std::vector<uint8_t> buffer(out.length(), 0);
+        out.store(buffer.data());
+        ASSERT_EQ(index, buffer[0]);
+    }
+    {
+        const uint8_t index = 24;
+        std::vector<uint8_t> buffer{index};
+        const auto result = ipp::MsgAppAdcReq::load(buffer.data(), buffer.size());
+        ASSERT_EQ(result.index(), 0);
+        const auto &in = std::get<0>(result);
+        ASSERT_EQ(in.index(), index);
     }
 }
 
@@ -55,9 +69,28 @@ TEST(IppTest, MsgMcuNone) {
     ASSERT_EQ(msg.length(), 0);
 }
 
-TEST(IppTest, MsgMcuWfReq) {
-    ipp::MsgMcuWfReq msg;
-    ASSERT_EQ(msg.length(), 0);
+TEST(IppTest, MsgMcuAdcVal) {
+    {
+        uint8_t index = 42;
+        uint32_t value = (1 << 16) | (2 << 8) | 3;
+        const ipp::MsgMcuAdcVal out{index, value};
+        ASSERT_EQ(out.length(), 1 + 3);
+
+        std::vector<uint8_t> buffer(out.length(), 0);
+        out.store(buffer.data());
+        ASSERT_EQ(buffer[0], index);
+        ASSERT_EQ(buffer[1], 3);
+        ASSERT_EQ(buffer[2], 2);
+        ASSERT_EQ(buffer[3], 1);
+    }
+    {
+        std::vector<uint8_t> buffer{24, 1, 2, 3};
+        const auto result = ipp::MsgMcuAdcVal::load(buffer.data(), buffer.size());
+        ASSERT_EQ(result.index(), 0);
+        const auto &in = std::get<0>(result);
+        ASSERT_EQ(in.index(), 24);
+        ASSERT_EQ(in.value(), (3 << 16) | (2 << 8) | 1);
+    }
 }
 
 TEST(IppTest, MsgMcuError) {
@@ -109,17 +142,14 @@ TEST(IppTest, MsgMcuDebug) {
 
 TEST(IppTest, MsgAppAny) {
     {
-        std::vector<uint8_t> data{0, 1, 2, 3};
-        const ipp::MsgAppAny out{ipp::MsgAppWfData{std::move(data)}};
-        ASSERT_EQ(out.length(), 7);
+        const ipp::MsgAppAny out{ipp::MsgAppDacSet{(1 << 16) | (2 << 8) | 3}};
+        ASSERT_EQ(out.length(), 1 + 3);
         std::vector<uint8_t> buffer(out.length(), 0);
         out.store(buffer.data());
-        ASSERT_EQ(buffer[0], IppTypeApp::IPP_APP_WF_DATA);
-        ASSERT_EQ(4, buffer[1]);
-        ASSERT_EQ(0, buffer[2]);
-        for (size_t i = 3; i < buffer.size(); ++i) {
-            ASSERT_EQ(static_cast<uint8_t>(i) - 3, buffer[i]);
-        }
+        ASSERT_EQ(buffer[0], IppTypeApp::IPP_APP_DAC_SET);
+        ASSERT_EQ(buffer[1], 3);
+        ASSERT_EQ(buffer[2], 2);
+        ASSERT_EQ(buffer[3], 1);
     }
     {
         std::vector<uint8_t> buffer{IppTypeApp::IPP_APP_START};
@@ -132,11 +162,15 @@ TEST(IppTest, MsgAppAny) {
 
 TEST(IppTest, MsgMcuAny) {
     {
-        const ipp::MsgMcuAny out{ipp::MsgMcuWfReq{}};
-        ASSERT_EQ(out.length(), 1);
+        const ipp::MsgMcuAny out{ipp::MsgMcuAdcVal{42, (1 << 16) | (2 << 8) | 3}};
+        ASSERT_EQ(out.length(), 1 + 1 + 3);
         std::vector<uint8_t> buffer(out.length(), 0);
         out.store(buffer.data());
-        ASSERT_EQ(buffer[0], IppTypeMcu::IPP_MCU_WF_REQ);
+        ASSERT_EQ(buffer[0], IppTypeMcu::IPP_MCU_ADC_VAL);
+        ASSERT_EQ(buffer[1], 42);
+        ASSERT_EQ(buffer[2], 3);
+        ASSERT_EQ(buffer[3], 2);
+        ASSERT_EQ(buffer[4], 1);
     }
     {
         std::vector<uint8_t> buffer{IppTypeMcu::IPP_MCU_DEBUG, 'F', 'o', 'o', 0};
