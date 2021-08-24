@@ -22,9 +22,9 @@ SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 SET(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 
 
-project(rpmsg_lite_str_echo_rtos_imxcm7)
+project(m7image)
 
-set(MCUX_SDK_PROJECT_NAME rpmsg_lite_str_echo_rtos_imxcm7.elf)
+set(MCUX_SDK_PROJECT_NAME m7image.elf)
 
 include(${ProjDirPath}/flags.cmake)
 
@@ -100,12 +100,12 @@ TARGET_LINK_LIBRARIES(${MCUX_SDK_PROJECT_NAME} PRIVATE
 
 ADD_CUSTOM_COMMAND(TARGET ${MCUX_SDK_PROJECT_NAME} POST_BUILD COMMAND ${CMAKE_OBJCOPY} -Obinary
     ${EXECUTABLE_OUTPUT_PATH}/${MCUX_SDK_PROJECT_NAME}
-    ${EXECUTABLE_OUTPUT_PATH}/rpmsg_lite_str_echo_rtos.bin
+    ${EXECUTABLE_OUTPUT_PATH}/m7image.bin
 )
 
 # Link common code
 set(HAL_TARGET "hal_imx8mn")
-add_definitions("-DHAL_IMX8MN" "-DHAL_PRINT_RPMSG" "-DHAL_LOG_LEVEL=5")
+add_definitions("-DHAL_IMX8MN" "-DHAL_PRINT_RPMSG" "-DHAL_LOG_LEVEL=4")
 add_subdirectory("../common" "common" EXCLUDE_FROM_ALL)
 include_directories("../common/include")
 target_link_libraries(${MCUX_SDK_PROJECT_NAME} PRIVATE
