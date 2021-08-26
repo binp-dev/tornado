@@ -1,4 +1,6 @@
-from . import *
+from ipp.prim import Int
+from ipp.struct import Field, Struct, Variant
+from ipp.container import Vector, String
 
 app_msg = Variant(
     "IppAppMsg",
