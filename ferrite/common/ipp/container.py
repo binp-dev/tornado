@@ -1,23 +1,24 @@
 from __future__ import annotations
 from typing import List
-from dataclasses import dataclass
 
 from ipp.base import Type, Prelude
-from ipp.prim import Int, Pointer
+from ipp.prim import Char, Int, Pointer
 from ipp.struct import Struct, Field
-from ipp.util import to_ident
 
 class Vector(Type):
     def __init__(self, item: Type):
         super().__init__()
         self.item = item
         self._c_struct = Struct(
-            "Vector_" + to_ident(self.item.c_type()),
+            self.name(),
             [
                 Field("len", Int(16)),
                 Field("data", Pointer(item)),
             ],
         )
+
+    def name(self) -> str:
+        return f"Vector{self.item.name()}"
 
     def c_type(self) -> str:
         return self._c_struct.c_type()
@@ -35,8 +36,11 @@ class String(Type):
     def __init__(self):
         super().__init__()
 
+    def name(self) -> str:
+        return "String"
+
     def c_type(self) -> str:
-        return "char *"
+        return Pointer(Char()).c_type()
 
     def cpp_type(self) -> str:
         return "std::string"
