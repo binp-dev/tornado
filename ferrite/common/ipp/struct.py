@@ -1,8 +1,8 @@
 from __future__ import annotations
 from typing import List
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 
-from ipp.base import Type, Prelude
+from ipp.base import Type, Source
 from ipp.prim import Int
 
 @dataclass
@@ -19,9 +19,12 @@ class Struct(Type):
         return self._name
 
     def _c_definition(self) -> str:
+        fields = [f"    {field.type.c_type()} {field.name};" for field in self.fields]
+        if len(fields) == 0:
+            fields = ["    char __placeholder;"]
         return "\n".join([
             f"typedef struct {self.name()} {{",
-            *[f"    {field.type.c_type()} {field.name};" for field in self.fields],
+            *fields,
             f"}} {self.name()};",
         ])
 
@@ -39,16 +42,16 @@ class Struct(Type):
     def cpp_type(self) -> str:
         return self.name()
 
-    def c_prelude(self) -> Prelude:
-        return Prelude(
-            self._c_definition(),
-            [field.type.c_prelude() for field in self.fields],
+    def c_source(self) -> Source:
+        return Source(
+            [self._c_definition()],
+            [field.type.c_source() for field in self.fields],
         )
     
-    def cpp_prelude(self) -> Prelude:
-        return Prelude(
-            self._cpp_definition(),
-            [field.type.cpp_prelude() for field in self.fields],
+    def cpp_source(self) -> Source:
+        return Source(
+            [self._cpp_definition()],
+            [field.type.cpp_source() for field in self.fields],
         )
 
 class Variant(Type):
@@ -89,20 +92,20 @@ class Variant(Type):
     def cpp_type(self) -> str:
         return self.name()
 
-    def c_prelude(self) -> Prelude:
-        return Prelude(
-            self._c_definition(),
+    def c_source(self) -> Source:
+        return Source(
+            [self._c_definition()],
             [
-                self._id_type.c_prelude(),
-                *[option.type.c_prelude() for option in self.options],
+                self._id_type.c_source(),
+                *[option.type.c_source() for option in self.options],
             ],
         )
 
-    def cpp_prelude(self) -> Prelude:
-        return Prelude(
-            self._cpp_definition(),
+    def cpp_source(self) -> Source:
+        return Source(
+            [self._cpp_definition()],
             [
-                Prelude("#include <variant>"),
-                *[option.type.cpp_prelude() for option in self.options],
+                Source(["#include <variant>"]),
+                *[option.type.cpp_source() for option in self.options],
             ],
         )

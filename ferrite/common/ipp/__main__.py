@@ -1,4 +1,4 @@
-from ipp.base import Prelude
+from ipp.base import Source
 from ipp.prim import Int
 from ipp.struct import Field, Struct, Variant
 from ipp.container import Vector, String
@@ -33,15 +33,16 @@ mcu_msg = Variant(
 
 with open("_out.h", "w") as f:
     f.write("#pragma once\n\n")
+    f.write("#include <stdint.h>\n\n")
     f.write("\n".join([
         "#ifdef __cplusplus",
         "extern \"C\" {",
         "#endif // __cplusplus",
     ]) + "\n")
     f.write("\n")
-    f.write(Prelude(deps=[
-        app_msg.c_prelude(),
-        mcu_msg.c_prelude(),
+    f.write(Source(deps=[
+        app_msg.c_source(),
+        mcu_msg.c_source(),
     ]).make_source())
     f.write("\n")
     f.write("\n".join([
@@ -53,7 +54,7 @@ with open("_out.h", "w") as f:
 with open("_out.hpp", "w") as f:
     f.write("#pragma once\n\n")
     f.write("#include <_out.h>\n\n")
-    f.write(Prelude(deps=[
-        app_msg.cpp_prelude(),
-        mcu_msg.cpp_prelude(),
+    f.write(Source(deps=[
+        app_msg.cpp_source(),
+        mcu_msg.cpp_source(),
     ]).make_source())

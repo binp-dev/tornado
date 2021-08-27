@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import List
 
-from ipp.base import Type, Prelude
+from ipp.base import Type, Source
 from ipp.prim import Char, Int, Pointer
 from ipp.struct import Struct, Field
 
@@ -26,11 +26,11 @@ class Vector(Type):
     def cpp_type(self) -> str:
         return f"std::vector<{self.item.cpp_type()}>"
 
-    def c_prelude(self) -> Prelude:
-        return self._c_struct.c_prelude()
+    def c_source(self) -> Source:
+        return self._c_struct.c_source()
 
-    def cpp_prelude(self) -> Prelude:
-        return Prelude("#include <vector>", [self.item.cpp_prelude()])
+    def cpp_source(self) -> Source:
+        return Source(["#include <vector>"], [self.item.cpp_source()])
 
 class String(Type):
     def __init__(self):
@@ -45,5 +45,5 @@ class String(Type):
     def cpp_type(self) -> str:
         return "std::string"
 
-    def cpp_prelude(self) -> Prelude:
-        return Prelude("#include <string>")
+    def cpp_source(self) -> Source:
+        return Source(["#include <string>"])

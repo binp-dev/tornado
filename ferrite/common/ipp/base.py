@@ -1,10 +1,11 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from typing import List, Set
 
 
-class Prelude:
-    def __init__(self, text: str = None, deps: List[Prelude] = []):
-        self.text = text
+class Source:
+    def __init__(self, items: List[str] = None, deps: List[Source] = []):
+        self.items = items or []
         self.deps = [p for p in deps if p is not None]
 
     def collect(self, used: Set[str] = None) -> List[str]:
@@ -12,16 +13,23 @@ class Prelude:
             used = set()
 
         result = []
+
         for dep in self.deps:
             result.extend(dep.collect(used))
-        if self.text is not None and self.text not in used:
-            result.append(self.text)
-            used.add(self.text)
+
+        for item in self.items:
+            if item is not None and item not in used:
+                result.append(item)
+                used.add(item)
 
         return result
 
     def make_source(self) -> str:
         return "\n\n".join(self.collect()) + "\n"
+
+class Include(Source):
+    def __init__(self, path):
+        super().__init__([f"#include <{path}>"])
 
 class Type:
     def __init__(self):
@@ -36,8 +44,17 @@ class Type:
     def cpp_type(self) -> str:
         return self.c_type()
 
-    def c_prelude(self) -> Prelude:
+    def c_source(self) -> Source:
         return None
 
-    def cpp_prelude(self) -> Prelude:
-        return self.c_prelude()
+    def cpp_source(self) -> Source:
+        return self.c_source()
+
+    def c_len(self, obj: str) -> str:
+        raise NotImplementedError()
+
+    def c_load(self, dst: str, src: str, max_len: str) -> str:
+        raise NotImplementedError()
+
+    def c_store(self, src: str, dst: str) -> str:
+        raise NotImplementedError()
