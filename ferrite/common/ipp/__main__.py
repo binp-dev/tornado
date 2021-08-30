@@ -1,33 +1,40 @@
-from ipp.base import Source
+from typing import List
+from ipp.base import Name, Source, Type
 from ipp.prim import Int
 from ipp.struct import Field, Struct, Variant
 from ipp.container import Vector, String
 
-app_msg = Variant(
-    "IppAppMsg",
+def make_variant(name: Name, types: List[Type]) -> Variant:
+    return Variant(
+        name,
+        [Field(ty.name().snake(), ty) for ty in types]
+    )
+
+app_msg = make_variant(
+    Name(["App", "Msg"]),
     [
-        Field("start", Struct("_IppAppMsgStart")),
-        Field("dac_wf", Struct("_IppAppMsgDacWf", [
+        Struct(Name(["app", "msg", "start"])),
+        Struct(Name(["app", "msg", "dac", "wf"]), [
             Field("data", Vector(Int(24))),
-        ])),
+        ]),
     ],
 )
 
-mcu_msg = Variant(
-    "IppMcuMsg",
+mcu_msg = make_variant(
+    Name(["Mcu", "Msg"]),
     [
-        Field("dac_wf_req", Struct("_IppMcuMsgDacWfReq")),
-        Field("adc_wf", Struct("_IppMcuMsgAdcWf", [
+        Struct(Name(["mcu", "msg", "dac", "wf", "req"])),
+        Struct(Name(["mcu", "msg", "adc", "wf"]), [
             Field("index", Int(8)),
             Field("data", Vector(Int(24))),
-        ])),
-        Field("error", Struct("_IppMcuMsgError", [
+        ]),
+        Struct(Name(["mcu", "msg", "error"]), [
             Field("code", Int(8)),
             Field("message", String()),
-        ])),
-        Field("debug", Struct("_IppMcuMsgDebug", [
+        ]),
+        Struct(Name(["mcu", "msg", "debug"]), [
             Field("message", String()),
-        ])),
+        ]),
     ],
 )
 
@@ -35,6 +42,7 @@ with open("_out.h", "w") as f:
     f.write("#pragma once\n\n")
     f.write("#include <stdlib.h>\n\n")
     f.write("#include <stdint.h>\n\n")
+    f.write("#include <string.h>\n\n")
     f.write("\n".join([
         "#ifdef __cplusplus",
         "extern \"C\" {",
