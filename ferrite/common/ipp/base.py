@@ -50,9 +50,6 @@ class Type:
     def cpp_source(self) -> Source:
         return self.c_source()
 
-    def c_len(self, obj: str) -> str:
-        raise NotImplementedError()
-
     def c_load(self, dst: str, src: str, max_len: str) -> str:
         raise NotImplementedError()
 

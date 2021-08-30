@@ -11,3 +11,6 @@ def to_ident(text: str, _pat = re.compile("[^a-zA-Z0-9_]")):
 
 def is_power_of_2(n: int) -> bool:
     return bool(n & (n - 1) == 0) and n != 0
+
+def ceil_to_power_of_2(n: int) -> bool:
+    return 1 << (n - 1).bit_length()

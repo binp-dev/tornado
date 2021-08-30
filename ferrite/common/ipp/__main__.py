@@ -8,7 +8,7 @@ app_msg = Variant(
     [
         Field("start", Struct("_IppAppMsgStart")),
         Field("dac_wf", Struct("_IppAppMsgDacWf", [
-            Field("data", Vector(Int(32))),
+            Field("data", Vector(Int(24))),
         ])),
     ],
 )
@@ -19,7 +19,7 @@ mcu_msg = Variant(
         Field("dac_wf_req", Struct("_IppMcuMsgDacWfReq")),
         Field("adc_wf", Struct("_IppMcuMsgAdcWf", [
             Field("index", Int(8)),
-            Field("data", Vector(Int(32))),
+            Field("data", Vector(Int(24))),
         ])),
         Field("error", Struct("_IppMcuMsgError", [
             Field("code", Int(8)),
@@ -33,6 +33,7 @@ mcu_msg = Variant(
 
 with open("_out.h", "w") as f:
     f.write("#pragma once\n\n")
+    f.write("#include <stdlib.h>\n\n")
     f.write("#include <stdint.h>\n\n")
     f.write("\n".join([
         "#ifdef __cplusplus",

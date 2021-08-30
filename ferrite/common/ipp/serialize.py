@@ -54,7 +54,8 @@ class LoadFn:
             f"{LoadStatus().c_type()} {self.c_name()}(",
             f"{self.type.c_type()} * dst, ",
             f"const uint8_t * src, ",
-            f"size_t max_len",
+            f"size_t max_len, ",
+            f"size_t * len",
             f")",
         ])
 
