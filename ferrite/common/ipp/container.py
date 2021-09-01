@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List
 
 from ipp.base import Include, Name, Type, Source
-from ipp.prim import Char, Int
+from ipp.prim import Array, Char, Int
 from ipp.struct import Struct, Field
 
 class Vector(Type):
@@ -13,7 +13,7 @@ class Vector(Type):
             self.name(),
             [
                 Field("len", Int(16)),
-                Field("first", self.item),
+                Field("data", Array(self.item, 0)),
             ],
         )
 

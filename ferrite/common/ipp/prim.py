@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List
 from dataclasses import dataclass
 
-from ipp.base import Name, Sized, Type, Source
+from ipp.base import CType, Name, Sized, Type, Source
 from ipp.util import ceil_to_power_of_2, is_power_of_2
 
 @dataclass
@@ -132,3 +132,23 @@ class Size(Sized):
 
     def c_type(self) -> str:
         return "size_t"
+
+@dataclass
+class Array(Sized):
+    type: Sized
+    len: int
+
+    def __post_init__(self):
+        super().__init__()
+
+    def size(self) -> int:
+        return self.type.size() * self.len
+
+    def c_type(self) -> CType:
+        return CType(str(self.type.c_type()), f"[{self.len}]")
+
+    def c_source(self) -> Source:
+        return self.type.c_source()
+
+    def cpp_source(self) -> Source:
+        return self.type.cpp_source()

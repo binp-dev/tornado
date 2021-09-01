@@ -2,14 +2,23 @@ from __future__ import annotations
 from typing import List, Union
 from dataclasses import dataclass
 
-from ipp.base import Name, Type, Source
-from ipp.prim import Int
+from ipp.base import Name, Type, Source, declare_variable
+from ipp.prim import Array, Int
 from ipp.util import ceil_to_power_of_2
 
 class Field:
     def __init__(self, name: Union[Name, str], type: Type):
         self.name = Name(name)
         self.type = type
+
+def should_ignore(type: Type) -> bool:
+    if not type.sized:
+        return False
+    if type.size() > 0:
+        return False
+    if isinstance(type, Array) and type.len == 0 and type.type.size() > 0:
+        return False
+    return True
 
 class Struct(Type):
     def __init__(self, name: Union[Name, str], fields: List[Field] = []):
@@ -38,9 +47,9 @@ class Struct(Type):
         return "\n".join([
             f"typedef struct __attribute__((packed, aligned(1))) {self.c_type()} {{",
             *[
-                f"    {f.type.c_type()} {f.name.snake()};"
+                f"    {declare_variable(f.type.c_type(), f.name.snake())};"
                 for f in self.fields
-                if not f.type.sized or f.type.size() > 0
+                if not should_ignore(f.type)
             ],
             f"}} {self.c_type()};",
         ])
@@ -97,7 +106,7 @@ class Variant(Type):
             *[
                 f"        {f.type.c_type()} {f.name.snake()};"
                 for f in self.options
-                if not f.type.sized or f.type.size() > 0
+                if not should_ignore(f.type)
             ],
             f"    }};",
             f"}} {self.c_type()};",
