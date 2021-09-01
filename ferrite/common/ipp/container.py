@@ -50,7 +50,7 @@ class Vector(Type):
                 f"    memcpy((void *)dst.data(), (const void *)src->data, {self.c_size('src')});",
             ] if self.item.trivial else [
                 f"    for (size_t i = 0; i < dst.size(); ++i) {{",
-                f"        {self.item.cpp_load('dst[i]', 'src->data[i]')};",
+                f"        dst[i] = {self.item.cpp_load('src->data[i]')};",
                 f"    }}",
             ]),
             f"    return dst;",
@@ -80,11 +80,11 @@ class Vector(Type):
     def cpp_size(self, obj: str) -> str:
         return f"({obj}.size() * {self.item.size()})"
 
-    def cpp_load(self, dst: str, src: str) -> str:
-        return f"{dst} = {Name(self.name(), 'load').snake()}(&{src})"
+    def cpp_load(self, src: str) -> str:
+        return f"{Name(self.name(), 'load').snake()}(&{src})"
     
     def cpp_store(self, src: str, dst: str) -> str:
-        return f"{Name(self.name(), 'store').snake()}({src}, &{dst})"
+        return f"{Name(self.name(), 'store').snake()}({src}, &{dst});"
 
 class String(Vector):
     def __init__(self):

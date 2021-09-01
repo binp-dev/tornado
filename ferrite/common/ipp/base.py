@@ -123,7 +123,7 @@ class Type:
     def _cpp_size_extent(self, obj: str) -> str:
         raise NotImplementedError()
 
-    def cpp_load(self, dst: str, src: str) -> str:
+    def cpp_load(self, src: str) -> str:
         raise NotImplementedError()
     
     def cpp_store(self, src: str, dst: str) -> str:
@@ -146,8 +146,8 @@ class TrivialType(SizedType):
     def __init__(self, *args, **kwargs):
         super().__init__(trivial=True, *args, **kwargs)
 
-    def cpp_load(self, dst: str, src: str) -> str:
-        return f"{dst} = {src}"
+    def cpp_load(self, src: str) -> str:
+        return f"{src}"
     
     def cpp_store(self, src: str, dst: str) -> str:
         return f"{dst} = {src}"

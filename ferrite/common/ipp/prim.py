@@ -38,10 +38,10 @@ class Int(SizedType):
         else:
             if self.signed:
                 raise RuntimeError(f"Signed integers are only supported to have power-of-2 size")
-            name = self._int_type(self.bits)
+            name = self.c_type()
             ceil_name = self._int_type(ceil_to_power_of_2(self.bits))
             return Source("\n".join([
-                f"typedef struct {{",
+                f"typedef struct {name} {{",
                 f"    uint8_t bytes[{bytes}];",
                 f"}} {name};",
                 f"",
@@ -64,11 +64,11 @@ class Int(SizedType):
     def cpp_source(self) -> Source:
         return None
 
-    def cpp_load(self, dst: str, src: str) -> str:
+    def cpp_load(self, src: str) -> str:
         if self._is_trivial():
-            return f"{dst} = {src}"
+            return f"{src}"
         else:
-            return f"{dst} = uint{self.bits}_load({src})"
+            return f"uint{self.bits}_load({src})"
 
     def cpp_store(self, src: str, dst: str) -> str:
         if self._is_trivial():

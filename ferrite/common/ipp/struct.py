@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing import List, Union, overload
-from dataclasses import dataclass
+from typing import List, Tuple, Union, overload
+from dataclasses import dataclass, fields
 
 from ipp.base import Name, Type, Source, declare_variable
 from ipp.prim import Array, Int, Pointer, Reference
@@ -43,12 +43,18 @@ class Struct(Type):
     def size(self) -> int:
         return sum([f.type.size() for f in self.fields])
 
+    def _fields_with_comma(self) -> List[Tuple[Field, str]]:
+        if len(self.fields) > 0:
+            return [(f, ",") for f in self.fields[:-1]] + [(self.fields[-1], "")]
+        else:
+            return []
+
     def _c_size_func_name(self) -> str:
         return Name(self.name(), "size").snake()
 
     def _c_size_extent(self, obj: str) -> str:
         return self.fields[-1].type._c_size_extent(f"({obj}.{self.fields[-1].name.snake()})")
-    
+
     def _cpp_size_extent(self, obj: str) -> str:
         return self.fields[-1].type._cpp_size_extent(f"({obj}.{self.fields[-1].name.snake()})")
 
@@ -83,6 +89,16 @@ class Struct(Type):
             ] if not self.sized or self.size() > 0 else [
                 f"    [[nodiscard]] size_t packed_size() const {{ return 0; }}",
             ]),
+            f"",
+            f"    [[nodiscard]] static {self.cpp_type()} load({Pointer(self, const=True).c_type()} src) {{",
+            f"        return {self.cpp_type()}{{",
+            *[f"            {f.type.cpp_load(f'(src->{f.name.snake()})')}," for f in self.fields],
+            f"        }};",
+            f"    }}",
+            f"",
+            f"    [[nodiscard]] void store({Pointer(self).c_type()} dst) {{",
+            *[f"        {f.type.cpp_store(f'{f.name.snake()}', f'(dst->{f.name.snake()})')};" for f in self.fields],
+            f"    }}",
             f"}};",
         ])
 
@@ -113,8 +129,8 @@ class Struct(Type):
     def cpp_size(self, obj: str) -> str:
         return f"({obj}.size() * {self.item.size()})"
 
-    def cpp_load(self, dst: str, src: str) -> str:
-        return f"{dst} = {Name(self.name(), 'load').snake()}(&{src})"
+    def cpp_load(self, src: str) -> str:
+        return f"{Name(self.name(), 'load').snake()}(&{src})"
     
     def cpp_store(self, src: str, dst: str) -> str:
         return f"{Name(self.name(), 'store').snake()}({src}, &{dst})"
@@ -234,8 +250,8 @@ class Variant(Type):
     def cpp_size(self, obj: str) -> str:
         return f"({obj}.size() * {self.item.size()})"
 
-    def cpp_load(self, dst: str, src: str) -> str:
-        return f"{dst} = {Name(self.name(), 'load').snake()}(&{src})"
+    def cpp_load(self, src: str) -> str:
+        return f"{Name(self.name(), 'load').snake()}(&{src})"
     
     def cpp_store(self, src: str, dst: str) -> str:
         return f"{Name(self.name(), 'store').snake()}({src}, &{dst})"
