@@ -1,5 +1,13 @@
 from __future__ import annotations
 from typing import List, Set, Union
+from dataclasses import dataclass
+from enum import Enum
+
+@dataclass
+class Context:
+    prefix: str = None
+
+CONTEXT = Context()
 
 class Name:
     def __init__(self, *args):
@@ -11,6 +19,8 @@ class Name:
                 self.words += arg
             elif isinstance(arg, str):
                 self.words.append(arg)
+            elif arg is None:
+                pass
             else:
                 raise RuntimeError(f"Unsupported argument {type(arg).__name__}")
 
@@ -24,8 +34,15 @@ class Name:
     def from_snake(snake: str) -> Name:
         Name(snake.split("_"))
 
+class Location(Enum):
+    INCLUDES = 0,
+    DECLARATION = 1,
+    DEFINITION = 2
+
 class Source:
-    def __init__(self, items: Union[List[str], str] = None, deps: List[Source] = []):
+    def __init__(self, location: Location, items: Union[List[str], str] = None, deps: List[Source] = []):
+        self.location = location
+
         if items is not None:
             if isinstance(items, str):
                 self.items = [items]
@@ -38,28 +55,29 @@ class Source:
 
         self.deps = [p for p in deps if p is not None]
 
-    def collect(self, used: Set[str] = None) -> List[str]:
+    def collect(self, location: Location, used: Set[str] = None) -> List[str]:
         if used is None:
             used = set()
 
         result = []
 
         for dep in self.deps:
-            result.extend(dep.collect(used))
+            result.extend(dep.collect(location, used))
 
-        for item in self.items:
-            if item is not None and item not in used:
-                result.append(item)
-                used.add(item)
+        if self.location == location:
+            for item in self.items:
+                if item is not None and item not in used:
+                    result.append(item)
+                    used.add(item)
 
         return result
 
-    def make_source(self) -> str:
-        return "\n\n".join(self.collect()) + "\n"
+    def make_source(self, location: Location, separator: str = "\n\n") -> str:
+        return separator.join(self.collect(location)) + "\n"
 
 class Include(Source):
     def __init__(self, path):
-        super().__init__([f"#include <{path}>"])
+        super().__init__(Location.INCLUDES, [f"#include <{path}>"])
 
 class CType:
     def __init__(self, prefix: str, postfix: str = None):

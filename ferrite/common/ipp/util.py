@@ -14,3 +14,11 @@ def is_power_of_2(n: int) -> bool:
 
 def ceil_to_power_of_2(n: int) -> bool:
     return 1 << (n - 1).bit_length()
+
+def list_join(lists, sep=[]):
+    result = []
+    for i, l in enumerate(lists):
+        if i > 0:
+            result.extend(sep)
+        result.extend(l)
+    return result

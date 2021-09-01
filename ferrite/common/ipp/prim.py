@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List
 from dataclasses import dataclass
 
-from ipp.base import CType, Name, TrivialType, SizedType, Type, Source
+from ipp.base import CONTEXT, CType, Location, Name, TrivialType, SizedType, Type, Source
 from ipp.util import ceil_to_power_of_2, is_power_of_2
 
 @dataclass
@@ -27,7 +27,10 @@ class Int(SizedType):
         return f"{'u' if not signed else ''}int{bits}_t"
 
     def c_type(self) -> str:
-        return self._int_type(self.bits, self.signed)
+        ident = self._int_type(self.bits, self.signed)
+        if not self._is_trivial() and CONTEXT.prefix is not None:
+            ident = CONTEXT.prefix + "_" + ident
+        return ident
 
     def c_source(self) -> Source:
         if self.bits % 8 != 0 or self.bits > 64:
@@ -40,18 +43,19 @@ class Int(SizedType):
                 raise RuntimeError(f"Signed integers are only supported to have power-of-2 size")
             name = self.c_type()
             ceil_name = self._int_type(ceil_to_power_of_2(self.bits))
-            return Source("\n".join([
+            prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
+            return Source(Location.DECLARATION, "\n".join([
                 f"typedef struct {name} {{",
                 f"    uint8_t bytes[{bytes}];",
                 f"}} {name};",
                 f"",
-                f"{ceil_name} uint{self.bits}_load({name} x) {{",
+                f"{ceil_name} {prefix}uint{self.bits}_load({name} x) {{",
                 f"    {ceil_name} y = 0;",
                 f"    memcpy((void *)&y, (const void *)&x, {self.size()});",
                 f"    return y;",
                 f"}}",
                 f"",
-                f"{name} uint{self.bits}_store({ceil_name} y) {{",
+                f"{name} {prefix}uint{self.bits}_store({ceil_name} y) {{",
                 f"    {name} x;",
                 f"    memcpy((void *)&x, (const void *)&y, {self.size()});",
                 f"    return x;",
@@ -68,13 +72,15 @@ class Int(SizedType):
         if self._is_trivial():
             return f"{src}"
         else:
-            return f"uint{self.bits}_load({src})"
+            prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
+            return f"{prefix}uint{self.bits}_load({src})"
 
     def cpp_store(self, src: str, dst: str) -> str:
         if self._is_trivial():
             return f"{dst} = {src}"
         else:
-            return f"{dst} = uint{self.bits}_store({src})"
+            prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
+            return f"{dst} = {prefix}uint{self.bits}_store({src})"
 
 @dataclass
 class Float(TrivialType):
