@@ -81,8 +81,17 @@ def declare_variable(c_type: Union[CType, str], variable: str) -> str:
         return f"{c_type} {variable}"
 
 class Type:
-    def __init__(self, sized: bool = False):
-        self.sized = sized
+    def __init__(self, sized: bool = False, trivial: bool = False):
+        self._sized = sized
+        self._trivial = trivial
+
+    @property
+    def sized(self):
+        return self._sized
+
+    @property
+    def trivial(self):
+        return self._trivial
 
     def name(self) -> Name:
         raise NotImplementedError()
@@ -114,12 +123,12 @@ class Type:
     def cpp_load(self, dst: str, src: str) -> str:
         raise NotImplementedError()
     
-    def cpp_store(self, dst: str, src: str) -> str:
+    def cpp_store(self, src: str, dst: str) -> str:
         raise NotImplementedError()
 
 class SizedType(Type):
-    def __init__(self):
-        super().__init__(sized=True)
+    def __init__(self, *args, **kwargs):
+        super().__init__(sized=True, *args, **kwargs)
 
     def size(self) -> int:
         raise NotImplementedError()
@@ -132,3 +141,13 @@ class SizedType(Type):
 
     def _c_size_extent(self, obj: str) -> str:
         raise NotImplementedError()
+
+class TrivialType(SizedType):
+    def __init__(self, *args, **kwargs):
+        super().__init__(trivial=True, *args, **kwargs)
+
+    def cpp_load(self, dst: str, src: str) -> str:
+        return f"{dst} = {src}"
+    
+    def cpp_store(self, src: str, dst: str) -> str:
+        return f"{dst} = {src}"

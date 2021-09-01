@@ -58,12 +58,14 @@ class Struct(Type):
                 if not should_ignore(f.type)
             ],
             f"}} {self.c_type()};",
-            *([
-                f"",
-                f"size_t {self._c_size_func_name()}({Pointer(self, const=True).c_type()} obj) {{",
-                f"    return {self.min_size()} + {self._c_size_extent('(*obj)')};",
-                f"}}",
-            ] if not self.sized else []),
+        ])
+    
+    def _c_size_definition(self) -> str:
+        return "\n".join([
+            f"",
+            f"size_t {self._c_size_func_name()}({Pointer(self, const=True).c_type()} obj) {{",
+            f"    return {self.min_size()} + {self._c_size_extent('(*obj)')};",
+            f"}}",
         ])
 
     def _cpp_definition(self) -> str:
@@ -79,7 +81,10 @@ class Struct(Type):
 
     def c_source(self) -> Source:
         return Source(
-            [self._c_definition()] if not self.sized or self.size() > 0 else [],
+            [
+                self._c_definition() if not self.sized or self.size() > 0 else None,
+                self._c_size_definition() if not self.sized else None,
+            ],
             deps=[field.type.c_source() for field in self.fields],
         )
 

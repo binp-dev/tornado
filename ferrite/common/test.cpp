@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <assert.h>
 
 extern "C" {
 
@@ -37,3 +38,31 @@ typedef struct __attribute__((packed, aligned(1))) {
 
 static_assert(sizeof(PackedArray) == 1);
 static_assert(alignof(PackedArray) == 1);
+
+extern "C" {
+
+typedef struct __attribute__((aligned(8))) {
+    uint8_t b[8];
+} AlignedType;
+
+typedef struct __attribute__((packed, aligned(1))) {
+    uint8_t a;
+    AlignedType b;
+} PackedAlignedType;
+
+};
+
+AlignedType *unaligned_pointer(PackedAlignedType *obj) {
+    return &obj->b;
+}
+/*
+AlignedType &unaligned_reference(PackedAlignedType &obj) {
+    return obj.b;
+}
+*/
+
+int main() {
+    PackedAlignedType obj{0, {{0}}};
+    assert((uint8_t *)&obj + 1 == (uint8_t *)unaligned_pointer(&obj));
+    return 0;
+}

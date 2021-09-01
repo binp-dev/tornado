@@ -2,45 +2,22 @@ from __future__ import annotations
 from typing import List
 from dataclasses import dataclass
 
-from ipp.base import CType, Name, SizedType, Type, Source
+from ipp.base import CType, Name, TrivialType, SizedType, Type, Source
 from ipp.util import ceil_to_power_of_2, is_power_of_2
-
-@dataclass
-class Pointer(SizedType):
-    type: Type
-    const: bool = False
-
-    def __post_init__(self):
-        super().__init__()
-
-    def name(self) -> Name:
-        return Name(self.type.name(), "const" if self.const else "", + "ptr")
-
-    def _ptr_type(self, type_str: str) -> str:
-        return f"{'const ' if self.const else ''}{type_str} *"
-
-    def c_type(self) -> str:
-        return self._ptr_type(self.type.c_type())
-    
-    def cpp_type(self) -> str:
-        return self._ptr_type(self.type.cpp_type())
-
-    def c_source(self) -> Source:
-        return self.type.c_source()
-
-    def cpp_source(self) -> Source:
-        return self.type.cpp_source()
 
 @dataclass
 class Int(SizedType):
     bits: int
     signed: bool = False
 
+    def _is_trivial(self):
+        return is_power_of_2(self.bits // 8) and (self.bits % 8) == 0
+
     def __post_init__(self):
-        super().__init__()
+        super().__init__(trivial=self._is_trivial())
 
     def name(self) -> Name:
-        return Name(("u" if not self.signed else "") + "int", str(self.bits))
+        return Name(("u" if not self.signed else "") + "int" + str(self.bits))
 
     def size(self) -> int:
         return (self.bits - 1) // 8 + 1
@@ -56,7 +33,7 @@ class Int(SizedType):
         if self.bits % 8 != 0 or self.bits > 64:
             raise RuntimeError(f"{self.bits}-bit integer is not supported")
         bytes = self.bits // 8
-        if is_power_of_2(bytes):
+        if self._is_trivial():
             return None
         else:
             if self.signed:
@@ -68,13 +45,13 @@ class Int(SizedType):
                 f"    uint8_t bytes[{bytes}];",
                 f"}} {name};",
                 f"",
-                f"{ceil_name} to_uint{self.bits}({name} x) {{",
+                f"{ceil_name} uint{self.bits}_load({name} x) {{",
                 f"    {ceil_name} y = 0;",
                 f"    memcpy((void *)&y, (const void *)&x, {self.size()});",
                 f"    return y;",
                 f"}}",
                 f"",
-                f"{name} from_uint{self.bits}({ceil_name} y) {{",
+                f"{name} uint{self.bits}_store({ceil_name} y) {{",
                 f"    {name} x;",
                 f"    memcpy((void *)&x, (const void *)&y, {self.size()});",
                 f"    return x;",
@@ -87,15 +64,27 @@ class Int(SizedType):
     def cpp_source(self) -> Source:
         return None
 
+    def cpp_load(self, dst: str, src: str) -> str:
+        if self._is_trivial():
+            return f"{dst} = {src}"
+        else:
+            return f"{dst} = uint{self.bits}_load({src})"
+
+    def cpp_store(self, src: str, dst: str) -> str:
+        if self._is_trivial():
+            return f"{dst} = {src}"
+        else:
+            return f"{dst} = uint{self.bits}_store({src})"
+
 @dataclass
-class Float(SizedType):
+class Float(TrivialType):
     bits: int
 
     def __post_init__(self):
         super().__init__()
 
     def name(self) -> Name:
-        return Name("float", str(self.bits))
+        return Name(f"float{self.bits}")
 
     def size(self) -> int:
         return (self.bits - 1) // 8 + 1
@@ -109,7 +98,7 @@ class Float(SizedType):
             raise RuntimeError(f"{self.bits}-bit float is not supported")
 
 @dataclass
-class Char(SizedType):
+class Char(TrivialType):
     def __post_init__(self):
         super().__init__()
 
@@ -134,12 +123,45 @@ class Size(SizedType):
         return "size_t"
 
 @dataclass
+class Pointer(SizedType):
+    type: Type
+    const: bool = False
+    _sep: str = "*"
+    _postfix: str = "ptr"
+
+    def __post_init__(self):
+        super().__init__()
+
+    def name(self) -> Name:
+        return Name(self.type.name(), "const" if self.const else "", self._postfix)
+
+    def _ptr_type(self, type_str: str) -> str:
+        return f"{'const ' if self.const else ''}{type_str} {self._sep}"
+
+    def c_type(self) -> str:
+        return self._ptr_type(self.type.c_type())
+    
+    def cpp_type(self) -> str:
+        return self._ptr_type(self.type.cpp_type())
+
+    def c_source(self) -> Source:
+        return self.type.c_source()
+
+    def cpp_source(self) -> Source:
+        return self.type.cpp_source()
+
+class Reference(Pointer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs, _sep="&", _postfix="ref")
+
+@dataclass
 class Array(SizedType):
     type: SizedType
     len: int
 
     def __post_init__(self):
-        super().__init__()
+        assert self.type.sized
+        super().__init__(trivial=self.type.trivial)
 
     def size(self) -> int:
         return self.type.size() * self.len
