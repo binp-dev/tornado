@@ -1,12 +1,13 @@
 from __future__ import annotations
 from typing import List
 
-from ipp.base import Include, Name, Type, Source
+from ipp.base import Include, Name, SizedType, Type, Source
 from ipp.prim import Array, Char, Int
 from ipp.struct import Struct, Field
 
 class Vector(Type):
-    def __init__(self, item: Type):
+    def __init__(self, item: SizedType):
+        assert isinstance(item, SizedType)
         super().__init__()
         self.item = item
         self._c_struct = Struct(
@@ -22,9 +23,12 @@ class Vector(Type):
 
     def min_size(self) -> int:
         return self._c_struct.fields[0].type.size()
-    
+
+    def _c_size_extent(self, obj: str) -> str:
+        return f"((size_t){obj}.len * {self.item.size()})"
+
     def c_size(self, obj: str) -> str:
-        return f"({self.min_size()} + obj.len)"
+        return f"({self.min_size()} + {self._c_size_extent(obj)})"
 
     def c_type(self) -> str:
         return self._c_struct.c_type()

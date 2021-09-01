@@ -2,11 +2,11 @@ from __future__ import annotations
 from typing import List
 from dataclasses import dataclass
 
-from ipp.base import CType, Name, Sized, Type, Source
+from ipp.base import CType, Name, SizedType, Type, Source
 from ipp.util import ceil_to_power_of_2, is_power_of_2
 
 @dataclass
-class Pointer(Sized):
+class Pointer(SizedType):
     type: Type
     const: bool = False
 
@@ -32,7 +32,7 @@ class Pointer(Sized):
         return self.type.cpp_source()
 
 @dataclass
-class Int(Sized):
+class Int(SizedType):
     bits: int
     signed: bool = False
 
@@ -88,7 +88,7 @@ class Int(Sized):
         return None
 
 @dataclass
-class Float(Sized):
+class Float(SizedType):
     bits: int
 
     def __post_init__(self):
@@ -109,7 +109,7 @@ class Float(Sized):
             raise RuntimeError(f"{self.bits}-bit float is not supported")
 
 @dataclass
-class Char(Sized):
+class Char(SizedType):
     def __post_init__(self):
         super().__init__()
 
@@ -123,7 +123,7 @@ class Char(Sized):
         return "char"
 
 @dataclass
-class Size(Sized):
+class Size(SizedType):
     def __post_init__(self):
         super().__init__()
 
@@ -134,8 +134,8 @@ class Size(Sized):
         return "size_t"
 
 @dataclass
-class Array(Sized):
-    type: Sized
+class Array(SizedType):
+    type: SizedType
     len: int
 
     def __post_init__(self):

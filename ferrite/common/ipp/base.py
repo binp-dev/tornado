@@ -105,7 +105,19 @@ class Type:
     def c_size(self, obj: str) -> str:
         raise NotImplementedError()
 
-class Sized(Type):
+    def _c_size_extent(self, obj: str) -> str:
+        raise NotImplementedError()
+
+    def cpp_size(self, obj: str) -> str:
+        return self.c_size(obj)
+
+    def cpp_load(self, dst: str, src: str) -> str:
+        raise NotImplementedError()
+    
+    def cpp_store(self, dst: str, src: str) -> str:
+        raise NotImplementedError()
+
+class SizedType(Type):
     def __init__(self):
         super().__init__(sized=True)
 
@@ -114,3 +126,9 @@ class Sized(Type):
 
     def min_size(self) -> int:
         return self.size()
+
+    def c_size(self, obj: str) -> str:
+        return str(self.size())
+
+    def _c_size_extent(self, obj: str) -> str:
+        raise NotImplementedError()

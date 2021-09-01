@@ -1,9 +1,9 @@
 from __future__ import annotations
-from typing import List, Union
+from typing import List, Union, overload
 from dataclasses import dataclass
 
 from ipp.base import Name, Type, Source, declare_variable
-from ipp.prim import Array, Int
+from ipp.prim import Array, Int, Pointer
 from ipp.util import ceil_to_power_of_2
 
 class Field:
@@ -43,6 +43,12 @@ class Struct(Type):
     def size(self) -> int:
         return sum([f.type.size() for f in self.fields])
 
+    def _c_size_func_name(self) -> str:
+        return Name(self.name(), "size").snake()
+
+    def _c_size_extent(self, obj: str) -> str:
+        return self.fields[-1].type._c_size_extent(f"({obj}.{self.fields[-1].name.snake()})")
+
     def _c_definition(self) -> str:
         return "\n".join([
             f"typedef struct __attribute__((packed, aligned(1))) {self.c_type()} {{",
@@ -52,6 +58,12 @@ class Struct(Type):
                 if not should_ignore(f.type)
             ],
             f"}} {self.c_type()};",
+            *([
+                f"",
+                f"size_t {self._c_size_func_name()}({Pointer(self, const=True).c_type()} obj) {{",
+                f"    return {self.min_size()} + {self._c_size_extent('(*obj)')};",
+                f"}}",
+            ] if not self.sized else []),
         ])
 
     def _cpp_definition(self) -> str:
@@ -76,6 +88,12 @@ class Struct(Type):
             [self._cpp_definition()],
             [field.type.cpp_source() for field in self.fields],
         )
+
+    def c_size(self, obj: str) -> str:
+        if self.sized:
+            return str(self.size())
+        else:
+            return f"{self._c_size_func_name()}(&{obj})"
 
 class Variant(Type):
     def __init__(self, name: Union[Name, str], options: List[Field]):
