@@ -114,11 +114,14 @@ class Type:
     def c_size(self, obj: str) -> str:
         raise NotImplementedError()
 
+    def cpp_size(self, obj: str) -> str:
+        return self.c_size(obj)
+
     def _c_size_extent(self, obj: str) -> str:
         raise NotImplementedError()
 
-    def cpp_size(self, obj: str) -> str:
-        return self.c_size(obj)
+    def _cpp_size_extent(self, obj: str) -> str:
+        raise NotImplementedError()
 
     def cpp_load(self, dst: str, src: str) -> str:
         raise NotImplementedError()
@@ -138,9 +141,6 @@ class SizedType(Type):
 
     def c_size(self, obj: str) -> str:
         return str(self.size())
-
-    def _c_size_extent(self, obj: str) -> str:
-        raise NotImplementedError()
 
 class TrivialType(SizedType):
     def __init__(self, *args, **kwargs):

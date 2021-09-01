@@ -1,38 +1,41 @@
-from typing import List
+from typing import List, Tuple
 from ipp.base import Name, Source, Type
 from ipp.prim import Int
 from ipp.struct import Field, Struct, Variant
 from ipp.container import Vector, String
 
-def make_variant(name: Name, types: List[Type]) -> Variant:
+def make_variant(name: Name, messages: List[Tuple[Name, List[Field]]]) -> Variant:
     return Variant(
         name,
-        [Field(ty.name().snake(), ty) for ty in types]
+        [
+            Field(suffux, Struct(Name(name, suffux), fields))
+            for suffux, fields in messages
+        ],
     )
 
 app_msg = make_variant(
-    Name(["App", "Msg"]),
+    Name(["app", "msg"]),
     [
-        Struct(Name(["app", "msg", "start"])),
-        Struct(Name(["app", "msg", "dac", "wf"]), [
+        (Name(["start"]), []),
+        (Name(["dac", "wf"]), [
             Field("data", Vector(Int(24))),
         ]),
     ],
 )
 
 mcu_msg = make_variant(
-    Name(["Mcu", "Msg"]),
+    Name(["mcu", "msg"]),
     [
-        Struct(Name(["mcu", "msg", "dac", "wf", "req"])),
-        Struct(Name(["mcu", "msg", "adc", "wf"]), [
+        (Name(["dac", "wf", "req"]), []),
+        (Name(["adc", "wf"]), [
             Field("index", Int(8)),
             Field("data", Vector(Int(24))),
         ]),
-        Struct(Name(["mcu", "msg", "error"]), [
+        (Name(["error"]), [
             Field("code", Int(8)),
             Field("message", String()),
         ]),
-        Struct(Name(["mcu", "msg", "debug"]), [
+        (Name(["debug"]), [
             Field("message", String()),
         ]),
     ],
