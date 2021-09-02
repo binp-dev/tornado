@@ -44,23 +44,29 @@ class Int(SizedType):
             name = self.c_type()
             ceil_name = self._int_type(ceil_to_power_of_2(self.bits))
             prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
-            return Source(Location.DECLARATION, "\n".join([
+            load_decl = f"{ceil_name} {prefix}uint{self.bits}_load({name} x)"
+            store_decl = f"{name} {prefix}uint{self.bits}_store({ceil_name} y)"
+            declaraion = Source(Location.DECLARATION, "\n".join([
                 f"typedef struct {name} {{",
                 f"    uint8_t bytes[{bytes}];",
                 f"}} {name};",
                 f"",
-                f"{ceil_name} {prefix}uint{self.bits}_load({name} x) {{",
+                f"{load_decl};"
+                f"{store_decl};"
+            ]))
+            return Source(Location.DEFINITION, "\n".join([
+                f"{load_decl} {{",
                 f"    {ceil_name} y = 0;",
                 f"    memcpy((void *)&y, (const void *)&x, {self.size()});",
                 f"    return y;",
                 f"}}",
                 f"",
-                f"{name} {prefix}uint{self.bits}_store({ceil_name} y) {{",
+                f"{store_decl} {{",
                 f"    {name} x;",
                 f"    memcpy((void *)&x, (const void *)&y, {self.size()});",
                 f"    return x;",
                 f"}}",
-            ]))
+            ]), deps=[declaraion])
 
     def cpp_type(self) -> str:
         return self._int_type(ceil_to_power_of_2(self.bits))

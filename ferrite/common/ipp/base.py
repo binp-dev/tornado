@@ -35,9 +35,10 @@ class Name:
         Name(snake.split("_"))
 
 class Location(Enum):
-    INCLUDES = 0,
-    DECLARATION = 1,
+    INCLUDES = 0
+    DECLARATION = 1
     DEFINITION = 2
+    TESTS = 3
 
 class Source:
     def __init__(self, location: Location, items: Union[List[str], str] = None, deps: List[Source] = []):

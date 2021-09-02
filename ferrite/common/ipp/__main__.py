@@ -44,18 +44,23 @@ mcu_msg = make_variant(
     ],
 )
 
+c_source = Source(None, deps=[
+    app_msg.c_source(),
+    mcu_msg.c_source(),
+])
+cpp_source = Source(None, deps=[
+    app_msg.cpp_source(),
+    mcu_msg.cpp_source(),
+])
+
 with open("_out.h", "w") as f:
-    source = Source(None, deps=[
-        app_msg.c_source(),
-        mcu_msg.c_source(),
-    ])
     f.write("#pragma once\n\n")
     f.write("\n".join([
         "#include <stdlib.h>",
         "#include <stdint.h>",
         "#include <string.h>",
     ]) + "\n\n")
-    f.write(source.make_source(Location.INCLUDES, separator="\n"))
+    f.write(c_source.make_source(Location.INCLUDES, separator="\n"))
     f.write("\n")
     f.write("\n".join([
         "#ifdef __cplusplus",
@@ -63,7 +68,7 @@ with open("_out.h", "w") as f:
         "#endif // __cplusplus",
     ]) + "\n")
     f.write("\n")
-    f.write(source.make_source(Location.DECLARATION))
+    f.write(c_source.make_source(Location.DECLARATION))
     f.write("\n")
     f.write("\n".join([
         "#ifdef __cplusplus",
@@ -72,17 +77,26 @@ with open("_out.h", "w") as f:
     ]))
     f.write("\n")
 
+with open("_out.c", "w") as f:
+    f.write("#include <_out.h>\n\n")
+    f.write(c_source.make_source(Location.DEFINITION))
+    f.write("\n")
+
 with open("_out.hpp", "w") as f:
-    source = Source(None, deps=[
-        app_msg.cpp_source(),
-        mcu_msg.cpp_source(),
-    ])
     f.write("#pragma once\n\n")
-    f.write(source.make_source(Location.INCLUDES, separator="\n"))
+    f.write(cpp_source.make_source(Location.INCLUDES, separator="\n"))
     f.write("\n")
     f.write("#include <_out.h>\n\n")
     f.write(f"namespace {CONTEXT.prefix} {{\n\n")
-    f.write(source.make_source(Location.DECLARATION))
+    f.write(cpp_source.make_source(Location.DECLARATION))
+    f.write("\n\n")
+    f.write(f"}} // namespace {CONTEXT.prefix}")
     f.write("\n")
+
+with open("_out.cpp", "w") as f:
+    f.write("#include <_out.hpp>\n\n")
+    f.write(f"namespace {CONTEXT.prefix} {{\n\n")
+    f.write(cpp_source.make_source(Location.DEFINITION))
+    f.write("\n\n")
     f.write(f"}} // namespace {CONTEXT.prefix}")
     f.write("\n")
