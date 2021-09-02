@@ -161,19 +161,34 @@ class Reference(Pointer):
         super().__init__(*args, **kwargs, _sep="&", _postfix="ref")
 
 @dataclass
-class Array(SizedType):
+class Array(Type):
     type: SizedType
     len: int
 
     def __post_init__(self):
         assert self.type.sized
-        super().__init__(trivial=self.type.trivial)
+        super().__init__(
+            sized=self.len is not None,
+            trivial=self.type.trivial,
+        )
 
     def size(self) -> int:
-        return self.type.size() * self.len
+        if self.len is not None:
+            return self.type.size() * self.len
+        else:
+            raise NotImplementedError()
+
+    def min_size(self) -> int:
+        if self.len is not None:
+            return self.size()
+        else:
+            return 0
+
+    def c_size(self, obj: str) -> str:
+        return str(self.size())
 
     def c_type(self) -> CType:
-        return CType(str(self.type.c_type()), f"[{self.len}]")
+        return CType(str(self.type.c_type()), f"[{self.len if self.len is not None else ''}]")
 
     def c_source(self) -> Source:
         return self.type.c_source()

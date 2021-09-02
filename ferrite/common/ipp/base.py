@@ -117,6 +117,9 @@ class Type:
     def min_size(self) -> int:
         raise NotImplementedError()
 
+    def is_empty(self) -> bool:
+        return self.sized and self.size() == 0
+
     def c_type(self) -> Union[CType, str]:
         raise NotImplementedError()
 

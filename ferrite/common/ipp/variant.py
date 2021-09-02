@@ -4,7 +4,7 @@ from typing import List, Tuple, Union
 from ipp.base import CONTEXT, Include, Location, Name, Type, Source
 from ipp.prim import Int, Pointer
 from ipp.util import ceil_to_power_of_2, list_join
-from ipp.struct import Field, should_ignore
+from ipp.struct import Field
 
 
 class Variant(Type):
@@ -50,7 +50,7 @@ class Variant(Type):
             *[
                 f"        {f.type.c_type()} {f.name.snake()};"
                 for f in self.options
-                if not should_ignore(f.type)
+                if not f.type.is_empty()
             ],
             f"    }};",
             f"}} {self.c_type()};",

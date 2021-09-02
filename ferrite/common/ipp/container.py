@@ -5,24 +5,20 @@ from ipp.base import CONTEXT, Include, Location, Name, SizedType, Type, Source
 from ipp.prim import Array, Char, Int, Pointer, Reference
 from ipp.struct import Struct, Field
 
-class Vector(Type):
+class Vector(Struct):
     def __init__(self, item: SizedType):
         assert item.sized
-        super().__init__()
         self.item = item
-        self._c_struct = Struct(
+        super().__init__(
             self.name(),
             [
                 Field("len", Int(16)),
-                Field("data", Array(self.item, 0)),
+                Field("data", Array(self.item, None)),
             ],
         )
 
     def name(self) -> Name:
         return Name("vector", self.item.name())
-
-    def min_size(self) -> int:
-        return self._c_struct.fields[0].type.size()
 
     def _c_size_extent(self, obj: str) -> str:
         item_size = self.item.size()
@@ -32,17 +28,8 @@ class Vector(Type):
         item_size = self.item.size()
         return f"({obj}.size(){f' * {item_size}' if item_size != 1 else ''})"
 
-    def c_size(self, obj: str) -> str:
-        return f"({self.min_size()} + {self._c_size_extent(obj)})"
-
-    def c_type(self) -> str:
-        return self._c_struct.c_type()
-
     def cpp_type(self) -> str:
         return f"std::vector<{self.item.cpp_type()}>"
-
-    def c_source(self) -> Source:
-        return self._c_struct.c_source()
 
     def cpp_source(self) -> Source:
         load_src = "\n".join([
@@ -61,7 +48,7 @@ class Vector(Type):
         store_src = "\n".join([
             f"void {Name(self.name(), 'store').snake()}({Reference(self, const=True).cpp_type()} src, {Pointer(self).c_type()} dst) {{",
             f"    // FIXME: Check for `dst->len` overflow.",
-            f"    dst->len = static_cast<{self._c_struct.fields[0].type.c_type()}>(src.size());",
+            f"    dst->len = static_cast<{self.fields[0].type.c_type()}>(src.size());",
             *([
                 f"    memcpy((void *)dst->data, (const void *)src.data(), src.size() * {self.item.size()});",
             ] if self.item.trivial else [
@@ -107,7 +94,7 @@ class String(Vector):
         store_src = "\n".join([
             f"void {Name(self.name(), 'store').snake()}({Reference(self, const=True).cpp_type()} src, {Pointer(self).c_type()} dst) {{",
             f"    // FIXME: Check for `dst->len` overflow.",
-            f"    dst->len = static_cast<{self._c_struct.fields[0].type.c_type()}>(src.size());",
+            f"    dst->len = static_cast<{self.fields[0].type.c_type()}>(src.size());",
             f"    memcpy((void *)dst->data, (const void *)src.c_str(), src.length());",
             f"}}",
         ])

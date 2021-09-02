@@ -57,16 +57,13 @@ class Struct(Type):
     def _cpp_size_extent(self, obj: str) -> str:
         return self.fields[-1].type._cpp_size_extent(f"({obj}.{self.fields[-1].name.snake()})")
 
-    def is_empty(self) -> bool:
-        return self.sized and self.size() == 0
-
     def _c_definition(self) -> str:
         return "\n".join([
             f"typedef struct __attribute__((packed, aligned(1))) {self.c_type()} {{",
             *[
                 f"    {declare_variable(f.type.c_type(), f.name.snake())};"
                 for f in self.fields
-                if not should_ignore(f.type)
+                if not f.type.is_empty()
             ],
             f"}} {self.c_type()};",
         ])
