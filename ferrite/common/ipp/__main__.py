@@ -67,7 +67,7 @@ with open("_out.h", "w") as f:
     f.write("\n")
     f.write("\n".join([
         "#ifdef __cplusplus",
-        "};",
+        "}",
         "#endif // __cplusplus",
     ]))
     f.write("\n")

@@ -57,6 +57,9 @@ class Struct(Type):
     def _cpp_size_extent(self, obj: str) -> str:
         return self.fields[-1].type._cpp_size_extent(f"({obj}.{self.fields[-1].name.snake()})")
 
+    def is_empty(self) -> bool:
+        return self.sized and self.size() == 0
+
     def _c_definition(self) -> str:
         return "\n".join([
             f"typedef struct __attribute__((packed, aligned(1))) {self.c_type()} {{",
@@ -105,7 +108,7 @@ class Struct(Type):
         if len(fields_lines) > 0:
             sections.append(fields_lines)
 
-        if not self.sized or self.size() > 0:
+        if not self.is_empty():
             sections.append([
                 *self._cpp_size_method_lines(),
                 *self._cpp_load_method_lines(),
@@ -139,7 +142,7 @@ class Struct(Type):
         return Source(
             Location.DECLARATION,
             [
-                self._c_definition() if not self.sized or self.size() > 0 else None,
+                self._c_definition() if not self.is_empty() else None,
                 self._c_size_definition() if not self.sized else None,
             ],
             deps=[field.type.c_source() for field in self.fields],
@@ -162,7 +165,7 @@ class Struct(Type):
         return f"({obj}.size() * {self.item.size()})"
 
     def cpp_load(self, src: str) -> str:
-        return f"{Name(self.name(), 'load').snake()}(&{src})"
-    
+        return f"{self.cpp_type()}::load(&{src})"
+
     def cpp_store(self, src: str, dst: str) -> str:
-        return f"{Name(self.name(), 'store').snake()}({src}, &{dst})"
+        return f"{src}.store(&{dst})"
