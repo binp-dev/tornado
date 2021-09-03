@@ -22,3 +22,6 @@ def list_join(lists, sep=[]):
             result.extend(sep)
         result.extend(l)
     return result
+
+def indent_text(text: str, indent: str, _pat = re.compile(r"^(.+)$", flags=re.MULTILINE)) -> str:
+    return re.sub(_pat, rf"{indent}\1", text)

@@ -53,7 +53,7 @@ cpp_source = Source(None, deps=[
     mcu_msg.cpp_source(),
 ])
 
-with open("_out.h", "w") as f:
+with open("ipp.h", "w") as f:
     f.write("#pragma once\n\n")
     f.write("\n".join([
         "#include <stdlib.h>",
@@ -77,26 +77,40 @@ with open("_out.h", "w") as f:
     ]))
     f.write("\n")
 
-with open("_out.c", "w") as f:
-    f.write("#include <_out.h>\n\n")
+with open("ipp.c", "w") as f:
+    f.write("#include <ipp.h>\n\n")
     f.write(c_source.make_source(Location.DEFINITION))
     f.write("\n")
 
-with open("_out.hpp", "w") as f:
+with open("ipp.hpp", "w") as f:
     f.write("#pragma once\n\n")
     f.write(cpp_source.make_source(Location.INCLUDES, separator="\n"))
     f.write("\n")
-    f.write("#include <_out.h>\n\n")
+    f.write("#include <ipp.h>\n\n")
     f.write(f"namespace {CONTEXT.prefix} {{\n\n")
     f.write(cpp_source.make_source(Location.DECLARATION))
     f.write("\n\n")
     f.write(f"}} // namespace {CONTEXT.prefix}")
     f.write("\n")
 
-with open("_out.cpp", "w") as f:
-    f.write("#include <_out.hpp>\n\n")
+with open("ipp.cpp", "w") as f:
+    f.write("#include <ipp.hpp>\n\n")
     f.write(f"namespace {CONTEXT.prefix} {{\n\n")
     f.write(cpp_source.make_source(Location.DEFINITION))
     f.write("\n\n")
     f.write(f"}} // namespace {CONTEXT.prefix}")
+    f.write("\n")
+
+with open("ipp_test.cpp", "w") as f:
+    f.write("#include <ipp.hpp>\n\n")
+    f.write("#include <gtest/gtest.h>\n\n")
+    f.write(f"using namespace {CONTEXT.prefix};\n\n")
+    f.write(cpp_source.make_source(Location.TESTS))
+    f.write("\n\n")
+    f.write("\n".join([
+        "int main(int argc, char **argv) {",
+        "    testing::InitGoogleTest(&argc, argv);",
+        "    return RUN_ALL_TESTS();",
+        "}",
+    ]))
     f.write("\n")

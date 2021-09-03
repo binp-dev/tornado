@@ -1,8 +1,9 @@
 from __future__ import annotations
+from random import Random
 from typing import List
 from dataclasses import dataclass
 
-from ipp.base import CONTEXT, CType, Location, Name, TrivialType, SizedType, Type, Source
+from ipp.base import CONTEXT, CType, Location, Name, TestInfo, TestSource, TrivialType, SizedType, Type, Source
 from ipp.util import ceil_to_power_of_2, is_power_of_2
 
 @dataclass
@@ -72,7 +73,7 @@ class Int(SizedType):
         return self._int_type(ceil_to_power_of_2(self.bits))
 
     def cpp_source(self) -> Source:
-        return None
+        return self.cpp_test(TestInfo()).source()
 
     def cpp_load(self, src: str) -> str:
         if self._is_trivial():
@@ -87,6 +88,19 @@ class Int(SizedType):
         else:
             prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
             return f"{dst} = {prefix}uint{self.bits}_store({src})"
+
+    def cpp_test(self, info: TestInfo) -> TestSource:
+        if not self.signed:
+            value = info.rng.randrange(0, 2**self.bits)
+        else:
+            value = info.rng.randrange(-2**(self.bits - 1), 2**(self.bits - 1))
+        
+        return TestSource(
+            type=self,
+            cpp_create=f"{info.cpp_create_prefix}{value}",
+            c_content=f"EXPECT_EQ({self.cpp_load(info.c_content_prefix)}, {value});",
+            cpp_content=f"EXPECT_EQ({info.cpp_content_prefix}, {value});",
+        )
 
 @dataclass
 class Float(TrivialType):

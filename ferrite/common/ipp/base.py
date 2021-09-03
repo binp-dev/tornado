@@ -1,7 +1,10 @@
 from __future__ import annotations
-from typing import List, Set, Union
+from typing import List, Set, Tuple, Union
 from dataclasses import dataclass
 from enum import Enum
+from random import Random
+
+from ipp.util import indent_text
 
 @dataclass
 class Context:
@@ -99,6 +102,44 @@ def declare_variable(c_type: Union[CType, str], variable: str) -> str:
     else:
         return f"{c_type} {variable}"
 
+@dataclass
+class TestInfo:
+    rng: Random = None
+    cpp_create_prefix: str = ""
+    c_content_prefix: str = "(*obj)"
+    cpp_content_prefix: str = "dst"
+
+    def __post_init__(self):
+        if self.rng is None:
+            self.rng = Random(0xdeadbeef)
+
+@dataclass
+class TestSource:
+    type: Type
+    cpp_create: str
+    c_content: str
+    cpp_content: str
+
+    def source(self) -> Source:
+        return Source(
+            Location.TESTS,
+            "\n".join([
+                f"TEST({Name(CONTEXT.prefix, 'test').camel()}, {self.type.name().camel()}) {{",
+                indent_text("\n".join([
+                    f"const {self.type.cpp_type()} src = {self.cpp_create};",
+                    f"",
+                    f"std::vector<uint8_t> buf({self.type.cpp_size('src')});",
+                    f"auto *obj = reinterpret_cast<{self.type.c_type()} *>(buf.data());",
+                    f"{self.type.cpp_store('src', '(*obj)')};",
+                    f"{self.c_content}",
+                    f"",
+                    f"const auto dst = {self.type.cpp_load('(*obj)')};",
+                    f"{self.cpp_content}",
+                ]), "    "),
+                f"}}",
+            ])
+        )
+
 class Type:
     def __init__(self, sized: bool = False, trivial: bool = False):
         self._sized = sized
@@ -150,6 +191,9 @@ class Type:
     
     def cpp_store(self, src: str, dst: str) -> str:
         raise NotImplementedError()
+
+    def cpp_test(self, info: TestInfo) -> TestSource:
+        return None
 
 class SizedType(Type):
     def __init__(self, *args, **kwargs):
