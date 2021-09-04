@@ -1,4 +1,5 @@
 from __future__ import annotations
+from random import Random
 from typing import List, Tuple, Union
 
 from ipp.base import CONTEXT, Location, Name, Type, Source, declare_variable
@@ -136,7 +137,7 @@ class Struct(Type):
                 *list_join([["    " + s for s in lines] for lines in sections], [""]),
                 f"}};",
             ]),
-            deps=[field.type.cpp_source() for field in self.fields],
+            deps=[ty.cpp_source() for ty in self.deps()],
         )
 
     def _cpp_definition(self) -> Source:
@@ -167,6 +168,9 @@ class Struct(Type):
         else:
             self._name
 
+    def deps(self) -> List[Type]:
+        return [f.type for f in self.fields]
+
     def c_source(self) -> Source:
         decl_source = Source(
             Location.DECLARATION,
@@ -174,7 +178,7 @@ class Struct(Type):
                 self._c_struct_declaraion() if not self.is_empty() else None,
                 f"{self._c_size_decl()};" if not self.sized else None,
             ],
-            deps=[field.type.c_source() for field in self.fields],
+            deps=[ty.c_source() for ty in self.deps()],
         )
         return Source(
             Location.DEFINITION,
@@ -201,3 +205,9 @@ class Struct(Type):
 
     def cpp_store(self, src: str, dst: str) -> str:
         return f"{src}.store(&{dst})"
+
+    def test_source(self, rng: Random = None) -> Source:
+        return Source(
+            Location.TESTS,
+            deps=[ty.test_source(rng) for ty in self.deps()],
+        )

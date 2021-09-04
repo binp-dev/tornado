@@ -52,6 +52,10 @@ cpp_source = Source(None, deps=[
     app_msg.cpp_source(),
     mcu_msg.cpp_source(),
 ])
+test_source = Source(None, deps=[
+    app_msg.test_source(),
+    mcu_msg.test_source(),
+])
 
 with open("ipp.h", "w") as f:
     f.write("#pragma once\n\n")
@@ -105,7 +109,7 @@ with open("ipp_test.cpp", "w") as f:
     f.write("#include <ipp.hpp>\n\n")
     f.write("#include <gtest/gtest.h>\n\n")
     f.write(f"using namespace {CONTEXT.prefix};\n\n")
-    f.write(cpp_source.make_source(Location.TESTS))
+    f.write(test_source.make_source(Location.TESTS))
     f.write("\n\n")
     f.write("\n".join([
         "int main(int argc, char **argv) {",

@@ -2,8 +2,9 @@ from __future__ import annotations
 from random import Random
 from typing import List
 from dataclasses import dataclass
+import string
 
-from ipp.base import CONTEXT, CType, Location, Name, TestInfo, TestSource, TrivialType, SizedType, Type, Source
+from ipp.base import CONTEXT, CType, Location, Name, TrivialType, SizedType, Type, Source
 from ipp.util import ceil_to_power_of_2, is_power_of_2
 
 @dataclass
@@ -11,11 +12,11 @@ class Int(SizedType):
     bits: int
     signed: bool = False
 
-    def _is_trivial(self):
+    def _is_builtin(self):
         return is_power_of_2(self.bits // 8) and (self.bits % 8) == 0
 
     def __post_init__(self):
-        super().__init__(trivial=self._is_trivial())
+        super().__init__(trivial=self._is_builtin())
 
     def name(self) -> Name:
         return Name(("u" if not self.signed else "") + "int" + str(self.bits))
@@ -29,7 +30,7 @@ class Int(SizedType):
 
     def c_type(self) -> str:
         ident = self._int_type(self.bits, self.signed)
-        if not self._is_trivial() and CONTEXT.prefix is not None:
+        if not self._is_builtin() and CONTEXT.prefix is not None:
             ident = CONTEXT.prefix + "_" + ident
         return ident
 
@@ -37,7 +38,7 @@ class Int(SizedType):
         if self.bits % 8 != 0 or self.bits > 64:
             raise RuntimeError(f"{self.bits}-bit integer is not supported")
         bytes = self.bits // 8
-        if self._is_trivial():
+        if self._is_builtin():
             return None
         else:
             if self.signed:
@@ -73,34 +74,42 @@ class Int(SizedType):
         return self._int_type(ceil_to_power_of_2(self.bits))
 
     def cpp_source(self) -> Source:
-        return self.cpp_test(TestInfo()).source()
+        return None
 
     def cpp_load(self, src: str) -> str:
-        if self._is_trivial():
+        if self._is_builtin():
             return f"{src}"
         else:
             prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
             return f"{prefix}uint{self.bits}_load({src})"
 
     def cpp_store(self, src: str, dst: str) -> str:
-        if self._is_trivial():
+        if self._is_builtin():
             return f"{dst} = {src}"
         else:
             prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
             return f"{dst} = {prefix}uint{self.bits}_store({src})"
 
-    def cpp_test(self, info: TestInfo) -> TestSource:
+    def random(self, rng: Random) -> int:
         if not self.signed:
-            value = info.rng.randrange(0, 2**self.bits)
+            return rng.randrange(0, 2**self.bits)
         else:
-            value = info.rng.randrange(-2**(self.bits - 1), 2**(self.bits - 1))
-        
-        return TestSource(
-            type=self,
-            cpp_create=f"{info.cpp_create_prefix}{value}",
-            c_content=f"EXPECT_EQ({self.cpp_load(info.c_content_prefix)}, {value});",
-            cpp_content=f"EXPECT_EQ({info.cpp_content_prefix}, {value});",
-        )
+            return rng.randrange(-2**(self.bits - 1), 2**(self.bits - 1))
+
+    def cpp_object(self, value: int) -> str:
+        return str(value)
+
+    def c_test(self, obj: str, src: str) -> str:
+        return TrivialType.c_test(self, obj, src)
+
+    def cpp_test(self, dst: str, src: str) -> str:
+        return TrivialType.cpp_test(self, dst, src)
+
+    def test_source(self, rng: Random = None) -> Source:
+        if self._is_builtin():
+            return None
+        else:
+            return super().test_source(rng)
 
 @dataclass
 class Float(TrivialType):
@@ -123,6 +132,9 @@ class Float(TrivialType):
         else:
             raise RuntimeError(f"{self.bits}-bit float is not supported")
 
+    def random(self, rng: Random) -> float:
+        return rng.gauss(0.0, 1.0)
+
 @dataclass
 class Char(TrivialType):
     def __post_init__(self):
@@ -136,6 +148,13 @@ class Char(TrivialType):
 
     def c_type(self) -> str:
         return "char"
+
+    def cpp_object(self, value: str) -> str:
+        assert len(value) == 1
+        return f"'{value}'"
+
+    def random(self, rng: Random) -> str:
+        return rng.choice(string.ascii_letters + string.digits + string.punctuation)
 
 @dataclass
 class Size(SizedType):
@@ -215,3 +234,6 @@ class Array(Type):
 
     def cpp_source(self) -> Source:
         return self.type.cpp_source()
+
+    def test_source(self, rng: Random) -> Source:
+        return None

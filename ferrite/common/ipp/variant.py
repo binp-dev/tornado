@@ -1,4 +1,5 @@
 from __future__ import annotations
+from random import Random
 from typing import List, Tuple, Union
 
 from ipp.base import CONTEXT, Include, Location, Name, Type, Source
@@ -28,6 +29,9 @@ class Variant(Type):
 
     def size(self) -> int:
         return max([f.type.size() for f in self.options]) + self._id_type.size()
+
+    def deps(self) -> List[Type]:
+        return [f.type for f in self.options]
 
     def _c_enum_type(self) -> str:
         return Name(CONTEXT.prefix, self.name(), "type").camel()
@@ -161,7 +165,7 @@ class Variant(Type):
             ]),
             deps=[
                 Include("variant"),
-                *[option.type.cpp_source() for option in self.options],
+                *[ty.cpp_source() for ty in self.deps()],
             ],
         )
 
@@ -197,7 +201,7 @@ class Variant(Type):
             ],
             deps=[
                 self._id_type.c_source(),
-                *[option.type.c_source() for option in self.options],
+                *[ty.c_source() for ty in self.deps()],
             ],
         )
         return Source(
@@ -225,3 +229,9 @@ class Variant(Type):
 
     def cpp_store(self, src: str, dst: str) -> str:
         return f"{src}.store(&{dst})"
+
+    def test_source(self, rng: Random = None) -> Source:
+        return Source(
+            Location.TESTS,
+            deps=[ty.test_source(rng) for ty in self.deps()],
+        )

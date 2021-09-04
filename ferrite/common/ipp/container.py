@@ -1,9 +1,12 @@
 from __future__ import annotations
-from typing import List
+from random import Random
+import string
+from typing import Any, List
 
 from ipp.base import CONTEXT, Include, Location, Name, SizedType, Type, Source
 from ipp.prim import Array, Char, Int, Pointer, Reference
 from ipp.struct import Struct, Field
+from ipp.util import indent_text
 
 class Vector(Struct):
     def __init__(self, item: SizedType):
@@ -30,6 +33,9 @@ class Vector(Struct):
 
     def cpp_type(self) -> str:
         return f"std::vector<{self.item.cpp_type()}>"
+
+    def deps(self) -> List[Type]:
+        return [self.item]
 
     def _cpp_load_decl(self):
         return f"{self.cpp_type()} {Name(self.name(), 'load').snake()}({Pointer(self, const=True).c_type()} src)"
@@ -81,13 +87,39 @@ class Vector(Struct):
         ])
 
     def cpp_size(self, obj: str) -> str:
-        return f"({obj}.size() * {self.item.size()})"
+        return f"({self.min_size()} + {self._cpp_size_extent(obj)})"
 
     def cpp_load(self, src: str) -> str:
         return f"{Name(self.name(), 'load').snake()}(&{src})"
     
     def cpp_store(self, src: str, dst: str) -> str:
         return f"{Name(self.name(), 'store').snake()}({src}, &{dst});"
+    
+    def random(self, rng: Random) -> List[Any]:
+        size = rng.randrange(0, 8)
+        return [self.item.random(rng) for _ in range(size)]
+
+    def cpp_object(self, value: List[Any]) -> str:
+        return f"{self.cpp_type()}{{{', '.join([self.item.cpp_object(v) for v in value])}}}"
+
+    def c_test(self, obj: str, src: str) -> str:
+        return "\n".join([
+            f"ASSERT_EQ({obj}.len, {src}.size());",
+            f"for (size_t i = 0; i < {src}.size(); ++i) {{",
+            indent_text(self.item.c_test(f"{obj}.data[i]", f"{src}[i]"), "    "),
+            f"}}"
+        ])
+
+    def cpp_test(self, dst: str, src: str) -> str:
+        return "\n".join([
+            f"ASSERT_EQ({dst}.size(), {src}.size());",
+            f"for (size_t i = 0; i < {src}.size(); ++i) {{",
+            indent_text(self.item.cpp_test(f"{dst}[i]", f"{src}[i]"), "    "),
+            f"}}"
+        ])
+
+    def test_source(self, rng: Random = None) -> Source:
+        return super(Struct, self).test_source(rng)
 
 class String(Vector):
     def __init__(self):
@@ -121,3 +153,24 @@ class String(Vector):
             f"{load_decl};"
             f"{store_decl};"
         ]), deps=[Include("string")])])
+
+    def random(self, rng: Random) -> str:
+        size = rng.randrange(0, 32)
+        return "".join([Char().random(rng) for _ in range(size)])
+
+    def cpp_object(self, value: str) -> str:
+        return f"{self.cpp_type()}(\"{value}\")"
+
+    def c_test(self, obj: str, src: str) -> str:
+        return "\n".join([
+            f"ASSERT_EQ({obj}.len, {src}.size());",
+            f"EXPECT_EQ(strncmp({obj}.data, {src}.c_str(), {src}.size()), 0);",
+        ])
+
+    def cpp_test(self, dst: str, src: str) -> str:
+        return "\n".join([
+            f"ASSERT_EQ({dst}, {src});",
+        ])
+
+    def test_source(self, rng: Random = None) -> Source:
+        return super(Struct, self).test_source(rng)
