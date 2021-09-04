@@ -103,9 +103,13 @@ ADD_CUSTOM_COMMAND(TARGET ${MCUX_SDK_PROJECT_NAME} POST_BUILD COMMAND ${CMAKE_OB
     ${EXECUTABLE_OUTPUT_PATH}/m7image.bin
 )
 
+# Include HAL and IPP
+include_directories("../../common/ipp/src")
+include_directories("../hal/include")
+
 # Link common code
 set(HAL_TARGET "hal_imx8mn")
-add_definitions("-DHAL_IMX8MN" "-DHAL_PRINT_RPMSG" "-DHAL_LOG_LEVEL=4")
+add_definitions("-DHAL_IMX8MN" "-DHAL_PRINT_UART" "-DHAL_LOG_LEVEL=4")
 add_subdirectory("../common" "common" EXCLUDE_FROM_ALL)
 include_directories("../common/include")
 target_link_libraries(${MCUX_SDK_PROJECT_NAME} PRIVATE
