@@ -37,11 +37,11 @@ private:
 
 private:
     void serve_loop() {
-        std::cout << "[ioc] Channel serve thread started" << std::endl;
+        std::cout << "[app] Channel serve thread started" << std::endl;
         const auto timeout = std::chrono::milliseconds(10);
 
-        channel->send(ipp::MsgAppAny{ipp::MsgAppStart{}}, std::nullopt).unwrap(); // Wait forever
-        std::cout << "[ioc] Handshake sent" << std::endl;
+        channel->send(ipp::AppMsg{ipp::AppMsgStart{}}, std::nullopt).unwrap(); // Wait forever
+        std::cout << "[app] Start signal sent" << std::endl;
 
         while(!this->done.load()) {
             auto result = channel->receive(timeout);
@@ -59,16 +59,16 @@ private:
             auto incoming = result.unwrap();
 
             // TODO: Use visit with overloaded lambda
-            if(std::holds_alternative<ipp::MsgMcuAdcVal>(incoming.variant())) {
-                const auto adc_val = std::get<ipp::MsgMcuAdcVal>(incoming.variant());
-                adc_in->send(AdcValue{adc_val.index(), adc_val.value()});
+            if(std::holds_alternative<ipp::McuMsgAdcVal>(incoming.variant)) {
+                const auto adc_val = std::get<ipp::McuMsgAdcVal>(incoming.variant);
+                adc_in->send(AdcValue{adc_val.index, adc_val.value});
 
-            } else if (std::holds_alternative<ipp::MsgMcuDebug>(incoming.variant())) {
-                std::cout << "Device: " << std::get<ipp::MsgMcuDebug>(incoming.variant()).message() << std::endl;
+            } else if (std::holds_alternative<ipp::McuMsgDebug>(incoming.variant)) {
+                std::cout << "Device: " << std::get<ipp::McuMsgDebug>(incoming.variant).message << std::endl;
 
-            } else if (std::holds_alternative<ipp::MsgMcuError>(incoming.variant())) {
-                const auto &inc_err = std::get<ipp::MsgMcuError>(incoming.variant());
-                std::cout << "Device Error (0x" << std::hex << int(inc_err.code()) << std::dec << "): " << inc_err.message() << std::endl;
+            } else if (std::holds_alternative<ipp::McuMsgError>(incoming.variant)) {
+                const auto &inc_err = std::get<ipp::McuMsgError>(incoming.variant);
+                std::cout << "Device Error (0x" << std::hex << int(inc_err.code) << std::dec << "): " << inc_err.message << std::endl;
 
             } else {
                 unimplemented();
@@ -99,8 +99,8 @@ public:
     void write_dac(uint32_t value) {
         std::lock_guard<std::mutex> device_guard(mutex);
 
-        ipp::MsgAppDacSet outgoing{value};
-        channel->send(ipp::MsgAppAny{std::move(outgoing)}, std::nullopt).unwrap();
+        ipp::AppMsgDacSet outgoing{value};
+        channel->send(ipp::AppMsg{std::move(outgoing)}, std::nullopt).unwrap();
     }
 
     uint32_t read_adc(uint8_t index) {
@@ -108,8 +108,8 @@ public:
 
         assert_false(adc_out->try_receive().has_value());
 
-        ipp::MsgAppAdcReq outgoing{index};
-        channel->send(ipp::MsgAppAny{std::move(outgoing)}, std::nullopt).unwrap();
+        ipp::AppMsgAdcReq outgoing{index};
+        channel->send(ipp::AppMsg{std::move(outgoing)}, std::nullopt).unwrap();
 
         const auto adc_value = adc_out->receive();
         assert_true(adc_value.has_value());

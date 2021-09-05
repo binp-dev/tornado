@@ -136,7 +136,11 @@ class Struct(Type):
     def _cpp_size_method_impl(self) -> str:
         return "\n".join([
             f"size_t {self.cpp_type()}::packed_size() const {{",
-            f"    return {self.min_size()} + {self._cpp_size_extent('(*this)')};",
+            (
+                f"    return {self.min_size()} + {self._cpp_size_extent('(*this)')};"
+                if not self.sized else
+                f"    return {self.size()};"
+            ),
             f"}}",
         ])
 

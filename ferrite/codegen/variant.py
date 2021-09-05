@@ -26,6 +26,10 @@ class Variant(Type):
         self._name = name
         self.variants = variants
         self._id_type = Int(max(8, ceil_to_power_of_2(len(self.variants))))
+        
+        # Variant types for convenience
+        for f in self.variants:
+            setattr(self, f.name.camel(), f.type)
 
     def _variants_with_comma(self) -> List[Tuple[Field, str]]:
         if len(self.variants) > 0:

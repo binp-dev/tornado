@@ -7,9 +7,10 @@ from manage.components.cmake import Cmake
 from manage.components.toolchains import HostToolchain
 
 class IppBuildUnittestTask(Task):
-    def __init__(self, cmake: Cmake):
+    def __init__(self, cmake: Cmake, generate_task: Task):
         super().__init__()
         self.cmake = cmake
+        self.generate_task = generate_task
 
     def run(self, ctx: Context) -> bool:
         self.cmake.configure(ctx)
@@ -17,6 +18,9 @@ class IppBuildUnittestTask(Task):
 
     def artifacts(self) -> str[list]:
         return [self.cmake.build_dir]
+
+    def dependencies(self) -> list[Task]:
+        return [self.generate_task]
 
 class IppRunUnittestTask(Task):
     def __init__(self, cmake: Cmake, build_task: Task):
@@ -37,7 +41,7 @@ class IppGenerate(Task):
         self.owner = owner
 
     def run(self, ctx: Context) -> bool:
-        from ipp.codegen import generate
+        from ipp import generate
         generate(self.owner.generated_dir)
         return True
 
@@ -58,7 +62,7 @@ class Ipp(Component):
         self.cmake = Cmake(self.src_dir, self.build_dir, opt=["-DCMAKE_BUILD_TYPE=Debug", *self.cmake_opts] )
 
         self.generate_task = IppGenerate(self)
-        self.build_unittest_task = IppBuildUnittestTask(self.cmake)
+        self.build_unittest_task = IppBuildUnittestTask(self.cmake, self.generate_task)
         self.run_unittest_task = IppRunUnittestTask(self.cmake, self.build_unittest_task)
 
     def tasks(self) -> dict[str, Task]:

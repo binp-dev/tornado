@@ -140,6 +140,12 @@ class Type:
     def store(self, value: Any) -> bytes:
         raise NotImplementedError()
 
+    def value(self, *args, **kwargs) -> Any:
+        raise NotImplementedError()
+
+    def __call__(self, *args, **kwargs) -> Any:
+        return self.value(*args, **kwargs)
+
     def random(self, rng: Random) -> Any:
         raise NotImplementedError()
 
