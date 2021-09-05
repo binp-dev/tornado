@@ -1,5 +1,6 @@
 import os
 from typing import List, Tuple
+from dataclasses import dataclass
 
 from codegen.base import CONTEXT, Context, Location, Name, Source, Type
 from codegen.struct import Field, Struct
@@ -14,18 +15,18 @@ def make_variant(name: Name, messages: List[Tuple[Name, List[Field]]]) -> Varian
         ],
     )
 
-def generate(types: List[Type], path: str, context: Context):
+def generate_and_write(types: List[Type], base_path: str, context: Context):
     for attr in dir(context):
         if attr.startswith('__'):
             continue
         setattr(CONTEXT, attr, getattr(context, attr))
-    
+
     c_source = Source(None, deps=[ty.c_source() for ty in types])
     cpp_source = Source(None, deps=[ty.cpp_source() for ty in types])
     test_source = Source(None, deps=[ty.test_source() for ty in types])
 
     files = {
-        f"{context.prefix}.h": "\n".join([
+        f"include/{context.prefix}.h": "\n".join([
             "#pragma once",
             ""
             "#include <stdlib.h>",
@@ -44,12 +45,12 @@ def generate(types: List[Type], path: str, context: Context):
             "}",
             "#endif // __cplusplus",
         ]),
-        f"{context.prefix}.c": "\n".join([
+        f"src/{context.prefix}.c": "\n".join([
             f"#include <{context.prefix}.h>",
             "",
             c_source.make_source(Location.DEFINITION),
         ]),
-        f"{context.prefix}.hpp": "\n".join([
+        f"include/{context.prefix}.hpp": "\n".join([
             "#pragma once",
             "",
             cpp_source.make_source(Location.INCLUDES, separator="\n"),
@@ -62,7 +63,7 @@ def generate(types: List[Type], path: str, context: Context):
             "",
             f"}} // namespace {context.prefix}",
         ]),
-        f"{context.prefix}.cpp": "\n".join([
+        f"src/{context.prefix}.cpp": "\n".join([
             f"#include <{context.prefix}.hpp>",
             "",
             f"namespace {context.prefix} {{",
@@ -71,7 +72,7 @@ def generate(types: List[Type], path: str, context: Context):
             "",
             f"}} // namespace {context.prefix}",
         ]),
-        f"{context.prefix}_test.cpp": "\n".join([
+        f"src/{context.prefix}_test.cpp": "\n".join([
             f"#include <{context.prefix}.hpp>",
             "",
             "#include <gtest/gtest.h>",
@@ -87,6 +88,13 @@ def generate(types: List[Type], path: str, context: Context):
         ]),
     }
 
+    paths = [
+        "include",
+        "src",
+    ]
+    os.makedirs(base_path, exist_ok=True)
+    for p in paths:
+        os.makedirs(os.path.join(base_path, p), exist_ok=True)
     for name, text in files.items():
-        with open(os.path.join(path, name), "w") as f:
+        with open(os.path.join(base_path, name), "w") as f:
             f.write(text + "\n")

@@ -5,16 +5,21 @@ from manage.paths import BASE_DIR, TARGET_DIR
 from manage.components.base import Component, Task, Context
 from manage.components.cmake import Cmake
 from manage.components.epics.epics_base import EpicsBase
+from manage.components.ipp import Ipp
 from manage.components.toolchains import Toolchain, HostToolchain, RemoteToolchain
 
 class AppBuildUnittestTask(Task):
-    def __init__(self, cmake: Cmake):
+    def __init__(self, cmake: Cmake, ipp: Ipp):
         super().__init__()
         self.cmake = cmake
+        self.ipp = ipp
 
     def run(self, ctx: Context) -> bool:
         self.cmake.configure(ctx)
         return self.cmake.build(ctx, "app_unittest")
+
+    def dependencies(self) -> list[Task]:
+        return [self.ipp.generate_task]
 
     def artifacts(self) -> str[list]:
         return [self.cmake.build_dir]
@@ -39,6 +44,7 @@ class AppBuildWithEpicsTask(Task):
         cmake_target: str,
         epics_base: EpicsBase,
         toolchain: Toolchain,
+        ipp: Ipp,
         deps: list[Task] = [],
     ):
         super().__init__()
@@ -46,6 +52,7 @@ class AppBuildWithEpicsTask(Task):
         self.cmake_target = cmake_target
         self.epics_base = epics_base
         self.toolchain = toolchain
+        self.ipp = ipp
         self.deps = deps
 
     def run(self, ctx: Context) -> bool:
@@ -67,6 +74,7 @@ class AppBuildWithEpicsTask(Task):
         if isinstance(self.toolchain, RemoteToolchain):
             deps.append(self.toolchain.download_task)
         deps.append(self.epics_base.build_task)
+        deps.append(self.ipp.generate_task)
         return deps
 
     def artifacts(self) -> str[list]:
@@ -77,26 +85,29 @@ class App(Component):
         self,
         epics_base: EpicsBase,
         toolchain: Toolchain,
+        ipp: Ipp,
     ):
         super().__init__()
 
         self.epics_base = epics_base
         self.toolchain = toolchain
+        self.ipp = ipp
 
         self.src_dir = os.path.join(BASE_DIR, "app")
         self.build_dir = os.path.join(TARGET_DIR, f"app_{self.toolchain.name}")
 
-        opts = ["-DCMAKE_BUILD_TYPE=Debug"]
+        opts = ["-DCMAKE_BUILD_TYPE=Debug", *self.ipp.cmake_opts]
         self.cmake = Cmake(self.src_dir, self.build_dir, opt=opts)
 
         if isinstance(self.toolchain, HostToolchain):
-            self.build_unittest_task = AppBuildUnittestTask(self.cmake)
+            self.build_unittest_task = AppBuildUnittestTask(self.cmake, self.ipp)
             self.run_unittest_task = AppRunUnittestTask(self.cmake, self.build_unittest_task)
             self.build_fakedev_task = AppBuildWithEpicsTask(
                 self.cmake,
                 "app_fakedev",
                 self.epics_base,
                 self.toolchain,
+                self.ipp,
             )
 
         self.build_main_task = AppBuildWithEpicsTask(
@@ -104,6 +115,7 @@ class App(Component):
             "app",
             self.epics_base,
             self.toolchain,
+            self.ipp,
         )
 
     def tasks(self) -> dict[str, Task]:

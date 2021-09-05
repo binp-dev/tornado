@@ -10,7 +10,7 @@ from manage.components.all_ import AllHost, AllCross
 def host_components(toolchain):
     epics_base = EpicsBaseHost(toolchain)
     ipp = Ipp(toolchain)
-    app = App(epics_base, toolchain)
+    app = App(epics_base, toolchain, ipp)
     ioc = AppIoc(epics_base, app, toolchain)
     all_ = AllHost(epics_base, ipp, app, ioc)
     return {
@@ -24,7 +24,7 @@ def host_components(toolchain):
 
 def cross_components(host_components, app_toolchain, mcu_toolchain, freertos):
     epics_base = EpicsBaseCross(app_toolchain, host_components["epics_base"])
-    app = App(epics_base, app_toolchain)
+    app = App(epics_base, app_toolchain, host_components["ipp"])
     ioc = AppIoc(epics_base, app, app_toolchain)
     mcu = Mcu(freertos, mcu_toolchain)
     all_ = AllCross(epics_base, app, ioc, mcu)

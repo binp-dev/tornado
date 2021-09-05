@@ -1,8 +1,10 @@
-from codegen.base import CONTEXT, Context, Name
+import os
+from codegen.base import CONTEXT, Context, Include, Name
 from codegen.prim import Int
 from codegen.container import Vector, String
 from codegen.struct import Field
-from codegen.codegen import make_variant, generate
+from codegen.text import make_variant, generate_and_write
+
 
 AppMsg = make_variant(
     Name(["app", "msg"]),
@@ -32,14 +34,15 @@ McuMsg = make_variant(
     ],
 )
 
-generate(
-    [
-        AppMsg,
-        McuMsg,
-    ],
-    "",
-    Context(
-        prefix="codegen",
-        test_attempts=8,
-    ),
-)
+def generate(path: str):
+    generate_and_write(
+        [
+            AppMsg,
+            McuMsg,
+        ],
+        path,
+        Context(
+            prefix="ipp",
+            test_attempts=8,
+        ),
+    )

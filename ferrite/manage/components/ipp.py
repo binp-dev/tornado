@@ -13,7 +13,7 @@ class IppBuildUnittestTask(Task):
 
     def run(self, ctx: Context) -> bool:
         self.cmake.configure(ctx)
-        return self.cmake.build(ctx, "ipp_unittest")
+        return self.cmake.build(ctx, "ipp_test")
 
     def artifacts(self) -> str[list]:
         return [self.cmake.build_dir]
@@ -25,11 +25,21 @@ class IppRunUnittestTask(Task):
         self.build_task = build_task
 
     def run(self, ctx: Context) -> bool:
-        run(["./ipp_unittest"], cwd=self.cmake.build_dir, quiet=ctx.capture)
+        run(["./ipp_test"], cwd=self.cmake.build_dir, quiet=ctx.capture)
         return True
 
     def dependencies(self) -> list[Task]:
         return [self.build_task]
+
+class IppGenerate(Task):
+    def __init__(self, owner):
+        super().__init__()
+        self.owner = owner
+
+    def run(self, ctx: Context) -> bool:
+        from ipp.codegen import generate
+        generate(self.owner.generated_dir)
+        return True
 
 class Ipp(Component):
     def __init__(
@@ -41,16 +51,19 @@ class Ipp(Component):
         self.toolchain = toolchain
 
         self.src_dir = os.path.join(BASE_DIR, "ipp")
+        self.generated_dir = os.path.join(TARGET_DIR, f"ipp_generated")
         self.build_dir = os.path.join(TARGET_DIR, f"ipp_{self.toolchain.name}")
 
-        opts = ["-DCMAKE_BUILD_TYPE=Debug"]
-        self.cmake = Cmake(self.src_dir, self.build_dir, opt=opts)
+        self.cmake_opts = [f"-DIPP_GENERATED={self.generated_dir}"]
+        self.cmake = Cmake(self.src_dir, self.build_dir, opt=["-DCMAKE_BUILD_TYPE=Debug", *self.cmake_opts] )
 
+        self.generate_task = IppGenerate(self)
         self.build_unittest_task = IppBuildUnittestTask(self.cmake)
         self.run_unittest_task = IppRunUnittestTask(self.cmake, self.build_unittest_task)
 
     def tasks(self) -> dict[str, Task]:
         return {
+            "generate": self.generate_task,
             "build": self.build_unittest_task,
             "test": self.run_unittest_task,
         }
