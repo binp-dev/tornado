@@ -41,6 +41,7 @@ private:
         const auto timeout = std::chrono::milliseconds(10);
 
         channel->send(ipp::MsgAppAny{ipp::MsgAppStart{}}, std::nullopt).unwrap(); // Wait forever
+        std::cout << "[ioc] Handshake sent" << std::endl;
 
         while(!this->done.load()) {
             auto result = channel->receive(timeout);
