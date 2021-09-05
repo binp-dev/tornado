@@ -107,7 +107,7 @@ def run_test(
 
         ca.put(prefix, "ao0", some_val)
 
-        time.sleep(0.2)
+        time.sleep(2.0)
         assert_eq(ca.get(prefix, "ai1"), some_val)
         assert_eq(ca.get(prefix, "ai2"), max_val)
 
