@@ -1,5 +1,4 @@
 from __future__ import annotations
-from dataclasses import fields
 from random import Random
 from typing import Any, Dict, List, Tuple, Union
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 from random import Random
-import string
 from typing import Any, List
 
 from ipp.base import CONTEXT, Include, Location, Name, SizedType, Type, Source

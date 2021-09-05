@@ -1,6 +1,6 @@
 from __future__ import annotations
 from random import Random
-from typing import Any, List
+from typing import Any
 from dataclasses import dataclass
 import string
 import struct
