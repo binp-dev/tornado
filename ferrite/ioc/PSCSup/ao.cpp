@@ -43,7 +43,7 @@ struct AaiRecordCallbacks {
 };
 
 struct AaiRecordCallbacks ao_record_handler = {
-    5,
+    6,
     nullptr,
     nullptr,
     reinterpret_cast<DEVSUPFUN>(record_ao_init),

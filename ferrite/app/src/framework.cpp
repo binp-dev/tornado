@@ -5,7 +5,7 @@
 
 #include <core/lazy_static.hpp>
 #include <core/mutex.hpp>
-#include <record/array.hpp>
+#include <record/value.hpp>
 #include <encoder.hpp>
 #include <device.hpp>
 #include "framework.hpp"
@@ -24,15 +24,12 @@ void init_device(MaybeUninit<Device> &mem) {
 #ifdef FAKEDEV
         std::unique_ptr<Channel>(new ZmqChannel(std::move(
             ZmqChannel::create("tcp://127.0.0.1:8321", message_max_length).unwrap()
-        ))),
+        )))
 #else // FAKEDEV
         std::unique_ptr<Channel>(new RpmsgChannel(std::move(
             RpmsgChannel::create("/dev/ttyRPMSG0", message_max_length).unwrap()
-        ))),
+        )))
 #endif // FAKEDEV
-        std::move(std::make_unique<LinearEncoder>(0, (1<<24) - 1, 3)),
-        200,
-        message_max_length
     );
 }
 
@@ -40,22 +37,36 @@ void init_device(MaybeUninit<Device> &mem) {
 LazyStatic<Device, init_device> DEVICE = {};
 static_assert(std::is_pod_v<decltype(DEVICE)>);
 
-class DacHandler final : public OutputArrayHandler<double> {
-    private:
-    Device &device;
+class DacHandler final : public OutputValueHandler<uint32_t> {
+private:
+    Device &device_;
 
-    public:
-    DacHandler(
-        Device &device,
-        OutputArrayRecord<double> &record
-    ) :
-        device(device)
-    {
-        assert_eq(device.max_points(), record.max_length());
+public:
+    DacHandler(Device &device) : device_(device) {}
+
+    virtual void write(OutputValueRecord<uint32_t> &record) override {
+        device_.write_dac(record.value());
     }
 
-    virtual void write(OutputArrayRecord<double> &record) override {
-        device.set_waveform(record.data(), record.length());
+    virtual bool is_async() const override {
+        return true;
+    }
+};
+
+class AdcHandler final : public InputValueHandler<uint32_t> {
+private:
+    Device &device_;
+    uint8_t channel_;
+
+public:
+    AdcHandler(Device &device, uint8_t channel) : device_(device), channel_(channel) {}
+
+    virtual void read(InputValueRecord<uint32_t> &record) override {
+        record.set_value(device_.read_adc(channel_));
+    }
+
+    virtual void set_read_request(InputValueRecord<uint32_t> &, std::function<void()> &&) override {
+        unimplemented();
     }
 
     virtual bool is_async() const override {
@@ -69,9 +80,19 @@ void framework_init() {
 }
 
 void framework_record_init(Record &record) {
-    std::cout << "Initializing record '" << record.name() << "'" << std::endl;
-    if (record.name() == "ao0") {
-        auto &waveform_record = dynamic_cast<OutputArrayRecord<double> &>(record);
-        waveform_record.set_handler(std::make_unique<DacHandler>(*DEVICE, waveform_record));
+    const auto name = record.name();
+    std::cout << "Initializing record '" << name << "'" << std::endl;
+    if (name == "ao0") {
+        auto &ao_record = dynamic_cast<OutputValueRecord<uint32_t> &>(record);
+        ao_record.set_handler(std::make_unique<DacHandler>(*DEVICE));
+    } else if (name.rfind("ai", 0) == 0) { // name.startswith("ai")
+        const auto index_str = name.substr(2);
+        uint8_t index = std::stoi(std::string(index_str));
+        auto &ai_record = dynamic_cast<InputValueRecord<uint32_t> &>(record);
+        ai_record.set_handler(std::make_unique<AdcHandler>(*DEVICE, index));
+    } else if (name.rfind("di", 0) == 0 || name.rfind("do", 0) == 0) {
+        // TODO: Handle digital input/output
+    } else {
+        unimplemented();
     }
 }

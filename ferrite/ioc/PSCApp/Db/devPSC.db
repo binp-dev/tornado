@@ -1,23 +1,17 @@
-record(aai, "ai0")
+record(ai, "ai1")
 {
     field(DTYP, "devsup")
-    field(NELM, 200)
-    field(FTVL, "DOUBLE")
-    field(SCAN, "I/O Intr")
+    field(SCAN, "1 second")
 }
-record(aai, "ai1")
+record(ai, "ai2")
 {
     field(DTYP, "devsup")
-    field(NELM, 200)
-    field(FTVL, "DOUBLE")
-    field(SCAN, "I/O Intr")
+    field(SCAN, "1 second")
 }
 
-record(aao, "ao0")
+record(ao, "ao0")
 {
     field(DTYP, "devsup")
-    field(NELM, 200)
-    field(FTVL, "DOUBLE")
 }
 
 record(mbbiDirect, "di0") {

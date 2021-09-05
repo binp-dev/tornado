@@ -4,6 +4,7 @@ import shutil
 from manage.paths import BASE_DIR, TARGET_DIR
 from manage.components.base import Component, Task, Context, TaskWrapper
 from manage.components.cmake import Cmake
+from manage.components.toolchains import McuToolchainImx7, McuToolchainImx8mn
 from manage.remote.tasks import RebootTask
 
 class McuTask(Task):
@@ -36,6 +37,13 @@ class McuDeployTask(McuTask):
     def __init__(self, owner):
         super().__init__(owner)
 
+    def dependencies(self) -> list[Task]:
+        return [self.owner.tasks()["build"]]
+
+class McuDeployTaskImx7(McuDeployTask):
+    def __init__(self, owner):
+        super().__init__(owner)
+    
     def run(self, ctx: Context) -> bool:
         assert ctx.device is not None
         ctx.device.store(
@@ -48,8 +56,16 @@ class McuDeployTask(McuTask):
             "umount /mnt",
         ])])
 
-    def dependencies(self) -> list[Task]:
-        return [self.owner.tasks()["build"]]
+class McuDeployTaskImx8mn(McuDeployTask):
+    def __init__(self, owner):
+        super().__init__(owner)
+
+    def run(self, ctx: Context) -> bool:
+        assert ctx.device is not None
+        ctx.device.store(
+            os.path.join(self.owner.cmake.build_dir, "m7image.bin"),
+            "/boot/m7image.bin",
+        )
 
 class Mcu(Component):
     def __init__(self, freertos, toolchain):
@@ -75,8 +91,16 @@ class Mcu(Component):
                 "ARMGCC_DIR": self.toolchain.path,
             }
         )
+
         self.build_task = McuBuildTask(self)
-        self.deploy_task = McuDeployTask(self)
+
+        if isinstance(toolchain, McuToolchainImx7):
+            self.deploy_task = McuDeployTaskImx7(self)
+        elif isinstance(toolchain, McuToolchainImx8mn):
+            self.deploy_task = McuDeployTaskImx8mn(self)
+        else:
+            raise Exception("Unknown toolchain class")
+
         self.deploy_and_reboot_task = TaskWrapper(RebootTask(), deps=[self.deploy_task])
 
     def tasks(self) -> dict[str, Task]:

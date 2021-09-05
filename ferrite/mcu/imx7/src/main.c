@@ -27,54 +27,72 @@ static void task_rpmsg(void *param) {
     hal_io_rpmsg_init(&channel);
 #endif
 
-    // Receive message
-
     uint8_t *buffer = NULL;
     size_t len = 0;
-    hal_rpmsg_recv_nocopy(&channel, &buffer, &len, HAL_WAIT_FOREVER);
-
     IppMsgAppAny app_msg;
-    IppLoadStatus st = ipp_msg_app_load(&app_msg, buffer, len);
-    hal_assert(IPP_LOAD_OK == st);
-    if (IPP_APP_START == app_msg.type) {
+
+    // Wait for IOC start
+    hal_assert(hal_rpmsg_recv_nocopy(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+    hal_assert(ipp_msg_app_load(&app_msg, buffer, len) == IPP_LOAD_OK);
+    switch (app_msg.type) {
+    case IPP_APP_START:
         hal_log_info("Start message received");
-    } else {
-        hal_log_error("Message error: type mismatch: %d", (int)app_msg.type);
+        break;
+    default:
+        hal_log_error("Wrong start message type: %d", (int)app_msg.type);
         hal_panic();
     }
-    hal_rpmsg_free_rx_buffer(&channel, buffer);
-    buffer = NULL;
-    len = 0;
+    hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
 
     hal_log_info("Senkov driver init");
     hal_assert(senkov_init() == HAL_SUCCESS);
 
-    senkov_write_dac(0);
+    for (;;) {
+        uint32_t value = 0;
+        uint8_t index = 0;
 
-    for (size_t i = 0; i < 7; ++i) {
-        uint32_t value;
-        hal_assert(senkov_read_adc(i, &value) == HAL_SUCCESS);
-        hal_log_info("ADC%d: 0x%06x", i, value);
-        vTaskDelay(100);
+        // Receive message
+        hal_assert(hal_rpmsg_recv_nocopy(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+        hal_assert(ipp_msg_app_load(&app_msg, buffer, len) == IPP_LOAD_OK);
+        switch (app_msg.type) {
+        case IPP_APP_DAC_SET:
+            value = app_msg.dac_set.value;
+            hal_log_info("Write DAC value: 0x%06lx", value);
+            hal_assert(senkov_write_dac(value) == HAL_SUCCESS);
+            break;
+
+        case IPP_APP_ADC_REQ:
+            index = app_msg.adc_req.index;
+            hal_assert(senkov_read_adc(index, &value) == HAL_SUCCESS);
+            hal_log_info("Read ADC%d value: 0x%06lx", (int)index, value);
+
+            hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+            IppMsgMcuAny mcu_msg = {
+                .type = IPP_MCU_ADC_VAL,
+                .adc_val = {
+                    .index = index,
+                    .value = value,
+                },
+            };
+            ipp_msg_mcu_store(&mcu_msg, buffer);
+            hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_msg_mcu_len(&mcu_msg)) == HAL_SUCCESS);
+
+            break;
+
+        default:
+            hal_log_error("Wrong message type: %d", (int)app_msg.type);
+            hal_panic();
+        }
+        hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
+        vTaskDelay(1);
     }
 
-    // Send message back
-    hal_assert(HAL_SUCCESS == hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER));
-    IppMsgMcuAny mcu_msg = {
-        .type = IPP_MCU_DEBUG,
-        .debug = {
-            .message = "Response message",
-        },
-    };
-    ipp_msg_mcu_store(&mcu_msg, buffer);
-    hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_msg_mcu_len(&mcu_msg)) == HAL_SUCCESS);
-
-    /* FIXME: Should never reach this point - otherwise virtio hangs */
     hal_log_error("End of task_rpmsg()");
     hal_panic();
 
     hal_assert(senkov_deinit() == HAL_SUCCESS);
 
+    /* FIXME: Should never reach this point - otherwise virtio hangs */
     hal_assert(hal_rpmsg_destroy_channel(&channel) == HAL_SUCCESS);
     
     hal_rpmsg_deinit();

@@ -28,6 +28,7 @@ hal_retcode senkov_deinit() {
         return st;
     }
     hal_spi_deinit();
+    return HAL_SUCCESS;
 }
 
 static hal_retcode make_request(uint32_t request, uint32_t *response) {

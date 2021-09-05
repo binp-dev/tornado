@@ -6,7 +6,14 @@
 
 #ifdef HAL_PRINT_UART
 
+#if defined(HAL_IMX7)
 #include "debug_console_imx.h"
+#elif defined(HAL_IMX8MN)
+#include "fsl_debug_console.h"
+#include "fsl_uart.h"
+#else
+#error "Unknown target"
+#endif
 
 #define hal_debug(...) do { \
     PRINTF(__VA_ARGS__); \
