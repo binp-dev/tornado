@@ -15,6 +15,7 @@ def make_variant(name: Name, messages: List[Tuple[Name, List[Field]]]) -> Varian
     )
 
 CONTEXT.prefix = "ipp"
+CONTEXT.test_attempts = 8
 
 app_msg = make_variant(
     Name(["app", "msg"]),

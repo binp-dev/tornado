@@ -42,7 +42,7 @@ class Vector(Struct):
         return data
 
     def random(self, rng: Random) -> List[Any]:
-        size = rng.randrange(4, 8)
+        size = rng.randrange(0, 8)
         return [self.item.random(rng) for _ in range(size)]
 
     def is_instance(self, value: Any) -> bool:
@@ -159,7 +159,7 @@ class String(Vector):
         return data
 
     def random(self, rng: Random) -> str:
-        size = rng.randrange(16, 64)
+        size = rng.randrange(0, 64)
         return "".join([Char().random(rng) for _ in range(size)])
 
     def is_instance(self, value: Any) -> bool:

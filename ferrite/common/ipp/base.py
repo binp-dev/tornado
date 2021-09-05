@@ -9,6 +9,7 @@ from ipp.util import indent_text
 @dataclass
 class Context:
     prefix: str = None
+    test_attempts: int = 1
 
 CONTEXT = Context()
 
@@ -191,15 +192,23 @@ class Type:
             "\n".join([
                 f"TEST({Name(CONTEXT.prefix, 'test').camel()}, {self.name().camel()}) {{",
                 indent_text("\n".join([
-                    f"const {self.cpp_type()} src = {self.cpp_object(self.random(rng))};",
+                    f"std::vector<{self.cpp_type()}> srcs = {{",
+                    *[indent_text(self.cpp_object(self.random(rng)), "    ") + "," for _ in range(CONTEXT.test_attempts)],
+                    f"}};",
                     f"",
-                    f"std::vector<uint8_t> buf({self.cpp_size('src')});",
-                    f"auto *obj = reinterpret_cast<{self.c_type()} *>(buf.data());",
-                    f"{self.cpp_store('src', '(*obj)')};",
-                    f"{self.c_test('(*obj)', 'src')}",
-                    f"",
-                    f"const auto dst = {self.cpp_load('(*obj)')};",
-                    f"{self.cpp_test('dst', 'src')}",
+                    f"for (size_t k = 0; k < {CONTEXT.test_attempts}; ++k) {{",
+                    indent_text("\n".join([
+                        f"const {self.cpp_type()} src = srcs[k];",
+                        f"",
+                        f"std::vector<uint8_t> buf({self.cpp_size('src')});",
+                        f"auto *obj = reinterpret_cast<{self.c_type()} *>(buf.data());",
+                        f"{self.cpp_store('src', '(*obj)')};",
+                        f"{self.c_test('(*obj)', 'src')}",
+                        f"",
+                        f"const auto dst = {self.cpp_load('(*obj)')};",
+                        f"{self.cpp_test('dst', 'src')}",
+                    ]), "    "),
+                    f"}}",
                 ]), "    "),
                 f"}}",
             ]),
