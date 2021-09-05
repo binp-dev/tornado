@@ -1,6 +1,6 @@
 from __future__ import annotations
 from random import Random
-from typing import List
+from typing import Any, List
 from dataclasses import dataclass
 import string
 import struct
@@ -31,6 +31,15 @@ class Int(SizedType):
     
     def store(self, value: int) -> bytes:
         return value.to_bytes(self.bits // 8, byteorder="little", signed=self.signed)
+
+    def random(self, rng: Random) -> int:
+        if not self.signed:
+            return rng.randrange(0, 2**self.bits)
+        else:
+            return rng.randrange(-2**(self.bits - 1), 2**(self.bits - 1))
+
+    def is_instance(self, value: Any) -> bool:
+        return isinstance(value, int)
 
     @staticmethod
     def _int_type(bits: int, signed: bool = False) -> str:
@@ -98,12 +107,6 @@ class Int(SizedType):
             prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
             return f"{dst} = {prefix}uint{self.bits}_store({src})"
 
-    def random(self, rng: Random) -> int:
-        if not self.signed:
-            return rng.randrange(0, 2**self.bits)
-        else:
-            return rng.randrange(-2**(self.bits - 1), 2**(self.bits - 1))
-
     def cpp_object(self, value: int) -> str:
         return str(value)
 
@@ -152,6 +155,9 @@ class Float(TrivialType):
     def random(self, rng: Random) -> float:
         return rng.gauss(0.0, 1.0)
 
+    def is_instance(self, value: Any) -> bool:
+        return isinstance(value, float)
+
     def c_type(self) -> str:
         if self.bits == 32:
             return "float"
@@ -181,6 +187,9 @@ class Char(TrivialType):
 
     def random(self, rng: Random) -> str:
         return rng.choice(string.ascii_letters + string.digits)
+
+    def is_instance(self, value: Any) -> bool:
+        return isinstance(value, str) and len(value) == 1
 
     def c_type(self) -> str:
         return "char"

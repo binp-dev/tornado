@@ -45,6 +45,9 @@ class Vector(Struct):
         size = rng.randrange(4, 8)
         return [self.item.random(rng) for _ in range(size)]
 
+    def is_instance(self, value: Any) -> bool:
+        return isinstance(value, list)
+
     def deps(self) -> List[Type]:
         return [self.item]
 
@@ -158,6 +161,9 @@ class String(Vector):
     def random(self, rng: Random) -> str:
         size = rng.randrange(16, 64)
         return "".join([Char().random(rng) for _ in range(size)])
+
+    def is_instance(self, value: Any) -> bool:
+        return isinstance(value, str)
 
     def cpp_type(self) -> str:
         return "std::string"

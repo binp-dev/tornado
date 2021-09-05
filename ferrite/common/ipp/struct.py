@@ -4,7 +4,7 @@ from random import Random
 from typing import Any, Dict, List, Tuple, Union
 
 from ipp.base import CONTEXT, Location, Name, Type, Source, declare_variable
-from ipp.prim import Array, Pointer
+from ipp.prim import Pointer
 from ipp.util import indent_text, list_join
 
 class Field:
@@ -12,17 +12,17 @@ class Field:
         self.name = Name(name)
         self.type = type
 
-class StructValue(Type):
+class StructValue:
     def __init__(self, type: Type, fields: Dict[str, Any]):
-        self.__type = type
+        self._type = type
         for k, v in fields.items():
             setattr(self, k, v)
 
     def is_instance(self, type: Type) -> bool:
-        return self.__type.name() == type.name()
+        return self._type.name() == type.name()
 
     def store(self) -> bytes:
-        return self.__type.store(self)
+        return self._type.store(self)
 
 class Struct(Type):
     def __init__(self, name: Union[Name, str], fields: List[Field] = []):
@@ -47,7 +47,7 @@ class Struct(Type):
     def size(self) -> int:
         return sum([f.type.size() for f in self.fields])
 
-    def load(self, data: bytes) -> str:
+    def load(self, data: bytes) -> StructValue:
         args = []
         for f in self.fields:
             ty = f.type
@@ -55,7 +55,8 @@ class Struct(Type):
             data = data[ty.size():] if ty.sized else None
         return self.value(*args)
 
-    def store(self, value: str) -> bytes:
+    def store(self, value: StructValue) -> bytes:
+        self.is_instance(value)
         data = b""
         for f in self.fields:
             k = f.name.snake()
@@ -64,20 +65,26 @@ class Struct(Type):
 
     def value(self, *args, **kwargs) -> StructValue:
         fields = {}
-        field_names = [f.name.snake() for f in self.fields]
-        for k, v in zip(field_names, args):
+        field_types = {f.name.snake(): f.type for f in self.fields}
+        for k, v in zip(field_types, args):
             fields[k] = v
         for k, v in kwargs:
-            assert k in field_names
+            assert k in field_types
             assert k not in fields
             fields[k] = v
+        assert len(self.fields) == len(fields)
+        for k, v in fields.items():
+            assert field_types[k].is_instance(v)
         return StructValue(self, fields)
 
-    def random(self, rng: Random) -> str:
+    def random(self, rng: Random) -> StructValue:
         args = []
         for f in self.fields:
             args.append(f.type.random(rng))
         return self.value(*args)
+
+    def is_instance(self, value: Any) -> bool:
+        return isinstance(value, StructValue) and value.is_instance(self)
 
     def deps(self) -> List[Type]:
         return [f.type for f in self.fields]
@@ -242,7 +249,7 @@ class Struct(Type):
     def cpp_store(self, src: str, dst: str) -> str:
         return f"{src}.store(&{dst})"
 
-    def cpp_object(self, value: List[Any]) -> str:
+    def cpp_object(self, value: StructValue) -> str:
         return "\n".join([
             f"{self.cpp_type()}{{",
             *[

@@ -142,6 +142,9 @@ class Type:
     def random(self, rng: Random) -> Any:
         raise NotImplementedError()
 
+    def is_instance(self, value: Any) -> bool:
+        raise NotImplementedError()
+
     def c_type(self) -> Union[CType, str]:
         raise NotImplementedError()
 
