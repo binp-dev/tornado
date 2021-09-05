@@ -230,8 +230,8 @@ class Variant(Type):
     def cpp_store(self, src: str, dst: str) -> str:
         return f"{src}.store(&{dst})"
 
-    def test_source(self, rng: Random = None) -> Source:
+    def test_source(self) -> Source:
         return Source(
             Location.TESTS,
-            deps=[ty.test_source(rng) for ty in self.deps()],
+            deps=[ty.test_source() for ty in self.deps()],
         )

@@ -1,24 +1,28 @@
 from __future__ import annotations
+from dataclasses import fields
 from random import Random
-from typing import List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 from ipp.base import CONTEXT, Location, Name, Type, Source, declare_variable
 from ipp.prim import Array, Pointer
-from ipp.util import list_join
+from ipp.util import indent_text, list_join
 
 class Field:
     def __init__(self, name: Union[Name, str], type: Type):
         self.name = Name(name)
         self.type = type
 
-def should_ignore(type: Type) -> bool:
-    if not type.sized:
-        return False
-    if type.size() > 0:
-        return False
-    if isinstance(type, Array) and type.len == 0 and type.type.size() > 0:
-        return False
-    return True
+class StructValue(Type):
+    def __init__(self, type: Type, fields: Dict[str, Any]):
+        self.__type = type
+        for k, v in fields.items():
+            setattr(self, k, v)
+
+    def is_instance(self, type: Type) -> bool:
+        return self.__type.name() == type.name()
+
+    def store(self) -> bytes:
+        return self.__type.store(self)
 
 class Struct(Type):
     def __init__(self, name: Union[Name, str], fields: List[Field] = []):
@@ -42,6 +46,41 @@ class Struct(Type):
 
     def size(self) -> int:
         return sum([f.type.size() for f in self.fields])
+
+    def load(self, data: bytes) -> str:
+        args = []
+        for f in self.fields:
+            ty = f.type
+            args.append(ty.load(data))
+            data = data[ty.size():] if ty.sized else None
+        return self.value(*args)
+
+    def store(self, value: str) -> bytes:
+        data = b""
+        for f in self.fields:
+            k = f.name.snake()
+            data += f.type.store(getattr(value, k))
+        return data
+
+    def value(self, *args, **kwargs) -> StructValue:
+        fields = {}
+        field_names = [f.name.snake() for f in self.fields]
+        for k, v in zip(field_names, args):
+            fields[k] = v
+        for k, v in kwargs:
+            assert k in field_names
+            assert k not in fields
+            fields[k] = v
+        return StructValue(self, fields)
+
+    def random(self, rng: Random) -> str:
+        args = []
+        for f in self.fields:
+            args.append(f.type.random(rng))
+        return self.value(*args)
+
+    def deps(self) -> List[Type]:
+        return [f.type for f in self.fields]
 
     def _fields_with_comma(self) -> List[Tuple[Field, str]]:
         if len(self.fields) > 0:
@@ -168,9 +207,6 @@ class Struct(Type):
         else:
             self._name
 
-    def deps(self) -> List[Type]:
-        return [f.type for f in self.fields]
-
     def c_source(self) -> Source:
         decl_source = Source(
             Location.DECLARATION,
@@ -206,8 +242,33 @@ class Struct(Type):
     def cpp_store(self, src: str, dst: str) -> str:
         return f"{src}.store(&{dst})"
 
-    def test_source(self, rng: Random = None) -> Source:
-        return Source(
-            Location.TESTS,
-            deps=[ty.test_source(rng) for ty in self.deps()],
-        )
+    def cpp_object(self, value: List[Any]) -> str:
+        return "\n".join([
+            f"{self.cpp_type()}{{",
+            *[
+                indent_text(f"{f.type.cpp_object(getattr(value, f.name.snake()))},", "    ")
+                for f in self.fields
+            ],
+            f"}}",
+        ])
+
+    def c_test(self, obj: str, src: str) -> str:
+        lines = []
+        for f in self.fields:
+            fname = f.name.snake()
+            if not f.type.is_empty():
+                lines.append(f.type.c_test(f"{obj}.{fname}", f"{src}.{fname}"))
+        return "\n".join(lines)
+
+    def cpp_test(self, dst: str, src: str) -> str:
+        lines = []
+        for f in self.fields:
+            fname = f.name.snake()
+            lines.append(f.type.cpp_test(f"{dst}.{fname}", f"{src}.{fname}"))
+        return "\n".join(lines)
+
+    def test_source(self) -> Source:
+        if not self.is_empty():
+            return super().test_source()
+        else:
+            return None

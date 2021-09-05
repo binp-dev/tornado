@@ -37,6 +37,12 @@ class Name:
     def from_snake(snake: str) -> Name:
         Name(snake.split("_"))
 
+    def __eq__(self, other: Name) -> bool:
+        return self.words == other.words
+
+    def __ne__(self, other: Name) -> bool:
+        return not (self == other)
+
 class Location(Enum):
     INCLUDES = 0
     DECLARATION = 1
@@ -124,14 +130,23 @@ class Type:
     def is_empty(self) -> bool:
         return self.sized and self.size() == 0
 
+    def deps(self) -> List[Type]:
+        return []
+
+    def load(self, data: bytes) -> Any:
+        raise NotImplementedError()
+    
+    def store(self, value: Any) -> bytes:
+        raise NotImplementedError()
+
+    def random(self, rng: Random) -> Any:
+        raise NotImplementedError()
+
     def c_type(self) -> Union[CType, str]:
         raise NotImplementedError()
 
     def cpp_type(self) -> Union[CType, str]:
         return self.c_type()
-
-    def deps(self) -> List[Type]:
-        return []
 
     def c_source(self) -> Source:
         return None
@@ -157,9 +172,6 @@ class Type:
     def cpp_store(self, src: str, dst: str) -> str:
         raise NotImplementedError()
 
-    def random(self, rng: Random) -> Any:
-        raise NotImplementedError()
-
     def cpp_object(self, value: Any) -> str:
         raise NotImplementedError()
 
@@ -169,9 +181,8 @@ class Type:
     def cpp_test(self, dst: str, src: str) -> str:
         raise NotImplementedError()
 
-    def test_source(self, rng: Random = None) -> Source:
-        if rng is None:
-            rng = Random(0xcafe)
+    def test_source(self) -> Source:
+        rng = Random(0xdeadbeef)
         return Source(
             Location.TESTS,
             "\n".join([
@@ -189,7 +200,7 @@ class Type:
                 ]), "    "),
                 f"}}",
             ]),
-            deps=[ty.test_source(rng) for ty in self.deps()],
+            deps=[ty.test_source() for ty in self.deps()],
         )
 
 class SizedType(Type):
@@ -224,5 +235,5 @@ class TrivialType(SizedType):
     def cpp_test(self, dst: str, src: str) -> str:
         return f"EXPECT_EQ({dst}, {src});"
 
-    def test_source(self, rng: Random) -> Source:
+    def test_source(self) -> Source:
         return None

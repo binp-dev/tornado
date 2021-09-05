@@ -19,9 +19,34 @@ class Vector(Struct):
                 Field("data", Array(self.item, None)),
             ],
         )
+        self._size_type = self.fields[0].type
 
     def name(self) -> Name:
         return Name("vector", self.item.name())
+
+    def load(self, data: bytes) -> List[Any]:
+        count = self._size_type.load(data[:self._size_type.size()])
+        data = data[self._size_type.size():]
+        item_size = self.item.size()
+        assert len(data) == item_size * count
+        array = []
+        for i in range(count):
+            array.append(self.item.load(data[(i * item_size):((i + 1) * item_size)]))
+        return array
+
+    def store(self, array: List[Any]) -> bytes:
+        data = b''
+        data += self._size_type.store(len(array))
+        for item in array:
+            data += self.item.store(item)
+        return data
+
+    def random(self, rng: Random) -> List[Any]:
+        size = rng.randrange(4, 8)
+        return [self.item.random(rng) for _ in range(size)]
+
+    def deps(self) -> List[Type]:
+        return [self.item]
 
     def _c_size_extent(self, obj: str) -> str:
         item_size = self.item.size()
@@ -33,9 +58,6 @@ class Vector(Struct):
 
     def cpp_type(self) -> str:
         return f"std::vector<{self.item.cpp_type()}>"
-
-    def deps(self) -> List[Type]:
-        return [self.item]
 
     def _cpp_load_decl(self):
         return f"{self.cpp_type()} {Name(self.name(), 'load').snake()}({Pointer(self, const=True).c_type()} src)"
@@ -69,7 +91,7 @@ class Vector(Struct):
         store_src = "\n".join([
             f"{self._cpp_store_decl()} {{",
             f"    // FIXME: Check for `dst->len` overflow.",
-            f"    dst->len = static_cast<{self.fields[0].type.c_type()}>(src.size());",
+            f"    dst->len = static_cast<{self._size_type.c_type()}>(src.size());",
             *([
                 f"    memcpy((void *)dst->data, (const void *)src.data(), src.size() * {self.item.size()});",
             ] if self.item.trivial else [
@@ -94,10 +116,6 @@ class Vector(Struct):
     
     def cpp_store(self, src: str, dst: str) -> str:
         return f"{Name(self.name(), 'store').snake()}({src}, &{dst});"
-    
-    def random(self, rng: Random) -> List[Any]:
-        size = rng.randrange(0, 8)
-        return [self.item.random(rng) for _ in range(size)]
 
     def cpp_object(self, value: List[Any]) -> str:
         return f"{self.cpp_type()}{{{', '.join([self.item.cpp_object(v) for v in value])}}}"
@@ -118,15 +136,28 @@ class Vector(Struct):
             f"}}"
         ])
 
-    def test_source(self, rng: Random = None) -> Source:
-        return super(Struct, self).test_source(rng)
-
 class String(Vector):
     def __init__(self):
         super().__init__(Char())
 
     def name(self) -> Name:
         return Name("string")
+
+    def load(self, data: bytes) -> str:
+        count = self._size_type.load(data[:self._size_type.size()])
+        data = data[self._size_type.size():]
+        assert len(data) == count
+        return data.decode("ascii")
+
+    def store(self, value: str) -> bytes:
+        data = b''
+        data += self._size_type.store(len(value))
+        data += value.encode("ascii")
+        return data
+
+    def random(self, rng: Random) -> str:
+        size = rng.randrange(16, 64)
+        return "".join([Char().random(rng) for _ in range(size)])
 
     def cpp_type(self) -> str:
         return "std::string"
@@ -142,7 +173,7 @@ class String(Vector):
         store_src = "\n".join([
             f"{store_decl} {{",
             f"    // FIXME: Check for `dst->len` overflow.",
-            f"    dst->len = static_cast<{self.fields[0].type.c_type()}>(src.size());",
+            f"    dst->len = static_cast<{self._size_type.c_type()}>(src.size());",
             f"    memcpy((void *)dst->data, (const void *)src.c_str(), src.length());",
             f"}}",
         ])
@@ -153,10 +184,6 @@ class String(Vector):
             f"{load_decl};"
             f"{store_decl};"
         ]), deps=[Include("string")])])
-
-    def random(self, rng: Random) -> str:
-        size = rng.randrange(0, 32)
-        return "".join([Char().random(rng) for _ in range(size)])
 
     def cpp_object(self, value: str) -> str:
         return f"{self.cpp_type()}(\"{value}\")"
@@ -171,6 +198,3 @@ class String(Vector):
         return "\n".join([
             f"ASSERT_EQ({dst}, {src});",
         ])
-
-    def test_source(self, rng: Random = None) -> Source:
-        return super(Struct, self).test_source(rng)

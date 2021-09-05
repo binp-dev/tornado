@@ -3,6 +3,7 @@ from random import Random
 from typing import List
 from dataclasses import dataclass
 import string
+import struct
 
 from ipp.base import CONTEXT, CType, Location, Name, TrivialType, SizedType, Type, Source
 from ipp.util import ceil_to_power_of_2, is_power_of_2
@@ -23,6 +24,13 @@ class Int(SizedType):
 
     def size(self) -> int:
         return (self.bits - 1) // 8 + 1
+
+    def load(self, data: bytes) -> int:
+        assert len(data) == self.bits // 8
+        return int.from_bytes(data, byteorder="little", signed=self.signed)
+    
+    def store(self, value: int) -> bytes:
+        return value.to_bytes(self.bits // 8, byteorder="little", signed=self.signed)
 
     @staticmethod
     def _int_type(bits: int, signed: bool = False) -> str:
@@ -105,11 +113,11 @@ class Int(SizedType):
     def cpp_test(self, dst: str, src: str) -> str:
         return TrivialType.cpp_test(self, dst, src)
 
-    def test_source(self, rng: Random = None) -> Source:
+    def test_source(self) -> Source:
         if self._is_builtin():
             return None
         else:
-            return super().test_source(rng)
+            return super().test_source()
 
 @dataclass
 class Float(TrivialType):
@@ -124,6 +132,26 @@ class Float(TrivialType):
     def size(self) -> int:
         return (self.bits - 1) // 8 + 1
 
+    def load(self, data: bytes) -> float:
+        assert len(data) == self.bits // 8
+        if self.bits == 32:
+            return struct.unpack("<f", data)[0]
+        elif self.bits == 64:
+            return struct.unpack("<d", data)[0]
+        else:
+            raise RuntimeError(f"{self.bits}-bit float is not supported")
+    
+    def store(self, value: float) -> bytes:
+        if self.bits == 32:
+            return struct.pack("<f", value)
+        elif self.bits == 64:
+            return struct.pack("<d", value)
+        else:
+            raise RuntimeError(f"{self.bits}-bit float is not supported")
+
+    def random(self, rng: Random) -> float:
+        return rng.gauss(0.0, 1.0)
+
     def c_type(self) -> str:
         if self.bits == 32:
             return "float"
@@ -131,9 +159,6 @@ class Float(TrivialType):
             return "double"
         else:
             raise RuntimeError(f"{self.bits}-bit float is not supported")
-
-    def random(self, rng: Random) -> float:
-        return rng.gauss(0.0, 1.0)
 
 @dataclass
 class Char(TrivialType):
@@ -146,15 +171,23 @@ class Char(TrivialType):
     def size(self) -> int:
         return 1
 
+    def load(self, data: bytes) -> str:
+        assert len(data) == 1
+        return data.decode('ascii')
+
+    def store(self, value: str) -> bytes:
+        assert len(value) == 1
+        return value.encode('ascii')
+
+    def random(self, rng: Random) -> str:
+        return rng.choice(string.ascii_letters + string.digits)
+
     def c_type(self) -> str:
         return "char"
 
     def cpp_object(self, value: str) -> str:
         assert len(value) == 1
         return f"'{value}'"
-
-    def random(self, rng: Random) -> str:
-        return rng.choice(string.ascii_letters + string.digits + string.punctuation)
 
 @dataclass
 class Size(SizedType):
@@ -235,5 +268,5 @@ class Array(Type):
     def cpp_source(self) -> Source:
         return self.type.cpp_source()
 
-    def test_source(self, rng: Random) -> Source:
+    def test_source(self) -> Source:
         return None
