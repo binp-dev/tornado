@@ -40,7 +40,7 @@ class Ipp(Component):
 
         self.toolchain = toolchain
 
-        self.src_dir = os.path.join(BASE_DIR, "common/ipp")
+        self.src_dir = os.path.join(BASE_DIR, "ipp")
         self.build_dir = os.path.join(TARGET_DIR, f"ipp_{self.toolchain.name}")
 
         opts = ["-DCMAKE_BUILD_TYPE=Debug"]

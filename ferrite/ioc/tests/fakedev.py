@@ -37,7 +37,7 @@ def assert_pop(queue, arr):
 def run_test(
     epics_base_dir,
     ioc_dir,
-    common_dir,
+    ipp_dir,
     arch,
 ):
     global IDS
@@ -52,7 +52,7 @@ def run_test(
     socket.bind("tcp://127.0.0.1:8321")
 
     prefix = os.path.join(epics_base_dir, "bin", arch)
-    IDS = proto.read_defines(os.path.join(common_dir, "proto.h"))
+    IDS = proto.read_defines(os.path.join(ipp_dir, "proto.h"))
     def id_as_bytes(id):
         return bytes([id])
 

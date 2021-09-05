@@ -5,8 +5,8 @@ from dataclasses import dataclass
 import string
 import struct
 
-from ipp.base import CONTEXT, CType, Location, Name, TrivialType, SizedType, Type, Source
-from ipp.util import ceil_to_power_of_2, is_power_of_2
+from codegen.base import CONTEXT, CType, Location, Name, TrivialType, SizedType, Type, Source
+from codegen.util import ceil_to_power_of_2, is_power_of_2
 
 @dataclass
 class Int(SizedType):

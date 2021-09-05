@@ -1,9 +1,9 @@
 import os
 from typing import List, Tuple
 
-from ipp.base import CONTEXT, Context, Location, Name, Source, Type
-from ipp.struct import Field, Struct
-from ipp.variant import Variant
+from codegen.base import CONTEXT, Context, Location, Name, Source, Type
+from codegen.struct import Field, Struct
+from codegen.variant import Variant
 
 def make_variant(name: Name, messages: List[Tuple[Name, List[Field]]]) -> Variant:
     return Variant(

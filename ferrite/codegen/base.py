@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 from random import Random
 
-from ipp.util import indent_text
+from codegen.util import indent_text
 
 @dataclass
 class Context:

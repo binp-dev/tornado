@@ -2,9 +2,9 @@ from __future__ import annotations
 from random import Random
 from typing import Any, Dict, List, Tuple, Union
 
-from ipp.base import CONTEXT, Location, Name, Type, Source, declare_variable
-from ipp.prim import Pointer
-from ipp.util import indent_text, list_join
+from codegen.base import CONTEXT, Location, Name, Type, Source, declare_variable
+from codegen.prim import Pointer
+from codegen.util import indent_text, list_join
 
 class Field:
     def __init__(self, name: Union[Name, str], type: Type):

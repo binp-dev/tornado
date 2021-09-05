@@ -1,8 +1,8 @@
-from ipp.base import CONTEXT, Context, Name
-from ipp.prim import Int
-from ipp.container import Vector, String
-from ipp.struct import Field
-from ipp.codegen import make_variant, generate
+from codegen.base import CONTEXT, Context, Name
+from codegen.prim import Int
+from codegen.container import Vector, String
+from codegen.struct import Field
+from codegen.codegen import make_variant, generate
 
 AppMsg = make_variant(
     Name(["app", "msg"]),
@@ -39,7 +39,7 @@ generate(
     ],
     "",
     Context(
-        prefix="ipp",
+        prefix="codegen",
         test_attempts=8,
     ),
 )

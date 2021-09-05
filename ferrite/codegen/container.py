@@ -2,10 +2,10 @@ from __future__ import annotations
 from random import Random
 from typing import Any, List
 
-from ipp.base import CONTEXT, Include, Location, Name, SizedType, Type, Source
-from ipp.prim import Array, Char, Int, Pointer, Reference
-from ipp.struct import Struct, Field
-from ipp.util import indent_text
+from codegen.base import CONTEXT, Include, Location, Name, SizedType, Type, Source
+from codegen.prim import Array, Char, Int, Pointer, Reference
+from codegen.struct import Struct, Field
+from codegen.util import indent_text
 
 class Vector(Struct):
     def __init__(self, item: SizedType):

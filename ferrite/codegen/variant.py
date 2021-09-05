@@ -2,10 +2,10 @@ from __future__ import annotations
 from random import Random
 from typing import Any, List, Tuple, Union
 
-from ipp.base import CONTEXT, Include, Location, Name, Type, Source
-from ipp.prim import Int, Pointer
-from ipp.util import ceil_to_power_of_2, indent_text, list_join
-from ipp.struct import Field
+from codegen.base import CONTEXT, Include, Location, Name, Type, Source
+from codegen.prim import Int, Pointer
+from codegen.util import ceil_to_power_of_2, indent_text, list_join
+from codegen.struct import Field
 
 class VariantValue:
     def __init__(self, type: Type, id: int, variant: Any):
