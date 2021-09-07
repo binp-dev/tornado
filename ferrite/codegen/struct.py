@@ -167,16 +167,15 @@ class Struct(Type):
         if len(fields_lines) > 0:
             sections.append(fields_lines)
 
+        methods = [
+            self._cpp_size_method_decl(),
+        ]
         if not self.is_empty():
-            sections.append([
-                self._cpp_size_method_decl(),
+            methods.extend([
                 self._cpp_load_method_decl(),
                 self._cpp_store_method_decl(),
             ])
-        else:
-            sections.append([
-                f"[[nodiscard]] inline size_t packed_size() const {{ return 0; }}"
-            ])
+        sections.append(methods)
 
         return Source(
             Location.DECLARATION,
@@ -190,11 +189,11 @@ class Struct(Type):
         )
 
     def _cpp_definition(self) -> Source:
-        items = []
-
+        items = [
+            self._cpp_size_method_impl(),
+        ]
         if not self.is_empty():
             items.extend([
-                self._cpp_size_method_impl(),
                 self._cpp_load_method_impl(),
                 self._cpp_store_method_impl(),
             ])

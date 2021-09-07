@@ -21,12 +21,17 @@ class VariantValue:
 
 
 class Variant(Type):
-    def __init__(self, name: Union[Name, str], variants: List[Field]):
-        super().__init__(sized=all([f.type.sized for f in variants]))
+    def __init__(self, name: Union[Name, str], variants: List[Field], sized=None):
+        all_variants_sized = all([f.type.sized for f in variants])
+        if sized is None:
+            sized = all_variants_sized
+        elif sized is True:
+            assert all_variants_sized
+        super().__init__(sized=sized)
         self._name = name
         self.variants = variants
         self._id_type = Int(max(8, ceil_to_power_of_2(len(self.variants))))
-        
+
         # Variant types for convenience
         for f in self.variants:
             setattr(self, f.name.camel(), f.type)
@@ -47,14 +52,28 @@ class Variant(Type):
         return max([f.type.size() for f in self.variants]) + self._id_type.size()
 
     def load(self, data: bytes) -> VariantValue:
+        if self.sized:
+            assert len(data) == self.size()
+
         id = self._id_type.load(data[:self._id_type.size()])
-        variant = self.variants[id].type.load(data[self._id_type.size():])
+
+        var_data = data[self._id_type.size():]
+        var_type = self.variants[id].type
+        if self.sized:
+            var_data = var_data[:var_type.size()]
+        variant = var_type.load(var_data)
+
         return self.value(id, variant)
 
     def store(self, value: VariantValue) -> bytes:
         data = b""
         data += self._id_type.store(value._id)
         data += self.variants[value._id].type.store(value.variant)
+
+        if self.sized:
+            assert self.size() >= len(data)
+            data += b'\0' * (self.size() - len(data))
+
         return data
 
     def value(self, id: int, value: Any) -> VariantValue:
@@ -135,9 +154,27 @@ class Variant(Type):
     def _cpp_size_method_impl(self) -> str:
         return "\n".join([
             f"size_t {self.cpp_type()}::packed_size() const {{",
-            f"    return {self._id_type.size()} + std::visit([](const auto &v) {{",
-            f"        return v.packed_size();",
-            f"    }}, variant);",
+            *(
+                [
+                    f"    size_t size = {self._id_type.size()};",
+                    f"    // There is no unchecked `std::get` in C++ :facepalm:",
+                    f"    switch (({self._c_enum_type()})(variant.index())) {{",
+                    *list_join([
+                        [
+                            f"    case {self._c_enum_value(i)}:",
+                            f"        size += {f.type.cpp_size(f'std::get<{i}>(variant)')};",
+                            f"        break;",
+                        ]
+                        for i, f in enumerate(self.variants)
+                    ]),
+                    f"    default:",
+                    f"        std::abort();",
+                    f"    }}",
+                    f"    return size;",
+                ] if not self.sized else [
+                    f"    return {self.size()};",
+                ]
+            ),
             f"}}",
         ])
 
@@ -239,7 +276,7 @@ class Variant(Type):
             [
                 self._c_enum_declaration(),
                 self._c_struct_declaration(),
-                f"{self._c_size_decl()};",
+                *([f"{self._c_size_decl()};"] if not self.sized else []),
             ],
             deps=[
                 self._id_type.c_source(),
@@ -248,9 +285,7 @@ class Variant(Type):
         )
         return Source(
             Location.DEFINITION,
-            [
-                self._c_size_definition(),
-            ],
+            [self._c_size_definition()] if not self.sized else [],
             deps=[decl_source],
         )
 

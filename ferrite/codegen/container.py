@@ -80,13 +80,9 @@ class Vector(Struct):
         load_src = "\n".join([
             f"{self._cpp_load_decl()} {{",
             f"    {self.cpp_type()} dst(static_cast<size_t>(src->len));",
-            *([
-                f"    memcpy((void *)dst.data(), (const void *)src->data, {self.c_size('src')});",
-            ] if self.item.trivial else [
-                f"    for (size_t i = 0; i < dst.size(); ++i) {{",
-                f"        dst[i] = {self.item.cpp_load('src->data[i]')};",
-                f"    }}",
-            ]),
+            f"    for (size_t i = 0; i < dst.size(); ++i) {{",
+            f"        dst[i] = {self.item.cpp_load('src->data[i]')};",
+            f"    }}",
             f"    return dst;",
             f"}}",
         ])
@@ -94,13 +90,9 @@ class Vector(Struct):
             f"{self._cpp_store_decl()} {{",
             f"    // FIXME: Check for `dst->len` overflow.",
             f"    dst->len = static_cast<{self._size_type.c_type()}>(src.size());",
-            *([
-                f"    memcpy((void *)dst->data, (const void *)src.data(), src.size() * {self.item.size()});",
-            ] if self.item.trivial else [
-                f"    for (size_t i = 0; i < src.size(); ++i) {{",
-                f"        {self.item.cpp_store('src[i]', 'dst->data[i]')};",
-                f"    }}",
-            ]),
+            f"    for (size_t i = 0; i < src.size(); ++i) {{",
+            f"        {self.item.cpp_store('src[i]', 'dst->data[i]')};",
+            f"    }}",
             f"}}",
         ])
         return Source(Location.DEFINITION, [
