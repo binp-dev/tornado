@@ -37,7 +37,7 @@ class IppRunUnittestTask(Task):
         return [self.build_task]
 
 class IppGenerate(Task):
-    def __init__(self, owner):
+    def __init__(self, owner: Ipp):
         super().__init__()
         self.owner = owner
 
@@ -45,6 +45,9 @@ class IppGenerate(Task):
         from ipp import generate
         generate(self.owner.generated_dir)
         return True
+
+    def artifacts(self) -> str[list]:
+        return [self.owner.generated_dir]
 
 class Ipp(Component):
     def __init__(

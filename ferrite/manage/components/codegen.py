@@ -45,6 +45,9 @@ class CodegenGenerateTest(Task):
         generate(self.owner.generated_dir)
         return True
 
+    def artifacts(self) -> str[list]:
+        return [self.owner.generated_dir]
+
 class Codegen(Component):
     def __init__(
         self,

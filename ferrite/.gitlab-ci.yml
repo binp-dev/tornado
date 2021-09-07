@@ -14,11 +14,17 @@ host_codegen.generate:
   stage: "0"
   script:
     - python3 -u -m manage --no-deps --no-capture host_codegen.generate
+  artifacts:
+    paths:
+      - target/codegen_test_src
 
 host_ipp.generate:
   stage: "0"
   script:
     - python3 -u -m manage --no-deps --no-capture host_ipp.generate
+  artifacts:
+    paths:
+      - target/ipp_generated
 
 host_epics_base.clone:
   stage: "0"
