@@ -72,6 +72,9 @@ class Variant(Type):
     def deps(self) -> List[Type]:
         return [f.type for f in self.variants]
 
+    def _c_size_func_name(self) -> str:
+        return Name(CONTEXT.prefix, self.name(), "size").snake()
+
     def _c_enum_type(self) -> str:
         return Name(CONTEXT.prefix, self.name(), "type").camel()
 
@@ -100,7 +103,7 @@ class Variant(Type):
         ])
 
     def _c_size_decl(self) -> str:
-        return f"size_t {Name(CONTEXT.prefix, self.name(), 'size').snake()}({Pointer(self, const=True).c_type()} obj)"
+        return f"size_t {self._c_size_func_name()}({Pointer(self, const=True).c_type()} obj)"
 
     def _c_size_definition(self) -> str:
         return "\n".join([

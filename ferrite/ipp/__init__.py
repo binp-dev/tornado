@@ -1,7 +1,6 @@
-import os
 from codegen.base import Context, Name
 from codegen.prim import Int
-from codegen.container import Vector, String
+from codegen.container import String
 from codegen.struct import Field
 from codegen.text import make_variant, generate_and_write
 

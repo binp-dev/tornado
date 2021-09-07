@@ -1,4 +1,3 @@
-import os
 from codegen.base import Context, Name
 from codegen.prim import Float, Int
 from codegen.container import Vector, String
