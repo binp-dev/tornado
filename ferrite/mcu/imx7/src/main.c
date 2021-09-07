@@ -29,17 +29,17 @@ static void task_rpmsg(void *param) {
 
     uint8_t *buffer = NULL;
     size_t len = 0;
-    IppMsgAppAny app_msg;
+    const IppAppMsg *app_msg = NULL;
 
     // Wait for IOC start
     hal_assert(hal_rpmsg_recv_nocopy(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
-    hal_assert(ipp_msg_app_load(&app_msg, buffer, len) == IPP_LOAD_OK);
-    switch (app_msg.type) {
-    case IPP_APP_START:
+    app_msg = (const IppAppMsg *)buffer;
+    switch (app_msg->type) {
+    case IPP_APP_MSG_START:
         hal_log_info("Start message received");
         break;
     default:
-        hal_log_error("Wrong start message type: %d", (int)app_msg.type);
+        hal_log_error("Wrong start message type: %d", (int)app_msg->type);
         hal_panic();
     }
     hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
@@ -53,34 +53,30 @@ static void task_rpmsg(void *param) {
 
         // Receive message
         hal_assert(hal_rpmsg_recv_nocopy(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
-        hal_assert(ipp_msg_app_load(&app_msg, buffer, len) == IPP_LOAD_OK);
-        switch (app_msg.type) {
-        case IPP_APP_DAC_SET:
-            value = app_msg.dac_set.value;
+        app_msg = (const IppAppMsg *)buffer;
+        switch (app_msg->type) {
+        case IPP_APP_MSG_DAC_SET:
+            value = ipp_uint24_load(app_msg->dac_set.value);
             hal_log_info("Write DAC value: 0x%06lx", value);
             hal_assert(senkov_write_dac(value) == HAL_SUCCESS);
             break;
 
-        case IPP_APP_ADC_REQ:
-            index = app_msg.adc_req.index;
+        case IPP_APP_MSG_ADC_REQ:
+            index = app_msg->adc_req.index;
             hal_assert(senkov_read_adc(index, &value) == HAL_SUCCESS);
             hal_log_info("Read ADC%d value: 0x%06lx", (int)index, value);
 
             hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
-            IppMsgMcuAny mcu_msg = {
-                .type = IPP_MCU_ADC_VAL,
-                .adc_val = {
-                    .index = index,
-                    .value = value,
-                },
-            };
-            ipp_msg_mcu_store(&mcu_msg, buffer);
-            hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_msg_mcu_len(&mcu_msg)) == HAL_SUCCESS);
+            IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
+            mcu_msg->type = IPP_MCU_MSG_ADC_VAL;
+            mcu_msg->adc_val.index = index;
+            mcu_msg->adc_val.value = ipp_uint24_store(value);
+            hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
 
             break;
 
         default:
-            hal_log_error("Wrong message type: %d", (int)app_msg.type);
+            hal_log_error("Wrong message type: %d", (int)app_msg->type);
             hal_panic();
         }
         hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);

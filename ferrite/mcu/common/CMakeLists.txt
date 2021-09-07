@@ -6,8 +6,8 @@ include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 set(SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/common/main.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/main.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/common.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/common.c"
 )
 
 add_library(${PROJECT_NAME} OBJECT ${SRC})
@@ -15,7 +15,7 @@ include_directories(${PROJECT_NAME} "include")
 
 # Link IPP proto
 add_subdirectory("../../ipp" "ipp")
-include_directories("../../ipp/src")
+include_directories("${IPP_GENERATED}/include")
 target_link_libraries(${PROJECT_NAME} PUBLIC "ipp")
 
 # Link HAL

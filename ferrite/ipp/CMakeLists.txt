@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.16)
 
 project("ipp")
 
+if (NOT DEFINED IPP_GENERATED)
+    message(FATAL_ERROR "IPP_GENERATED is not defined")
+endif ()
+
 include_directories(
     "${IPP_GENERATED}/include"
 )

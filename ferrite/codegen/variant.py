@@ -137,6 +137,8 @@ class Variant(Type):
                 ]
                 for i, f in enumerate(self.variants)
             ]),
+            f"    default:",
+            f"        abort();",
             f"    }}",
             f"    return size;",
             f"}}",
@@ -193,8 +195,9 @@ class Variant(Type):
                 ]
                 for i, f in enumerate(self.variants)
             ]),
+            f"    default:",
+            f"        std::abort();",
             f"    }}",
-            f"    std::abort();",
             f"}}",
         ])
 
@@ -215,6 +218,8 @@ class Variant(Type):
                 ]
                 for i, f in enumerate(self.variants)
             ]),
+            f"    default:",
+            f"        std::abort();",
             f"    }}",
             f"}}",
         ])

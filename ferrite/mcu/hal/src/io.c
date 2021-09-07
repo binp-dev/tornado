@@ -31,21 +31,19 @@ uint8_t *__hal_io_rpmsg_alloc_buffer(size_t *size) {
     return buffer;
 }
 
-void __hal_io_rpmsg_send_debug_buffer(uint8_t *buffer, size_t size) {
+void __hal_io_rpmsg_send_debug_message(uint8_t unused, uint8_t *buffer) {
     hal_assert(io_rpmsg_initialized);
-    // FIXME: IPP debug message format is hardcoded here.
-    buffer[0] = 0xE1;
-    buffer[size - 1] = '\0';
-    hal_assert(HAL_SUCCESS == hal_rpmsg_send_nocopy(&io_rpmsg_channel, buffer, size));
+    IppMcuMsg *msg = (IppMcuMsg *)buffer;
+    msg->type = IPP_MCU_MSG_DEBUG;
+    hal_assert(HAL_SUCCESS == hal_rpmsg_send_nocopy(&io_rpmsg_channel, buffer, ipp_mcu_msg_size(msg)));
 }
 
-void __hal_io_rpmsg_send_error_buffer(uint8_t code, uint8_t *buffer, size_t size) {
+void __hal_io_rpmsg_send_error_message(uint8_t code, uint8_t *buffer) {
     hal_assert(io_rpmsg_initialized);
-    // FIXME: IPP error message format is hardcoded here.
-    buffer[0] = 0xE0;
-    buffer[1] = code;
-    buffer[size - 1] = '\0';
-    hal_assert(HAL_SUCCESS == hal_rpmsg_send_nocopy(&io_rpmsg_channel, buffer, size));
+    IppMcuMsg *msg = (IppMcuMsg *)buffer;
+    msg->type = IPP_MCU_MSG_ERROR;
+    msg->error.code = code;
+    hal_assert(HAL_SUCCESS == hal_rpmsg_send_nocopy(&io_rpmsg_channel, buffer, ipp_mcu_msg_size(msg)));
 }
 
 #endif
