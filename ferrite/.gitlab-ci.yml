@@ -10,21 +10,15 @@ stages:
   - "4"
   - "5"
 
-host_app.build_unittest:
+host_codegen.generate:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_app.build_unittest
-  artifacts:
-    paths:
-      - target/app_host
+    - python3 -u -m manage --no-deps --no-capture host_codegen.generate
 
-host_ipp.build:
+host_ipp.generate:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_ipp.build
-  artifacts:
-    paths:
-      - target/ipp_host
+    - python3 -u -m manage --no-deps --no-capture host_ipp.generate
 
 host_epics_base.clone:
   stage: "0"
@@ -82,19 +76,35 @@ imx8mn_app_toolchain.download:
     paths:
       - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
 
-host_app.run_unittest:
+host_codegen.build:
   stage: "1"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_app.run_unittest
+    - python3 -u -m manage --no-deps --no-capture host_codegen.build
   needs:
-    - host_app.build_unittest
+    - host_codegen.generate
+  artifacts:
+    paths:
+      - target/codegen_host
 
-host_ipp.test:
+host_ipp.build:
   stage: "1"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_ipp.test
+    - python3 -u -m manage --no-deps --no-capture host_ipp.build
   needs:
-    - host_ipp.build
+    - host_ipp.generate
+  artifacts:
+    paths:
+      - target/ipp_host
+
+host_app.build_unittest:
+  stage: "1"
+  script:
+    - python3 -u -m manage --no-deps --no-capture host_app.build_unittest
+  needs:
+    - host_ipp.generate
+  artifacts:
+    paths:
+      - target/app_host
 
 host_epics_base.build:
   stage: "1"
@@ -114,6 +124,7 @@ imx7_mcu.build:
   needs:
     - imx7_mcu_toolchain.download
     - imx7_freertos.clone
+    - host_ipp.generate
   artifacts:
     paths:
       - target/mcu_imx7
@@ -125,9 +136,31 @@ imx8mn_mcu.build:
   needs:
     - imx8mn_mcu_toolchain.download
     - imx8mn_freertos.clone
+    - host_ipp.generate
   artifacts:
     paths:
       - target/mcu_imx8mn
+
+host_codegen.test:
+  stage: "2"
+  script:
+    - python3 -u -m manage --no-deps --no-capture host_codegen.test
+  needs:
+    - host_codegen.build
+
+host_ipp.test:
+  stage: "2"
+  script:
+    - python3 -u -m manage --no-deps --no-capture host_ipp.test
+  needs:
+    - host_ipp.build
+
+host_app.run_unittest:
+  stage: "2"
+  script:
+    - python3 -u -m manage --no-deps --no-capture host_app.run_unittest
+  needs:
+    - host_app.build_unittest
 
 host_app.build_fakedev:
   stage: "2"
@@ -135,6 +168,7 @@ host_app.build_fakedev:
     - python3 -u -m manage --no-deps --no-capture host_app.build_fakedev
   needs:
     - host_epics_base.build
+    - host_ipp.generate
   artifacts:
     paths:
       - target/app_host
@@ -182,6 +216,7 @@ imx7_app.build_main:
   needs:
     - imx7_app_toolchain.download
     - imx7_epics_base.build
+    - host_ipp.generate
   artifacts:
     paths:
       - target/app_imx7
@@ -193,6 +228,7 @@ imx8mn_app.build_main:
   needs:
     - imx8mn_app_toolchain.download
     - imx8mn_epics_base.build
+    - host_ipp.generate
   artifacts:
     paths:
       - target/app_imx8mn
@@ -236,8 +272,9 @@ host_all.test:
   script:
     - python3 -u -m manage --no-deps --no-capture host_all.test
   needs:
-    - host_app.run_unittest
+    - host_codegen.test
     - host_ipp.test
+    - host_app.run_unittest
     - host_ioc.test_fakedev
 
 imx7_all.build:
