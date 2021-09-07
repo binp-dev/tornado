@@ -96,5 +96,10 @@ def generate_and_write(types: List[Type], base_path: str, context: Context):
     for p in paths:
         os.makedirs(os.path.join(base_path, p), exist_ok=True)
     for name, text in files.items():
-        with open(os.path.join(base_path, name), "w") as f:
-            f.write(text + "\n")
+        path = os.path.join(base_path, name)
+        content = text + "\n"
+        with open(path, "r") as f:
+            old_content = f.read()
+        if content != old_content:
+            with open(path, "w") as f:
+                f.write(content)

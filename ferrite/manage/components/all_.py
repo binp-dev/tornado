@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 from manage.components.base import Component, Task, TaskWrapper, TaskList
 from manage.components.epics.epics_base import EpicsBase
+from manage.components.codegen import Codegen
 from manage.components.app import App
 from manage.components.ipp import Ipp
 from manage.components.epics.ioc import AppIoc
@@ -12,26 +13,30 @@ class AllHost(Component):
     def __init__(
         self,
         epics_base: EpicsBase,
+        codegen: Codegen,
         ipp: Ipp,
         app: App,
         ioc: AppIoc,
     ):
         super().__init__()
         self.epics_base = epics_base
+        self.codegen = codegen
         self.ipp = ipp
         self.app = app
         self.ioc = ioc
 
         self.build_task = TaskWrapper(deps=[
             self.epics_base.tasks()["build"],
+            self.codegen.tasks()["build"],
+            self.ipp.tasks()["build"],
             self.app.tasks()["build_unittest"],
             self.app.tasks()["build_fakedev"],
-            self.ipp.tasks()["build"],
             self.ioc.tasks()["build"],
         ])
         self.test_task = TaskWrapper(deps=[
-            self.app.tasks()["run_unittest"],
+            self.codegen.tasks()["test"],
             self.ipp.tasks()["test"],
+            self.app.tasks()["run_unittest"],
             self.ioc.tasks()["test_fakedev"],
         ])
 

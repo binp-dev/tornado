@@ -1,5 +1,5 @@
 import os
-from codegen.base import CONTEXT, Context, Include, Name
+from codegen.base import Context, Name
 from codegen.prim import Int
 from codegen.container import Vector, String
 from codegen.struct import Field
@@ -37,41 +37,11 @@ McuMsg = make_variant(
     ],
 )
 
-OldAppMsg = make_variant(
-    Name(["old", "app", "msg"]),
-    [
-        (Name(["start"]), []),
-        (Name(["dac", "wf"]), [
-            Field("data", Vector(Int(24))),
-        ]),
-    ],
-)
-
-OldMcuMsg = make_variant(
-    Name(["old", "mcu", "msg"]),
-    [
-        (Name(["dac", "wf", "req"]), []),
-        (Name(["adc", "wf"]), [
-            Field("index", Int(8)),
-            Field("data", Vector(Int(24))),
-        ]),
-        (Name(["error"]), [
-            Field("code", Int(8)),
-            Field("message", String()),
-        ]),
-        (Name(["debug"]), [
-            Field("message", String()),
-        ]),
-    ],
-)
-
 def generate(path: str):
     generate_and_write(
         [
             AppMsg,
             McuMsg,
-            OldAppMsg,
-            OldMcuMsg,
         ],
         path,
         Context(

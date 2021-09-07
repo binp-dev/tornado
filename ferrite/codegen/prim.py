@@ -45,6 +45,10 @@ class Int(SizedType):
     def _int_type(bits: int, signed: bool = False) -> str:
         return f"{'u' if not signed else ''}int{bits}_t"
 
+    @staticmethod
+    def _int_literal(value: int, bits: int, signed: bool = False) -> str:
+        return f"{value}{'u' if not signed else ''}{'ll' if bits > 32 else ''}"
+
     def c_type(self) -> str:
         ident = self._int_type(self.bits, self.signed)
         if not self._is_builtin() and CONTEXT.prefix is not None:
@@ -88,7 +92,7 @@ class Int(SizedType):
             ]), deps=[declaraion])
 
     def cpp_type(self) -> str:
-        return self._int_type(ceil_to_power_of_2(self.bits))
+        return self._int_type(ceil_to_power_of_2(self.bits), self.signed)
 
     def cpp_source(self) -> Source:
         return None
@@ -108,7 +112,7 @@ class Int(SizedType):
             return f"{dst} = {prefix}uint{self.bits}_store({src})"
 
     def cpp_object(self, value: int) -> str:
-        return str(value)
+        return self._int_literal(value, self.bits, self.signed)
 
     def c_test(self, obj: str, src: str) -> str:
         return TrivialType.c_test(self, obj, src)
@@ -165,6 +169,9 @@ class Float(TrivialType):
             return "double"
         else:
             raise RuntimeError(f"{self.bits}-bit float is not supported")
+
+    def cpp_object(self, value: float) -> str:
+        return f"{value}{'f' if self.bits == 32 else ''}"
 
 @dataclass
 class Char(TrivialType):

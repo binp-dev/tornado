@@ -244,9 +244,6 @@ class TrivialType(SizedType):
     def cpp_store(self, src: str, dst: str) -> str:
         return f"{dst} = {src}"
 
-    def cpp_object(self, value: int) -> str:
-        return str(value)
-
     def c_test(self, obj: str, src: str) -> str:
         return f"EXPECT_EQ({self.cpp_load(obj)}, {src});"
 
