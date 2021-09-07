@@ -98,8 +98,10 @@ def generate_and_write(types: List[Type], base_path: str, context: Context):
     for name, text in files.items():
         path = os.path.join(base_path, name)
         content = text + "\n"
-        with open(path, "r") as f:
-            old_content = f.read()
-        if content != old_content:
+        old_content = None
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                old_content = f.read()
+        if old_content is None or content != old_content:
             with open(path, "w") as f:
                 f.write(content)
