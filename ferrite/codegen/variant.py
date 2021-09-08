@@ -46,7 +46,11 @@ class Variant(Type):
         return Name(self._name)
 
     def min_size(self) -> int:
-        return max([f.type.min_size() for f in self.variants]) + self._id_type.size()
+        min_sizes = [f.type.min_size() for f in self.variants]
+        if self.sized:
+            return max(min_sizes) + self._id_type.size()
+        else:
+            return min(min_sizes) + self._id_type.size()
 
     def size(self) -> int:
         return max([f.type.size() for f in self.variants]) + self._id_type.size()
@@ -268,6 +272,12 @@ class Variant(Type):
             items,
             deps=[self._cpp_declaration()],
         )
+
+    def _cpp_static_check(self) -> str:
+        if self.sized:
+            return super()._cpp_static_check()
+        else:
+            return None
 
     def c_type(self) -> str:
         return Name(CONTEXT.prefix, self.name()).camel()

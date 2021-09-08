@@ -191,15 +191,21 @@ class Type:
     def cpp_test(self, dst: str, src: str) -> str:
         raise NotImplementedError()
 
+    def _cpp_static_check(self) -> str:
+        return f"static_assert(sizeof({self.c_type()}) == size_t({self.size() if self.sized else self.min_size()}));"
+
     def test_source(self) -> Source:
         rng = Random(0xdeadbeef)
+        static_check = self._cpp_static_check()
         return Source(
             Location.TESTS,
             "\n".join([
                 f"TEST({Name(CONTEXT.prefix, 'test').camel()}, {self.name().camel()}) {{",
                 indent_text("\n".join([
-                    f"static_assert(sizeof({self.c_type()}) == size_t({self.size() if self.sized else self.min_size()}));",
-                    f"",
+                    *([
+                        static_check,
+                        f"",
+                    ] if static_check is not None else []),
                     f"std::vector<{self.cpp_type()}> srcs = {{",
                     *[indent_text(self.cpp_object(self.random(rng)), "    ") + "," for _ in range(CONTEXT.test_attempts)],
                     f"}};",
