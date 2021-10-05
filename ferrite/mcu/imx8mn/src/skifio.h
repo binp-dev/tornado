@@ -9,7 +9,7 @@
 #define SKIFIO_ADC_CHANNEL_COUNT 6
 
 typedef struct SkifioInput {
-    uint32_t adc[SKIFIO_ADC_CHANNEL_COUNT];
+    uint32_t adcs[SKIFIO_ADC_CHANNEL_COUNT];
 } SkifioInput;
 
 typedef struct SkifioOutput {

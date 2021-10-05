@@ -16,6 +16,7 @@
 #include <hal/io.h>
 #include <hal/rpmsg.h>
 
+#include "skifio.h"
 
 #define TASK_STACK_SIZE 256
 
@@ -64,6 +65,64 @@ static void task_rpmsg(void *param) {
     strcpy(mcu_msg->debug.message.data, message);
     hal_log_info("Whole message size: %d", (int)ipp_mcu_msg_size(mcu_msg));
     hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
+
+    hal_log_info("SkifIO driver init");
+    hal_assert(skifio_init() == HAL_SUCCESS);
+
+    SkifioInput input = {{0}};
+    SkifioOutput output = {0};
+    for (;;) {
+        uint32_t value = 0;
+        uint8_t index = 0;
+        hal_retcode ret;
+
+        // Receive message
+        hal_assert(hal_rpmsg_recv_nocopy(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+        app_msg = (const IppAppMsg *)buffer;
+        switch (app_msg->type) {
+        case IPP_APP_MSG_DAC_SET:
+            value = ipp_uint24_load(app_msg->dac_set.value);
+            if (value >= 0x10000u) {
+                hal_error(0x02, "DAC value is out of bounds (0xffff): 0x%04lx", value);
+                continue;
+            }
+            hal_log_info("Write DAC value: 0x%04lx", value);
+            ret = skifio_transfer(&output, &input);
+            hal_assert(ret == HAL_SUCCESS || ret == HAL_INVALID_DATA); // Ignore CRC check error
+            break;
+
+        case IPP_APP_MSG_ADC_REQ:
+            index = app_msg->adc_req.index;
+            if (index >= SKIFIO_ADC_CHANNEL_COUNT) {
+                hal_error(0x02, "ADC channel index is out of bounds (%i): %i", (int)SKIFIO_ADC_CHANNEL_COUNT, (int)index);
+                continue;
+            }
+            ret = skifio_transfer(&output, &input);
+            value = input.adcs[index];
+            hal_assert(ret == HAL_SUCCESS || ret == HAL_INVALID_DATA); // Ignore CRC check error
+            hal_log_info("Read ADC%d value: 0x%06lx", (int)index, value);
+
+            hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+            IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
+            mcu_msg->type = IPP_MCU_MSG_ADC_VAL;
+            mcu_msg->adc_val.index = index;
+            mcu_msg->adc_val.value = ipp_uint24_store(value);
+            hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
+
+            break;
+
+        default:
+            hal_log_error("Wrong message type: %d", (int)app_msg->type);
+            hal_panic();
+        }
+        hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
+        vTaskDelay(1);
+    }
+
+    hal_log_error("End of task_rpmsg()");
+    hal_panic();
+
+    hal_assert(skifio_deinit() == HAL_SUCCESS);
 
     hal_log_error("End of task_rpmsg()");
     hal_panic();

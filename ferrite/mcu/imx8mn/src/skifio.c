@@ -60,7 +60,7 @@ hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in) {
 
     // Load ADC values
     const size_t in_data_len = SKIFIO_ADC_CHANNEL_COUNT * 4;
-    memcpy(in->adc, rx, in_data_len);
+    memcpy(in->adcs, rx, in_data_len);
 
     // Load and check CRC
     calc_crc = calculate_crc16(rx, in_data_len);

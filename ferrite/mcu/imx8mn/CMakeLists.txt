@@ -89,7 +89,8 @@ include(CMSIS_Include_common_MIMX8MN6)
 include(CMSIS_Include_dsp_MIMX8MN6)
 include(utilities_misc_utilities_MIMX8MN6)
 include(device_MIMX8MN6_system_MIMX8MN6)
-
+include(driver_ecspi_MIMX8MN6)
+include(driver_ecspi_freertos_MIMX8MN6)
 
 TARGET_LINK_LIBRARIES(${MCUX_SDK_PROJECT_NAME} PRIVATE
     -Wl,--start-group
