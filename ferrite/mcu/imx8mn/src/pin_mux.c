@@ -45,6 +45,11 @@ BOARD_InitPins:
 - pin_list:
   - {pin_num: E18, peripheral: UART3, signal: uart_rx, pin_signal: UART3_RXD, PE: Disabled, FSEL: FAST0, DSE: X6_0}
   - {pin_num: D18, peripheral: UART3, signal: uart_tx, pin_signal: UART3_TXD, PE: Disabled, FSEL: FAST0, DSE: X6_0}
+  - {pin_num: A7, peripheral: ECSPI1, signal: ecspi_miso, pin_signal: ECSPI1_MISO, PE: Disabled, HYS: Enabled, FSEL: SLOW0, DSE: X6_0}
+  - {pin_num: B7, peripheral: ECSPI1, signal: ecspi_mosi, pin_signal: ECSPI1_MOSI, PE: Disabled, HYS: Enabled, FSEL: SLOW0, DSE: X6_0}
+  - {pin_num: D6, peripheral: ECSPI1, signal: ecspi_sclk, pin_signal: ECSPI1_SCLK, PE: Enabled, HYS: Enabled, FSEL: SLOW0, DSE: X6_0}
+  - {pin_num: B6, peripheral: ECSPI1, signal: 'ecspi_ss, 0', pin_signal: ECSPI1_SS0, PE: Enabled, PUE: Enabled, SION: DISABLED, HYS: Enabled, ODE: Disabled, FSEL: SLOW0,
+    DSE: X6_0}
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS ***********
  */
 
@@ -55,6 +60,7 @@ BOARD_InitPins:
  *
  * END ****************************************************************************************************************/
 void BOARD_InitPins(void) {                                /*!< Function assigned for the core: Cortex-M7F[m7] */
+    // Debug UART pins
     IOMUXC_SetPinMux(IOMUXC_UART3_RXD_UART3_RX, 0U);
     IOMUXC_SetPinConfig(IOMUXC_UART3_RXD_UART3_RX,
                         IOMUXC_SW_PAD_CTL_PAD_DSE(6U) |
@@ -63,6 +69,27 @@ void BOARD_InitPins(void) {                                /*!< Function assigne
     IOMUXC_SetPinConfig(IOMUXC_UART3_TXD_UART3_TX,
                         IOMUXC_SW_PAD_CTL_PAD_DSE(6U) |
                         IOMUXC_SW_PAD_CTL_PAD_FSEL(2U));
+
+    // ECSPI pins
+    IOMUXC_SetPinMux(IOMUXC_ECSPI1_MISO_ECSPI1_MISO, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_ECSPI1_MISO_ECSPI1_MISO,
+                        IOMUXC_SW_PAD_CTL_PAD_DSE(6U) |
+                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK);
+    IOMUXC_SetPinMux(IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI,
+                        IOMUXC_SW_PAD_CTL_PAD_DSE(6U) |
+                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK);
+    IOMUXC_SetPinMux(IOMUXC_ECSPI1_SCLK_ECSPI1_SCLK, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_ECSPI1_SCLK_ECSPI1_SCLK,
+                        IOMUXC_SW_PAD_CTL_PAD_DSE(6U) |
+                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK |
+                        IOMUXC_SW_PAD_CTL_PAD_PE_MASK);
+    IOMUXC_SetPinMux(IOMUXC_ECSPI1_SS0_ECSPI1_SS0, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_ECSPI1_SS0_ECSPI1_SS0,
+                        IOMUXC_SW_PAD_CTL_PAD_DSE(6U) |
+                        IOMUXC_SW_PAD_CTL_PAD_PUE_MASK |
+                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK |
+                        IOMUXC_SW_PAD_CTL_PAD_PE_MASK);
 }
 
 /***********************************************************************************************************************

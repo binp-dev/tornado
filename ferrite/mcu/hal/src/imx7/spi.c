@@ -5,6 +5,7 @@
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include <hal/spi.h>
+#include <hal/panic.h>
 
 #define HAL_SPI_IRQ_PRIORITY 3
 
@@ -73,6 +74,8 @@ hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate, HalSpiPhase pha
     case HAL_SPI_PHASE_SECOND_EDGE:
         clockPhase = ecspiClockPhaseSecondEdge;
         break;
+    default:
+        hal_unreachable();
     }
 
     uint32_t clockPolarity;
@@ -83,6 +86,8 @@ hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate, HalSpiPhase pha
     case HAL_SPI_POLARITY_ACTIVE_LOW:
         clockPolarity = ecspiClockPolarityActiveLow;
         break;
+    default:
+        hal_unreachable();
     }
 
     ecspi_init_config_t ecspiMasterInitConfig = {
