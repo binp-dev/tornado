@@ -46,8 +46,8 @@ public:
     virtual Result<std::monostate, Error> send_raw(const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout) = 0;
     virtual Result<size_t, Error> receive_raw(uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout) = 0;
 
-    Result<std::monostate, Error> send(const ipp::MsgAppAny &message, std::optional<std::chrono::milliseconds> timeout);
-    Result<ipp::MsgMcuAny, Error> receive(std::optional<std::chrono::milliseconds> timeout);
+    Result<std::monostate, Error> send(const ipp::AppMsg &message, std::optional<std::chrono::milliseconds> timeout);
+    Result<ipp::McuMsg, Error> receive(std::optional<std::chrono::milliseconds> timeout);
 };
 
 template <>

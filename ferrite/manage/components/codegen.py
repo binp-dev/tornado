@@ -5,9 +5,8 @@ from manage.paths import BASE_DIR, TARGET_DIR
 from manage.components.base import Component, Task, Context
 from manage.components.cmake import Cmake
 from manage.components.toolchains import HostToolchain
-from manage.components.codegen import Codegen
 
-class IppBuildUnittestTask(Task):
+class CodegenBuildTestTask(Task):
     def __init__(self, cmake: Cmake, generate_task: Task):
         super().__init__()
         self.cmake = cmake
@@ -15,7 +14,7 @@ class IppBuildUnittestTask(Task):
 
     def run(self, ctx: Context) -> bool:
         self.cmake.configure(ctx)
-        return self.cmake.build(ctx, "ipp_test")
+        return self.cmake.build(ctx, "codegen_test")
 
     def artifacts(self) -> str[list]:
         return [self.cmake.build_dir]
@@ -23,57 +22,55 @@ class IppBuildUnittestTask(Task):
     def dependencies(self) -> list[Task]:
         return [self.generate_task]
 
-class IppRunUnittestTask(Task):
+class CodegenRunTestTask(Task):
     def __init__(self, cmake: Cmake, build_task: Task):
         super().__init__()
         self.cmake = cmake
         self.build_task = build_task
 
     def run(self, ctx: Context) -> bool:
-        run(["./ipp_test"], cwd=self.cmake.build_dir, quiet=ctx.capture)
+        run(["./codegen_test"], cwd=self.cmake.build_dir, quiet=ctx.capture)
         return True
 
     def dependencies(self) -> list[Task]:
         return [self.build_task]
 
-class IppGenerate(Task):
-    def __init__(self, owner: Ipp):
+class CodegenGenerateTest(Task):
+    def __init__(self, owner):
         super().__init__()
         self.owner = owner
 
     def run(self, ctx: Context) -> bool:
-        from ipp import generate
+        from codegen.test import generate
         generate(self.owner.generated_dir)
         return True
 
     def artifacts(self) -> str[list]:
         return [self.owner.generated_dir]
 
-class Ipp(Component):
+class Codegen(Component):
     def __init__(
         self,
         toolchain: HostToolchain,
-        codegen: Codegen,
     ):
         super().__init__()
 
+        assert isinstance(toolchain, HostToolchain)
         self.toolchain = toolchain
-        self.codegen = codegen
 
-        self.src_dir = os.path.join(BASE_DIR, "ipp")
-        self.generated_dir = os.path.join(TARGET_DIR, f"ipp_generated")
-        self.build_dir = os.path.join(TARGET_DIR, f"ipp_{self.toolchain.name}")
+        self.src_dir = os.path.join(BASE_DIR, "codegen")
+        self.generated_dir = os.path.join(TARGET_DIR, f"codegen_test_src")
+        self.build_dir = os.path.join(TARGET_DIR, f"codegen_{self.toolchain.name}")
 
-        self.cmake_opts = [f"-DIPP_GENERATED={self.generated_dir}"]
-        self.cmake = Cmake(self.src_dir, self.build_dir, opt=["-DCMAKE_BUILD_TYPE=Debug", *self.cmake_opts] )
+        self.cmake = Cmake(self.src_dir, self.build_dir, [f"-DCODEGEN_TEST={self.generated_dir}"])
 
-        self.generate_task = IppGenerate(self)
-        self.build_unittest_task = IppBuildUnittestTask(self.cmake, self.generate_task)
-        self.run_unittest_task = IppRunUnittestTask(self.cmake, self.build_unittest_task)
+        self.generate_task = CodegenGenerateTest(self)
+        self.build_test_task = CodegenBuildTestTask(self.cmake, self.generate_task)
+        self.run_test_task = CodegenRunTestTask(self.cmake, self.build_test_task)
 
     def tasks(self) -> dict[str, Task]:
         return {
             "generate": self.generate_task,
-            "build": self.build_unittest_task,
-            "test": self.run_unittest_task,
+            "build": self.build_test_task,
+            "test": self.run_test_task,
         }

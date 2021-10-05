@@ -7,16 +7,16 @@
 Channel::Channel(const size_t max_length) : buffer_(max_length, 0) {}
 
 // TODO: Should we pack multiple messages in one buffer?
-Result<std::monostate, Channel::Error> Channel::send(const ipp::MsgAppAny &message, std::optional<std::chrono::milliseconds> timeout) {
-    const size_t length = message.length();
+Result<std::monostate, Channel::Error> Channel::send(const ipp::AppMsg &message, std::optional<std::chrono::milliseconds> timeout) {
+    const size_t length = message.packed_size();
     if (length > buffer_.size()) {
         return Err(Error{ErrorKind::OutOfBounds, "Message size is greater than buffer length"});
     }
-    message.store(buffer_.data());
+    message.store((IppAppMsg *)buffer_.data());
     return this->send_raw(buffer_.data(), length, timeout);
 }
 
-Result<ipp::MsgMcuAny, Channel::Error> Channel::receive(std::optional<std::chrono::milliseconds> timeout) {
+Result<ipp::McuMsg, Channel::Error> Channel::receive(std::optional<std::chrono::milliseconds> timeout) {
     if (data_start_ >= data_end_) {
         const auto recv_res = this->receive_raw(buffer_.data(), buffer_.size(), timeout);
         if (recv_res.is_err()) {
@@ -26,17 +26,11 @@ Result<ipp::MsgMcuAny, Channel::Error> Channel::receive(std::optional<std::chron
         data_end_ = recv_res.ok();
         // FIXME: We don't support multi-buffer messages yet.
     }
-    auto msg_res = ipp::MsgMcuAny::load(buffer_.data() + data_start_, data_end_ - data_start_);
-    // TODO: Skip all buffers on error.
-    if (msg_res.index() != 0) {
-        switch (std::get<1>(msg_res)) {
-        case IPP_LOAD_OK: unreachable();
-        case IPP_LOAD_OUT_OF_BOUNDS: return Err(Error{ErrorKind::OutOfBounds, "Message size is greater than received data length"});
-        case IPP_LOAD_PARSE_ERROR: return Err(Error{ErrorKind::ParseError, "Received message parse error"});
-        }
-    }
-    auto &msg = std::get<0>(msg_res);
-    data_start_ += msg.length();
+    const auto *raw_msg = (IppMcuMsg *)(buffer_.data() + data_start_);
+    const size_t msg_len = ipp_mcu_msg_size(raw_msg);
+    assert_true(msg_len <= data_end_ - data_start_);
+    auto msg = ipp::McuMsg::load(raw_msg);
+    data_start_ += msg_len;
     assert_true(data_start_ <= data_end_);
     return Ok(std::move(msg));
 }

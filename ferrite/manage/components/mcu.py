@@ -4,16 +4,18 @@ import shutil
 from manage.paths import BASE_DIR, TARGET_DIR
 from manage.components.base import Component, Task, Context, TaskWrapper
 from manage.components.cmake import Cmake
-from manage.components.toolchains import McuToolchainImx7, McuToolchainImx8mn
+from manage.components.toolchains import McuToolchainImx7, McuToolchainImx8mn, Toolchain
+from manage.components.ipp import Ipp
+from manage.components.freertos import Freertos
 from manage.remote.tasks import RebootTask
 
 class McuTask(Task):
-    def __init__(self, owner):
+    def __init__(self, owner: Mcu):
         super().__init__()
         self.owner = owner
 
 class McuBuildTask(McuTask):
-    def __init__(self, owner):
+    def __init__(self, owner: Mcu):
         super().__init__(owner)
 
     def run(self, ctx: Context) -> bool:
@@ -28,20 +30,21 @@ class McuBuildTask(McuTask):
         return [
             self.owner.toolchain.download_task,
             self.owner.freertos.clone_task,
+            self.owner.ipp.generate_task,
         ]
 
     def artifacts(self) -> str[list]:
         return [self.owner.cmake.build_dir]
 
 class McuDeployTask(McuTask):
-    def __init__(self, owner):
+    def __init__(self, owner: Mcu):
         super().__init__(owner)
 
     def dependencies(self) -> list[Task]:
         return [self.owner.tasks()["build"]]
 
 class McuDeployTaskImx7(McuDeployTask):
-    def __init__(self, owner):
+    def __init__(self, owner: Mcu):
         super().__init__(owner)
     
     def run(self, ctx: Context) -> bool:
@@ -57,7 +60,7 @@ class McuDeployTaskImx7(McuDeployTask):
         ])])
 
 class McuDeployTaskImx8mn(McuDeployTask):
-    def __init__(self, owner):
+    def __init__(self, owner: Mcu):
         super().__init__(owner)
 
     def run(self, ctx: Context) -> bool:
@@ -68,12 +71,13 @@ class McuDeployTaskImx8mn(McuDeployTask):
         )
 
 class Mcu(Component):
-    def __init__(self, freertos, toolchain):
+    def __init__(self, freertos: Freertos, toolchain: Toolchain, ipp: Ipp):
         super().__init__()
 
         self.src_dir = os.path.join(BASE_DIR, f"mcu/{toolchain.name}")
         self.freertos = freertos
         self.toolchain = toolchain
+        self.ipp = ipp
 
         self.cmake = Cmake(
             self.src_dir,
@@ -84,6 +88,7 @@ class Mcu(Component):
                     "tools/cmake_toolchain_files/armgcc.cmake",
                 )),
                 "-DCMAKE_BUILD_TYPE=Release",
+                *self.ipp.cmake_opts,
             ],
             env={
                 "COMMON_DIR": os.path.join(BASE_DIR, "common"),

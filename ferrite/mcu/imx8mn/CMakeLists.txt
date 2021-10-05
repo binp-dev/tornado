@@ -104,7 +104,7 @@ ADD_CUSTOM_COMMAND(TARGET ${MCUX_SDK_PROJECT_NAME} POST_BUILD COMMAND ${CMAKE_OB
 )
 
 # Include HAL and IPP
-include_directories("../../common/ipp/src")
+include_directories("${IPP_GENERATED}/include")
 include_directories("../hal/include")
 
 # Link common code
