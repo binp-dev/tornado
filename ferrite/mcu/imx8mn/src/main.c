@@ -34,7 +34,7 @@ static void task_rpmsg(void *param) {
     uint8_t *buffer = NULL;
     size_t len = 0;
     hal_rpmsg_recv_nocopy(&channel, &buffer, &len, HAL_WAIT_FOREVER);
-    hal_assert(strncmp(buffer, "hello world!", len) == 0);
+    hal_assert(strncmp((const char *)buffer, "hello world!", len) == 0);
     hal_log_info("hello world!");
     hal_rpmsg_free_rx_buffer(&channel, buffer);
     buffer = NULL;
