@@ -6,8 +6,8 @@ include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 set(SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/common.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/common.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/crc.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/crc.c"
 )
 
 add_library(${PROJECT_NAME} OBJECT ${SRC})

@@ -45,6 +45,8 @@ add_executable(${MCUX_SDK_PROJECT_NAME}
     "${ProjDirPath}/src/clock_config.c"
     "${ProjDirPath}/src/clock_config.h"
     #"${ProjDirPath}/src/fsl_iomuxc.h"
+    "${ProjDirPath}/src/skifio.c"
+    "${ProjDirPath}/src/skifio.h"
 )
 
 target_include_directories(${MCUX_SDK_PROJECT_NAME} PRIVATE
