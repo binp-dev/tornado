@@ -2,10 +2,12 @@
 #include <string>
 #include <type_traits>
 #include <memory>
+#include <mutex>
 
 #include <core/lazy_static.hpp>
 #include <core/mutex.hpp>
 #include <record/value.hpp>
+#include <record/array.hpp>
 #include <encoder.hpp>
 #include <device.hpp>
 #include "framework.hpp"
@@ -24,12 +26,14 @@ void init_device(MaybeUninit<Device> &mem) {
 #ifdef FAKEDEV
         std::unique_ptr<Channel>(new ZmqChannel(std::move(
             ZmqChannel::create("tcp://127.0.0.1:8321", message_max_length).unwrap()
-        )))
+        ))),
 #else // FAKEDEV
         std::unique_ptr<Channel>(new RpmsgChannel(std::move(
             RpmsgChannel::create("/dev/ttyRPMSG0", message_max_length).unwrap()
-        )))
+        ))),
 #endif // FAKEDEV
+        200,
+        message_max_length
     );
 }
 
@@ -74,6 +78,61 @@ public:
     }
 };
 
+class DacWfHandler final : public OutputArrayHandler<uint32_t> {
+private:
+    Device &device;
+
+public:
+    DacWfHandler(
+        Device &device,
+        OutputArrayRecord<uint32_t> &record
+    ) :
+        device(device)
+    {
+        assert_eq(device.max_points(), record.max_length());
+    }
+
+    virtual void write(OutputArrayRecord<uint32_t> &record) override {
+        device.write_waveform(record.data(), record.length());
+    }
+
+    virtual bool is_async() const override {
+        return true;
+    }
+};
+
+class AdcWfHandler final : public InputArrayHandler<uint32_t> {
+private:
+    Device &device;
+    std::mutex input_wf_mutex;
+
+public:
+    AdcWfHandler(
+        Device &device,
+        InputArrayRecord<uint32_t> &record
+    ) :
+        device(device)
+    {
+        assert_eq(device.max_points(), record.max_length());
+        device.set_input_wf_mutex(&input_wf_mutex);
+    }
+
+    virtual void read(InputArrayRecord<uint32_t> &record) override {
+        std::lock_guard<std::mutex> guard(input_wf_mutex);
+        auto input_wf = device.read_waveform();
+        record.set_data(input_wf.data(), input_wf.size());
+    }
+
+    virtual bool is_async() const override {
+        return true;
+    }
+
+    virtual void set_read_request(InputArrayRecord<uint32_t> &record, std::function<void()> &&callback) override {
+        device.set_input_wf_ready_callback(std::move(callback));
+        //unimplemented();
+    }
+};
+
 void framework_init() {
     // Explicitly initialize device.
     *DEVICE;
@@ -92,6 +151,13 @@ void framework_record_init(Record &record) {
         ai_record.set_handler(std::make_unique<AdcHandler>(*DEVICE, index));
     } else if (name.rfind("di", 0) == 0 || name.rfind("do", 0) == 0) {
         // TODO: Handle digital input/output
+    } else if (record.name().rfind("aao", 0) == 0) {
+        auto &aao_record = dynamic_cast<OutputArrayRecord<uint32_t> &>(record);
+        aao_record.set_handler(std::make_unique<DacWfHandler>(*DEVICE, aao_record));
+    } else if (record.name().rfind("aai", 0) == 0) {
+        auto &aai_record = dynamic_cast<InputArrayRecord<uint32_t> &>(record);
+        aai_record.set_handler(std::make_unique<AdcWfHandler>(*DEVICE, aai_record)); 
+
     } else {
         unimplemented();
     }

@@ -1,6 +1,6 @@
 from codegen.base import Context, Name
 from codegen.prim import Int
-from codegen.container import String
+from codegen.container import String, Vector
 from codegen.struct import Field
 from codegen.text import make_variant, generate_and_write
 
@@ -15,6 +15,9 @@ AppMsg = make_variant(
         ]),
         (Name(["adc", "req"]), [
             Field("index", Int(8)),
+        ]),
+        (Name(["wf", "data"]), [
+            Field("data", Vector(Int(24))),
         ]),
     ],
 )
@@ -32,6 +35,10 @@ McuMsg = make_variant(
         ]),
         (Name(["debug"]), [
             Field("message", String()),
+        ]),
+        (Name(["wf", "req"]), []),
+        (Name(["wf", "data"]), [
+            Field("data", Vector(Int(24))),
         ]),
     ],
 )

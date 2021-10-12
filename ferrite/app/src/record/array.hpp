@@ -22,6 +22,7 @@ public:
     virtual size_t length() const = 0;
     [[nodiscard]]
     virtual bool set_length(size_t length) = 0;
+    virtual void set_data(const T *new_data, size_t length) = 0;
 };
 
 // Record for writing an array of values to device.
