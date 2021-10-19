@@ -22,7 +22,6 @@
 
 #define HAL_SPI_IRQ_PRIORITY 3
 
-#define ECSPI_TRANSFER_SIZE     64
 #define ECSPI_MASTER_BASEADDR   ECSPI1
 #define ECSPI_MASTER_CLK_FREQ                                                                 \
     (CLOCK_GetPllFreq(kCLOCK_SystemPll1Ctrl) / (CLOCK_GetRootPreDivider(kCLOCK_RootEcspi1)) / \
@@ -50,8 +49,6 @@ hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate, HalSpiPhase pha
     if (channel != 0) {
         return HAL_OUT_OF_BOUNDS;
     }
-
-    NVIC_SetPriority(ECSPI_MASTER_IRQN, HAL_SPI_IRQ_PRIORITY);
 
     ecspi_clock_polarity_t clock_polarity;
     switch (polarity) {
@@ -81,12 +78,16 @@ hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate, HalSpiPhase pha
     masterConfig.channelConfig.phase = clock_phase;
     masterConfig.channelConfig.polarity = clock_polarity;
     masterConfig.baudRate_Bps = baud_rate;
+    //masterConfig.enableLoopback = true;
 
     status_t status = ECSPI_RTOS_Init(&master_rtos_handle, ECSPI_MASTER_BASEADDR, &masterConfig, ECSPI_MASTER_CLK_FREQ);
     if (status != kStatus_Success)
     {
         return HAL_FAILURE;
     }
+
+    NVIC_SetPriority(ECSPI_MASTER_IRQN, HAL_SPI_IRQ_PRIORITY);
+    NVIC_EnableIRQ(ECSPI_MASTER_IRQN);
 
     return HAL_SUCCESS;
 }
@@ -96,6 +97,7 @@ hal_retcode hal_spi_disable(uint32_t channel) {
     if (channel != 0) {
         return HAL_OUT_OF_BOUNDS;
     }
+    NVIC_DisableIRQ(ECSPI_MASTER_IRQN);
     /* Deinit the ECSPI. */
     ECSPI_RTOS_Deinit(&master_rtos_handle);
     return HAL_SUCCESS;

@@ -69,6 +69,7 @@ static void task_rpmsg(void *param) {
     hal_log_info("SkifIO driver init");
     hal_assert(skifio_init() == HAL_SUCCESS);
 
+
     SkifioInput input = {{0}};
     SkifioOutput output = {0};
     for (;;) {
@@ -79,6 +80,7 @@ static void task_rpmsg(void *param) {
         // Receive message
         hal_assert(hal_rpmsg_recv_nocopy(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
         app_msg = (const IppAppMsg *)buffer;
+        hal_log_info("Received message: 0x%02x", (int)app_msg->type);
         switch (app_msg->type) {
         case IPP_APP_MSG_DAC_SET:
             value = ipp_uint24_load(app_msg->dac_set.value);
@@ -87,6 +89,7 @@ static void task_rpmsg(void *param) {
                 continue;
             }
             hal_log_info("Write DAC value: 0x%04lx", value);
+            output.dac = value;
             ret = skifio_transfer(&output, &input);
             hal_assert(ret == HAL_SUCCESS || ret == HAL_INVALID_DATA); // Ignore CRC check error
             break;

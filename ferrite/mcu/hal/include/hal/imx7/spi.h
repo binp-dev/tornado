@@ -10,4 +10,4 @@
 //! FIXME: Use all controllers, not only master.
 #define HAL_SPI_CHANNEL_COUNT 1
 
-typedef uint8_t hal_spi_buffer;
+typedef uint8_t hal_spi_byte;
