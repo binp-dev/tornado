@@ -7,9 +7,9 @@
 #include <record/value.hpp>
 
 class AiRecord :
-    public EpicsInputValueRecord<uint32_t, aiRecord>,
-    public virtual InputValueRecord<uint32_t>
+    public EpicsInputValueRecord<int32_t, aiRecord>,
+    public virtual InputValueRecord<int32_t>
 {
 public:
-    explicit AiRecord(aiRecord *raw) : EpicsInputValueRecord<uint32_t, aiRecord>(raw) {}
+    explicit AiRecord(aiRecord *raw) : EpicsInputValueRecord<int32_t, aiRecord>(raw) {}
 };

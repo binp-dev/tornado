@@ -35,6 +35,8 @@ static long record_aai_get_ioint_info(int cmd, aaiRecord *raw, IOSCANPVT *ppvt) 
 }
 
 static long record_aai_read(aaiRecord *raw) {
+    std::cout << "AAI RECORD READ!" << std::endl;
+
     EpicsRecord::get_private_data((dbCommon *)raw)->process();
     return 0;
 }

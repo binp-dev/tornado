@@ -20,12 +20,12 @@ class Device {
 private:
     const size_t _max_points;
     const size_t _max_transfer;
-    std::vector<uint32_t> out_waveforms[3];
+    std::vector<int32_t> out_waveforms[3];
     std::atomic_bool swap_ready;
     std::mutex swap_mutex;
     size_t waveform_pos = 0;
 
-    std::vector<uint32_t> in_waveforms[2];
+    std::vector<int32_t> in_waveforms[2];
     int active_input_buff = 0;
     size_t input_wf_pos = 0;
     std::function<void()> request_in_wf_processing;
@@ -33,7 +33,7 @@ private:
 
     struct AdcValue {
         uint8_t channel_no;
-        uint32_t value;
+        int32_t value;
     };
 
     // Shared data
@@ -49,14 +49,14 @@ private:
     std::optional<mpsc::Sender<AdcValue>> adc_in;
 
 private:
-    void fill(uint32_t **dst, size_t *dst_size) {
+    void fill(int32_t **dst, size_t *dst_size) {
         size_t elements_to_fill = *dst_size;
         size_t elements_left = out_waveforms[0].size() - waveform_pos;
         if (elements_left < elements_to_fill) {
             elements_to_fill = elements_left;
         }
         
-        std::memcpy(*dst, out_waveforms[0].data() + waveform_pos, elements_to_fill*sizeof(uint32_t));
+        std::memcpy(*dst, out_waveforms[0].data() + waveform_pos, elements_to_fill*sizeof(int32_t));
         *dst += elements_to_fill;
         *dst_size -= elements_to_fill;
         waveform_pos += elements_to_fill;
@@ -76,7 +76,7 @@ private:
         }
     }
 
-    size_t fill_until_full(uint32_t *data, size_t size) {
+    size_t fill_until_full(int32_t *data, size_t size) {
         size_t orig_size = size;
 
         try_swap();
@@ -92,7 +92,7 @@ private:
         return orig_size - size;
     }
 
-    void fill_input_wf_buffer(const std::vector<uint32_t> &new_wf_data) {
+    void fill_input_wf_buffer(const std::vector<int32_t> &new_wf_data) {
         size_t elements_to_fill = new_wf_data.size();
         size_t elements_left = max_points() - input_wf_pos;
         size_t nonfitting_elments = (elements_to_fill > elements_left) ? (elements_to_fill - elements_left) : 0;
@@ -103,7 +103,7 @@ private:
         std::memcpy(
             in_waveforms[active_input_buff].data() + input_wf_pos,
             new_wf_data.data(),
-            elements_to_fill*sizeof(uint32_t)
+            elements_to_fill*sizeof(int32_t)
         );
         input_wf_pos += elements_to_fill;
         
@@ -116,7 +116,7 @@ private:
                 std::memcpy(
                     in_waveforms[active_input_buff].data() + input_wf_pos,
                     new_wf_data.data(),
-                    nonfitting_elments*sizeof(uint32_t)
+                    nonfitting_elments*sizeof(int32_t)
                 );
                 input_wf_pos += nonfitting_elments;
             }
@@ -174,8 +174,9 @@ private:
 
                 auto old_active_buff = active_input_buff;
                 fill_input_wf_buffer(input_msg.data);
-
+                
                 if (old_active_buff != active_input_buff) {
+                    std::cout << "BUFFER IS FULL" << std::endl;
                     request_in_wf_processing();
                 }
             } else if (std::holds_alternative<ipp::McuMsgError>(incoming.variant)) {
@@ -227,14 +228,14 @@ public:
         worker.join();
     }
 
-    void write_dac(uint32_t value) {
+    void write_dac(int32_t value) {
         std::lock_guard<std::mutex> device_guard(mutex);
 
         ipp::AppMsgDacSet outgoing{value};
         channel->send(ipp::AppMsg{std::move(outgoing)}, std::nullopt).unwrap();
     }
 
-    uint32_t read_adc(uint8_t index) {
+    int32_t read_adc(uint8_t index) {
         std::lock_guard<std::mutex> device_guard(mutex);
 
         assert_false(adc_out->try_receive().has_value());
@@ -248,7 +249,7 @@ public:
         return adc_value->value;
     }
 
-    void write_waveform(const uint32_t *wf_data, const size_t wf_len) {
+    void write_waveform(const int32_t *wf_data, const size_t wf_len) {
         std::lock_guard<std::mutex> device_guard(mutex);
 
         assert(wf_len <= max_points());
@@ -266,7 +267,8 @@ public:
         }
     }
 
-    const std::vector<uint32_t> & read_waveform() {
+    const std::vector<int32_t> & read_waveform() {
+        std::cout << "NEW INDEX = " << (active_input_buff + 1) % 2 << std::endl;
         return in_waveforms[(active_input_buff + 1) % 2];
     }
 

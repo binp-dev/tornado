@@ -51,6 +51,10 @@ def run_test(
 
     max_val = 0xFFFFFF
     some_val = 0xABCDEF
+    
+    out_wf_size = 200
+    out_wf = [x for x in range(out_wf_size)]
+
 
     def worker():
         global done
@@ -63,39 +67,53 @@ def run_test(
         poller = zmq.Poller()
         poller.register(socket, zmq.POLLIN)
 
+        out_wf_pos = 0
+        out_wf_msg_size = 5
+        time.sleep(1.0)
         while not done:
-            evts = poller.poll(100)
-            if len(evts) == 0:
-                continue
-            msg = AppMsg.load(socket.recv())
-            if msg.variant.is_instance(AppMsg.DacSet):
-                value = msg.variant.value
-            elif msg.variant.is_instance(AppMsg.AdcReq):
-                index = msg.variant.index
-                if index == 1:
-                    send_msg(socket, McuMsg.AdcVal(1, value))
-                elif index == 2:
-                    send_msg(socket, McuMsg.AdcVal(2, max_val))
-                else:
-                    raise Exception("Unexpected ADC index")
-            else:
-                raise Exception("Unexpected message type")
+            # evts = poller.poll(100)
+            # if len(evts) == 0:
+            #     continue
+            # msg = AppMsg.load(socket.recv())
+            # if msg.variant.is_instance(AppMsg.DacSet):
+            #     value = msg.variant.value
+            # elif msg.variant.is_instance(AppMsg.AdcReq):
+            #     index = msg.variant.index
+            #     if index == 1:
+            #         send_msg(socket, McuMsg.AdcVal(1, value))
+            #     elif index == 2:
+            #         send_msg(socket, McuMsg.AdcVal(2, max_val))
+            #     else:
+            #         raise Exception("Unexpected ADC index")
+            # else:
+            #     raise Exception("Unexpected message type")
+
+            time.sleep(0.001)
+            if out_wf_pos != out_wf_size:
+                out_data = out_wf[out_wf_pos:out_wf_pos + out_wf_msg_size]
+                out_wf_pos += out_wf_msg_size
+
+                send_msg(socket, McuMsg.WfData(out_data))
+
 
     thread = Thread(target=worker)
     thread.start()
 
     with ca.Repeater(prefix), ioc:
-        time.sleep(0.2)
-        assert_eq(ca.get(prefix, "ai1"), 0)
-        assert_eq(ca.get(prefix, "ai2"), max_val)
+        # time.sleep(0.2)
+        # assert_eq(ca.get(prefix, "ai1"), 0)
+        # assert_eq(ca.get(prefix, "ai2"), max_val)
 
-        ca.put(prefix, "ao0", some_val)
+        # ca.put(prefix, "ao0", some_val)
 
-        print("Waiting for record to scan ...")
+        # print("Waiting for record to scan ...")
+        # time.sleep(2.0)
+
+        # assert_eq(ca.get(prefix, "ai1"), some_val)
+        # assert_eq(ca.get(prefix, "ai2"), max_val)
+        
         time.sleep(2.0)
-
-        assert_eq(ca.get(prefix, "ai1"), some_val)
-        assert_eq(ca.get(prefix, "ai2"), max_val)
+        ca.get(prefix, "aai0", array=True)
 
     done = True
     thread.join()
