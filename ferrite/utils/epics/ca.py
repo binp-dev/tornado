@@ -9,7 +9,7 @@ def _env():
         "EPICS_CA_ADDR_LIST": "127.0.0.1",
     }
 
-def get(prefix, pv):
+def get(prefix, pv, array=False):
     print("caget %s ..." % pv)
     out = run(
         [os.path.join(prefix, "caget"), "-t", "-f 3", pv],
@@ -18,6 +18,9 @@ def get(prefix, pv):
         log=False,
     ).strip()
     print("  %s" % out)
+    if array:
+        return out.split()
+        
     return float(out)
 
 def put(prefix, pv, value, array=False):

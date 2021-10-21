@@ -17,7 +17,7 @@ AppMsg = make_variant(
             Field("index", Int(8)),
         ]),
         (Name(["wf", "data"]), [
-            Field("data", Vector(Int(24))),
+            Field("data", Vector(Int(32, signed=True))),
         ]),
     ],
 )
@@ -38,7 +38,7 @@ McuMsg = make_variant(
         ]),
         (Name(["wf", "req"]), []),
         (Name(["wf", "data"]), [
-            Field("data", Vector(Int(24))),
+            Field("data", Vector(Int(32, signed=True))),
         ]),
     ],
 )
