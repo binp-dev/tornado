@@ -127,8 +127,7 @@ public:
     }
 
     virtual void set_read_request(InputArrayRecord<int32_t> &record, std::function<void()> &&callback) override {
-        callback();
-        //device.set_input_wf_ready_callback(std::move(callback));
+        device.set_input_wf_ready_callback(std::move(callback));
     }
 };
 

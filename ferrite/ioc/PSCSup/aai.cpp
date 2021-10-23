@@ -30,13 +30,11 @@ static long record_aai_get_ioint_info(int cmd, aaiRecord *raw, IOSCANPVT *ppvt) 
     auto *record = EpicsRecord::get_private_data((dbCommon *)raw);
     ScanList scan_list;
     *ppvt = scan_list.raw();
-    record->set_scan_list(std::move(scan_list)); // TYT
+    record->set_scan_list(std::move(scan_list));
     return 0;
 }
 
 static long record_aai_read(aaiRecord *raw) {
-    std::cout << "AAI RECORD READ!" << std::endl;
-
     EpicsRecord::get_private_data((dbCommon *)raw)->process();
     return 0;
 }

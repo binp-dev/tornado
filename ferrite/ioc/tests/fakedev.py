@@ -53,8 +53,10 @@ def run_test(
     some_val = 0xABCDEF
     
     out_wf_size = 200
-    out_wf = [x for x in range(out_wf_size)]
-
+    out_wf = []
+    out_wf.append([x for x in range(out_wf_size)])
+    out_wf.append([x for x in range(out_wf_size, 0, -1)])
+    out_wf_msg_size = 7
 
     def worker():
         global done
@@ -67,34 +69,46 @@ def run_test(
         poller = zmq.Poller()
         poller.register(socket, zmq.POLLIN)
 
+        wf_index = 0
         out_wf_pos = 0
-        out_wf_msg_size = 5
         time.sleep(1.0)
+
         while not done:
-            # evts = poller.poll(100)
-            # if len(evts) == 0:
-            #     continue
-            # msg = AppMsg.load(socket.recv())
-            # if msg.variant.is_instance(AppMsg.DacSet):
-            #     value = msg.variant.value
-            # elif msg.variant.is_instance(AppMsg.AdcReq):
-            #     index = msg.variant.index
-            #     if index == 1:
-            #         send_msg(socket, McuMsg.AdcVal(1, value))
-            #     elif index == 2:
-            #         send_msg(socket, McuMsg.AdcVal(2, max_val))
-            #     else:
-            #         raise Exception("Unexpected ADC index")
-            # else:
-            #     raise Exception("Unexpected message type")
+            evts = poller.poll(1)
+            if len(evts) != 0:
+                msg = AppMsg.load(socket.recv())
+                if msg.variant.is_instance(AppMsg.DacSet):
+                    value = msg.variant.value
+                elif msg.variant.is_instance(AppMsg.AdcReq):
+                    index = msg.variant.index
+                    if index == 1:
+                        send_msg(socket, McuMsg.AdcVal(1, value))
+                    elif index == 2:
+                        send_msg(socket, McuMsg.AdcVal(2, max_val))
+                    else:
+                        raise Exception("Unexpected ADC index")
+                else:
+                    raise Exception("Unexpected message type")
 
-            time.sleep(0.001)
-            if out_wf_pos != out_wf_size:
-                out_data = out_wf[out_wf_pos:out_wf_pos + out_wf_msg_size]
-                out_wf_pos += out_wf_msg_size
+            if wf_index < len(out_wf):
+                old_wf_index = wf_index
+                elements_to_send = out_wf_msg_size
+                if out_wf_size - out_wf_pos < out_wf_msg_size:
+                    elements_to_send = out_wf_size - out_wf_pos
 
+                out_data = out_wf[wf_index][out_wf_pos : out_wf_pos + elements_to_send]
+                out_wf_pos += elements_to_send
+
+                if out_wf_pos == out_wf_size:
+                    out_wf_pos = 0
+                    wf_index += 1
+                    if elements_to_send < out_wf_msg_size and wf_index < len(out_wf): 
+                        out_data += out_wf[wf_index][:out_wf_msg_size - elements_to_send]
+                        out_wf_pos += out_wf_msg_size - elements_to_send
+                
                 send_msg(socket, McuMsg.WfData(out_data))
-
+                if old_wf_index != wf_index:
+                    time.sleep(2.0)
 
     thread = Thread(target=worker)
     thread.start()
@@ -112,8 +126,17 @@ def run_test(
         # assert_eq(ca.get(prefix, "ai1"), some_val)
         # assert_eq(ca.get(prefix, "ai2"), max_val)
         
-        time.sleep(2.0)
-        ca.get(prefix, "aai0", array=True)
+        time.sleep(1.2)
+        result = ca.get(prefix, "aai0", array=True)
+        result = list(map(int, result))
+        # assert result == out_wf[0]
+
+        time.sleep(2.2)
+        result = ca.get(prefix, "aai0", array=True)
+        result = list(map(int, result))
+        # assert result == out_wf[1]
+
+
 
     done = True
     thread.join()

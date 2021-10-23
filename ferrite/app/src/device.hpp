@@ -115,7 +115,7 @@ private:
             if (nonfitting_elments != 0) {
                 std::memcpy(
                     in_waveforms[active_input_buff].data() + input_wf_pos,
-                    new_wf_data.data(),
+                    new_wf_data.data() + elements_to_fill,
                     nonfitting_elments*sizeof(int32_t)
                 );
                 input_wf_pos += nonfitting_elments;
@@ -176,7 +176,6 @@ private:
                 fill_input_wf_buffer(input_msg.data);
                 
                 if (old_active_buff != active_input_buff) {
-                    std::cout << "BUFFER IS FULL" << std::endl;
                     request_in_wf_processing();
                 }
             } else if (std::holds_alternative<ipp::McuMsgError>(incoming.variant)) {
@@ -268,7 +267,6 @@ public:
     }
 
     const std::vector<int32_t> & read_waveform() {
-        std::cout << "NEW INDEX = " << (active_input_buff + 1) % 2 << std::endl;
         return in_waveforms[(active_input_buff + 1) % 2];
     }
 

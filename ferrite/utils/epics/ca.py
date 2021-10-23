@@ -19,7 +19,7 @@ def get(prefix, pv, array=False):
     ).strip()
     print("  %s" % out)
     if array:
-        return out.split()
+        return out.split()[1:]
         
     return float(out)
 
