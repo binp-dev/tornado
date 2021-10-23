@@ -161,13 +161,12 @@ private:
                 const size_t min_len = outgoing.packed_size();
                 assert_true(min_len < _max_transfer);
                 size_t msg_remaining_size = _max_transfer - min_len;
-                size_t max_points_in_msg = msg_remaining_size / 3; // sizeof(int24) == 3
+                size_t max_points_in_msg = msg_remaining_size / sizeof(int32_t);
                 buffer.resize(max_points_in_msg, 0);
                 buffer.resize(fill_until_full(buffer.data(), buffer.size()));
 
                 assert_true(outgoing.packed_size() < _max_transfer);
                 channel->send(ipp::AppMsg{std::move(outgoing)}, std::nullopt).unwrap();
-
             } else if (std::holds_alternative<ipp::McuMsgWfData>(incoming.variant)) {
                 const auto input_msg = std::get<ipp::McuMsgWfData>(incoming.variant);
                 assert_true(input_msg.data.size() < _max_points);

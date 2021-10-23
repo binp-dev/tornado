@@ -58,6 +58,11 @@ def run_test(
     out_wf.append([x for x in range(out_wf_size, 0, -1)])
     out_wf_msg_size = 7
 
+    global input_wf
+    input_wf = [[]]
+    input_wf_size = 200
+    input_wf_pos = 0
+    
     def worker():
         global done
         global value
@@ -69,74 +74,81 @@ def run_test(
         poller = zmq.Poller()
         poller.register(socket, zmq.POLLIN)
 
-        wf_index = 0
+        out_wf_numb = 0
         out_wf_pos = 0
+        global input_wf
+        input_wf_pos = 0
+
         time.sleep(1.0)
 
         while not done:
+            send_msg(socket, McuMsg.WfReq())
+
             evts = poller.poll(1)
             if len(evts) != 0:
                 msg = AppMsg.load(socket.recv())
-                if msg.variant.is_instance(AppMsg.DacSet):
-                    value = msg.variant.value
-                elif msg.variant.is_instance(AppMsg.AdcReq):
-                    index = msg.variant.index
-                    if index == 1:
-                        send_msg(socket, McuMsg.AdcVal(1, value))
-                    elif index == 2:
-                        send_msg(socket, McuMsg.AdcVal(2, max_val))
+                
+                if msg.variant.is_instance(AppMsg.WfData):
+                    new_data = msg.variant.data
+                    # print("NEW DATA: ", len(new_data), " ", new_data)
+                    
+                    if len(new_data) <= input_wf_size - input_wf_pos:
+                        input_wf[len(input_wf) - 1] += new_data
+                        input_wf_pos += len(new_data)
+
+                        if input_wf_pos == input_wf_size:
+                            input_wf_pos = 0
+                            input_wf.append([])
                     else:
-                        raise Exception("Unexpected ADC index")
+                        input_wf[len(input_wf) - 1] += new_data[:input_wf_size - input_wf_pos]
+                        nonfiting_data = new_data[input_wf_size - input_wf_pos:]
+                        input_wf.append(nonfiting_data)
+                        input_wf_pos = len(nonfiting_data)
                 else:
                     raise Exception("Unexpected message type")
-
-            if wf_index < len(out_wf):
-                old_wf_index = wf_index
+            
+            if out_wf_numb < len(out_wf):
+                old_out_wf_numb = out_wf_numb
                 elements_to_send = out_wf_msg_size
                 if out_wf_size - out_wf_pos < out_wf_msg_size:
                     elements_to_send = out_wf_size - out_wf_pos
 
-                out_data = out_wf[wf_index][out_wf_pos : out_wf_pos + elements_to_send]
+                out_data = out_wf[out_wf_numb][out_wf_pos : out_wf_pos + elements_to_send]
                 out_wf_pos += elements_to_send
 
                 if out_wf_pos == out_wf_size:
                     out_wf_pos = 0
-                    wf_index += 1
-                    if elements_to_send < out_wf_msg_size and wf_index < len(out_wf): 
-                        out_data += out_wf[wf_index][:out_wf_msg_size - elements_to_send]
+                    out_wf_numb += 1
+                    if elements_to_send < out_wf_msg_size and out_wf_numb < len(out_wf): 
+                        out_data += out_wf[out_wf_numb][:out_wf_msg_size - elements_to_send]
                         out_wf_pos += out_wf_msg_size - elements_to_send
                 
                 send_msg(socket, McuMsg.WfData(out_data))
-                if old_wf_index != wf_index:
+                if old_out_wf_numb != out_wf_numb:
                     time.sleep(2.0)
 
     thread = Thread(target=worker)
     thread.start()
 
-    with ca.Repeater(prefix), ioc:
-        # time.sleep(0.2)
-        # assert_eq(ca.get(prefix, "ai1"), 0)
-        # assert_eq(ca.get(prefix, "ai2"), max_val)
+    with ca.Repeater(prefix), ioc:        
+        caput_wf = [x for x in range(input_wf_size)]
+        ca.put(prefix, "aao0", caput_wf, array=True)
 
-        # ca.put(prefix, "ao0", some_val)
-
-        # print("Waiting for record to scan ...")
-        # time.sleep(2.0)
-
-        # assert_eq(ca.get(prefix, "ai1"), some_val)
-        # assert_eq(ca.get(prefix, "ai2"), max_val)
-        
         time.sleep(1.2)
         result = ca.get(prefix, "aai0", array=True)
         result = list(map(int, result))
-        # assert result == out_wf[0]
+        assert result == out_wf[0]
 
         time.sleep(2.2)
         result = ca.get(prefix, "aai0", array=True)
         result = list(map(int, result))
-        # assert result == out_wf[1]
+        assert result == out_wf[1]
 
+        last_full_input_wf = input_wf[len(input_wf) - 2]
+        if len(input_wf[len(input_wf) - 1]) == input_wf_size:
+            last_full_input_wf = input_wf[len(input_wf) - 1]
 
+        assert last_full_input_wf == caput_wf
 
     done = True
     thread.join()

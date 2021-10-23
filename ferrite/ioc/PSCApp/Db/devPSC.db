@@ -7,11 +7,12 @@
 #	field(OMSL, "closed_loop")
 #}
 #
-#record(aao, "aao0") {
-#    field(DTYP, "devsup")
-#    field(NELM, 200)
-#    field(FTVL, "LONG")
-#}
+
+record(aao, "aao0") {
+    field(DTYP, "devsup")
+    field(NELM, 200)
+    field(FTVL, "LONG")
+}
 
 record(aai, "aai0") {
     field(DTYP, "devsup")
