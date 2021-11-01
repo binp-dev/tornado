@@ -85,3 +85,10 @@ struct [[nodiscard]] Result final {
     bool operator!=(const Ok<T> &other) const { return !this->is_ok() || this->ok() != other.value; }
     bool operator!=(const Err<E> &other) const { return !this->is_err() || this->err() != other.value; }
 };
+
+#define try_unwrap(res) { \
+    auto tmp = std::move(res); \
+    if (tmp.is_err()) { \
+        return Err(std::move(tmp.err())); \
+    } \
+}

@@ -103,7 +103,7 @@ static void task_rpmsg(void *param) {
             ret = skifio_transfer(&output, &input);
             value = input.adcs[index];
             hal_assert(ret == HAL_SUCCESS || ret == HAL_INVALID_DATA); // Ignore CRC check error
-            hal_log_info("Read ADC%d value: 0x%06lx", (int)index, value);
+            hal_log_info("Read ADC%d value: 0x%08lx", (int)index, value);
 
             hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
             IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
