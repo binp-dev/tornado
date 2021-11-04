@@ -26,16 +26,12 @@ static long record_aao_init(aaoRecord *raw) {
     return 0;
 }
 
-static long record_aao_get_ioint_info(int cmd, aaoRecord *raw, IOSCANPVT *ppvt) {
-    unimplemented();
-}
-
 static long record_aao_write(aaoRecord *raw) {
     EpicsRecord::get_private_data((dbCommon *)raw)->process();
     return 0;
 }
 
-struct AaiRecordCallbacks {
+struct AaoRecordCallbacks {
     long number;
     DEVSUPFUN report;
     DEVSUPFUN init;
@@ -44,12 +40,12 @@ struct AaiRecordCallbacks {
     DEVSUPFUN write_aao;
 };
 
-struct AaiRecordCallbacks aao_record_handler = {
+struct AaoRecordCallbacks aao_record_handler = {
     5,
     nullptr,
     nullptr,
     reinterpret_cast<DEVSUPFUN>(record_aao_init),
-    reinterpret_cast<DEVSUPFUN>(record_aao_get_ioint_info),
+    nullptr,
     reinterpret_cast<DEVSUPFUN>(record_aao_write)
 };
 

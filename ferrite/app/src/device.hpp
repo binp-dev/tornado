@@ -258,7 +258,6 @@ public:
             std::copy(wf_data, wf_data + wf_len, out_waveforms[2].begin());
             { 
                 std::lock_guard<std::mutex> guard(swap_mutex);
-                // std::swap(out_waveforms[1], out_waveforms[2]);
                 out_waveforms[2].swap(out_waveforms[1]);
                 swap_ready.store(true);
             }

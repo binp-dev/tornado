@@ -101,7 +101,6 @@ public:
     }
 
     virtual void set_data(const T *new_data, size_t length) override {
-        // this->raw()->nord = length;
         assert(set_length(length));
         std::memcpy(this->raw_data(), new_data, length*sizeof(T));
     }
