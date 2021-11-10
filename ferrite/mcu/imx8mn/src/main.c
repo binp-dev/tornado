@@ -18,6 +18,8 @@
 
 #include "skifio.h"
 
+#include "fsl_gpio.h"
+
 #define TASK_STACK_SIZE 256
 
 static void task_rpmsg(void *param) {
@@ -40,6 +42,13 @@ static void task_rpmsg(void *param) {
     hal_rpmsg_free_rx_buffer(&channel, buffer);
     buffer = NULL;
     len = 0;
+
+    // GPIO
+    gpio_pin_config_t smp_rdy_config = {kGPIO_DigitalInput, 0, kGPIO_NoIntmode};
+    GPIO_PinInit(GPIO5, 23, &smp_rdy_config);
+    gpio_pin_config_t read_rdy_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
+    GPIO_PinInit(GPIO5, 9, &read_rdy_config);
+    hal_log_info("GPIO Initialized");
 
     const IppAppMsg *app_msg = NULL;
     hal_rpmsg_recv_nocopy(&channel, &buffer, &len, HAL_WAIT_FOREVER);
@@ -81,6 +90,10 @@ static void task_rpmsg(void *param) {
         hal_assert(hal_rpmsg_recv_nocopy(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
         app_msg = (const IppAppMsg *)buffer;
         hal_log_info("Received message: 0x%02x", (int)app_msg->type);
+
+        uint32_t smp_rdy = GPIO_PinRead(GPIO5, 23);
+        hal_log_info("SMP_RDY value: %ld", smp_rdy);
+
         switch (app_msg->type) {
         case IPP_APP_MSG_DAC_SET:
             value = ipp_uint24_load(app_msg->dac_set.value);
@@ -119,7 +132,9 @@ static void task_rpmsg(void *param) {
             hal_panic();
         }
         hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
+        GPIO_PinWrite(GPIO5, 9, 1);
         vTaskDelay(1);
+        GPIO_PinWrite(GPIO5, 9, 0);
     }
 
     hal_log_error("End of task_rpmsg()");

@@ -95,8 +95,16 @@ void BOARD_InitPins(void) {                                /*!< Function assigne
 
     // SMP_RDY
     IOMUXC_SetPinMux(IOMUXC_UART1_TXD_GPIO5_IO23, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_UART1_TXD_GPIO5_IO23,
+                        IOMUXC_SW_PAD_CTL_PAD_DSE(6U) |
+                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK);
     // Read_RDY
     IOMUXC_SetPinMux(IOMUXC_ECSPI1_SS0_GPIO5_IO09, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_ECSPI1_SS0_GPIO5_IO09,
+                        IOMUXC_SW_PAD_CTL_PAD_DSE(6U) |
+                        IOMUXC_SW_PAD_CTL_PAD_PUE_MASK |
+                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK |
+                        IOMUXC_SW_PAD_CTL_PAD_PE_MASK);
 }
 
 /***********************************************************************************************************************
