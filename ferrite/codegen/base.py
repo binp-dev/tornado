@@ -90,23 +90,7 @@ class Include(Source):
     def __init__(self, path):
         super().__init__(Location.INCLUDES, [f"#include <{path}>"])
 
-class CType:
-    def __init__(self, prefix: str, postfix: str = None):
-        self.prefix = prefix
-        self.postfix = postfix
-    
-    def __str__(self) -> str:
-        if self.postfix is not None:
-            raise RuntimeError("CType has a postfix")
-        return self.prefix
-    
-    def declare(self, variable: str) -> str:
-        return f"{self.prefix} {variable}{self.postfix or ''}"
-
-def declare_variable(c_type: Union[CType, str], variable: str) -> str:
-    if isinstance(c_type, CType):
-        return c_type.declare(variable)
-    else:
+def declare_variable(c_type: str, variable: str) -> str:
         return f"{c_type} {variable}"
 
 class Type:
@@ -152,10 +136,10 @@ class Type:
     def is_instance(self, value: Any) -> bool:
         raise NotImplementedError()
 
-    def c_type(self) -> Union[CType, str]:
+    def c_type(self) -> str:
         raise NotImplementedError()
 
-    def cpp_type(self) -> Union[CType, str]:
+    def cpp_type(self) -> str:
         return self.c_type()
 
     def c_source(self) -> Source:

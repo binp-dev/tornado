@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import string
 import struct
 
-from codegen.base import CONTEXT, CType, Location, Name, TrivialType, SizedType, Type, Source
+from codegen.base import CONTEXT, Location, Name, TrivialType, SizedType, Type, Source
 from codegen.util import ceil_to_power_of_2, is_power_of_2
 
 @dataclass
@@ -247,42 +247,3 @@ class Pointer(SizedType):
 class Reference(Pointer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, _sep="&", _postfix="ref")
-
-@dataclass
-class Array(Type):
-    type: SizedType
-    len: int
-
-    def __post_init__(self):
-        assert self.type.sized
-        super().__init__(
-            sized=self.len is not None,
-            trivial=self.type.trivial,
-        )
-
-    def size(self) -> int:
-        if self.len is not None:
-            return self.type.size() * self.len
-        else:
-            raise NotImplementedError()
-
-    def min_size(self) -> int:
-        if self.len is not None:
-            return self.size()
-        else:
-            return 0
-
-    def c_size(self, obj: str) -> str:
-        return str(self.size())
-
-    def c_type(self) -> CType:
-        return CType(str(self.type.c_type()), f"[{self.len if self.len is not None else ''}]")
-
-    def c_source(self) -> Source:
-        return self.type.c_source()
-
-    def cpp_source(self) -> Source:
-        return self.type.cpp_source()
-
-    def test_source(self) -> Source:
-        return None
