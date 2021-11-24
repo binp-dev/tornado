@@ -1,12 +1,37 @@
+record(ai, "ai0")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "I/O Intr")
+}
 record(ai, "ai1")
 {
     field(DTYP, "devsup")
-    field(SCAN, "1 second")
+    field(SCAN, "I/O Intr")
 }
 record(ai, "ai2")
 {
     field(DTYP, "devsup")
-    field(SCAN, "1 second")
+    field(SCAN, "I/O Intr")
+}
+record(ai, "ai3")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "I/O Intr")
+}
+record(ai, "ai4")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "I/O Intr")
+}
+record(ai, "ai5")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "I/O Intr")
+}
+record(ai, "ai6")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "I/O Intr")
 }
 
 record(ao, "ao0")

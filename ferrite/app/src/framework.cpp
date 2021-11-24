@@ -56,17 +56,17 @@ public:
 class AdcHandler final : public InputValueHandler<uint32_t> {
 private:
     Device &device_;
-    uint8_t channel_;
+    uint8_t index_;
 
 public:
-    AdcHandler(Device &device, uint8_t channel) : device_(device), channel_(channel) {}
+    AdcHandler(Device &device, uint8_t index) : device_(device), index_(index) {}
 
     virtual void read(InputValueRecord<uint32_t> &record) override {
-        record.set_value(device_.read_adc(channel_));
+        record.set_value(device_.read_adc(index_));
     }
 
-    virtual void set_read_request(InputValueRecord<uint32_t> &, std::function<void()> &&) override {
-        unimplemented();
+    virtual void set_read_request(InputValueRecord<uint32_t> &, std::function<void()> && callback) override {
+        device_.set_adc_callback(index_, callback);
     }
 
     virtual bool is_async() const override {

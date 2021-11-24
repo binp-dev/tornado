@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <vector>
 #include <memory>
 #include <atomic>
@@ -15,25 +16,25 @@
 #include <encoder.hpp>
 #include <ipp.hpp>
 
+constexpr size_t ADC_COUNT = 7; 
 
 class Device {
 private:
-    struct AdcValue {
-        uint8_t channel_no;
-        uint32_t value;
+    struct AdcEntry {
+        int32_t value = 0;
+        std::function<void()> callback;
     };
 
     // Shared data
     std::atomic_bool done;
+    std::mutex mutex; // FIXME: Allow concurrent operation.
+    std::array<AdcEntry, ADC_COUNT> adcs;
 
     // Device support data
-    std::mutex mutex; // FIXME: Allow concurrent operation.
     std::thread worker;
-    std::optional<mpsc::Receiver<AdcValue>> adc_out;
 
     // Worker data
     std::unique_ptr<Channel> channel;
-    std::optional<mpsc::Sender<AdcValue>> adc_in;
 
 private:
     void serve_loop() {
@@ -82,10 +83,6 @@ public:
     Device &operator=(const Device &dev) = delete;
 
     Device(std::unique_ptr<Channel> channel) : channel(std::move(channel)) {
-        auto [in, out] = mpsc::make_channel<AdcValue>();
-        adc_in = std::move(in);
-        adc_out = std::move(out);
-
         std::lock_guard<std::mutex> device_guard(mutex);
 
         done.store(false);
@@ -105,15 +102,15 @@ public:
 
     uint32_t read_adc(uint8_t index) {
         std::lock_guard<std::mutex> device_guard(mutex);
+        
+        assert_true(index < ADC_COUNT);
+        return adcs[index].value;
+    }
 
-        assert_false(adc_out->try_receive().has_value());
-
-        ipp::AppMsgAdcReq outgoing{index};
-        channel->send(ipp::AppMsg{std::move(outgoing)}, std::nullopt).unwrap();
-
-        const auto adc_value = adc_out->receive();
-        assert_true(adc_value.has_value());
-        assert_eq(adc_value->channel_no, index);
-        return adc_value->value;
+    void set_adc_callback(uint8_t index, std::function<void()> && callback) {
+        std::lock_guard<std::mutex> device_guard(mutex);
+        
+        assert_true(index < ADC_COUNT);
+        adcs[index].callback = std::move(callback);
     }
 };
