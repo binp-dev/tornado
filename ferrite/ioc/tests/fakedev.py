@@ -49,8 +49,10 @@ def run_test(
     done = False
     value = 0
 
-    max_val = 0xFFFFFF
-    some_val = 0xABCDEF
+    max_val = 0x7FFFFFFF
+    min_val = -0x80000000
+    some_val = 0x789ABCDE
+    values = [0, 1, -1, some_val, max_val, min_val]
 
     def worker():
         global done
@@ -71,13 +73,7 @@ def run_test(
             if msg.variant.is_instance(AppMsg.DacSet):
                 value = msg.variant.value
             elif msg.variant.is_instance(AppMsg.AdcReq):
-                index = msg.variant.index
-                if index == 1:
-                    send_msg(socket, McuMsg.AdcVal(1, value))
-                elif index == 2:
-                    send_msg(socket, McuMsg.AdcVal(2, max_val))
-                else:
-                    raise Exception("Unexpected ADC index")
+                send_msg(socket, McuMsg.AdcVal([value] + values))
             else:
                 raise Exception("Unexpected message type")
 
@@ -86,16 +82,18 @@ def run_test(
 
     with ca.Repeater(prefix), ioc:
         time.sleep(0.2)
-        assert_eq(ca.get(prefix, "ai1"), 0)
-        assert_eq(ca.get(prefix, "ai2"), max_val)
+        assert_eq(ca.get(prefix, f"ai0"), 0)
+        for i in range(6):
+            assert_eq(ca.get(prefix, f"ai{i + 1}"), values[i])
 
         ca.put(prefix, "ao0", some_val)
 
         print("Waiting for record to scan ...")
         time.sleep(2.0)
 
-        assert_eq(ca.get(prefix, "ai1"), some_val)
-        assert_eq(ca.get(prefix, "ai2"), max_val)
+        assert_eq(ca.get(prefix, f"ai0"), some_val)
+        for i in range(6):
+            assert_eq(ca.get(prefix, f"ai{i + 1}"), values[i])
 
     done = True
     thread.join()

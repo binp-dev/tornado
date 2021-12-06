@@ -8,6 +8,7 @@
 #include <thread>
 #include <cstring>
 #include <cassert>
+#include <variant>
 
 #include <core/assert.hpp>
 #include <core/panic.hpp>
@@ -21,23 +22,28 @@ constexpr size_t ADC_COUNT = 7;
 class Device {
 private:
     struct AdcEntry {
-        int32_t value = 0;
+        std::atomic<int32_t> value;
         std::function<void()> callback;
     };
 
     // Shared data
     std::atomic_bool done;
-    std::mutex mutex; // FIXME: Allow concurrent operation.
+    std::mutex device_mutex; // FIXME: Allow concurrent operation.
     std::array<AdcEntry, ADC_COUNT> adcs;
 
     // Device support data
-    std::thread worker;
+    std::thread recv_worker;
+    std::thread adc_req_worker;
 
-    // Worker data
+    // Communication channel
     std::unique_ptr<Channel> channel;
+    std::mutex channel_mutex;
+
+    // ADC request period
+    std::chrono::milliseconds adc_req_period;
 
 private:
-    void serve_loop() {
+    void recv_loop() {
         std::cout << "[app] Channel serve thread started" << std::endl;
         const auto timeout = std::chrono::milliseconds(10);
 
@@ -62,7 +68,15 @@ private:
             // TODO: Use visit with overloaded lambda
             if(std::holds_alternative<ipp::McuMsgAdcVal>(incoming.variant)) {
                 const auto adc_val = std::get<ipp::McuMsgAdcVal>(incoming.variant);
-                adc_in->send(AdcValue{adc_val.index, adc_val.value});
+
+                //static_assert(decltype(adcs)::size() == decltype(adc_val.values)::size());
+                for (size_t i = 0; i < ADC_COUNT; ++i) {
+                    adcs[i].value.store(adc_val.values[i]);
+
+                    if (adcs[i].callback) {
+                        adcs[i].callback();
+                    }
+                }
 
             } else if (std::holds_alternative<ipp::McuMsgDebug>(incoming.variant)) {
                 std::cout << "Device: " << std::get<ipp::McuMsgDebug>(incoming.variant).message << std::endl;
@@ -77,38 +91,56 @@ private:
         }
     }
 
-    // Device support methods
+    void adc_req_loop() {
+        while(!this->done.load()) {
+            std::this_thread::sleep_for(adc_req_period);
+            {
+                std::cout << "[app] Request ADC measurements" << std::endl;
+                std::lock_guard channel_guard(channel_mutex);
+                channel->send(ipp::AppMsg{ipp::AppMsgAdcReq{}}, std::nullopt).unwrap();
+            }
+        }
+    }
+
 public:
     Device(const Device &dev) = delete;
     Device &operator=(const Device &dev) = delete;
 
-    Device(std::unique_ptr<Channel> channel) : channel(std::move(channel)) {
-        std::lock_guard<std::mutex> device_guard(mutex);
+    Device(std::unique_ptr<Channel> channel, std::chrono::milliseconds period) :
+        channel(std::move(channel)),
+        adc_req_period(period)
+    {
+        std::lock_guard device_guard(device_mutex);
 
         done.store(false);
-        worker = std::thread([this]() { this->serve_loop(); });
+        recv_worker = std::thread([this]() { this->recv_loop(); });
+        adc_req_worker = std::thread([this]() { this->adc_req_loop(); });
     }
     virtual ~Device() {
         done.store(true);
-        worker.join();
+        adc_req_worker.join();
+        recv_worker.join();
     }
 
-    void write_dac(uint32_t value) {
-        std::lock_guard<std::mutex> device_guard(mutex);
+    void write_dac(int32_t value) {
+        std::lock_guard device_guard(device_mutex);
 
         ipp::AppMsgDacSet outgoing{value};
-        channel->send(ipp::AppMsg{std::move(outgoing)}, std::nullopt).unwrap();
+        {
+            std::lock_guard channel_guard(channel_mutex);
+            channel->send(ipp::AppMsg{std::move(outgoing)}, std::nullopt).unwrap();
+        }
     }
 
-    uint32_t read_adc(uint8_t index) {
-        std::lock_guard<std::mutex> device_guard(mutex);
+    int32_t read_adc(size_t index) {
+        std::lock_guard device_guard(device_mutex);
         
         assert_true(index < ADC_COUNT);
-        return adcs[index].value;
+        return adcs[index].value.load();
     }
 
-    void set_adc_callback(uint8_t index, std::function<void()> && callback) {
-        std::lock_guard<std::mutex> device_guard(mutex);
+    void set_adc_callback(size_t index, std::function<void()> && callback) {
+        std::lock_guard device_guard(device_mutex);
         
         assert_true(index < ADC_COUNT);
         adcs[index].callback = std::move(callback);

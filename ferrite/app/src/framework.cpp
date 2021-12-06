@@ -20,17 +20,18 @@ void init_device(MaybeUninit<Device> &mem) {
     std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
 
     const size_t message_max_length = 256;
-    mem.init_in_place(
+    std::unique_ptr<Channel> channel =
 #ifdef FAKEDEV
-        std::unique_ptr<Channel>(new ZmqChannel(std::move(
+        std::make_unique<ZmqChannel>(std::move(
             ZmqChannel::create("tcp://127.0.0.1:8321", message_max_length).unwrap()
-        )))
+        ))
 #else // FAKEDEV
-        std::unique_ptr<Channel>(new RpmsgChannel(std::move(
+        std::make_unique<RpmsgChannel>(std::move(
             RpmsgChannel::create("/dev/ttyRPMSG0", message_max_length).unwrap()
-        )))
+        ))
 #endif // FAKEDEV
-    );
+    ;
+    mem.init_in_place(std::move(channel), std::chrono::milliseconds{1000});
 }
 
 /// We use LazyStatic to initialize global Device without global constructor. 
@@ -66,7 +67,7 @@ public:
     }
 
     virtual void set_read_request(InputValueRecord<uint32_t> &, std::function<void()> && callback) override {
-        device_.set_adc_callback(index_, callback);
+        device_.set_adc_callback(index_, std::move(callback));
     }
 
     virtual bool is_async() const override {
