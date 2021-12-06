@@ -21,7 +21,7 @@ McuMsg = make_variant(
     Name(["mcu", "msg"]),
     [
         (Name(["adc", "val"]), [
-            Field("values", Array(Int(32, signed=True), 7)),
+            Field("values", Array(Int(32, signed=True), 6)),
         ]),
         (Name(["error"]), [
             Field("code", Int(8)),

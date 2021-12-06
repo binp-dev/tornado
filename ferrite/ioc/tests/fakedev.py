@@ -52,7 +52,7 @@ def run_test(
     max_val = 0x7FFFFFFF
     min_val = -0x80000000
     some_val = 0x789ABCDE
-    values = [0, 1, -1, some_val, max_val, min_val]
+    values = [1, -1, some_val, max_val, min_val]
 
     def worker():
         global done
@@ -83,7 +83,7 @@ def run_test(
     with ca.Repeater(prefix), ioc:
         time.sleep(0.2)
         assert_eq(ca.get(prefix, f"ai0"), 0)
-        for i in range(6):
+        for i in range(5):
             assert_eq(ca.get(prefix, f"ai{i + 1}"), values[i])
 
         ca.put(prefix, "ao0", some_val)
@@ -92,7 +92,7 @@ def run_test(
         time.sleep(2.0)
 
         assert_eq(ca.get(prefix, f"ai0"), some_val)
-        for i in range(6):
+        for i in range(5):
             assert_eq(ca.get(prefix, f"ai{i + 1}"), values[i])
 
     done = True

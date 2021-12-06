@@ -27,8 +27,8 @@
 
 static volatile SemaphoreHandle_t smp_rdy_sem = NULL;
 
-static volatile uint32_t g_adcs[SKIFIO_ADC_CHANNEL_COUNT] = {0};
-static volatile uint32_t g_dac = 0;
+static volatile int32_t g_adcs[SKIFIO_ADC_CHANNEL_COUNT] = {0};
+static volatile int32_t g_dac = 0;
 
 void GPIO5_Combined_16_31_IRQHandler() {
     if (GPIO_GetPinsInterruptFlags(GPIO5) & (1 << SMP_RDY_PIN)) {
@@ -151,9 +151,6 @@ static void task_rpmsg(void *param) {
     hal_log_info("Enter RPMSG loop");
 
     for (;;) {
-        uint32_t value = 0;
-        uint8_t index = 0;
-
         // Receive message
         hal_assert(hal_rpmsg_recv_nocopy(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
         app_msg = (const IppAppMsg *)buffer;
@@ -164,26 +161,20 @@ static void task_rpmsg(void *param) {
 
         switch (app_msg->type) {
         case IPP_APP_MSG_DAC_SET:
-            g_dac = ipp_uint24_load(app_msg->dac_set.value);
-            hal_log_info("Write DAC value: 0x%04lx", value);
+            g_dac = app_msg->dac_set.value;
+            hal_log_info("Write DAC value: %x", g_dac);
             break;
 
         case IPP_APP_MSG_ADC_REQ:
-            index = app_msg->adc_req.index;
-            if (index >= SKIFIO_ADC_CHANNEL_COUNT) {
-                hal_error(0x02, "ADC channel index is out of bounds (%i): %i", (int)SKIFIO_ADC_CHANNEL_COUNT, (int)index);
-                continue;
-            }
-            value = g_adcs[index];
-            hal_log_info("Read ADC%d value: 0x%08lx", (int)index, value);
+            hal_log_info("Read ADC values");
 
             hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
             IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
             mcu_msg->type = IPP_MCU_MSG_ADC_VAL;
-            mcu_msg->adc_val.index = index;
-            mcu_msg->adc_val.value = ipp_uint24_store(value);
+            for (size_t i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
+                mcu_msg->adc_val.values[i] = g_adcs[i];
+            }
             hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
-
             break;
 
         default:

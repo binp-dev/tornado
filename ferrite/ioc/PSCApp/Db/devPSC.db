@@ -28,11 +28,6 @@ record(ai, "ai5")
     field(DTYP, "devsup")
     field(SCAN, "I/O Intr")
 }
-record(ai, "ai6")
-{
-    field(DTYP, "devsup")
-    field(SCAN, "I/O Intr")
-}
 
 record(ao, "ao0")
 {

@@ -7,9 +7,9 @@
 #include <record/value.hpp>
 
 class AoRecord :
-    public EpicsOutputValueRecord<uint32_t, aoRecord>,
-    public virtual OutputValueRecord<uint32_t>
+    public EpicsOutputValueRecord<int32_t, aoRecord>,
+    public virtual OutputValueRecord<int32_t>
 {
 public:
-    explicit AoRecord(aoRecord *raw) : EpicsOutputValueRecord<uint32_t, aoRecord>(raw) {}
+    explicit AoRecord(aoRecord *raw) : EpicsOutputValueRecord<int32_t, aoRecord>(raw) {}
 };

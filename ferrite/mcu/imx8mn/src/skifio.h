@@ -9,11 +9,11 @@
 #define SKIFIO_ADC_CHANNEL_COUNT 6
 
 typedef struct SkifioInput {
-    uint32_t adcs[SKIFIO_ADC_CHANNEL_COUNT];
+    int32_t adcs[SKIFIO_ADC_CHANNEL_COUNT];
 } SkifioInput;
 
 typedef struct SkifioOutput {
-    uint16_t dac;
+    int16_t dac;
 } SkifioOutput;
 
 hal_retcode skifio_init();

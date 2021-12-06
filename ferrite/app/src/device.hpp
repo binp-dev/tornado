@@ -17,7 +17,7 @@
 #include <encoder.hpp>
 #include <ipp.hpp>
 
-constexpr size_t ADC_COUNT = 7; 
+constexpr size_t ADC_COUNT = 6;
 
 class Device {
 private:

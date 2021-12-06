@@ -38,14 +38,14 @@ void init_device(MaybeUninit<Device> &mem) {
 LazyStatic<Device, init_device> DEVICE = {};
 static_assert(std::is_pod_v<decltype(DEVICE)>);
 
-class DacHandler final : public OutputValueHandler<uint32_t> {
+class DacHandler final : public OutputValueHandler<int32_t> {
 private:
     Device &device_;
 
 public:
     DacHandler(Device &device) : device_(device) {}
 
-    virtual void write(OutputValueRecord<uint32_t> &record) override {
+    virtual void write(OutputValueRecord<int32_t> &record) override {
         device_.write_dac(record.value());
     }
 
@@ -54,7 +54,7 @@ public:
     }
 };
 
-class AdcHandler final : public InputValueHandler<uint32_t> {
+class AdcHandler final : public InputValueHandler<int32_t> {
 private:
     Device &device_;
     uint8_t index_;
@@ -62,11 +62,11 @@ private:
 public:
     AdcHandler(Device &device, uint8_t index) : device_(device), index_(index) {}
 
-    virtual void read(InputValueRecord<uint32_t> &record) override {
+    virtual void read(InputValueRecord<int32_t> &record) override {
         record.set_value(device_.read_adc(index_));
     }
 
-    virtual void set_read_request(InputValueRecord<uint32_t> &, std::function<void()> && callback) override {
+    virtual void set_read_request(InputValueRecord<int32_t> &, std::function<void()> && callback) override {
         device_.set_adc_callback(index_, std::move(callback));
     }
 
@@ -84,12 +84,12 @@ void framework_record_init(Record &record) {
     const auto name = record.name();
     std::cout << "Initializing record '" << name << "'" << std::endl;
     if (name == "ao0") {
-        auto &ao_record = dynamic_cast<OutputValueRecord<uint32_t> &>(record);
+        auto &ao_record = dynamic_cast<OutputValueRecord<int32_t> &>(record);
         ao_record.set_handler(std::make_unique<DacHandler>(*DEVICE));
     } else if (name.rfind("ai", 0) == 0) { // name.startswith("ai")
         const auto index_str = name.substr(2);
         uint8_t index = std::stoi(std::string(index_str));
-        auto &ai_record = dynamic_cast<InputValueRecord<uint32_t> &>(record);
+        auto &ai_record = dynamic_cast<InputValueRecord<int32_t> &>(record);
         ai_record.set_handler(std::make_unique<AdcHandler>(*DEVICE, index));
     } else if (name.rfind("di", 0) == 0 || name.rfind("do", 0) == 0) {
         // TODO: Handle digital input/output
