@@ -1,6 +1,7 @@
 #include "skifio.h"
 
 #include <string.h>
+#include <stdio.h>
 
 #include <FreeRTOS.h>
 #include <task.h>
@@ -34,7 +35,6 @@ hal_retcode skifio_deinit() {
 
 hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in) {
     hal_retcode st = HAL_SUCCESS;
-    // i.MX8 SPI buffers must be 4-byte aligned
     uint8_t tx[XFER_LEN] = {0};
     uint8_t rx[XFER_LEN] = {0};
     uint16_t calc_crc = 0;
@@ -54,7 +54,7 @@ hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in) {
     hal_spi_byte tx4[XFER_LEN] = {0};
     hal_spi_byte rx4[XFER_LEN] = {0};
     char data_buf[3 * XFER_LEN + 1] = {'\0'};
-    for (int i = 0; i < XFER_LEN; ++i) {
+    for (size_t i = 0; i < XFER_LEN; ++i) {
         tx4[i] = (hal_spi_byte)tx[i];
         snprintf(data_buf + 3 * i, 4, "%02lx ", tx4[i]);
     }
@@ -63,7 +63,7 @@ hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in) {
     if (st != HAL_SUCCESS) {
         return st;
     }
-    for (int i = 0; i < XFER_LEN; ++i) {
+    for (size_t i = 0; i < XFER_LEN; ++i) {
         rx[i] = (uint8_t)rx4[i];
         snprintf(data_buf + 3 * i, 4, "%02lx ", rx4[i]);
     }

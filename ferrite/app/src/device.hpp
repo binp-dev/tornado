@@ -26,10 +26,16 @@ private:
         std::function<void()> callback;
     };
 
+    struct DacEntry {
+        std::atomic<int32_t> value;
+        std::atomic<bool> update = false;
+    };
+
     // Shared data
     std::atomic_bool done;
     std::mutex device_mutex; // FIXME: Allow concurrent operation.
     std::array<AdcEntry, ADC_COUNT> adcs;
+    DacEntry dac;
 
     // Device support data
     std::thread recv_worker;
@@ -95,8 +101,15 @@ private:
         while(!this->done.load()) {
             std::this_thread::sleep_for(adc_req_period);
             {
-                std::cout << "[app] Request ADC measurements" << std::endl;
                 std::lock_guard channel_guard(channel_mutex);
+
+                if (dac.update.exchange(false)) {
+                    int32_t value = dac.value.load();
+                    std::cout << "[app] Send DAC value: " << value << std::endl;
+                    channel->send(ipp::AppMsg{ipp::AppMsgDacSet{value}}, std::nullopt).unwrap();
+                }
+
+                std::cout << "[app] Request ADC measurements" << std::endl;
                 channel->send(ipp::AppMsg{ipp::AppMsgAdcReq{}}, std::nullopt).unwrap();
             }
         }
@@ -124,12 +137,8 @@ public:
 
     void write_dac(int32_t value) {
         std::lock_guard device_guard(device_mutex);
-
-        ipp::AppMsgDacSet outgoing{value};
-        {
-            std::lock_guard channel_guard(channel_mutex);
-            channel->send(ipp::AppMsg{std::move(outgoing)}, std::nullopt).unwrap();
-        }
+        dac.value.store(value);
+        dac.update.store(true);
     }
 
     int32_t read_adc(size_t index) {

@@ -30,21 +30,24 @@ static volatile SemaphoreHandle_t smp_rdy_sem = NULL;
 static volatile int32_t g_adcs[SKIFIO_ADC_CHANNEL_COUNT] = {0};
 static volatile int32_t g_dac = 0;
 
+static volatile uint32_t intr_count = 0;
+
 void GPIO5_Combined_16_31_IRQHandler() {
     if (GPIO_GetPinsInterruptFlags(GPIO5) & (1 << SMP_RDY_PIN)) {
         GPIO_ClearPinsInterruptFlags(GPIO5, 1 << SMP_RDY_PIN);
+        intr_count += 1;
 
         BaseType_t hptw = pdFALSE;
 
-        /* Notify target task */
+        // Notify target task
         xSemaphoreGiveFromISR(smp_rdy_sem, &hptw);
 
-        /* Yield to higher priority task */
+        // Yield to higher priority task
         portYIELD_FROM_ISR(hptw);
     }
 
-    /* Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F, Cortex-M7, Cortex-M7F Store immediate overlapping
-  exception return operation might vector to incorrect interrupt */
+    // Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F, Cortex-M7, Cortex-M7F Store immediate overlapping
+    // exception return operation might vector to incorrect interrupt
 #if defined __CORTEX_M && (__CORTEX_M == 4U || __CORTEX_M == 7U)
     __DSB();
 #endif
@@ -84,9 +87,9 @@ static void task_gpio(void *param) {
             hal_log_info("semaphore timeout %x", i);
             continue;
         }
-        hal_log_info("SMP_RDY interrupt!");
+        hal_log_info("SMP_RDY interrupt(%d)!", intr_count);
 
-        output.dac = g_dac;
+        output.dac = (int16_t)g_dac;
         ret = skifio_transfer(&output, &input);
         hal_assert(ret == HAL_SUCCESS || ret == HAL_INVALID_DATA); // Ignore CRC check error
         for (size_t i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
@@ -156,9 +159,6 @@ static void task_rpmsg(void *param) {
         app_msg = (const IppAppMsg *)buffer;
         hal_log_info("Received message: 0x%02x", (int)app_msg->type);
 
-        uint32_t smp_rdy = GPIO_PinRead(GPIO5, 23);
-        hal_log_info("SMP_RDY value: %ld", smp_rdy);
-
         switch (app_msg->type) {
         case IPP_APP_MSG_DAC_SET:
             g_dac = app_msg->dac_set.value;
@@ -172,7 +172,7 @@ static void task_rpmsg(void *param) {
             IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
             mcu_msg->type = IPP_MCU_MSG_ADC_VAL;
             for (size_t i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
-                mcu_msg->adc_val.values[i] = g_adcs[i];
+                mcu_msg->adc_val.values.data[i] = g_adcs[i];
             }
             hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
             break;

@@ -34,6 +34,17 @@
 
 + Boot using `boot` command.
 
-## Hints
+## Interrupts
 
 + Always call `NVIC_SetPriority` for interrupt. Otherwise accessing semaphores from the ISR will fail.
++ You cannot safely use the same interrupt controller along with Linux (without additional synchronization logic in kernel it causes the kernel to hang spontaneously).
++ To disable GPIO interrupt controller in kernel comment out `interrupts`, `interrupt-controller` and `#interrupt-cells` fields in corresponding `gpio*` section of device tree.
+
+## Device tree building
+
+You can build device tree without building the whole kernel by using the following commands:
+
+```bash
+gcc -E -P -x assembler-with-cpp -I include arch/arm64/boot/dts/freescale/imx8mn-var-som-symphony-m7.dts | \
+dtc -I dts -O dtb -o arch/arm64/boot/dts/freescale/imx8mn-var-som-symphony-m7.dtb
+```
