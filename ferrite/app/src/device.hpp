@@ -20,12 +20,14 @@ class Device {
 private:
     const size_t _max_points;
     const size_t _max_transfer;
+    
     std::vector<int32_t> out_waveforms[3];
     std::atomic_bool swap_ready;
     std::mutex swap_mutex;
     size_t waveform_pos = 0;
 
     std::vector<int32_t> in_waveforms[2];
+    bool input_wf_is_set = false;
     int active_input_buff = 0;
     size_t input_wf_pos = 0;
     std::function<void()> request_in_wf_processing;
@@ -154,6 +156,10 @@ private:
                 std::cout << "Device: " << std::get<ipp::McuMsgDebug>(incoming.variant).message << std::endl;
 
             } else if (std::holds_alternative<ipp::McuMsgWfReq>(incoming.variant)) {
+                if (!input_wf_is_set) {
+                    continue;
+                }
+
                 ipp::AppMsgWfData outgoing;
                 auto &buffer = outgoing.data;
 
@@ -249,6 +255,8 @@ public:
 
     void write_waveform(const int32_t *wf_data, const size_t wf_len) {
         std::lock_guard<std::mutex> device_guard(mutex);
+
+        input_wf_is_set = true;
 
         assert(wf_len <= max_points());
         if (!swap_ready.load()) {
