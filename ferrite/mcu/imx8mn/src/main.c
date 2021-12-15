@@ -27,6 +27,9 @@
 #define SMP_RDY_PIN 23u
 #define READ_RDY_PIN 9u
 
+#define DAC_KEY_1 2u
+#define DAC_KEY_2 3u
+
 static volatile SemaphoreHandle_t smp_rdy_sem = NULL;
 
 static volatile int32_t g_dac = 0;
@@ -63,6 +66,13 @@ static void task_gpio(void *param) {
     hal_log_info("GPIO init");
 
     BOARD_InitGpioPins();
+
+    // DAC keys
+    gpio_pin_config_t dac_key_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
+    GPIO_PinInit(GPIO5, DAC_KEY_1, &dac_key_config);
+    GPIO_PinInit(GPIO5, DAC_KEY_2, &dac_key_config);
+    GPIO_PinWrite(GPIO5, DAC_KEY_1, 1);
+    GPIO_PinWrite(GPIO5, DAC_KEY_2, 1);
 
     gpio_pin_config_t read_rdy_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
     GPIO_PinInit(GPIO5, READ_RDY_PIN, &read_rdy_config);

@@ -91,6 +91,10 @@ void BOARD_InitGpioPins(void) {                                /*!< Function ass
     // GPIO pins
     IOMUXC_SetPinMux(IOMUXC_UART1_TXD_GPIO5_IO23, 0U); // SMP_RDY
     IOMUXC_SetPinMux(IOMUXC_ECSPI1_SS0_GPIO5_IO09, 0U); // Read_RDY
+
+    // DAC keys
+    IOMUXC_SetPinMux(IOMUXC_SAI3_MCLK_GPIO5_IO02, 0U);
+    IOMUXC_SetPinMux(IOMUXC_SPDIF_TX_GPIO5_IO03, 0U);
 }
 
 /***********************************************************************************************************************
