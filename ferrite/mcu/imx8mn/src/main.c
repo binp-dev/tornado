@@ -218,13 +218,11 @@ static void task_rpmsg(void *param) {
     len = 0;
 
     // Create GPIO task.
-    /*
     hal_log_info("Create GPIO task");
     xTaskCreate(
         task_gpio, "GPIO task",
         TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL
     );
-    */
 
     hal_log_info("Enter RPMSG loop");
 
@@ -298,20 +296,20 @@ int main(void)
     (void)MCMGR_Init();
 #endif /* MCMGR_USED */
 
+    /*
     // Create GPT task.
     hal_log_info("Create GPT task");
     xTaskCreate(
         task_gpt, "GPT task",
         TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL
     );
+    */
 
     /* Create task. */
-    /*
     xTaskCreate(
         task_rpmsg, "RPMSG task",
         TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL
     );
-    */
 
     /* Start FreeRTOS scheduler. */
     vTaskStartScheduler();

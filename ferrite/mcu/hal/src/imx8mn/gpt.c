@@ -11,7 +11,7 @@
 
 #define HAL_GPT_IRQ_PRIORITY 3
 
-static uint32_t gpt_clk_freq(clock_root_control_t root_clk) {
+static uint32_t gpt_period_1s(clock_root_control_t root_clk) {
     // SYSTEM PLL1 DIV2
     uint32_t freq = CLOCK_GetPllFreq(kCLOCK_SystemPll1Ctrl);
     freq /= CLOCK_GetRootPreDivider(root_clk);
@@ -46,9 +46,50 @@ GPT_IRQ_HANDLER_DECL(2)
 GPT_IRQ_HANDLER_DECL(3)
 
 hal_retcode hal_gpt_init(uint32_t instance) {
-    uint32_t gpt_freq;
-    gpt_config_t gpt_config;
+    if (instance >= HAL_GPT_INSTANCE_COUNT) {
+        return HAL_OUT_OF_BOUNDS;
+    }
 
+    GPT_Type *gpt_base = gpt_bases[instance];
+
+    clock_root_control_t root_clk;
+    switch (instance + 1) {
+    case 1:
+        root_clk = kCLOCK_RootGpt1;
+        break;
+    case 2:
+        root_clk = kCLOCK_RootGpt2;
+        break;
+    case 3:
+        root_clk = kCLOCK_RootGpt3;
+        break;
+    default:
+        hal_unreachable();
+    }
+
+    // Set GPT1 source to SYSTEM PLL1 DIV2 400MHZ
+    CLOCK_SetRootMux(root_clk, kCLOCK_GptRootmuxSysPll1Div2);
+    // Set root clock to 400MHZ / 4 = 100MHZ
+    CLOCK_SetRootDivider(root_clk, 1U, 4U);
+
+    gpt_config_t gpt_config;
+    GPT_GetDefaultConfig(&gpt_config);
+
+    // Initialize GPT module
+    GPT_Init(gpt_base, &gpt_config);
+
+    // Divide GPT clock source frequency by 3 inside GPT module
+    GPT_SetClockDivider(gpt_base, 3);
+
+    return HAL_SUCCESS;
+}
+
+hal_retcode hal_gpt_deinit(uint32_t instance) {
+    //! FIXME: Implement deinitialization.
+    return HAL_UNIMPLEMENTED;
+}
+
+hal_retcode hal_gpt_start(uint32_t instance, uint32_t period_us, SemaphoreHandle_t target) {
     if (instance >= HAL_GPT_INSTANCE_COUNT) {
         return HAL_OUT_OF_BOUNDS;
     }
@@ -75,51 +116,25 @@ hal_retcode hal_gpt_init(uint32_t instance) {
         hal_unreachable();
     }
 
-    // Set GPT1 source to SYSTEM PLL1 DIV2 400MHZ
-    CLOCK_SetRootMux(root_clk, kCLOCK_GptRootmuxSysPll1Div2);
-    // Set root clock to 400MHZ / 4 = 100MHZ
-    CLOCK_SetRootDivider(root_clk, 1U, 4U);
-
-    GPT_GetDefaultConfig(&gpt_config);
-
-    // Initialize GPT module
-    GPT_Init(gpt_base, &gpt_config);
-
-    // Divide GPT clock source frequency by 3 inside GPT module
-    GPT_SetClockDivider(gpt_base, 3);
+    gpt_semaphores[instance] = target;
 
     // Get GPT clock frequency
-    gpt_freq = gpt_clk_freq(root_clk);
+    uint32_t gpt_period = gpt_period_1s(root_clk);
 
     // GPT frequency is divided by 3 inside module
-    gpt_freq /= 3;
+    gpt_period /= 3;
 
-    // Set both GPT modules to 1 second duration
-    GPT_SetOutputCompareValue(gpt_base, gpt_states[instance], gpt_freq);
-
-    // Enable GPT Output Compare1 interrupt
-    GPT_EnableInterrupts(gpt_base, intr_mask);
-
-    // Enable at the Interrupt
-    EnableIRQ(gpt_irqn);
-
-    return HAL_SUCCESS;
-}
-
-hal_retcode hal_gpt_deinit(uint32_t instance) {
-    //! FIXME: Implement deinitialization.
-    return HAL_UNIMPLEMENTED;
-}
-
-hal_retcode hal_gpt_start(uint32_t instance, uint32_t period, SemaphoreHandle_t target) {
-    if (instance >= HAL_GPT_INSTANCE_COUNT) {
+    uint64_t period = ((uint64_t)gpt_period * period_us) / 1000000;
+    if (period >= (1ull << 32)) {
+        // Period is too long, counter will overflow.
         return HAL_OUT_OF_BOUNDS;
     }
 
-    GPT_Type *gpt_base = gpt_bases[instance];
-    IRQn_Type gpt_irqn = gpt_irqns[instance];
+    // Set both GPT modules to 1 second duration
+    GPT_SetOutputCompareValue(gpt_base, gpt_states[instance], (uint32_t)period);
 
-    gpt_semaphores[instance] = target;
+    // Enable GPT Output Compare1 interrupt
+    GPT_EnableInterrupts(gpt_base, intr_mask);
 
     NVIC_SetPriority(gpt_irqn, HAL_GPT_IRQ_PRIORITY);
     // Enable NVIC interrupt
