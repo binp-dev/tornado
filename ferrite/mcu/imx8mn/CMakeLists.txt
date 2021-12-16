@@ -92,6 +92,7 @@ include(device_MIMX8MN6_system_MIMX8MN6)
 include(driver_ecspi_MIMX8MN6)
 include(driver_ecspi_freertos_MIMX8MN6)
 include(driver_igpio_MIMX8MN6)
+include(driver_gpt_MIMX8MN6)
 
 TARGET_LINK_LIBRARIES(${MCUX_SDK_PROJECT_NAME} PRIVATE
     -Wl,--start-group

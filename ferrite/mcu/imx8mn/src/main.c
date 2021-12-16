@@ -17,6 +17,7 @@
 #include <hal/rpmsg.h>
 #include <hal/math.h>
 #include <hal/time.h>
+#include <hal/gpt.h>
 
 #include "skifio.h"
 
@@ -54,6 +55,30 @@ void GPIO5_Combined_16_31_IRQHandler() {
 #if defined __CORTEX_M && (__CORTEX_M == 4U || __CORTEX_M == 7U)
     __DSB();
 #endif
+}
+
+static void task_gpt(void *param) {
+    hal_log_info("GPT init");
+    hal_assert(hal_gpt_init(0) == HAL_SUCCESS);
+
+    SemaphoreHandle_t gpt_sem = xSemaphoreCreateBinary();
+    hal_assert(gpt_sem != NULL);
+
+    hal_assert(hal_gpt_start(0, 1000000, gpt_sem) == HAL_SUCCESS);
+
+    for (size_t i = 0;;++i) {
+        if (xSemaphoreTake(gpt_sem, 10000) != pdTRUE) {
+            hal_log_info("GPT semaphore timeout %x", i);
+            continue;
+        }
+        hal_log_info("GPT tick: %d", i);
+    }
+
+    hal_log_error("End of task_gpio()");
+    hal_panic();
+
+    hal_assert(hal_gpt_stop(0) == HAL_SUCCESS);
+    hal_assert(hal_gpt_deinit(0) == HAL_SUCCESS);
 }
 
 static void task_gpio(void *param) {
@@ -99,7 +124,7 @@ static void task_gpio(void *param) {
         hal_retcode ret;
 
         if (xSemaphoreTake(smp_rdy_sem, 1000) != pdTRUE) {
-            hal_log_info("semaphore timeout %x", i);
+            hal_log_info("GPIO semaphore timeout %x", i);
             continue;
         }
         max_intr_count = hal_max(max_intr_count, intr_count - prev_intr_count);
@@ -192,13 +217,14 @@ static void task_rpmsg(void *param) {
     buffer = NULL;
     len = 0;
 
-    hal_log_info("Create GPIO task");
-
     // Create GPIO task.
+    /*
+    hal_log_info("Create GPIO task");
     xTaskCreate(
         task_gpio, "GPIO task",
         TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL
     );
+    */
 
     hal_log_info("Enter RPMSG loop");
 
@@ -272,11 +298,20 @@ int main(void)
     (void)MCMGR_Init();
 #endif /* MCMGR_USED */
 
+    // Create GPT task.
+    hal_log_info("Create GPT task");
+    xTaskCreate(
+        task_gpt, "GPT task",
+        TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL
+    );
+
     /* Create task. */
+    /*
     xTaskCreate(
         task_rpmsg, "RPMSG task",
         TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL
     );
+    */
 
     /* Start FreeRTOS scheduler. */
     vTaskStartScheduler();
