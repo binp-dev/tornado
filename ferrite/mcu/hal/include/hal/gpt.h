@@ -6,6 +6,8 @@
 
 #if defined(HAL_IMX7)
 #include "imx7/gpt.h"
+#elif defined(HAL_IMX8MN)
+#include "imx8mn/gpt.h"
 #else
 #error "Unknown target"
 #endif

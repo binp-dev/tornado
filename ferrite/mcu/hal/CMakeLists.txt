@@ -34,8 +34,10 @@ set(IMX8MN_SRC
     ${COMMON_SRC}
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/imx8mn/rpmsg.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/imx8mn/spi.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/imx8mn/gpt.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/imx8mn/rpmsg.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/imx8mn/spi.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/imx8mn/gpt.c"
 )
 
 set(IMX7_NAME "${PROJECT_NAME}_imx7")
