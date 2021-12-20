@@ -9,16 +9,19 @@ def _env():
         "EPICS_CA_ADDR_LIST": "127.0.0.1",
     }
 
-def get(prefix, pv):
+def get(prefix, pv, array=False):
     print("caget %s ..." % pv)
     out = run(
-        [os.path.join(prefix, "caget"), "-t", pv],
+        [os.path.join(prefix, "caget"), "-t", "-f 3", pv],
         add_env=_env(),
         capture=True,
         log=False,
     ).strip()
     print("  %s" % out)
-    return out
+    if array:
+        return out.split()[1:]
+        
+    return float(out)
 
 def put(prefix, pv, value, array=False):
     print("caput %s %s ..." % (pv, str(value)))

@@ -8,7 +8,7 @@ void set_panic_hook(void(*hook)());
 
 #define panic(...) __panic_with_location(__FUNCTION__, __FILE__, __LINE__, ##__VA_ARGS__)
 
-#define unimplemented() panic("Unimplemented")
+#define unimplemented(...) panic("Unimplemented" __VA_ARGS__)
 
 #define unreachable() \
     __builtin_unreachable(); \

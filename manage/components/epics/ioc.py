@@ -95,7 +95,7 @@ class IocTestFakeDevTask(Task):
         fakedev.run_test(
             self.owner.epics_base.paths["install"],
             self.owner.paths["install"],
-            os.path.join(BASE_DIR, "common"),
+            os.path.join(BASE_DIR, "ipp"),
             epics_host_arch(self.owner.epics_base.paths["build"]),
         )
         return True

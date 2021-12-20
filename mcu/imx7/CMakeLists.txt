@@ -199,7 +199,7 @@ ADD_CUSTOM_COMMAND(TARGET psc_m4 POST_BUILD COMMAND ${CMAKE_OBJCOPY} -Oihex ${EX
 ADD_CUSTOM_COMMAND(TARGET psc_m4 POST_BUILD COMMAND ${CMAKE_OBJCOPY} -Obinary ${EXECUTABLE_OUTPUT_PATH}/m4image.elf ${EXECUTABLE_OUTPUT_PATH}/m4image.bin)
 
 # Include HAL and IPP
-include_directories("../../common/ipp/src")
+include_directories("${IPP_GENERATED}/include")
 include_directories("../hal/include")
 
 # Link common code

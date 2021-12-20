@@ -5,14 +5,14 @@ project("app")
 set(CMAKE_C_FLAGS_DEBUG "-g -rdynamic -funwind-tables")
 set(CMAKE_C_FLAGS "-Wall -Wextra -Werror=return-type")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -fno-exceptions -pedantic")
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -fno-exceptions")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-add_subdirectory("../common/ipp" "ipp")
+add_subdirectory("../ipp" "ipp")
 
 include_directories(
     "src"
-    "../common/ipp/src"
+    "${IPP_GENERATED}/include"
 )
 
 set(BASE_SRC
