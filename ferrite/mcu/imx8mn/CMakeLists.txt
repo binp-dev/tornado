@@ -45,6 +45,8 @@ add_executable(${MCUX_SDK_PROJECT_NAME}
     "${ProjDirPath}/src/clock_config.c"
     "${ProjDirPath}/src/clock_config.h"
     #"${ProjDirPath}/src/fsl_iomuxc.h"
+    "${ProjDirPath}/src/skifio.c"
+    "${ProjDirPath}/src/skifio.h"
 )
 
 target_include_directories(${MCUX_SDK_PROJECT_NAME} PRIVATE
@@ -87,7 +89,10 @@ include(CMSIS_Include_common_MIMX8MN6)
 include(CMSIS_Include_dsp_MIMX8MN6)
 include(utilities_misc_utilities_MIMX8MN6)
 include(device_MIMX8MN6_system_MIMX8MN6)
-
+include(driver_ecspi_MIMX8MN6)
+include(driver_ecspi_freertos_MIMX8MN6)
+include(driver_igpio_MIMX8MN6)
+include(driver_gpt_MIMX8MN6)
 
 TARGET_LINK_LIBRARIES(${MCUX_SDK_PROJECT_NAME} PRIVATE
     -Wl,--start-group

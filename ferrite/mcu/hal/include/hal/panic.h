@@ -16,3 +16,5 @@ extern bool __hal_panicked;
     } \
     __hal_panic(); \
 } while(0)
+
+#define hal_unreachable hal_panic

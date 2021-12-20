@@ -6,6 +6,8 @@
 
 #if defined(HAL_IMX7)
 #include "imx7/spi.h"
+#elif defined(HAL_IMX8MN)
+#include "imx8mn/spi.h"
 #else
 #error "Unknown target"
 #endif
@@ -48,8 +50,8 @@ hal_retcode hal_spi_disable(uint32_t channel);
  * @param[in] channel SPI controller index.
  * @param[in] tx_buf Data to transmit.
  * @param[in] rx_buf Where data to be placed when received.
- * @param[in] len Length of the transfered data.
+ * @param[in] len Length (in bytes) of the transfered data.
  * @param[in] timeout Timeout in milliseconds to wait for transfer. 0 - means non-blocking call, HAL_WAIT_FOREVER - wait forever.
  * @return Operation status, zero on success.
  */
-hal_retcode hal_spi_xfer(uint32_t channel, uint8_t *tx_buf, uint8_t *rx_buf, size_t len, uint32_t timeout);
+hal_retcode hal_spi_xfer(uint32_t channel, hal_spi_byte *tx_buf, hal_spi_byte *rx_buf, size_t len, uint32_t timeout);

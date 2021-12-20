@@ -1,12 +1,13 @@
 from codegen.variant import Variant
 from codegen.base import Context, Name
 from codegen.prim import Float, Int
-from codegen.container import Vector, String
+from codegen.container import Array, Vector, String
 from codegen.struct import Field, Struct
 from codegen.text import make_variant, generate_and_write
 
 empty = Struct(Name(["empty", "struct"]), [])
 all_ = [
+    Array(Int(24), 5),
     Vector(Int(24)),
     Vector(Int(64)),
     String(),

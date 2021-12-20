@@ -49,28 +49,40 @@ Result<std::monostate, ZmqChannel::Error> ZmqChannel::send_raw(
     const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout
 ) {
     zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLOUT, 0};
-    // Handle timeout error separately
-    if (!timeout || zmq_poll(&pollitem, 1, timeout->count()) > 0) {
-        if (zmq_send(this->socket_.get(), bytes, length, !timeout ? 0 : ZMQ_NOBLOCK) <= 0) {
-            return Err(Error{ErrorKind::IoError, "Error send"});
+    int count = zmq_poll(&pollitem, 1, timeout.has_value() ? int(timeout->count()) : -1);
+    if (count > 0) {
+        if (!(pollitem.revents & ZMQ_POLLOUT)) {
+            return Err(Error{ErrorKind::IoError, "Poll bad event"});
         }
-        return Ok(std::monostate{});
+    } else if (count == 0) {
+        return Err(Error{ErrorKind::TimedOut, ""});
     } else {
-        return Err(Error{ErrorKind::TimedOut, "Timed out send"});
+        return Err(Error{ErrorKind::IoError, "Poll error"});
     }
+
+    if (zmq_send(this->socket_.get(), bytes, length, !timeout ? 0 : ZMQ_NOBLOCK) <= 0) {
+        return Err(Error{ErrorKind::IoError, "Error send"});
+    }
+    return Ok(std::monostate{});
 }
 Result<size_t, ZmqChannel::Error> ZmqChannel::receive_raw(
     uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout
 ) {
     zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLIN, 0};
-    // Handle timeout error separately
-    if (!timeout || zmq_poll(&pollitem, 1, timeout->count()) > 0) {
-        int ret = zmq_recv(this->socket_.get(), bytes, max_length, !timeout ? 0 : ZMQ_NOBLOCK);
-        if (ret <= 0) {
-            return Err(Error{ErrorKind::IoError, "Error receive"});
+    int count = zmq_poll(&pollitem, 1, timeout.has_value() ? int(timeout->count()) : -1);
+    if (count > 0) {
+        if (!(pollitem.revents & ZMQ_POLLIN)) {
+            return Err(Error{ErrorKind::IoError, "Poll bad event"});
         }
-        return Ok<size_t>(ret);
+    } else if (count == 0) {
+        return Err(Error{ErrorKind::TimedOut, ""});
     } else {
-        return Err(Error{ErrorKind::TimedOut, "Timed out receive"});
+        return Err(Error{ErrorKind::IoError, "Poll error"});
     }
+
+    int ret = zmq_recv(this->socket_.get(), bytes, max_length, ZMQ_NOBLOCK);
+    if (ret <= 0) {
+        return Err(Error{ErrorKind::IoError, "Error receive"});
+    }
+    return Ok<size_t>(ret);
 }

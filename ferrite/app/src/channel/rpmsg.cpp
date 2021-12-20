@@ -56,7 +56,7 @@ Result<std::monostate, RpmsgChannel::Error> RpmsgChannel::send_raw(
             return Err(Error{ErrorKind::IoError, "Poll bad event"});
         }
     } else if (pr == 0) {
-        return Err(Error{ErrorKind::TimedOut, "Poll timed out"});
+        return Err(Error{ErrorKind::TimedOut, ""});
     } else {
         return Err(Error{ErrorKind::IoError, "Poll error"});
     }
@@ -74,13 +74,13 @@ Result<size_t, RpmsgChannel::Error> RpmsgChannel::receive_raw(
     uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout
 ) {
     pollfd pfd = {this->fd_, POLLIN, 0};
-    int pr = poll(&pfd, 1, timeout ? int(timeout->count()) : -1);
+    int pr = poll(&pfd, 1, timeout.has_value() ? int(timeout->count()) : -1);
     if (pr > 0) {
         if (!(pfd.revents & POLLIN)) {
             return Err(Error{ErrorKind::IoError, "Poll bad event"});
         }
     } else if (pr == 0) {
-        return Err(Error{ErrorKind::TimedOut, "Poll timed out"});
+        return Err(Error{ErrorKind::TimedOut, ""});
     } else {
         return Err(Error{ErrorKind::IoError, "Poll error"});
     }

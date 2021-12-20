@@ -9,14 +9,17 @@ set(COMMON_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/defs.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/panic.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/assert.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/math.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/io.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/log.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/time.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/rpmsg.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/gpt.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/spi.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/panic.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/log.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/time.c"
 )
 set(IMX7_SRC
     ${COMMON_SRC}
@@ -30,7 +33,11 @@ set(IMX7_SRC
 set(IMX8MN_SRC
     ${COMMON_SRC}
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/imx8mn/rpmsg.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/imx8mn/spi.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/imx8mn/gpt.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/imx8mn/rpmsg.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/imx8mn/spi.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/imx8mn/gpt.c"
 )
 
 set(IMX7_NAME "${PROJECT_NAME}_imx7")
