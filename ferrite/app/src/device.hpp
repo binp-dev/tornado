@@ -150,8 +150,8 @@ private:
             // TODO: Use visit with overloaded lambda
             if(std::holds_alternative<ipp::McuMsgAdcVal>(incoming.variant)) {
                 const auto adc_val = std::get<ipp::McuMsgAdcVal>(incoming.variant);
-                adc_in->send(AdcValue{adc_val.index, adc_val.value});
-
+                adc_in->send(AdcValue{adc_val.index, adc_val.values[0]}); // TODO fix this when merge with tornado_minimal
+                // adc_in->send(AdcValue{adc_val.index, adc_val.value});  //  It was
             } else if (std::holds_alternative<ipp::McuMsgDebug>(incoming.variant)) {
                 std::cout << "Device: " << std::get<ipp::McuMsgDebug>(incoming.variant).message << std::endl;
 

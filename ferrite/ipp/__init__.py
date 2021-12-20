@@ -26,7 +26,7 @@ McuMsg = make_variant(
     Name(["mcu", "msg"]),
     [
         (Name(["adc", "val"]), [
-            Field("index", Int(8)),
+            Field("index", Int(8)), # TODO fix this when merge with tornado_minimal
             Field("values", Array(Int(32, signed=True), 6)),
         ]),
         (Name(["error"]), [
