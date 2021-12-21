@@ -9,7 +9,7 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <semphr.h>
-
+#include <stream_buffer.h>
 #include <ipp.h>
 
 #include <hal/assert.h>
@@ -30,6 +30,15 @@
 
 #define DAC_KEY_1 2u
 #define DAC_KEY_2 3u
+
+// The size is specified in the number of elements, not in bytes
+#define MAX_WF_POINTS_NUMBER_IN_RPMSG       127 // TODO: Check size
+#define BUFFER_EXTRA_POINTS                 MAX_WF_POINTS_NUMBER_IN_RPMSG
+#define BUFFER_SIZE                         (MAX_WF_POINTS_NUMBER_IN_RPMSG + BUFFER_EXTRA_POINTS)
+
+
+static volatile StreamBufferHandle_t out_wf_buffer;
+static volatile StreamBufferHandle_t in_wf_buffer[SKIFIO_ADC_CHANNEL_COUNT];
 
 static volatile SemaphoreHandle_t smp_rdy_sem = NULL;
 
@@ -145,6 +154,19 @@ static void task_gpio(void *param) {
         hal_busy_wait_ns(100000);
 
         output.dac = (int16_t)g_dac;
+        
+        /*
+        Output wavefrom code:
+
+        int32_t out_wf_value = 0;
+        size_t readed_data_size = xStreamBufferReceive(out_wf_buffer, &out_wf_value, sizeof(int32_t), 0);
+        hal_assert(readed_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
+        if (readed_data_size == 0) {
+            hal_log_error("Output waveform buffer is empty, not enough data for DAC");
+        }
+        output.dac = (int16_t)out_wf_value;
+        */
+
         ret = skifio_transfer(&output, &input);
         hal_assert(ret == HAL_SUCCESS || ret == HAL_INVALID_DATA); // Ignore CRC check error
         for (size_t i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
@@ -161,6 +183,16 @@ static void task_gpio(void *param) {
             min_adc = hal_min(min_adc, value);
             max_adc = hal_max(max_adc, value);
             last_adcs[i] = value;
+            /*
+            Input waveform code:
+
+            size_t added_data_size = xStreamBufferSend(in_wf_buffer[i], &input.adcs[i], sizeof(int32_t), 0);
+            hal_assert(added_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
+
+            if (added_data_size == 0) {
+                hal_log_error("Not enough space in input_waveform_buffer[%d] to save ADC data", i);
+            }
+            */
         }
 
         GPIO_PinWrite(GPIO5, READ_RDY_PIN, 1);
@@ -227,6 +259,12 @@ static void task_rpmsg(void *param) {
     buffer = NULL;
     len = 0;
 
+    // Send request for out waveform data
+    hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+    IppMcuMsg *req_wf_msg = (IppMcuMsg *)buffer;
+    req_wf_msg->type = IPP_MCU_MSG_WF_REQ;
+    hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(req_wf_msg)) == HAL_SUCCESS);
+
     // Create GPIO task.
     hal_log_info("Create GPIO task");
     xTaskCreate(
@@ -264,11 +302,49 @@ static void task_rpmsg(void *param) {
             g_sample_count = 0;
             hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
             break;
+        case IPP_APP_MSG_WF_DATA: {
+            size_t added_data_size = xStreamBufferSend(out_wf_buffer, app_msg->wf_data.data.data, app_msg->wf_data.data.len * sizeof(int32_t), 0);
+            hal_assert(added_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
 
+            if (added_data_size/sizeof(int32_t) != app_msg->wf_data.data.len) {
+                hal_log_error("Not enough space in output waveform buffer to save new data");
+            }
+
+            // Free buffer, because we allocate new one?
+            // hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
+
+            hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+            req_wf_msg = (IppMcuMsg *)buffer;
+            req_wf_msg->type = IPP_MCU_MSG_WF_REQ;
+            hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(req_wf_msg)) == HAL_SUCCESS);
+            
+            break;
+        }
         default:
             hal_log_error("Wrong message type: %d", (int)app_msg->type);
             hal_panic();
         }
+
+        // Send waveform data to IOC
+        for (int i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
+            if (xStreamBufferBytesAvailable(in_wf_buffer[i]) / sizeof(int32_t) >= MAX_WF_POINTS_NUMBER_IN_RPMSG) {
+                hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+                IppMcuMsg *wf_data_msg = (IppMcuMsg *)buffer;
+                wf_data_msg->type = IPP_MCU_MSG_WF_DATA;
+
+                size_t sent_data_size = xStreamBufferReceive(
+                    in_wf_buffer[i],
+                    &(wf_data_msg->wf_data.data.data),
+                    MAX_WF_POINTS_NUMBER_IN_RPMSG*sizeof(int32_t),
+                    0
+                );
+
+                hal_assert(sent_data_size/sizeof(int32_t) == MAX_WF_POINTS_NUMBER_IN_RPMSG); // TODO: Delete after debug?
+
+                hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(wf_data_msg)) == HAL_SUCCESS);
+            }
+        }
+
         hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
     }
 
@@ -279,6 +355,22 @@ static void task_rpmsg(void *param) {
     hal_assert(hal_rpmsg_destroy_channel(&channel) == HAL_SUCCESS);
     
     hal_rpmsg_deinit();
+}
+
+void initialize_wf_buffers() {
+    out_wf_buffer = xStreamBufferCreate(BUFFER_SIZE*sizeof(int32_t), 0);
+    if (out_wf_buffer == NULL) {
+        hal_log_error("Can't initialize buffer for output waveform");
+        hal_panic();
+    }
+
+    for (size_t i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
+        in_wf_buffer[i] = xStreamBufferCreate(BUFFER_SIZE*sizeof(int32_t), 0);
+        if (in_wf_buffer[i] == NULL) {
+            hal_log_error("Can't initialize buffer for input waveform");
+            hal_panic();
+        }
+    }
 }
 
 /*!
@@ -314,6 +406,8 @@ int main(void)
         TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL
     );
     */
+
+    initialize_wf_buffers();
 
     /* Create task. */
     xTaskCreate(
