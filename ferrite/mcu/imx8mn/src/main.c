@@ -61,6 +61,23 @@ void GPIO5_Combined_16_31_IRQHandler() {
 }
 
 static void task_gpt(void *param) {
+    hal_log_info("DIO init");
+    BOARD_InitDigitalIoPins();
+    gpio_pin_config_t din_config = {kGPIO_DigitalInput, 0, kGPIO_NoIntmode};
+    GPIO_PinInit(GPIO1,  1u, &din_config);
+    GPIO_PinInit(GPIO1, 11u, &din_config);
+    GPIO_PinInit(GPIO1, 13u, &din_config);
+    GPIO_PinInit(GPIO1, 15u, &din_config);
+    GPIO_PinInit(GPIO5,  4u, &din_config);
+    GPIO_PinInit(GPIO5,  5u, &din_config);
+    GPIO_PinInit(GPIO5, 20u, &din_config);
+    GPIO_PinInit(GPIO5, 21u, &din_config);
+    gpio_pin_config_t dout_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
+    GPIO_PinInit(GPIO4, 23u, &dout_config);
+    GPIO_PinInit(GPIO4, 26u, &dout_config);
+    GPIO_PinInit(GPIO4, 27u, &dout_config);
+    GPIO_PinInit(GPIO4, 29u, &dout_config);
+
     hal_log_info("GPT init");
     hal_assert(hal_gpt_init(0) == HAL_SUCCESS);
 
@@ -75,9 +92,26 @@ static void task_gpt(void *param) {
             continue;
         }
         hal_log_info("GPT tick: %d", i);
+
+        uint32_t input_reg = 
+            (!!GPIO_PinRead(GPIO1,  1u) << 0) |
+            (!!GPIO_PinRead(GPIO1, 11u) << 1) |
+            (!!GPIO_PinRead(GPIO1, 13u) << 2) |
+            (!!GPIO_PinRead(GPIO1, 15u) << 3) |
+            (!!GPIO_PinRead(GPIO5,  4u) << 4) |
+            (!!GPIO_PinRead(GPIO5,  5u) << 5) |
+            (!!GPIO_PinRead(GPIO5, 20u) << 6) |
+            (!!GPIO_PinRead(GPIO5, 21u) << 7);
+        hal_log_info("Input reg: %02x", input_reg);
+        uint32_t output_reg = i & 0xF;
+        GPIO_PinWrite(GPIO4, 23u, (output_reg >> 0) & 1);
+        GPIO_PinWrite(GPIO4, 26u, (output_reg >> 1) & 1);
+        GPIO_PinWrite(GPIO4, 27u, (output_reg >> 2) & 1);
+        GPIO_PinWrite(GPIO4, 29u, (output_reg >> 3) & 1);
+        hal_log_info("Output reg: %01x", output_reg);
     }
 
-    hal_log_error("End of task_gpio()");
+    hal_log_error("End of task_gpt()");
     hal_panic();
 
     hal_assert(hal_gpt_stop(0) == HAL_SUCCESS);
@@ -306,20 +340,20 @@ int main(void)
     (void)MCMGR_Init();
 #endif /* MCMGR_USED */
 
-    /*
     // Create GPT task.
     hal_log_info("Create GPT task");
     xTaskCreate(
         task_gpt, "GPT task",
         TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL
     );
-    */
 
     /* Create task. */
+    /*
     xTaskCreate(
         task_rpmsg, "RPMSG task",
         TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL
     );
+    */
 
     /* Start FreeRTOS scheduler. */
     vTaskStartScheduler();
