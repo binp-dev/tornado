@@ -64,17 +64,30 @@ static void task_gpt(void *param) {
     hal_log_info("GPT init");
     hal_assert(hal_gpt_init(0) == HAL_SUCCESS);
 
+    BOARD_InitGptPins();
+    gpio_pin_config_t gpt2_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
+    GPIO_PinInit(GPIO5, 0u, &gpt2_config);
+    gpio_pin_config_t gpt1_config = {kGPIO_DigitalInput, 0, kGPIO_NoIntmode};
+    GPIO_PinInit(GPIO4, 30u, &gpt1_config);
+
+    GPIO_PinWrite(GPIO5, 0u, 0);
+
     SemaphoreHandle_t gpt_sem = xSemaphoreCreateBinary();
     hal_assert(gpt_sem != NULL);
 
-    hal_assert(hal_gpt_start(0, 1000000, gpt_sem) == HAL_SUCCESS);
+    hal_assert(hal_gpt_start(0, 1000, gpt_sem) == HAL_SUCCESS);
 
     for (size_t i = 0;;++i) {
         if (xSemaphoreTake(gpt_sem, 10000) != pdTRUE) {
             hal_log_info("GPT semaphore timeout %x", i);
             continue;
         }
-        hal_log_info("GPT tick: %d", i);
+        //hal_log_info("GPT tick: %d", i);
+
+        GPIO_PinWrite(GPIO5, 0u, 1);
+        hal_busy_wait_ns(100000ll);
+        GPIO_PinWrite(GPIO5, 0u, 0);
+
     }
 
     hal_log_error("End of task_gpio()");
@@ -227,6 +240,13 @@ static void task_rpmsg(void *param) {
     buffer = NULL;
     len = 0;
 
+    // Create GPT task.
+    hal_log_info("Create GPT task");
+    xTaskCreate(
+        task_gpt, "GPT task",
+        TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL
+    );
+
     // Create GPIO task.
     hal_log_info("Create GPIO task");
     xTaskCreate(
@@ -305,15 +325,6 @@ int main(void)
     /* Initialize MCMGR before calling its API */
     (void)MCMGR_Init();
 #endif /* MCMGR_USED */
-
-    /*
-    // Create GPT task.
-    hal_log_info("Create GPT task");
-    xTaskCreate(
-        task_gpt, "GPT task",
-        TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL
-    );
-    */
 
     /* Create task. */
     xTaskCreate(

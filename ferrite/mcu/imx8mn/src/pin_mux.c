@@ -97,6 +97,17 @@ void BOARD_InitGpioPins(void) {                                /*!< Function ass
     IOMUXC_SetPinMux(IOMUXC_SPDIF_TX_GPIO5_IO03, 0U);
 }
 
+void BOARD_InitGptPins(void) {
+    // Internal Sync
+    IOMUXC_SetPinMux(IOMUXC_SAI3_RXD_GPT1_COMPARE1, 0u); // IOMUXC_SAI3_RXD_GPIO4_IO30 // used by linux
+    IOMUXC_SetPinMux(IOMUXC_SAI3_TXC_GPIO5_IO00, 0u); // IOMUXC_SAI3_TXC_GPT1_COMPARE2
+
+    // IOMUXC_UART4_RXD_GPT1_COMPARE1 // IOMUXC_UART4_RXD_GPIO5_IO28
+    // IOMUXC_UART2_TXD_GPT1_COMPARE2 // IOMUXC_UART2_TXD_GPIO5_IO25
+    // IOMUXC_SAI3_RXD_GPT1_COMPARE1 // IOMUXC_SAI3_RXD_GPIO4_IO30
+    // IOMUXC_SAI3_TXC_GPT1_COMPARE2 // IOMUXC_SAI3_TXC_GPIO5_IO00
+}
+
 /***********************************************************************************************************************
  * EOF
  **********************************************************************************************************************/
