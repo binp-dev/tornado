@@ -147,21 +147,21 @@ static void task_gpio(void *param) {
         output.dac = (int16_t)g_dac;
         ret = skifio_transfer(&output, &input);
         hal_assert(ret == HAL_SUCCESS || ret == HAL_INVALID_DATA); // Ignore CRC check error
-        for (size_t i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
-            volatile int64_t *accum = &g_adcs[i];
-            int32_t value = input.adcs[i];
+        for (size_t j = 0; j < SKIFIO_ADC_CHANNEL_COUNT; ++j) {
+            volatile int64_t *accum = &g_adcs[j];
+            int32_t value = input.adcs[j];
 
             if (g_sample_count == 0) {
                 *accum = value;
             } else {
                 *accum += value;
             }
-            g_sample_count += 1;
 
             min_adc = hal_min(min_adc, value);
             max_adc = hal_max(max_adc, value);
-            last_adcs[i] = value;
+            last_adcs[j] = value;
         }
+        g_sample_count += 1;
 
         GPIO_PinWrite(GPIO5, READ_RDY_PIN, 1);
         //vTaskDelay(1);
@@ -174,8 +174,8 @@ static void task_gpio(void *param) {
             max_intr_count = 0;
             min_adc = 0;
             max_adc = 0;
-            for (size_t i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
-                hal_log_info("adc%d: %x", i, last_adcs[i]);
+            for (size_t j = 0; j < SKIFIO_ADC_CHANNEL_COUNT; ++j) {
+                hal_log_info("adc%d: %x", j, last_adcs[j]);
             }
             last_ticks = xTaskGetTickCount();
 
@@ -247,10 +247,10 @@ static void task_rpmsg(void *param) {
             g_dac = app_msg->dac_set.value;
             //hal_log_info("Write DAC value: %x", g_dac);
             break;
-
+            hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
         case IPP_APP_MSG_ADC_REQ:
             //hal_log_info("Read ADC values");
-
+            hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
             hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
             IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
             mcu_msg->type = IPP_MCU_MSG_ADC_VAL;
@@ -268,8 +268,7 @@ static void task_rpmsg(void *param) {
         default:
             hal_log_error("Wrong message type: %d", (int)app_msg->type);
             hal_panic();
-        }
-        hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
+        }   
     }
 
     hal_log_error("End of task_rpmsg()");
