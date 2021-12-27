@@ -246,8 +246,8 @@ static void task_rpmsg(void *param) {
         case IPP_APP_MSG_DAC_SET:
             g_dac = app_msg->dac_set.value;
             //hal_log_info("Write DAC value: %x", g_dac);
-            break;
             hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
+            break;
         case IPP_APP_MSG_ADC_REQ:
             //hal_log_info("Read ADC values");
             hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
