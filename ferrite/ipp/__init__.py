@@ -13,9 +13,7 @@ AppMsg = make_variant(
         (Name(["dac", "set"]), [
             Field("value", Int(32, signed=True)),
         ]),
-        (Name(["adc", "req"]), [
-            Field("index", Int(8)),
-        ]),
+        (Name(["adc", "req"]), []),
         (Name(["wf", "data"]), [
             Field("data", Vector(Int(32, signed=True))),
         ]),
@@ -26,9 +24,8 @@ McuMsg = make_variant(
     Name(["mcu", "msg"]),
     [
         (Name(["adc", "val"]), [
-            Field("index", Int(8)), # TODO fix this when merge with tornado_minimal
             Field("values", Array(Int(32, signed=True), 6)),
-        ]),
+        ]),+
         (Name(["error"]), [
             Field("code", Int(8)),
             Field("message", String()),

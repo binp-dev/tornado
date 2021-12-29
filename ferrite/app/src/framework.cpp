@@ -21,18 +21,23 @@
 void init_device(MaybeUninit<Device> &mem) {
     std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
 
-    const size_t message_max_length = 256;
-    mem.init_in_place(
+    const size_t message_max_length = 512;
+        std::unique_ptr<Channel> channel =
 #ifdef FAKEDEV
-        std::unique_ptr<Channel>(new ZmqChannel(std::move(
+        std::make_unique<ZmqChannel>(std::move(
             ZmqChannel::create("tcp://127.0.0.1:8321", message_max_length).unwrap()
-        ))),
+        ))
 #else // FAKEDEV
-        std::unique_ptr<Channel>(new RpmsgChannel(std::move(
+        std::make_unique<RpmsgChannel>(std::move(
             RpmsgChannel::create("/dev/ttyRPMSG0", message_max_length).unwrap()
-        ))),
+        ))
 #endif // FAKEDEV
-        200,
+    ;
+
+    mem.init_in_place(
+        std::move(channel),
+        std::chrono::milliseconds{1000},
+        127,
         message_max_length
     );
 }
@@ -60,17 +65,17 @@ public:
 class AdcHandler final : public InputValueHandler<int32_t> {
 private:
     Device &device_;
-    uint8_t channel_;
+    uint8_t index_;
 
 public:
-    AdcHandler(Device &device, uint8_t channel) : device_(device), channel_(channel) {}
+    AdcHandler(Device &device, uint8_t index) : device_(device), index_(index) {}
 
     virtual void read(InputValueRecord<int32_t> &record) override {
-        record.set_value(device_.read_adc(channel_));
+        record.set_value(device_.read_adc(index_));
     }
 
-    virtual void set_read_request(InputValueRecord<int32_t> &, std::function<void()> &&) override {
-        unimplemented();
+    virtual void set_read_request(InputValueRecord<int32_t> &, std::function<void()> && callback) override {
+        device_.set_adc_callback(index_, std::move(callback));
     }
 
     virtual bool is_async() const override {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <vector>
 #include <memory>
 #include <atomic>
@@ -7,6 +8,7 @@
 #include <thread>
 #include <cstring>
 #include <cassert>
+#include <variant>
 
 #include <core/assert.hpp>
 #include <core/panic.hpp>
@@ -15,13 +17,24 @@
 #include <encoder.hpp>
 #include <ipp.hpp>
 
+constexpr size_t ADC_COUNT = 6;
 
 class Device {
 private:
+    struct AdcEntry {
+        std::atomic<int32_t> value;
+        std::function<void()> callback;
+    };
+
+    struct DacEntry {
+        std::atomic<int32_t> value;
+        std::atomic<bool> update = false;
+    };
+
     const size_t _max_points;
     const size_t _max_transfer;
     
-    std::vector<int32_t> out_waveforms[3];
+    std::vector<int32_t> dac_waveforms[3];
     std::atomic_bool swap_ready;
     std::mutex swap_mutex;
     size_t waveform_pos = 0;
@@ -33,23 +46,22 @@ private:
     std::function<void()> request_in_wf_processing;
     std::mutex *in_wf_mutex;
 
-    struct AdcValue {
-        uint8_t channel_no;
-        int32_t value;
-    };
-
     // Shared data
     std::atomic_bool done;
+    std::mutex device_mutex; // FIXME: Allow concurrent operation.
+    std::array<AdcEntry, ADC_COUNT> adcs;
+    DacEntry dac;
 
     // Device support data
-    std::mutex mutex; // FIXME: Allow concurrent operation.
-    std::thread worker;
-    std::optional<mpsc::Receiver<AdcValue>> adc_out;
+    std::thread recv_worker;
+    std::thread adc_req_worker;
 
-    // Worker data
+    // Communication channel
     std::unique_ptr<Channel> channel;
-    std::optional<mpsc::Sender<AdcValue>> adc_in;
+    std::mutex channel_mutex;
 
+    // ADC request period
+    std::chrono::milliseconds adc_req_period;
 private:
     void fill(int32_t **dst, size_t *dst_size) {
         size_t elements_to_fill = *dst_size;
@@ -150,11 +162,17 @@ private:
             // TODO: Use visit with overloaded lambda
             if(std::holds_alternative<ipp::McuMsgAdcVal>(incoming.variant)) {
                 const auto adc_val = std::get<ipp::McuMsgAdcVal>(incoming.variant);
-                adc_in->send(AdcValue{adc_val.index, adc_val.values[0]}); // TODO fix this when merge with tornado_minimal
-                // adc_in->send(AdcValue{adc_val.index, adc_val.value});  //  It was
+
+                //static_assert(decltype(adcs)::size() == decltype(adc_val.values)::size());
+                for (size_t i = 0; i < ADC_COUNT; ++i) {
+                    adcs[i].value.store(adc_val.values[i]);
+
+                    if (adcs[i].callback) {
+                        adcs[i].callback();
+                    }
+                }
             } else if (std::holds_alternative<ipp::McuMsgDebug>(incoming.variant)) {
                 std::cout << "Device: " << std::get<ipp::McuMsgDebug>(incoming.variant).message << std::endl;
-
             } else if (std::holds_alternative<ipp::McuMsgWfReq>(incoming.variant)) {
                 if (!input_wf_is_set) {
                     continue;
@@ -186,33 +204,47 @@ private:
             } else if (std::holds_alternative<ipp::McuMsgError>(incoming.variant)) {
                 const auto &inc_err = std::get<ipp::McuMsgError>(incoming.variant);
                 std::cout << "Device Error (0x" << std::hex << int(inc_err.code) << std::dec << "): " << inc_err.message << std::endl;
-
             } else {
                 unimplemented();
             }
         }
     }
 
-    // Device support methods
+    void adc_req_loop() {
+        for(size_t i = 0; !this->done.load(); ++i) {
+            std::this_thread::sleep_for(adc_req_period);
+            {
+                std::lock_guard channel_guard(channel_mutex);
+
+                if (dac.update.exchange(false)) {
+                    int32_t value = dac.value.load();
+                    std::cout << "[app] Send DAC value: " << value << std::endl;
+                    channel->send(ipp::AppMsg{ipp::AppMsgDacSet{value}}, std::nullopt).unwrap();
+                }
+
+                std::cout << "[app] Request ADC measurements: " << i << std::endl;
+                channel->send(ipp::AppMsg{ipp::AppMsgAdcReq{}}, std::nullopt).unwrap();
+            }
+        }
+    }
+
 public:
     Device(const Device &dev) = delete;
     Device &operator=(const Device &dev) = delete;
 
     Device(
         std::unique_ptr<Channel> channel,
+        std::chrono::milliseconds period,
         size_t max_points,
         size_t max_transfer
     ) : 
+        channel(std::move(channel)),
+        adc_req_period(period),
         _max_points(max_points),
         _max_transfer(max_transfer),
-        swap_ready(false),
-        channel(std::move(channel)) 
+        swap_ready(false)
     {
-        auto [in, out] = mpsc::make_channel<AdcValue>();
-        adc_in = std::move(in);
-        adc_out = std::move(out);
-
-        std::lock_guard<std::mutex> device_guard(mutex);
+        std::lock_guard<std::mutex> device_guard(device_mutex);
 
         for (int i = 0; i < 3; ++i) {
             out_waveforms[i].resize(max_points, 0.0);
@@ -224,37 +256,38 @@ public:
         active_input_buff = 0;
 
         done.store(false);
-        worker = std::thread([this]() { this->serve_loop(); });
+        recv_worker = std::thread([this]() { this->serve_loop(); });
+        adc_req_worker = std::thread([this]() { this->adc_req_loop(); });
     }
     
     virtual ~Device() {
         done.store(true);
-        worker.join();
+        adc_req_worker.join();
+        recv_worker.join();
     }
 
     void write_dac(int32_t value) {
-        std::lock_guard<std::mutex> device_guard(mutex);
-
-        ipp::AppMsgDacSet outgoing{value};
-        channel->send(ipp::AppMsg{std::move(outgoing)}, std::nullopt).unwrap();
+        std::lock_guard device_guard(device_mutex);
+        dac.value.store(value);
+        dac.update.store(true);
     }
 
-    int32_t read_adc(uint8_t index) {
-        std::lock_guard<std::mutex> device_guard(mutex);
+    int32_t read_adc(size_t index) {
+        std::lock_guard device_guard(device_mutex);
+        
+        assert_true(index < ADC_COUNT);
+        return adcs[index].value.load();
+    }
 
-        assert_false(adc_out->try_receive().has_value());
-
-        ipp::AppMsgAdcReq outgoing{index};
-        channel->send(ipp::AppMsg{std::move(outgoing)}, std::nullopt).unwrap();
-
-        const auto adc_value = adc_out->receive();
-        assert_true(adc_value.has_value());
-        assert_eq(adc_value->channel_no, index);
-        return adc_value->value;
+    void set_adc_callback(size_t index, std::function<void()> && callback) {
+        std::lock_guard device_guard(device_mutex);
+        
+        assert_true(index < ADC_COUNT);
+        adcs[index].callback = std::move(callback);
     }
 
     void write_waveform(const int32_t *wf_data, const size_t wf_len) {
-        std::lock_guard<std::mutex> device_guard(mutex);
+        std::lock_guard<std::mutex> device_guard(device_mutex);
 
         input_wf_is_set = true;
 
@@ -288,7 +321,7 @@ public:
         request_in_wf_processing = std::move(callback);
     }
 
-    void set_input_wf_mutex(std::mutex *mutex) {
-        this->in_wf_mutex = mutex;
+    void set_input_wf_mutex(std::mutex *in_wf_mutex) {
+        this->in_wf_mutex = in_wf_mutex;
     }
 };
