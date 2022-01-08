@@ -8,6 +8,12 @@
 #include <random>
 #include <functional>
 
+inline constexpr auto TIMEOUT = std::chrono::milliseconds(100);
+
+template <typename T>
+long as_microseconds(T duration) {
+    return std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+}
 
 template <typename T>
 std::optional<T> try_random(T low, T high, std::function<bool(T)> fn, size_t num_tries=16, uint32_t seed=0xDEADBEEF) {
@@ -24,26 +30,32 @@ std::optional<T> try_random(T low, T high, std::function<bool(T)> fn, size_t num
 
 Result<std::monostate, std::string> try_send(void *socket, const uint8_t *data, size_t length) {
     zmq_pollitem_t pollitem = {socket, 0, ZMQ_POLLOUT, 0};
-    if (zmq_poll(&pollitem, 1, 10) > 0) {
+    int ready = zmq_poll(&pollitem, 1, as_microseconds(TIMEOUT));
+    if (ready > 0) {
         if (zmq_send(socket, data, length, ZMQ_DONTWAIT) <= 0) {
             return Err<std::string>("Zmq send error");
         }
         return Ok(std::monostate{});
-    } else {
+    } else if (ready == 0) {
         return Err<std::string>("Zmq send timeout");
+    } else {
+        return Err<std::string>("Zmq send error");
     }
 }
 
 Result<size_t, std::string> try_recv(void *socket, void *data, size_t max_length) {
     zmq_pollitem_t pollitem = {socket, 0, ZMQ_POLLIN, 0};
-    if (zmq_poll(&pollitem, 1, 10) > 0) {
+    int ready = zmq_poll(&pollitem, 1, as_microseconds(TIMEOUT));
+    if (ready > 0) {
         int ret = zmq_recv(socket, data, max_length, ZMQ_NOBLOCK);
         if (ret <= 0) {
             return Err<std::string>("Zmq recv error");
         }
         return Ok(size_t(ret));
-    } else {
+    } else if (ready == 0) {
         return Err<std::string>("Zmq recv timeout");
+    } else {
+        return Err<std::string>("Zmq recv error");
     }
 }
 
@@ -114,13 +126,13 @@ TEST(ZmqTest, channel) {
         ASSERT_TRUE(try_send(socket, (const uint8_t *)src, 6).is_ok());
 
         char dst[10];
-        ASSERT_EQ(channel.receive_raw((uint8_t *)dst, 10, std::chrono::milliseconds(10)), Ok<size_t>(6));
+        ASSERT_EQ(channel.receive_raw((uint8_t *)dst, 10, TIMEOUT), Ok<size_t>(6));
         ASSERT_EQ(strcmp(src, dst), 0);
     }
 
     { // Send
         const char *src = "World";
-        ASSERT_TRUE(channel.send_raw((const uint8_t *)src, 6, std::chrono::milliseconds(10)).is_ok());
+        ASSERT_TRUE(channel.send_raw((const uint8_t *)src, 6, TIMEOUT).is_ok());
 
         char dst[10];
         ASSERT_EQ(try_recv(socket, (uint8_t *)dst, 10), Ok<size_t>(6));
