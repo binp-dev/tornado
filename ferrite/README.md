@@ -17,11 +17,6 @@ Software for the BINP next-gen power supply controller.
 pip3 install -r requirements.txt
 ```
 
-### Testing dependencies
-
-+ `libgtest-dev`
-+ `libzmq3-dev`
-
 ## Deploy dependencies
 
 + `ssh`

@@ -3,18 +3,18 @@ import os
 import shutil
 import logging
 from utils.files import substitute, allow_patterns
-from manage.components.base import Component, Task
+from manage.components.base import Component, Task, Context
 from manage.components.git import RepoList
-from manage.components.toolchains import Toolchain, HostToolchain, RemoteToolchain
+from manage.components.toolchains import Toolchain, HostToolchain, CrossToolchain
 from manage.paths import TARGET_DIR
 from .base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch, epics_arch_by_target
 
 class EpicsBaseBuildTask(EpicsBuildTask):
     def __init__(
         self,
-        src_dir: src,
-        build_dir: src,
-        install_dir: src,
+        src_dir: str,
+        build_dir: str,
+        install_dir: str,
         deps: list[Task],
         toolchain: Toolchain,
     ):
@@ -47,7 +47,7 @@ class EpicsBaseBuildTask(EpicsBuildTask):
                 ("^(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", "\\1"),
             ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
 
-        else:
+        elif isinstance(self.toolchain, CrossToolchain):
             host_arch = epics_host_arch(self.src_dir)
             cross_arch = epics_arch_by_target(self.toolchain.target)
             if cross_arch == "linux-arm" and host_arch.endswith("-x86_64"):
@@ -58,9 +58,12 @@ class EpicsBaseBuildTask(EpicsBuildTask):
             ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
 
             substitute([
-                ("^(\\s*GNU_TARGET\\s*=).*$", f"\\1 {self.toolchain.target}"),
+                ("^(\\s*GNU_TARGET\\s*=).*$", f"\\1 {str(self.toolchain.target)}"),
                 ("^(\\s*GNU_DIR\\s*=).*$", f"\\1 {self.toolchain.path}"),
             ], os.path.join(self.build_dir, f"configure/os/CONFIG_SITE.{host_arch}.{cross_arch}"))
+
+        else:
+            raise RuntimeError(f"Unsupported toolchain type: {type(self.toolchain).__name__}")
 
     def _configure_install(self):
         substitute([
@@ -74,7 +77,7 @@ class EpicsBaseBuildTask(EpicsBuildTask):
 
     def _install(self):
         host_arch = epics_host_arch(self.build_dir)
-        arch = epics_arch(self.build_dir, self.toolchain.target)
+        arch = epics_arch(self.build_dir, self.toolchain)
         paths = [
             "bin",
             "cfg",
@@ -163,7 +166,7 @@ class EpicsBaseHost(EpicsBase):
 
 
 class EpicsBaseCross(EpicsBase):
-    def __init__(self, toolchain: RemoteToolchain, host_base: EpicsBaseHost):
+    def __init__(self, toolchain: CrossToolchain, host_base: EpicsBaseHost):
         super().__init__()
 
         self.toolchain = toolchain

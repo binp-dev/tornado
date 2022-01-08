@@ -12,7 +12,7 @@ def host_components(toolchain):
     epics_base = EpicsBaseHost(toolchain)
     codegen = Codegen(toolchain)
     ipp = Ipp(toolchain, codegen)
-    app = App(epics_base, toolchain, ipp)
+    app = App(toolchain, ipp)
     ioc = AppIoc(epics_base, app, toolchain)
     all_ = AllHost(epics_base, codegen, ipp, app, ioc)
     return {
@@ -28,7 +28,7 @@ def host_components(toolchain):
 def cross_components(host_components, app_toolchain, mcu_toolchain, freertos):
     epics_base = EpicsBaseCross(app_toolchain, host_components["epics_base"])
     ipp = host_components["ipp"]
-    app = App(epics_base, app_toolchain, ipp)
+    app = App(app_toolchain, ipp)
     ioc = AppIoc(epics_base, app, app_toolchain)
     mcu = Mcu(freertos, mcu_toolchain, ipp)
     all_ = AllCross(epics_base, app, ioc, mcu)

@@ -3,13 +3,28 @@ import os
 import shutil
 import tarfile
 import logging
+from dataclasses import dataclass
+from utils.run import run
 from utils.net import download_alt
 from utils.strings import try_format
 from manage.components.base import Component, Task, Context
 from manage.paths import TARGET_DIR
 
+@dataclass
+class Target:
+    isa: str # Instruction set architecture
+    api: str
+    abi: str
+
+    @staticmethod
+    def from_str(triple: str) -> Target:
+        return Target(*triple.split("-"))
+
+    def __str__(self):
+        return f"{self.isa}-{self.api}-{self.abi}"
+
 class Toolchain(Component):
-    def __init__(self, name: str, target: str):
+    def __init__(self, name: str, target: Target):
         super().__init__()
 
         self.name = name
@@ -17,14 +32,13 @@ class Toolchain(Component):
 
 class HostToolchain(Toolchain):
     def __init__(self):
-        # FIXME: Determine host target
-        super().__init__("host", None)
+        super().__init__("host", Target.from_str(run(["gcc", "-dumpmachine"], capture=True)))
 
     def tasks(self) -> dict[str, Task]:
         return {}
 
 class ToolchainDownloadTask(Task):
-    def __init__(self, owner: RemoteToolchain):
+    def __init__(self, owner: CrossToolchain):
         super().__init__()
         self.owner = owner
 
@@ -34,10 +48,10 @@ class ToolchainDownloadTask(Task):
     def artifacts(self) -> list[str]:
         return [self.owner.path]
 
-class RemoteToolchain(Toolchain):
+class CrossToolchain(Toolchain):
     def __init__(self, name, target, dir_name, archive, urls):
         super().__init__(name, target)
-        info = {"target": self.target}
+        info = {"target": str(self.target)}
 
         self.dir_name = try_format(dir_name, **info)
         info["dir_name"] = self.dir_name
@@ -84,7 +98,7 @@ class RemoteToolchain(Toolchain):
             "download": self.download_task,
         }
 
-class AppToolchain(RemoteToolchain):
+class AppToolchain(CrossToolchain):
     def __init__(self, name, target):
         super().__init__(
             name=name,
@@ -101,21 +115,21 @@ class AppToolchainImx7(AppToolchain):
     def __init__(self):
         super().__init__(
             name="imx7",
-            target="arm-linux-gnueabihf",
+            target=Target("arm", "linux", "gnueabihf"),
         )
 
 class AppToolchainImx8mn(AppToolchain):
     def __init__(self):
         super().__init__(
             name="imx8mn",
-            target="aarch64-linux-gnu",
+            target=Target("aarch64", "linux", "gnu"),
         )
 
-class McuToolchainImx7(RemoteToolchain):
+class McuToolchainImx7(CrossToolchain):
     def __init__(self):
         super().__init__(
             name="imx7",
-            target="arm-none-eabi",
+            target=Target("arm", "none", "eabi"),
             dir_name="gcc-{target}-5_4-2016q3",
             archive="{dir_name}-20160926-linux.tar.bz2",
             urls=[
@@ -124,11 +138,11 @@ class McuToolchainImx7(RemoteToolchain):
             ],
         )
 
-class McuToolchainImx8mn(RemoteToolchain):
+class McuToolchainImx8mn(CrossToolchain):
     def __init__(self):
         super().__init__(
             name="imx8mn",
-            target="arm-none-eabi",
+            target=Target("arm", "none", "eabi"),
             dir_name="gcc-{target}-9-2020-q2-update",
             archive="{dir_name}-x86_64-linux.tar.bz2",
             urls=[
