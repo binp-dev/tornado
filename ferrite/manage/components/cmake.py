@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 from utils.run import run
 from manage.components.base import Component, Task, Context
+from manage.components.toolchains import Toolchain
 
 class CmakeTask(Task):
     def __init__(self, owner: Cmake):
@@ -28,6 +29,7 @@ class Cmake(Component):
         self,
         src_dir: str,
         build_dir: str,
+        toolchain: Toolchain,
         opt: list[str] = [],
         env: dict[str, str] = None,
     ):
@@ -35,19 +37,22 @@ class Cmake(Component):
 
         self.src_dir = src_dir
         self.build_dir = build_dir
+        self.toolchain = toolchain
         self.opt = opt
         self.env = env
 
         self.build_task = CmakeBuildTask(self)
         self.test_task = CmakeTestTask(self)
 
-    def configure(self, ctx: Context, cvars: dict[str, str] = {}):
+    def create_build_dir(self):
         os.makedirs(self.build_dir, exist_ok=True)
+
+    def configure(self, ctx: Context):
+        self.create_build_dir()
         run(
             [
                 "cmake",
                 *self.opt,
-                *[f"-D{k}={v}" for k, v in cvars.items()],
                 self.src_dir,
             ],
             cwd=self.build_dir,

@@ -4,7 +4,8 @@ from utils.run import run
 from manage.paths import BASE_DIR, TARGET_DIR
 from manage.components.base import Component, Task, Context
 from manage.components.cmake import Cmake
-from manage.components.toolchains import HostToolchain
+from manage.components.conan import CmakeWithConan
+from manage.components.toolchains import Toolchain
 from manage.components.codegen import Codegen
 
 class IppBuildUnittestTask(Task):
@@ -52,24 +53,32 @@ class IppGenerate(Task):
 class Ipp(Component):
     def __init__(
         self,
-        toolchain: HostToolchain,
+        toolchain: Toolchain,
         codegen: Codegen,
     ):
         super().__init__()
 
-        self.toolchain = toolchain
         self.codegen = codegen
 
         self.src_dir = os.path.join(BASE_DIR, "ipp")
         self.generated_dir = os.path.join(TARGET_DIR, f"ipp_generated")
-        self.build_dir = os.path.join(TARGET_DIR, f"ipp_{self.toolchain.name}")
+        self.build_dir = os.path.join(TARGET_DIR, f"ipp_{toolchain.name}")
 
         self.cmake_opts = [f"-DIPP_GENERATED={self.generated_dir}"]
-        self.cmake = Cmake(self.src_dir, self.build_dir, opt=["-DCMAKE_BUILD_TYPE=Debug", *self.cmake_opts] )
+        self.test_cmake = CmakeWithConan(
+            self.src_dir,
+            self.build_dir,
+            toolchain,
+            opt=[
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "-DIPP_UNITTEST=1",
+                *self.cmake_opts,
+            ],
+        )
 
         self.generate_task = IppGenerate(self)
-        self.build_unittest_task = IppBuildUnittestTask(self.cmake, self.generate_task)
-        self.run_unittest_task = IppRunUnittestTask(self.cmake, self.build_unittest_task)
+        self.build_unittest_task = IppBuildUnittestTask(self.test_cmake, self.generate_task)
+        self.run_unittest_task = IppRunUnittestTask(self.test_cmake, self.build_unittest_task)
 
     def tasks(self) -> dict[str, Task]:
         return {

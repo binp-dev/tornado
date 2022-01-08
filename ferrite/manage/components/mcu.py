@@ -82,6 +82,7 @@ class Mcu(Component):
         self.cmake = Cmake(
             self.src_dir,
             os.path.join(TARGET_DIR, f"mcu_{self.toolchain.name}"),
+            toolchain,
             opt=[
                 "-DCMAKE_TOOLCHAIN_FILE={}".format(os.path.join(
                     self.freertos.path,

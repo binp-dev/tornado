@@ -19,9 +19,12 @@ set(SRC
     "${CODEGEN_TEST}/src/codegen_test.cpp"
 )
 
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+conan_basic_setup(NO_OUTPUT_DIRS)
+
 enable_testing()
 set(TEST "${PROJECT_NAME}_test")
 add_executable(${TEST} ${SRC})
 set_property(TARGET ${TEST} PROPERTY CXX_STANDARD 17)
-target_link_libraries(${TEST} PRIVATE "gtest" "pthread")
+target_link_libraries(${TEST} PRIVATE "pthread" ${CONAN_LIBS})
 add_test(${TEST} ${TEST})

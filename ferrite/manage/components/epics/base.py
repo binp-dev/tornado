@@ -4,6 +4,7 @@ import shutil
 import logging
 from utils.run import run
 from manage.components.base import Task, Context
+from manage.components.toolchains import Target, Toolchain, HostToolchain
 
 def epics_host_arch(epics_base_dir: str):
     return run([
@@ -11,19 +12,20 @@ def epics_host_arch(epics_base_dir: str):
         os.path.join(epics_base_dir, "src", "tools", "EpicsHostArch.pl"),
     ], capture=True, log=False).strip()
 
-def epics_arch_by_target(target: str) -> str:
-    if target.startswith("arm-linux-"):
-        return "linux-arm"
-    elif target.startswith("aarch64-linux-"):
-        return "linux-aarch64"
+def epics_arch_by_target(target: Target) -> str:
+    if target.api == "linux":
+        if target.isa == "arm":
+            return "linux-arm"
+        elif target.isa == "aarch64":
+            return "linux-aarch64"
     # TODO: Add some other archs
-    raise Exception(f"Unknown target: {target}")
+    raise Exception(f"Unknown target for EPICS: {str(target)}")
 
-def epics_arch(epics_base_dir: str, target: str):
-    if target is not None:
-        return epics_arch_by_target(target)
-    else:
+def epics_arch(epics_base_dir: str, toolchain: Toolchain):
+    if isinstance(toolchain, HostToolchain):
         return epics_host_arch(epics_base_dir)
+    else:
+        return epics_arch_by_target(toolchain.target)
 
 class EpicsBuildTask(Task):
     def __init__(

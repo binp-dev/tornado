@@ -4,6 +4,7 @@ from utils.run import run
 from manage.paths import BASE_DIR, TARGET_DIR
 from manage.components.base import Component, Task, Context
 from manage.components.cmake import Cmake
+from manage.components.conan import CmakeWithConan
 from manage.components.toolchains import HostToolchain
 
 class CodegenBuildTestTask(Task):
@@ -35,7 +36,7 @@ class CodegenRunTestTask(Task):
     def dependencies(self) -> list[Task]:
         return [self.build_task]
 
-class CodegenGenerateTest(Task):
+class CodegenGenerateTestTask(Task):
     def __init__(self, owner):
         super().__init__()
         self.owner = owner
@@ -62,9 +63,9 @@ class Codegen(Component):
         self.generated_dir = os.path.join(TARGET_DIR, f"codegen_test_src")
         self.build_dir = os.path.join(TARGET_DIR, f"codegen_{self.toolchain.name}")
 
-        self.cmake = Cmake(self.src_dir, self.build_dir, [f"-DCODEGEN_TEST={self.generated_dir}"])
+        self.cmake = CmakeWithConan(self.src_dir, self.build_dir, self.toolchain, [f"-DCODEGEN_TEST={self.generated_dir}"])
 
-        self.generate_task = CodegenGenerateTest(self)
+        self.generate_task = CodegenGenerateTestTask(self)
         self.build_test_task = CodegenBuildTestTask(self.cmake, self.generate_task)
         self.run_test_task = CodegenRunTestTask(self.cmake, self.build_test_task)
 

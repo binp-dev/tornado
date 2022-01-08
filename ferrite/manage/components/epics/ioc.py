@@ -7,7 +7,7 @@ import time
 from utils.files import substitute
 from manage.components.base import Component, Task, FinalTask, Context
 from manage.components.git import Repo
-from manage.components.toolchains import Toolchain, HostToolchain, RemoteToolchain
+from manage.components.toolchains import Toolchain, HostToolchain, CrossToolchain
 from manage.components.app import App
 from manage.paths import BASE_DIR, TARGET_DIR
 from manage.remote.base import Device
@@ -41,7 +41,7 @@ class IocBuildTask(EpicsBuildTask):
         self.toolchain = toolchain
 
     def _configure(self):
-        arch = epics_arch(self.epics_base_dir, self.toolchain.target)
+        arch = epics_arch(self.epics_base_dir, self.toolchain)
 
         substitute([
             ("^\\s*#*(\\s*EPICS_BASE\\s*=).*$", f"\\1 {self.epics_base_dir}"),
@@ -224,7 +224,7 @@ class Ioc(Component):
             self.paths["build"],
             self.paths["install"],
             [
-                *([self.toolchain.download_task] if isinstance(self.toolchain, RemoteToolchain) else []),
+                *([self.toolchain.download_task] if isinstance(self.toolchain, CrossToolchain) else []),
                 self.epics_base.build_task,
                 self.app.build_main_task if not isinstance(self.toolchain, HostToolchain) else self.app.build_fakedev_task,
             ],

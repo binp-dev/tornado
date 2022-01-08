@@ -45,6 +45,9 @@ set(UNITTEST_SRC
     "src/unittest.cpp"
 )
 
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+conan_basic_setup(NO_OUTPUT_DIRS)
+
 set(COMMON_DEFS)
 set(MAIN_DEFS
     ${COMMON_DEFS}
@@ -67,7 +70,7 @@ set(MAIN_LIBS
 set(FAKEDEV_LIBS
     ${COMMON_LIBS}
     "pthread"
-    "zmq"
+    ${CONAN_LIBS}
 )
 set(UNITTEST_LIBS
     "gtest"

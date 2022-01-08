@@ -4,9 +4,10 @@ from utils.run import run
 from manage.paths import BASE_DIR, TARGET_DIR
 from manage.components.base import Component, Task, Context
 from manage.components.cmake import Cmake
+from manage.components.conan import CmakeWithConan
 from manage.components.epics.epics_base import EpicsBase
 from manage.components.ipp import Ipp
-from manage.components.toolchains import Toolchain, HostToolchain, RemoteToolchain
+from manage.components.toolchains import Toolchain, HostToolchain, CrossToolchain
 
 class AppBuildUnittestTask(Task):
     def __init__(self, cmake: Cmake, ipp: Ipp):
@@ -37,43 +38,29 @@ class AppRunUnittestTask(Task):
     def dependencies(self) -> list[Task]:
         return [self.build_task]
 
-class AppBuildWithEpicsTask(Task):
+class AppBuildTask(Task):
     def __init__(
         self,
         cmake: Cmake,
         cmake_target: str,
-        epics_base: EpicsBase,
-        toolchain: Toolchain,
         ipp: Ipp,
         deps: list[Task] = [],
     ):
         super().__init__()
         self.cmake = cmake
         self.cmake_target = cmake_target
-        self.epics_base = epics_base
-        self.toolchain = toolchain
+        self.toolchain = cmake.toolchain
         self.ipp = ipp
         self.deps = deps
 
     def run(self, ctx: Context) -> bool:
-        assert self.toolchain is self.epics_base.toolchain
-        cvars = {
-            "EPICS_BASE": self.epics_base.paths["install"],
-        }
-        if not isinstance(self.toolchain, HostToolchain):
-            cvars.update({
-                "TOOLCHAIN_DIR": self.toolchain.path,
-                "TARGET_TRIPLE": self.toolchain.target,
-                "CMAKE_TOOLCHAIN_FILE": os.path.join(self.cmake.src_dir, "armgcc.cmake"),
-            })
-        self.cmake.configure(ctx, cvars)
+        self.cmake.configure(ctx)
         return self.cmake.build(ctx, self.cmake_target)
 
     def dependencies(self) -> list[Task]:
         deps = list(self.deps)
-        if isinstance(self.toolchain, RemoteToolchain):
-            deps.append(self.toolchain.download_task)
-        deps.append(self.epics_base.build_task)
+        if isinstance(self.cmake.toolchain, CrossToolchain):
+            deps.append(self.cmake.toolchain.download_task)
         deps.append(self.ipp.generate_task)
         return deps
 
@@ -83,13 +70,11 @@ class AppBuildWithEpicsTask(Task):
 class App(Component):
     def __init__(
         self,
-        epics_base: EpicsBase,
         toolchain: Toolchain,
         ipp: Ipp,
     ):
         super().__init__()
 
-        self.epics_base = epics_base
         self.toolchain = toolchain
         self.ipp = ipp
 
@@ -97,26 +82,22 @@ class App(Component):
         self.build_dir = os.path.join(TARGET_DIR, f"app_{self.toolchain.name}")
 
         opts = ["-DCMAKE_BUILD_TYPE=Debug", *self.ipp.cmake_opts]
-        self.cmake = Cmake(self.src_dir, self.build_dir, opt=opts)
+        envs = {}
+        if isinstance(self.toolchain, CrossToolchain):
+            toolchain_cmake_path = os.path.join(self.src_dir, "armgcc.cmake")
+            opts.append(f"-DCMAKE_TOOLCHAIN_FILE={toolchain_cmake_path}")
+            envs.update({
+                "TOOLCHAIN_DIR": self.toolchain.path,
+                "TARGET_TRIPLE": str(self.toolchain.target),
+            })
+        self.cmake = CmakeWithConan(self.src_dir, self.build_dir, self.toolchain, opt=opts, env=envs)
 
         if isinstance(self.toolchain, HostToolchain):
             self.build_unittest_task = AppBuildUnittestTask(self.cmake, self.ipp)
             self.run_unittest_task = AppRunUnittestTask(self.cmake, self.build_unittest_task)
-            self.build_fakedev_task = AppBuildWithEpicsTask(
-                self.cmake,
-                "app_fakedev",
-                self.epics_base,
-                self.toolchain,
-                self.ipp,
-            )
+            self.build_fakedev_task = AppBuildTask(self.cmake, "app_fakedev", self.ipp)
 
-        self.build_main_task = AppBuildWithEpicsTask(
-            self.cmake,
-            "app",
-            self.epics_base,
-            self.toolchain,
-            self.ipp,
-        )
+        self.build_main_task = AppBuildTask(self.cmake, "app", self.ipp)
 
     def tasks(self) -> dict[str, Task]:
         tasks = {
