@@ -120,7 +120,7 @@ class PatternCache(Cache):
 if __name__ == "__main__":
     end_tasks = [
         "host_all.test",
-        "imx7_all.build",
+        #"imx7_all.build",
         "imx8mn_all.build",
     ]
     cache = PatternCache([
