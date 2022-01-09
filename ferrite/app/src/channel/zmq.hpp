@@ -21,6 +21,11 @@ struct SocketCloser final {
 using SocketGuard = std::unique_ptr<void, SocketCloser>;
 SocketGuard guard_socket(void *socket);
 
+template <typename T>
+inline int64_t duration_to_microseconds(const T duration) {
+    return std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+}
+
 } // namespace zmq_helper
 
 class ZmqChannel final : public Channel {

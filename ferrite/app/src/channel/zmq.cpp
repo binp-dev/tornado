@@ -49,7 +49,7 @@ Result<std::monostate, ZmqChannel::Error> ZmqChannel::send_raw(
     const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout
 ) {
     zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLOUT, 0};
-    int count = zmq_poll(&pollitem, 1, timeout.has_value() ? int(timeout->count()) : -1);
+    int count = zmq_poll(&pollitem, 1, timeout.has_value() ? zmq_helper::duration_to_microseconds(timeout.value()) : -1);
     if (count > 0) {
         if (!(pollitem.revents & ZMQ_POLLOUT)) {
             return Err(Error{ErrorKind::IoError, "Poll bad event"});
@@ -69,7 +69,7 @@ Result<size_t, ZmqChannel::Error> ZmqChannel::receive_raw(
     uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout
 ) {
     zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLIN, 0};
-    int count = zmq_poll(&pollitem, 1, timeout.has_value() ? int(timeout->count()) : -1);
+    int count = zmq_poll(&pollitem, 1, timeout.has_value() ? zmq_helper::duration_to_microseconds(timeout.value()) : -1);
     if (count > 0) {
         if (!(pollitem.revents & ZMQ_POLLIN)) {
             return Err(Error{ErrorKind::IoError, "Poll bad event"});
