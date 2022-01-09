@@ -21,3 +21,6 @@ RUN dpkg --add-architecture i386 && \
 RUN pip3 install \
     conan \
     zmq
+
+RUN apt-get -y install pipenv && \
+    apt-get clean
