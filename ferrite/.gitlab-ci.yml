@@ -12,7 +12,8 @@ stages:
 host_codegen.generate:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_codegen.generate
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture host_codegen.generate
   artifacts:
     paths:
       - target/codegen_test_src
@@ -20,7 +21,8 @@ host_codegen.generate:
 host_ipp.generate:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_ipp.generate
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture host_ipp.generate
   artifacts:
     paths:
       - target/ipp_generated
@@ -28,7 +30,8 @@ host_ipp.generate:
 host_epics_base.clone:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_epics_base.clone
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture host_epics_base.clone
   artifacts:
     paths:
       - target/epics_base_7.0.4.1_src
@@ -36,7 +39,8 @@ host_epics_base.clone:
 imx8mn_mcu_toolchain.download:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps --no-capture imx8mn_mcu_toolchain.download
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture imx8mn_mcu_toolchain.download
   artifacts:
     paths:
       - target/toolchain_gcc-arm-none-eabi-9-2020-q2-update
@@ -44,7 +48,8 @@ imx8mn_mcu_toolchain.download:
 imx8mn_freertos.clone:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps --no-capture imx8mn_freertos.clone
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture imx8mn_freertos.clone
   artifacts:
     paths:
       - target/mcuxpresso_sdk_2.9.x-var01
@@ -52,7 +57,8 @@ imx8mn_freertos.clone:
 imx8mn_app_toolchain.download:
   stage: "0"
   script:
-    - python3 -u -m manage --no-deps --no-capture imx8mn_app_toolchain.download
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture imx8mn_app_toolchain.download
   artifacts:
     paths:
       - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
@@ -60,7 +66,8 @@ imx8mn_app_toolchain.download:
 host_codegen.build:
   stage: "1"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_codegen.build
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture host_codegen.build
   needs:
     - host_codegen.generate
   artifacts:
@@ -70,7 +77,8 @@ host_codegen.build:
 host_ipp.build:
   stage: "1"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_ipp.build
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture host_ipp.build
   needs:
     - host_ipp.generate
   artifacts:
@@ -80,7 +88,8 @@ host_ipp.build:
 host_app.build_unittest:
   stage: "1"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_app.build_unittest
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture host_app.build_unittest
   needs:
     - host_ipp.generate
   artifacts:
@@ -90,7 +99,8 @@ host_app.build_unittest:
 host_epics_base.build:
   stage: "1"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_epics_base.build
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture host_epics_base.build
   needs:
     - host_epics_base.clone
   artifacts:
@@ -101,7 +111,8 @@ host_epics_base.build:
 host_app.build_fakedev:
   stage: "1"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_app.build_fakedev
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture host_app.build_fakedev
   needs:
     - host_ipp.generate
   artifacts:
@@ -111,7 +122,8 @@ host_app.build_fakedev:
 imx8mn_mcu.build:
   stage: "1"
   script:
-    - python3 -u -m manage --no-deps --no-capture imx8mn_mcu.build
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture imx8mn_mcu.build
   needs:
     - imx8mn_mcu_toolchain.download
     - imx8mn_freertos.clone
@@ -123,7 +135,8 @@ imx8mn_mcu.build:
 imx8mn_app.build_main:
   stage: "1"
   script:
-    - python3 -u -m manage --no-deps --no-capture imx8mn_app.build_main
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture imx8mn_app.build_main
   needs:
     - imx8mn_app_toolchain.download
     - host_ipp.generate
@@ -134,28 +147,32 @@ imx8mn_app.build_main:
 host_codegen.test:
   stage: "2"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_codegen.test
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture host_codegen.test
   needs:
     - host_codegen.build
 
 host_ipp.test:
   stage: "2"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_ipp.test
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture host_ipp.test
   needs:
     - host_ipp.build
 
 host_app.run_unittest:
   stage: "2"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_app.run_unittest
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture host_app.run_unittest
   needs:
     - host_app.build_unittest
 
 host_ioc.build:
   stage: "2"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_ioc.build
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture host_ioc.build
   needs:
     - host_epics_base.build
     - host_app.build_fakedev
@@ -167,7 +184,8 @@ host_ioc.build:
 imx8mn_epics_base.build:
   stage: "2"
   script:
-    - python3 -u -m manage --no-deps --no-capture imx8mn_epics_base.build
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture imx8mn_epics_base.build
   needs:
     - imx8mn_app_toolchain.download
     - host_epics_base.build
@@ -179,7 +197,8 @@ imx8mn_epics_base.build:
 host_ioc.test_fakedev:
   stage: "3"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_ioc.test_fakedev
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture host_ioc.test_fakedev
   needs:
     - host_epics_base.build
     - host_ioc.build
@@ -187,7 +206,8 @@ host_ioc.test_fakedev:
 imx8mn_ioc.build:
   stage: "3"
   script:
-    - python3 -u -m manage --no-deps --no-capture imx8mn_ioc.build
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture imx8mn_ioc.build
   needs:
     - imx8mn_app_toolchain.download
     - imx8mn_epics_base.build
@@ -200,7 +220,8 @@ imx8mn_ioc.build:
 host_all.test:
   stage: "4"
   script:
-    - python3 -u -m manage --no-deps --no-capture host_all.test
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture host_all.test
   needs:
     - host_codegen.test
     - host_ipp.test
@@ -210,7 +231,8 @@ host_all.test:
 imx8mn_all.build:
   stage: "4"
   script:
-    - python3 -u -m manage --no-deps --no-capture imx8mn_all.build
+    - pipenv install
+    - pipenv run python3 -u -m manage --no-deps --no-capture imx8mn_all.build
   needs:
     - imx8mn_mcu.build
     - imx8mn_epics_base.build
