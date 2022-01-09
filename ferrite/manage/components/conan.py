@@ -8,7 +8,7 @@ from manage.components.toolchains import Toolchain, HostToolchain, CrossToolchai
 class ConanProfile:
     def __init__(self, toolchain: Toolchain):
         self.toolchain = toolchain
-    
+
     def generate(self) -> str:
         tc = self.toolchain
 
@@ -60,7 +60,7 @@ class ConanProfile:
             ]
 
         return "\n".join(content)
-            
+
     def save(self, path: str):
         with open(path, "w") as f:
             f.write(self.generate())
@@ -88,6 +88,10 @@ class CmakeWithConan(Cmake):
         profile_path = os.path.join(self.build_dir, "profile.conan")
         ConanProfile(self.toolchain).save(profile_path)
 
-        run(["conan", "install", "--build", "missing", self.src_dir, "--profile", profile_path], cwd=self.build_dir)
+        run(
+            ["conan", "install", "--build", "missing", self.src_dir, "--profile", profile_path],
+            cwd=self.build_dir,
+            quiet=ctx.capture,
+        )
 
         super().configure(ctx)
