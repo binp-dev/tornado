@@ -40,7 +40,7 @@ class Job(object):
             f"  stage: {self.stage()}",
             f"  script:",
             f"    - pipenv install",
-            f"    - pipenv run python3 -u -m manage --no-deps --no-capture {self.name()}",
+            f"    - pipenv run python -u -m manage --no-deps --no-capture {self.name()}",
         )
 
         if len(self.deps) > 0:
