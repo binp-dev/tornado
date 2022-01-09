@@ -1,8 +1,8 @@
-import sys
+from __future__ import annotations
 import argparse
 import logging
 from colorama import init as colorama_init, Fore, Style
-from manage.components.base import Context
+from manage.components.base import Context, Task
 from manage.remote.ssh import SshDevice
 from manage.tree import components
 
@@ -21,28 +21,34 @@ if __name__ == "__main__":
         *[f"\t{name}" for name in components.keys()],
     ])
     parser.add_argument(
-        "comptask", type=str, metavar="<component>.<task>",
+        "comptask",
+        type=str,
+        metavar="<component>.<task>",
         help="\n".join([
             "Component and task you want to run.",
             available_components_text,
         ]),
     )
     parser.add_argument(
-        "--no-deps", action="store_true",
+        "--no-deps",
+        action="store_true",
         help="Run only specified task without dependencies.",
     )
     parser.add_argument(
-        "--device", type=str, metavar="<address>[:port]", default=None,
+        "--device",
+        type=str,
+        metavar="<address>[:port]",
+        default=None,
         help="\n".join([
-            "Device to deploy and run tests.",
-            "Requirements:",
+            "Device to deploy and run tests.", "Requirements:",
             "+ Debian Linux running on the device (another distros are not tested).",
             "+ SSH server running on the device on the specified port (or 22 if the port is not specified).",
             "+ Possibility to log in to the device via SSH by user 'root' without password (e.g. using public key)."
         ])
     )
     parser.add_argument(
-        "--no-capture", action="store_true",
+        "--no-capture",
+        action="store_true",
         help="Display task stdout.",
     )
     args = parser.parse_args()
@@ -52,10 +58,7 @@ if __name__ == "__main__":
     try:
         component = components[component_name]
     except KeyError:
-        print("\n".join([
-            f"Unknown component '{component_name}'.",
-            available_components_text
-        ]))
+        print("\n".join([f"Unknown component '{component_name}'.", available_components_text]))
         exit(1)
 
     available_tasks_text = "\n".join([
@@ -93,14 +96,14 @@ if __name__ == "__main__":
         capture=capture,
     )
 
-    def print_title(text: str, style: Fore = None, end: bool = True):
+    def print_title(text: str, style: Fore = None, end: bool = True) -> None:
         if style is not None:
             text = style + text + Style.RESET_ALL
-        kwargs = {"end": ""} if not end else {}
-        print(text, flush=True, **kwargs)
+        print(text, flush=True, end=("" if not end else None))
 
     complete_tasks = {}
-    def run_task(context, task, no_deps=False, title_length=64):
+
+    def run_task(context: Context, task: Task, no_deps: bool = False, title_length: int = 64) -> None:
         if task.name() in complete_tasks:
             return
 

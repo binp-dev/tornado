@@ -1,5 +1,8 @@
-import manage.components.toolchains as toolchains
-from manage.components.freertos import FreertosImx7, FreertosImx8mn
+from __future__ import annotations
+from typing import Dict
+from manage.components.base import Component
+from manage.components.toolchains import self as toolchains, HostToolchain, CrossToolchain
+from manage.components.freertos import Freertos, FreertosImx7, FreertosImx8mn
 from manage.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 from manage.components.mcu import Mcu
 from manage.components.codegen import Codegen
@@ -8,7 +11,8 @@ from manage.components.app import App
 from manage.components.epics.ioc import AppIoc
 from manage.components.all_ import AllHost, AllCross
 
-def host_components(toolchain):
+
+def host_components(toolchain: HostToolchain) -> Dict[str, Component]:
     epics_base = EpicsBaseHost(toolchain)
     codegen = Codegen(toolchain)
     ipp = Ipp(toolchain, codegen)
@@ -25,7 +29,13 @@ def host_components(toolchain):
         "all": all_,
     }
 
-def cross_components(host_components, app_toolchain, mcu_toolchain, freertos):
+
+def cross_components(
+    host_components: Dict[str, Component],
+    app_toolchain: CrossToolchain,
+    mcu_toolchain: CrossToolchain,
+    freertos: Freertos,
+) -> Dict[str, Component]:
     epics_base = EpicsBaseCross(app_toolchain, host_components["epics_base"])
     ipp = host_components["ipp"]
     app = App(app_toolchain, ipp)
@@ -43,9 +53,8 @@ def cross_components(host_components, app_toolchain, mcu_toolchain, freertos):
         "all": all_,
     }
 
-host = host_components(
-    toolchains.HostToolchain()
-)
+
+host = host_components(toolchains.HostToolchain())
 imx7 = cross_components(
     host,
     toolchains.AppToolchainImx7(),

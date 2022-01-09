@@ -12,6 +12,9 @@ pyzmq = "^22.3.0"
 colorama = "^0.4.4"
 
 [tool.poetry.dev-dependencies]
+toml = "*"
+yapf = "*"
+mypy = "*"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -25,3 +28,6 @@ continuation_indent_width = 4
 continuation_align_style = "space"
 dedent_closing_brackets = true
 coalesce_brackets = true
+
+[tool.mypy]
+strict = true

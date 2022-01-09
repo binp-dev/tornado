@@ -1,12 +1,15 @@
 from __future__ import annotations
+from typing import List, Optional, Tuple
 import os
 import shutil
 import logging
+from dataclasses import dataclass
 from utils.run import run, RunError
 from manage.components.base import Component, Task, Context
 from manage.paths import TARGET_DIR
 
-def clone(path: str, remote: str, branch: str = None, clean: bool = False) -> str:
+
+def clone(path: str, remote: str, branch: Optional[str] = None, clean: bool = False) -> bool:
     # FIXME: Pull if update available
     if os.path.exists(path):
         logging.info(f"Repo '{remote}' is cloned already")
@@ -29,28 +32,39 @@ def clone(path: str, remote: str, branch: str = None, clean: bool = False) -> st
         shutil.rmtree(os.path.join(path, ".git"))
     return True
 
+
+@dataclass
+class Source:
+    remote: str
+    branch: Optional[str]
+
+
 class GitCloneTask(Task):
-    def __init__(self, path: str, sources: list[(str, str)]):
+
+    def __init__(self, path: str, sources: List[Source]):
         super().__init__()
         self.path = path
         self.sources = sources
 
     def run(self, ctx: Context) -> bool:
         last_error = None
-        for remote, branch in self.sources:
+        for source in self.sources:
             try:
-                return clone(self.path, remote, branch, clean=True)
+                return clone(self.path, source.remote, source.branch, clean=True)
             except RunError as e:
                 last_error = e
                 continue
         if last_error is not None:
             raise last_error
+        return False
 
-    def artifacts(self) -> str[list]:
+    def artifacts(self) -> List[str]:
         return [self.path]
 
+
 class RepoList(Component):
-    def __init__(self, name: str, sources: list[(str, str)]):
+
+    def __init__(self, name: str, sources: List[Source]):
         super().__init__()
 
         self.name = name
@@ -64,6 +78,8 @@ class RepoList(Component):
             "clone": self.clone_task,
         }
 
+
 class Repo(RepoList):
+
     def __init__(self, name: str, remote: str, branch: str = None):
-        super().__init__(name, [remote, branch])
+        super().__init__(name, [Source(remote, branch)])
