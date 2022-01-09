@@ -19,8 +19,8 @@ RUN dpkg --add-architecture i386 && \
     apt-get clean
 
 RUN pip3 install \
-    conan \
-    zmq
-
-RUN apt-get -y install pipenv && \
-    apt-get clean
+        poetry \
+        conan \
+        pyzmq \
+    && \
+    rm -rf /root/.cache/pip
