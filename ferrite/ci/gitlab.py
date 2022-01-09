@@ -14,7 +14,7 @@ def base_path(path):
 class Cache(object):
     def __init__(self):
         super().__init__()
-    
+
     def is_cached(self, path):
         raise NotImplementedError
 
@@ -39,8 +39,8 @@ class Job(object):
             f"{self.name()}:",
             f"  stage: {self.stage()}",
             f"  script:",
-            f"    - pipenv install",
-            f"    - pipenv run python -u -m manage --no-deps --no-capture {self.name()}",
+            f"    - poetry install",
+            f"    - poetry run python -u -m manage --no-deps --no-capture {self.name()}",
         )
 
         if len(self.deps) > 0:
@@ -94,14 +94,14 @@ class Graph(object):
         for job in sequence:
             text += "\n"
             text += job.text(self.cache)
-        
+
         return text
 
 class PatternCache(Cache):
     def __init__(self, patterns):
         super().__init__()
         self.patterns = patterns
-    
+
     def is_cached(self, path):
         relpath = base_path(path)
         # FIXME: Use * pattern
