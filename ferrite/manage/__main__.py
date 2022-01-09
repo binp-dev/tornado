@@ -1,6 +1,7 @@
 import sys
 import argparse
 import logging
+from colorama import init as colorama_init, Fore, Style
 from manage.components.base import Context
 from manage.remote.ssh import SshDevice
 from manage.tree import components
@@ -8,6 +9,8 @@ from manage.tree import components
 logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.DEBUG)
 
 if __name__ == "__main__":
+    colorama_init()
+
     parser = argparse.ArgumentParser(
         description="Power supply controller software development automation tool",
         usage="python3 -m manage <component>.<task> [options...]",
@@ -90,15 +93,11 @@ if __name__ == "__main__":
         capture=capture,
     )
 
-    def print_title(text, char="*"):
-        assert len(char) == 1
-        length = len(text) + 2
-        print("\n".join([
-            "",
-            char * length,
-            f"{char} {text}",
-            char * length,
-        ]), flush=True)
+    def print_title(text: str, style: Fore = None, end: bool = True):
+        if style is not None:
+            text = style + text + Style.RESET_ALL
+        kwargs = {"end": ""} if not end else {}
+        print(text, flush=True, **kwargs)
 
     complete_tasks = {}
     def run_task(context, task, no_deps=False, title_length=64):
@@ -109,13 +108,25 @@ if __name__ == "__main__":
             for dep in task.dependencies():
                 run_task(context, dep, no_deps=no_deps, title_length=title_length)
 
-        print_title(f"Running '{task.name()}'.", "*")
+        if capture:
+            print_title(f"{task.name()} ... ", end=False)
+        else:
+            print_title(f"\nTask '{task.name()}' started ...", Style.BRIGHT)
 
         try:
             task.run(context)
         except:
-            print_title(f"Task '{task.name()}' failed!", "!")
+            if capture:
+                print_title(f"FAIL", Fore.RED)
+            else:
+                print_title(f"Task '{task.name()}' FAILED:", Style.BRIGHT + Fore.RED)
             raise
+        else:
+            if capture:
+                print_title(f"ok", Fore.GREEN)
+            else:
+                print_title(f"Task '{task.name()}' successfully completed", Style.BRIGHT + Fore.GREEN)
+
         complete_tasks[task.name()] = task
 
     run_task(context, task, no_deps=args.no_deps)
