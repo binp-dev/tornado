@@ -1,6 +1,7 @@
 /target
 
 __pycache__
+Pipfile.lock
 
 .vscode
 *.code-workspace
