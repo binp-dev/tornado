@@ -9,12 +9,13 @@ Software for the BINP next-gen power supply controller.
 + `g++`
 + `cmake`
 + `python3`
-+ `pipenv`
 + `perl`
 
 ### Python packages
 
-Python dependencies are automatically managed by `pipenv`, you don't need to install them manually.
++ `poetry`
+
+Remaining dependencies are automatically managed by `poetry`, you don't need to install them manually.
 
 ## Deploy dependencies
 
@@ -25,10 +26,10 @@ Python dependencies are automatically managed by `pipenv`, you don't need to ins
 
 ### Preparation
 
-At first you need to install python dependencies using `pipenv`:
+At first you need to install python dependencies. Run the following command in the project root:
 
 ```bash
-pipenv install
+poetry install
 ```
 
 ### Testing
@@ -36,7 +37,7 @@ pipenv install
 This command will build software and run all tests (unit, codegen, fakedev):
 
 ```bash
-pipenv run python -m manage host_all.test
+poetry run python -m manage host_all.test
 ```
 
 ### Run on the device
@@ -44,7 +45,7 @@ pipenv run python -m manage host_all.test
 To build, deploy and run both aplication and real-time code and run it on the i.MX8M Nano device:
 
 ```bash
-pipenv run python -m manage imx8mn_all.run --device <ip-addr>[:port]
+poetry run python -m manage imx8mn_all.run --device <ip-addr>[:port]
 ```
 
 Device should be accessible through SSH as `root` user without password prompt.
@@ -54,17 +55,17 @@ Device should be accessible through SSH as `root` user without password prompt.
 To get more information about `manage` scripts run:
 
 ```bash
-pipenv run python -m manage --help
+poetry run python -m manage --help
 ```
 
 To get the list of components:
 
 ```bash
-pipenv run python -m manage .
+poetry run python -m manage .
 ```
 
 To get the list of tasks for selected component:
 
 ```bash
-pipenv run python -m manage <component>.
+poetry run python -m manage <component>.
 ```
