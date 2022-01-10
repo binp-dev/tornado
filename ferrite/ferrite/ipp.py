@@ -1,8 +1,6 @@
 from ferrite.codegen.base import Context, Name
-from ferrite.codegen.prim import Int
-from ferrite.codegen.container import Array, String
-from ferrite.codegen.struct import Field
-from ferrite.codegen.text import make_variant, generate_and_write
+from ferrite.codegen.all import Int, Array, String, Field
+from ferrite.codegen.generate import make_variant, generate_and_write
 
 AppMsg = make_variant(
     Name(["app", "msg"]),

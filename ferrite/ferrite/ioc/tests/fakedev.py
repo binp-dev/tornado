@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import annotations
 from typing import List
 
@@ -5,6 +6,7 @@ import os
 import time
 import zmq
 from threading import Thread
+from ferrite.codegen.variant import VariantValue
 
 from ferrite.ipp import AppMsg, McuMsg
 from ferrite.utils.epics.ioc import Ioc
@@ -15,7 +17,7 @@ def assert_eq(a: float, b: float, eps: float = 1e2) -> None:
     assert abs(a - b) < eps
 
 
-def send_msg(socket, msg) -> None:
+def send_msg(socket: zmq.Socket, msg: bytes) -> None:
     any_msg = None
     for i, f in enumerate(McuMsg.variants):
         if f.type.is_instance(msg):
@@ -25,16 +27,20 @@ def send_msg(socket, msg) -> None:
     socket.send(any_msg.store())
 
 
-def recv_msg(socket):
+def recv_msg(socket: zmq.Socket) -> VariantValue:
     return AppMsg.load(socket.recv())
 
 
+DONE: bool = False
+VALUE: int = 0
+
+
 def run_test(
-    epics_base_dir,
-    ioc_dir,
-    ipp_dir,
-    arch,
-):
+    epics_base_dir: str,
+    ioc_dir: str,
+    ipp_dir: str,
+    arch: str,
+) -> None:
     global IDS
 
     ioc = Ioc(os.path.join(ioc_dir, "bin", arch, "PSC"), os.path.join(ioc_dir, "iocBoot/iocPSC/st.cmd"))
@@ -45,36 +51,36 @@ def run_test(
 
     prefix = os.path.join(epics_base_dir, "bin", arch)
 
-    global done
-    global value
-    done = False
-    value = 0
+    global DONE
+    global VALUE
+    DONE = False
+    VALUE = 0
 
     max_val = 0x7FFFFFFF
     min_val = -0x80000000
     some_val = 0x789ABCDE
     values = [1, -1, some_val, max_val, min_val]
 
-    def worker():
-        global done
-        global value
+    def worker() -> None:
+        global DONE
+        global VALUE
 
-        assert recv_msg(socket).variant.is_instance(AppMsg.Start)
+        assert recv_msg(socket).variant.is_instance_of(AppMsg.Start)
         print("Received start signal")
         send_msg(socket, McuMsg.Debug("Hello from MCU!"))
 
         poller = zmq.Poller()
         poller.register(socket, zmq.POLLIN)
 
-        while not done:
+        while not DONE:
             evts = poller.poll(100)
             if len(evts) == 0:
                 continue
             msg = AppMsg.load(socket.recv())
-            if msg.variant.is_instance(AppMsg.DacSet):
-                value = msg.variant.value
-            elif msg.variant.is_instance(AppMsg.AdcReq):
-                send_msg(socket, McuMsg.AdcVal([value] + values))
+            if msg.variant.is_instance_of(AppMsg.DacSet):
+                VALUE = msg.variant.value
+            elif msg.variant.is_instance_of(AppMsg.AdcReq):
+                send_msg(socket, McuMsg.AdcVal([VALUE] + values))
             else:
                 raise Exception("Unexpected message type")
 
@@ -96,7 +102,7 @@ def run_test(
         for i in range(5):
             assert_eq(ca.get(prefix, f"ai{i + 1}"), values[i])
 
-    done = True
+    DONE = True
     thread.join()
 
     print("Test passed!")

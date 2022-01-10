@@ -1,12 +1,15 @@
+from __future__ import annotations
+from typing import Any, List
+
 from ferrite.codegen.variant import Variant
-from ferrite.codegen.base import Context, Name
-from ferrite.codegen.prim import Float, Int
+from ferrite.codegen.base import Context, Name, Type
+from ferrite.codegen.primitive import Float, Int
 from ferrite.codegen.container import Array, Vector, String
-from ferrite.codegen.struct import Field, Struct
-from ferrite.codegen.text import make_variant, generate_and_write
+from ferrite.codegen.structure import Field, Struct
+from ferrite.codegen.generate import generate_and_write
 
 empty = Struct(Name(["empty", "struct"]), [])
-all_ = [
+all_: List[Type[Any]] = [
     Array(Int(24), 5),
     Vector(Int(24)),
     Vector(Int(64)),
@@ -21,35 +24,44 @@ all_ = [
     Struct(Name(["string", "struct"]), [
         Field("text", String()),
     ]),
-    Struct(Name(["integers"]), [
-        Field("u8", Int(8)),
-        Field("u16", Int(16)),
-        Field("u24", Int(24)),
-        Field("u32", Int(32)),
-        Field("u48", Int(48)),
-        Field("u56", Int(56)),
-        Field("u64", Int(64)),
-        Field("i8", Int(8, signed=True)),
-        Field("i16", Int(16, signed=True)),
-        Field("i32", Int(32, signed=True)),
-        Field("i64", Int(64, signed=True)),
-    ]),
+    Struct(
+        Name(["integers"]), [
+            Field("u8", Int(8)),
+            Field("u16", Int(16)),
+            Field("u24", Int(24)),
+            Field("u32", Int(32)),
+            Field("u48", Int(48)),
+            Field("u56", Int(56)),
+            Field("u64", Int(64)),
+            Field("i8", Int(8, signed=True)),
+            Field("i16", Int(16, signed=True)),
+            Field("i32", Int(32, signed=True)),
+            Field("i64", Int(64, signed=True)),
+        ]
+    ),
     Struct(Name(["floats"]), [
         Field("f32", Float(32)),
         Field("f64", Float(64)),
     ]),
-    Struct(Name(["nested", "struct"]), [
-        Field("u8", Int(8)),
-        Field("one", Struct(Name(["nested", "struct", "one"]), [
+    Struct(
+        Name(["nested", "struct"]), [
             Field("u8", Int(8)),
-            Field("u24", Int(32)),
-        ])),
-        Field("two", Struct(Name(["nested", "struct", "two"]), [
-            Field("u8", Int(8)),
-            Field("u24", Int(32)),
-            Field("data", Vector(Int(24))),
-        ])),
-    ]),
+            Field("one", Struct(Name(["nested", "struct", "one"]), [
+                Field("u8", Int(8)),
+                Field("u24", Int(32)),
+            ])),
+            Field(
+                "two",
+                Struct(
+                    Name(["nested", "struct", "two"]), [
+                        Field("u8", Int(8)),
+                        Field("u24", Int(32)),
+                        Field("data", Vector(Int(24))),
+                    ]
+                )
+            ),
+        ]
+    ),
     Variant(
         Name(["sized", "variant"]),
         [
@@ -75,7 +87,8 @@ all_ = [
     ),
 ]
 
-def generate(path: str):
+
+def generate(path: str) -> None:
     generate_and_write(
         all_,
         path,
