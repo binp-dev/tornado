@@ -15,66 +15,63 @@ from ferrite.components.all_ import AllHost, AllCross
 import ferrite.components.toolchains as toolchains
 
 
-def host_components(toolchain: HostToolchain) -> Dict[str, Component]:
-    epics_base = EpicsBaseHost(toolchain)
-    codegen = Codegen(toolchain)
-    ipp = Ipp(toolchain, codegen)
-    app = App(toolchain, ipp)
-    ioc = AppIoc(epics_base, app, toolchain)
-    all_ = AllHost(epics_base, codegen, ipp, app, ioc)
-    return {
-        "toolchain": toolchain,
-        "epics_base": epics_base,
-        "codegen": codegen,
-        "ipp": ipp,
-        "app": app,
-        "ioc": ioc,
-        "all": all_,
-    }
+class ComponentStorage:
+    pass
 
 
-def cross_components(
-    host_components: Dict[str, Component],
-    app_toolchain: CrossToolchain,
-    mcu_toolchain: CrossToolchain,
-    freertos: Freertos,
-) -> Dict[str, Component]:
-    epics_base = EpicsBaseCross(app_toolchain, host_components["epics_base"])
-    ipp = host_components["ipp"]
-    app = App(app_toolchain, ipp)
-    ioc = AppIoc(epics_base, app, app_toolchain)
-    mcu = Mcu(freertos, mcu_toolchain, ipp)
-    all_ = AllCross(epics_base, app, ioc, mcu)
-    return {
-        "app_toolchain": app_toolchain,
-        "mcu_toolchain": mcu_toolchain,
-        "freertos": freertos,
-        "mcu": mcu,
-        "epics_base": epics_base,
-        "app": app,
-        "ioc": ioc,
-        "all": all_,
-    }
+class HostComponentStorage(ComponentStorage):
+
+    def __init__(
+        self,
+        toolchain: HostToolchain,
+    ) -> None:
+        self.toolchain = toolchain
+        self.epics_base = EpicsBaseHost(toolchain)
+        self.codegen = Codegen(toolchain)
+        self.ipp = Ipp(toolchain, self.codegen)
+        self.app = App(toolchain, self.ipp)
+        self.ioc = AppIoc(self.epics_base, self.app, toolchain)
+        self.all = AllHost(self.epics_base, self.codegen, self.ipp, self.app, self.ioc)
 
 
-host = host_components(toolchains.HostToolchain())
-imx7 = cross_components(
+class CrossComponentStorage(ComponentStorage):
+
+    def __init__(
+        self,
+        host_components: HostComponentStorage,
+        app_toolchain: CrossToolchain,
+        mcu_toolchain: CrossToolchain,
+        freertos: Freertos,
+    ) -> None:
+        self.app_toolchain = app_toolchain
+        self.mcu_toolchain = mcu_toolchain
+        self.freertos = freertos
+        self.epics_base = EpicsBaseCross(app_toolchain, host_components.epics_base)
+        self.ipp = host_components.ipp
+        self.app = App(app_toolchain, self.ipp)
+        self.ioc = AppIoc(self.epics_base, self.app, app_toolchain)
+        self.mcu = Mcu(freertos, mcu_toolchain, self.ipp)
+        self.all = AllCross(self.epics_base, self.app, self.ioc, self.mcu)
+
+
+host = HostComponentStorage(toolchains.HostToolchain(),)
+imx7 = CrossComponentStorage(
     host,
     toolchains.AppToolchainImx7(),
     toolchains.McuToolchainImx7(),
     FreertosImx7(),
 )
-imx8mn = cross_components(
+imx8mn = CrossComponentStorage(
     host,
     toolchains.AppToolchainImx8mn(),
     toolchains.McuToolchainImx8mn(),
     FreertosImx8mn(),
 )
 
-components = {
-    **{f"host_{k}": c for k, c in host.items()},
-    **{f"imx7_{k}": c for k, c in imx7.items()},
-    **{f"imx8mn_{k}": c for k, c in imx8mn.items()},
+components: Dict[str, Component] = {
+    **{f"host_{k}": c for k, c in host.__dict__.items()},
+    **{f"imx7_{k}": c for k, c in imx7.__dict__.items()},
+    **{f"imx8mn_{k}": c for k, c in imx8mn.__dict__.items()},
 }
 
 for cname, comp in components.items():

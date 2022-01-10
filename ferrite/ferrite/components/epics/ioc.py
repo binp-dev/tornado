@@ -98,7 +98,7 @@ class IocTestFakeDevTask(Task):
 
     def run(self, ctx: Context) -> None:
         import ferrite.ioc.tests.fakedev as fakedev
-        fakedev.run_test(
+        fakedev.run_test( # type: ignore
             self.owner.epics_base.paths["install"],
             self.owner.paths["install"],
             os.path.join(BASE_DIR, "ipp"),
