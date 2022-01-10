@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List
+from typing import Dict, List
 
 import os
 
@@ -9,20 +9,17 @@ from ferrite.manage.paths import BASE_DIR
 from ferrite.utils.strings import quote
 
 
-def text_lines(*lines):
+def text_lines(*lines: str) -> str:
     return "".join([l + "\n" for l in lines])
 
 
-def base_path(path):
+def base_path(path: str) -> str:
     return os.path.relpath(path, BASE_DIR)
 
 
 class Cache:
 
-    def __init__(self):
-        super().__init__()
-
-    def is_cached(self, path):
+    def is_cached(self, path: str) -> bool:
         raise NotImplementedError()
 
     def text(self) -> str:
@@ -49,7 +46,7 @@ class Job:
             f"  stage: {self.stage()}",
             f"  script:",
             f"    - poetry install",
-            f"    - poetry run python -u -m manage --no-deps --no-capture {self.name()}",
+            f"    - poetry run python -u -m ferrite.manage --no-deps --no-capture {self.name()}",
         )
 
         if len(self.deps) > 0:
@@ -75,9 +72,8 @@ class Job:
 
 class Graph:
 
-    def __init__(self):
-        self.jobs = {}
-        self.cache = cache
+    def __init__(self) -> None:
+        self.jobs: Dict[str, Job] = {}
 
     def add(self, task: Task) -> Job:
         name = task.name()
@@ -104,18 +100,18 @@ class Graph:
         sequence = [j for j in sorted(self.jobs.values(), key=lambda j: j.level)]
         for job in sequence:
             text += "\n"
-            text += job.text(self.cache)
+            text += job.text(cache)
 
         return text
 
 
 class PatternCache(Cache):
 
-    def __init__(self, patterns):
+    def __init__(self, patterns: List[str]):
         super().__init__()
         self.patterns = patterns
 
-    def is_cached(self, path):
+    def is_cached(self, path: str) -> bool:
         relpath = base_path(path)
         # FIXME: Use * pattern
         return any([p.replace("*", "") in relpath for p in self.patterns])
