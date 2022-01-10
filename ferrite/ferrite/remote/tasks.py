@@ -1,12 +1,11 @@
 from ferrite.components.base import Task, Context
-from .base import Device
 
 
 class RebootTask(Task):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         assert ctx.device is not None
         ctx.device.reboot()

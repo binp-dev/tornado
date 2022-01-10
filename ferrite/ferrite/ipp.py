@@ -33,7 +33,7 @@ McuMsg = make_variant(
 )
 
 
-def generate(path: str):
+def generate(path: str) -> None:
     generate_and_write(
         [
             AppMsg,

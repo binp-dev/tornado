@@ -1,10 +1,11 @@
 from __future__ import annotations
-from ferrite.components.git import RepoList, RepoSource
+
+from ferrite.components.git import RepoSource, RepoList
 
 
 class Freertos(RepoList):
 
-    def __init__(self, name, branch):
+    def __init__(self, name: str, branch: str) -> None:
         super().__init__(
             name,
             [
@@ -18,7 +19,7 @@ class Freertos(RepoList):
 
 class FreertosImx7(Freertos):
 
-    def __init__(self):
+    def __init__(self) -> None:
         name = "freertos_bsp_1.0.1_imx7d-var01"
         branch = name
         super().__init__(name, branch)
@@ -26,7 +27,7 @@ class FreertosImx7(Freertos):
 
 class FreertosImx8mn(Freertos):
 
-    def __init__(self):
+    def __init__(self) -> None:
         name = "mcuxpresso_sdk_2.9.x-var01"
         branch = name
         super().__init__(name, branch)

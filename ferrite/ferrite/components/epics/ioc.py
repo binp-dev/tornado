@@ -1,18 +1,21 @@
 from __future__ import annotations
+from subprocess import Popen
+from typing import Any, Dict, List, Optional
+
 import os
 import shutil
 import re
 import logging
 import time
+
 from ferrite.utils.files import substitute
 from ferrite.components.base import Component, Task, FinalTask, Context
-from ferrite.components.git import Repo
 from ferrite.components.toolchains import Toolchain, HostToolchain, CrossToolchain
 from ferrite.components.app import App
 from ferrite.manage.paths import BASE_DIR, TARGET_DIR
 from ferrite.remote.base import Device
-from .base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch
-from .epics_base import EpicsBase
+from ferrite.components.epics.base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch
+from ferrite.components.epics.epics_base import EpicsBase, EpicsBaseCross, EpicsBaseHost
 
 
 class IocBuildTask(EpicsBuildTask):
@@ -22,7 +25,7 @@ class IocBuildTask(EpicsBuildTask):
         src_dir: str,
         build_dir: str,
         install_dir: str,
-        deps: list[Task],
+        deps: List[Task],
         epics_base_dir: str,
         app_src_dir: str,
         app_build_dir: str,
@@ -42,7 +45,7 @@ class IocBuildTask(EpicsBuildTask):
         self.app_fakedev = app_fakedev
         self.toolchain = toolchain
 
-    def _configure(self):
+    def _configure(self) -> None:
         arch = epics_arch(self.epics_base_dir, self.toolchain)
 
         substitute([
@@ -78,7 +81,7 @@ class IocBuildTask(EpicsBuildTask):
             os.path.join(lib_dir, lib_name),
         )
 
-    def _install(self):
+    def _install(self) -> None:
         shutil.copytree(
             os.path.join(self.build_dir, "iocBoot"),
             os.path.join(self.install_dir, "iocBoot"),
@@ -89,24 +92,22 @@ class IocBuildTask(EpicsBuildTask):
 
 class IocTestFakeDevTask(Task):
 
-    def __init__(self, owner):
+    def __init__(self, owner: Ioc) -> None:
         super().__init__()
         self.owner = owner
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         import ferrite.ioc.tests.fakedev as fakedev
-        epics_base_dir = self.owner.epics_base.paths["install"]
         fakedev.run_test(
             self.owner.epics_base.paths["install"],
             self.owner.paths["install"],
             os.path.join(BASE_DIR, "ipp"),
             epics_host_arch(self.owner.epics_base.paths["build"]),
         )
-        return True
 
-    def dependencies(self) -> list[Task]:
+    def dependencies(self) -> List[Task]:
         return [
-            self.owner.epics_base.build_task,
+            self.owner.epics_base.tasks()["build"],
             self.owner.build_task,
         ]
 
@@ -118,7 +119,7 @@ class IocDeployTask(EpicsDeployTask):
         install_dir: str,
         deploy_dir: str,
         epics_deploy_path: str,
-        deps: list[Task] = [],
+        deps: List[Task] = [],
     ):
         super().__init__(
             install_dir,
@@ -127,7 +128,8 @@ class IocDeployTask(EpicsDeployTask):
         )
         self.epics_deploy_path = epics_deploy_path
 
-    def _post(self, ctx: Context):
+    def _post(self, ctx: Context) -> None:
+        assert ctx.device is not None
         boot_dir = os.path.join(self.install_dir, "iocBoot")
         for ioc_name in os.listdir(boot_dir):
             ioc_dir = os.path.join(boot_dir, ioc_name)
@@ -143,7 +145,7 @@ class IocDeployTask(EpicsDeployTask):
             ctx.device.store_mem(text, os.path.join(self.deploy_dir, "iocBoot", ioc_name, "envPaths"))
 
 
-class IocRunner(object):
+class IocRunner:
 
     def __init__(
         self,
@@ -157,38 +159,43 @@ class IocRunner(object):
         self.deploy_path = deploy_path
         self.epics_deploy_path = epics_deploy_path
         self.arch = arch
-        self.proc = None
+        self.proc: Optional[Popen[bytes]] = None
 
-    def __enter__(self):
-        self.proc = self.device.run([
-            "bash",
-            "-c",
-            "export {}; export {}; cd {} && {} {}".format(
-                f"TOP={self.deploy_path}",
-                f"LD_LIBRARY_PATH={self.epics_deploy_path}/lib/{self.arch}:{self.deploy_path}/lib/{self.arch}",
-                f"{self.deploy_path}/iocBoot/iocPSC",
-                f"{self.deploy_path}/bin/{self.arch}/PSC",
-                "st.cmd",
-            ),
-        ],
-                                    popen=True)
+    def __enter__(self) -> None:
+        self.proc = self.device.run(
+            [
+                "bash",
+                "-c",
+                "export {}; export {}; cd {} && {} {}".format(
+                    f"TOP={self.deploy_path}",
+                    f"LD_LIBRARY_PATH={self.epics_deploy_path}/lib/{self.arch}:{self.deploy_path}/lib/{self.arch}",
+                    f"{self.deploy_path}/iocBoot/iocPSC",
+                    f"{self.deploy_path}/bin/{self.arch}/PSC",
+                    "st.cmd",
+                ),
+            ],
+            popen=True,
+        )
+        assert self.proc is not None
         time.sleep(1)
         logging.info("IOC started")
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: Any) -> None:
         logging.info("terminating IOC ...")
+        assert self.proc is not None
         self.proc.terminate()
         logging.info("IOC terminated")
 
 
 class IocRunTask(FinalTask):
 
-    def __init__(self, owner):
+    def __init__(self, owner: Ioc):
         super().__init__()
         self.owner = owner
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         assert ctx.device is not None
+        assert isinstance(self.owner.epics_base, EpicsBaseCross)
         with IocRunner(
             ctx.device,
             self.owner.deploy_path,
@@ -201,7 +208,8 @@ class IocRunTask(FinalTask):
             except KeyboardInterrupt:
                 pass
 
-    def dependencies(self) -> list[Task]:
+    def dependencies(self) -> List[Task]:
+        assert isinstance(self.owner.epics_base, EpicsBaseCross)
         return [
             self.owner.epics_base.deploy_task,
             self.owner.deploy_task,
@@ -239,7 +247,7 @@ class Ioc(Component):
             self.paths["install"],
             [
                 *([self.toolchain.download_task] if isinstance(self.toolchain, CrossToolchain) else []),
-                self.epics_base.build_task,
+                self.epics_base.tasks()["build"],
                 self.app.build_main_task if not isinstance(self.toolchain, HostToolchain) else self.app.build_fakedev_task,
             ],
             self.epics_base.paths["build"],
@@ -249,8 +257,10 @@ class Ioc(Component):
             self.toolchain,
         )
         if isinstance(self.toolchain, HostToolchain):
+            assert isinstance(self.epics_base, EpicsBaseHost)
             self.test_fakedev_task = IocTestFakeDevTask(self)
-        else:
+        elif isinstance(self.toolchain, CrossToolchain):
+            assert isinstance(self.epics_base, EpicsBaseCross)
             self.deploy_task = IocDeployTask(
                 self.paths["install"],
                 self.deploy_path,
@@ -258,9 +268,11 @@ class Ioc(Component):
                 [self.build_task],
             )
             self.run_task = IocRunTask(self)
+        else:
+            raise RuntimeError("Unknown toolchain type")
 
-    def tasks(self) -> dict[str, Task]:
-        tasks = {
+    def tasks(self) -> Dict[str, Task]:
+        tasks: Dict[str, Task] = {
             "build": self.build_task,
         }
         if isinstance(self.toolchain, HostToolchain):

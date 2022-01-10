@@ -1,5 +1,6 @@
 from __future__ import annotations
-import os
+from typing import Dict
+
 from ferrite.components.base import Component, Task, TaskWrapper, TaskList
 from ferrite.components.epics.epics_base import EpicsBase
 from ferrite.components.codegen import Codegen
@@ -46,7 +47,7 @@ class AllHost(Component):
             ]
         )
 
-    def tasks(self) -> dict[str, Task]:
+    def tasks(self) -> Dict[str, Task]:
         return {
             "build": self.build_task,
             "test": self.test_task,
@@ -91,7 +92,7 @@ class AllCross(Component):
             deps=[self.deploy_and_reboot_task],
         )
 
-    def tasks(self) -> dict[str, Task]:
+    def tasks(self) -> Dict[str, Task]:
         return {
             "build": self.build_task,
             "deploy": self.deploy_task,

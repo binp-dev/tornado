@@ -1,15 +1,17 @@
 from __future__ import annotations
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional
+
 import os
 import shutil
 import logging
+
 from dataclasses import dataclass
 from ferrite.utils.run import run, RunError
 from ferrite.components.base import Component, Task, Context
 from ferrite.manage.paths import TARGET_DIR
 
 
-def clone(path: str, remote: str, branch: Optional[str] = None, clean: bool = False) -> bool:
+def clone(path: str, remote: str, branch: Optional[str] = None, clean: bool = False, quiet: bool = False) -> bool:
     # FIXME: Pull if update available
     if os.path.exists(path):
         logging.info(f"Repo '{remote}' is cloned already")
@@ -20,10 +22,11 @@ def clone(path: str, remote: str, branch: Optional[str] = None, clean: bool = Fa
             ["git", "clone", remote, os.path.basename(path)],
             cwd=os.path.dirname(path),
             add_env={"GIT_TERMINAL_PROMPT": "0"},
+            quiet=quiet,
         )
         if branch:
-            run(["git", "checkout", branch], cwd=path)
-        run(["git", "submodule", "update", "--init", "--recursive"], cwd=path)
+            run(["git", "checkout", branch], cwd=path, quiet=quiet)
+        run(["git", "submodule", "update", "--init", "--recursive"], cwd=path, quiet=quiet)
     except RunError:
         if os.path.exists(path):
             shutil.rmtree(path)
@@ -46,17 +49,16 @@ class GitCloneTask(Task):
         self.path = path
         self.sources = sources
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         last_error = None
         for source in self.sources:
             try:
-                return clone(self.path, source.remote, source.branch, clean=True)
+                clone(self.path, source.remote, source.branch, clean=True, quiet=ctx.capture)
             except RunError as e:
                 last_error = e
                 continue
         if last_error is not None:
             raise last_error
-        return False
 
     def artifacts(self) -> List[str]:
         return [self.path]
@@ -73,7 +75,7 @@ class RepoList(Component):
 
         self.clone_task = GitCloneTask(self.path, self.sources)
 
-    def tasks(self) -> dict[str, Task]:
+    def tasks(self) -> Dict[str, Task]:
         return {
             "clone": self.clone_task,
         }
@@ -81,5 +83,5 @@ class RepoList(Component):
 
 class Repo(RepoList):
 
-    def __init__(self, name: str, remote: str, branch: str = None):
+    def __init__(self, name: str, remote: str, branch: Optional[str] = None):
         super().__init__(name, [RepoSource(remote, branch)])

@@ -1,10 +1,12 @@
 from __future__ import annotations
+from typing import Dict, List
+
 import os
 import shutil
-import tarfile
 import logging
 from dataclasses import dataclass
-from ferrite.utils.run import run
+
+from ferrite.utils.run import capture
 from ferrite.utils.net import download_alt
 from ferrite.utils.strings import try_format
 from ferrite.components.base import Component, Task, Context
@@ -21,7 +23,7 @@ class Target:
     def from_str(triple: str) -> Target:
         return Target(*triple.split("-"))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.isa}-{self.api}-{self.abi}"
 
 
@@ -36,10 +38,10 @@ class Toolchain(Component):
 
 class HostToolchain(Toolchain):
 
-    def __init__(self):
-        super().__init__("host", Target.from_str(run(["gcc", "-dumpmachine"], capture=True)))
+    def __init__(self) -> None:
+        super().__init__("host", Target.from_str(capture(["gcc", "-dumpmachine"])))
 
-    def tasks(self) -> dict[str, Task]:
+    def tasks(self) -> Dict[str, Task]:
         return {}
 
 
@@ -49,16 +51,16 @@ class ToolchainDownloadTask(Task):
         super().__init__()
         self.owner = owner
 
-    def run(self, ctx: Context) -> bool:
-        return self.owner.download()
+    def run(self, ctx: Context) -> None:
+        self.owner.download()
 
-    def artifacts(self) -> list[str]:
+    def artifacts(self) -> List[str]:
         return [self.owner.path]
 
 
 class CrossToolchain(Toolchain):
 
-    def __init__(self, name, target, dir_name, archive, urls):
+    def __init__(self, name: str, target: Target, dir_name: str, archive: str, urls: List[str]):
         super().__init__(name, target)
         info = {"target": str(self.target)}
 
@@ -102,7 +104,7 @@ class CrossToolchain(Toolchain):
 
         return True
 
-    def tasks(self) -> dict[str, Task]:
+    def tasks(self) -> Dict[str, Task]:
         return {
             "download": self.download_task,
         }
@@ -110,7 +112,7 @@ class CrossToolchain(Toolchain):
 
 class AppToolchain(CrossToolchain):
 
-    def __init__(self, name, target):
+    def __init__(self, name: str, target: Target):
         super().__init__(
             name=name,
             target=target,
@@ -125,7 +127,7 @@ class AppToolchain(CrossToolchain):
 
 class AppToolchainImx7(AppToolchain):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             name="imx7",
             target=Target("arm", "linux", "gnueabihf"),
@@ -134,7 +136,7 @@ class AppToolchainImx7(AppToolchain):
 
 class AppToolchainImx8mn(AppToolchain):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             name="imx8mn",
             target=Target("aarch64", "linux", "gnu"),
@@ -143,7 +145,7 @@ class AppToolchainImx8mn(AppToolchain):
 
 class McuToolchainImx7(CrossToolchain):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             name="imx7",
             target=Target("arm", "none", "eabi"),
@@ -158,7 +160,7 @@ class McuToolchainImx7(CrossToolchain):
 
 class McuToolchainImx8mn(CrossToolchain):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             name="imx8mn",
             target=Target("arm", "none", "eabi"),

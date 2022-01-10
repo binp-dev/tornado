@@ -1,13 +1,16 @@
 from __future__ import annotations
+from typing import Dict, List
+
 import os
 import shutil
 import logging
+
 from ferrite.utils.files import substitute, allow_patterns
 from ferrite.components.base import Component, Task, Context
 from ferrite.components.git import RepoList, RepoSource
 from ferrite.components.toolchains import Toolchain, HostToolchain, CrossToolchain
 from ferrite.manage.paths import TARGET_DIR
-from .base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch, epics_arch_by_target
+from ferrite.components.epics.base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch, epics_arch_by_target
 
 
 class EpicsBaseBuildTask(EpicsBuildTask):
@@ -17,7 +20,7 @@ class EpicsBaseBuildTask(EpicsBuildTask):
         src_dir: str,
         build_dir: str,
         install_dir: str,
-        deps: list[Task],
+        deps: List[Task],
         toolchain: Toolchain,
     ):
         super().__init__(
@@ -28,7 +31,7 @@ class EpicsBaseBuildTask(EpicsBuildTask):
         )
         self.toolchain = toolchain
 
-    def _configure_common(self):
+    def _configure_common(self) -> None:
         defs = [
             #("USR_CFLAGS", ""),
             #("USR_CPPFLAGS", ""),
@@ -39,10 +42,10 @@ class EpicsBaseBuildTask(EpicsBuildTask):
             ("INSTALL_PERMISSIONS", "644"),
         ]
         rules = [(f"^(\\s*{k}\\s*=).*$", f"\\1 {v}") for k, v in defs]
-        logging.warning(rules)
+        logging.info(rules)
         substitute(rules, os.path.join(self.build_dir, "configure/CONFIG_COMMON"))
 
-    def _configure_toolchain(self):
+    def _configure_toolchain(self) -> None:
         if isinstance(self.toolchain, HostToolchain):
             substitute([
                 ("^(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", "\\1"),
@@ -66,17 +69,17 @@ class EpicsBaseBuildTask(EpicsBuildTask):
         else:
             raise RuntimeError(f"Unsupported toolchain type: {type(self.toolchain).__name__}")
 
-    def _configure_install(self):
+    def _configure_install(self) -> None:
         substitute([
             ("^\\s*#*(\\s*INSTALL_LOCATION\\s*=).*$", f"\\1 {self.install_dir}"),
         ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
 
-    def _configure(self):
+    def _configure(self) -> None:
         self._configure_common()
         self._configure_toolchain()
         #self._configure_install()
 
-    def _install(self):
+    def _install(self) -> None:
         host_arch = epics_host_arch(self.build_dir)
         arch = epics_arch(self.build_dir, self.toolchain)
         paths = [
@@ -107,24 +110,27 @@ class EpicsBaseBuildTask(EpicsBuildTask):
                 ignore=allow_patterns("*.pl", "*.py"),
             )
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         done_path = os.path.join(self.build_dir, "build.done")
         if os.path.exists(done_path):
             with open(done_path, "r") as f:
                 if f.read() == self.build_dir:
                     logging.info(f"'{self.build_dir}' is already built")
-                    return False
+                    return
 
         super().run(ctx)
         with open(done_path, "w") as f:
             f.write(self.build_dir)
-        return True
 
 
 class EpicsBase(Component):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
+        self.paths: Dict[str, str] = {}
+
+    def arch(self) -> str:
+        raise NotImplementedError()
 
 
 class EpicsBaseHost(EpicsBase):
@@ -163,7 +169,7 @@ class EpicsBaseHost(EpicsBase):
     def arch(self) -> str:
         return epics_host_arch(self.src_path)
 
-    def tasks(self) -> dict[str, Task]:
+    def tasks(self) -> Dict[str, Task]:
         return {
             "clone": self.repo.clone_task,
             "build": self.build_task,
@@ -206,7 +212,7 @@ class EpicsBaseCross(EpicsBase):
     def arch(self) -> str:
         return epics_arch_by_target(self.toolchain.target)
 
-    def tasks(self) -> dict[str, Task]:
+    def tasks(self) -> Dict[str, Task]:
         return {
             "build": self.build_task,
             "deploy": self.deploy_task,

@@ -1,6 +1,7 @@
-import os
+from __future__ import annotations
 from typing import List, Tuple
-from dataclasses import dataclass
+
+import os
 
 from ferrite.codegen.base import CONTEXT, Context, Location, Name, Source, Type
 from ferrite.codegen.struct import Field, Struct

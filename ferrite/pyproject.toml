@@ -31,3 +31,4 @@ coalesce_brackets = true
 
 [tool.mypy]
 strict = true
+namespace_packages = true

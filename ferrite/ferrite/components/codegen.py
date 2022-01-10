@@ -1,5 +1,8 @@
 from __future__ import annotations
+from typing import Dict, List
+
 import os
+
 from ferrite.utils.run import run
 from ferrite.manage.paths import BASE_DIR, TARGET_DIR
 from ferrite.components.base import Component, Task, Context
@@ -15,14 +18,14 @@ class CodegenBuildTestTask(Task):
         self.cmake = cmake
         self.generate_task = generate_task
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         self.cmake.configure(ctx)
-        return self.cmake.build(ctx, "codegen_test")
+        self.cmake.build(ctx, "codegen_test")
 
-    def artifacts(self) -> str[list]:
+    def artifacts(self) -> List[str]:
         return [self.cmake.build_dir]
 
-    def dependencies(self) -> list[Task]:
+    def dependencies(self) -> List[Task]:
         return [self.generate_task]
 
 
@@ -33,26 +36,24 @@ class CodegenRunTestTask(Task):
         self.cmake = cmake
         self.build_task = build_task
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         run(["./codegen_test"], cwd=self.cmake.build_dir, quiet=ctx.capture)
-        return True
 
-    def dependencies(self) -> list[Task]:
+    def dependencies(self) -> List[Task]:
         return [self.build_task]
 
 
 class CodegenGenerateTestTask(Task):
 
-    def __init__(self, owner):
+    def __init__(self, owner: Codegen) -> None:
         super().__init__()
         self.owner = owner
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         from ferrite.codegen.test import generate
         generate(self.owner.generated_dir)
-        return True
 
-    def artifacts(self) -> str[list]:
+    def artifacts(self) -> List[str]:
         return [self.owner.generated_dir]
 
 
@@ -77,7 +78,7 @@ class Codegen(Component):
         self.build_test_task = CodegenBuildTestTask(self.cmake, self.generate_task)
         self.run_test_task = CodegenRunTestTask(self.cmake, self.build_test_task)
 
-    def tasks(self) -> dict[str, Task]:
+    def tasks(self) -> Dict[str, Task]:
         return {
             "generate": self.generate_task,
             "build": self.build_test_task,

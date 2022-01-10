@@ -1,19 +1,21 @@
+from __future__ import annotations
+from typing import List
+
 import os
 import time
 import zmq
-
 from threading import Thread
 
 from ferrite.ipp import AppMsg, McuMsg
 from ferrite.utils.epics.ioc import Ioc
-from ferrite.utils.epics import ca
+import ferrite.utils.epics.ca as ca
 
 
-def assert_eq(a, b, eps=1e2):
+def assert_eq(a: float, b: float, eps: float = 1e2) -> None:
     assert abs(a - b) < eps
 
 
-def send_msg(socket, msg):
+def send_msg(socket, msg) -> None:
     any_msg = None
     for i, f in enumerate(McuMsg.variants):
         if f.type.is_instance(msg):

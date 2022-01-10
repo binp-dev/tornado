@@ -1,6 +1,9 @@
 from __future__ import annotations
+from typing import List, Dict, Optional
+
 import os
-from ferrite.utils.run import run
+
+from ferrite.utils.run import capture, run
 from ferrite.components.base import Context
 from ferrite.components.cmake import Cmake
 from ferrite.components.toolchains import Toolchain, HostToolchain, CrossToolchain
@@ -35,7 +38,7 @@ class ConanProfile:
         else:
             raise RuntimeError(f"Unsupported toolchain type '{type(tc).__name__}'")
 
-        ver = run([f"{tc_prefix}gcc", "-dumpversion"], capture=True).split(".")
+        ver = capture([f"{tc_prefix}gcc", "-dumpversion"]).split(".")
         version = ".".join(ver[:min(len(ver), 2)])
 
         content = [
@@ -63,7 +66,7 @@ class ConanProfile:
 
         return "\n".join(content)
 
-    def save(self, path: str):
+    def save(self, path: str) -> None:
         with open(path, "w") as f:
             f.write(self.generate())
 
@@ -75,8 +78,8 @@ class CmakeWithConan(Cmake):
         src_dir: str,
         build_dir: str,
         toolchain: Toolchain,
-        opt: list[str] = [],
-        env: dict[str, str] = None,
+        opt: List[str] = [],
+        env: Optional[Dict[str, str]] = None,
     ):
         super().__init__(
             src_dir,
@@ -86,7 +89,7 @@ class CmakeWithConan(Cmake):
             env,
         )
 
-    def configure(self, ctx: Context = {}):
+    def configure(self, ctx: Context) -> None:
         self.create_build_dir()
 
         profile_path = os.path.join(self.build_dir, "profile.conan")

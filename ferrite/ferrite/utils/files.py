@@ -1,22 +1,21 @@
 from __future__ import annotations
-from typing import Callable
+from typing import Callable, List, Optional, Set, Tuple
+
 import re
 import logging
-import shutil 
+import shutil
 
-def match(pat, src):
-    logging.debug("matching '%s': '%s':" % (src, pat))
 
-    with open(src, 'r') as file:
-        data = file.read()
-    
-    return re.match(pat, flags=re.M)
-
-def substitute(rep, src, dst=None, force=False):
+def substitute(
+    rep: List[Tuple[str, str]],
+    src: str,
+    dst: Optional[str] = None,
+    force: bool = False,
+) -> None:
     if dst is None:
         dst = src
-    
-    logging.debug("substituting '%s' -> '%s':" % (src, dst))
+
+    logging.debug(f"substituting '{src}' -> '{dst}':")
 
     with open(src, 'r') as file:
         data = file.read()
@@ -32,12 +31,14 @@ def substitute(rep, src, dst=None, force=False):
     else:
         logging.debug(f"file unchanged '{dst}'")
 
-def _inverse_ignore_patterns(
-    ignore_patterns: Callable[[str, list[str]], list[str]],
-) -> Callable[[str, list[str]], list[str]]:
-    def allow_patterns(path: str, names: list[str]) -> list[str]:
-        return list(set(names) - set(ignore_patterns(path, names)))
+
+def _inverse_ignore_patterns(ignore_patterns: Callable[[str, List[str]], Set[str]]) -> Callable[[str, List[str]], Set[str]]:
+
+    def allow_patterns(path: str, names: List[str]) -> Set[str]:
+        return set(names) - set(ignore_patterns(path, names))
+
     return allow_patterns
 
-def allow_patterns(*patterns):
+
+def allow_patterns(*patterns: str) -> Callable[[str, List[str]], Set[str]]:
     return _inverse_ignore_patterns(shutil.ignore_patterns(*patterns))

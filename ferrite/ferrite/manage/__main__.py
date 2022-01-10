@@ -1,12 +1,12 @@
 from __future__ import annotations
+
 import argparse
 import logging
 from colorama import init as colorama_init, Fore, Style
+
 from ferrite.components.base import Context, Task
 from ferrite.remote.ssh import SshDevice
 from ferrite.manage.tree import components
-
-logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.DEBUG)
 
 if __name__ == "__main__":
     colorama_init()
@@ -90,6 +90,12 @@ if __name__ == "__main__":
         device = SshDevice(args.device)
 
     capture = not args.no_capture
+    if capture:
+        log_level = logging.WARNING
+    else:
+        log_level = logging.DEBUG
+
+    logging.basicConfig(format='[%(levelname)s] %(message)s', level=log_level, force=True)
 
     context = Context(
         device=device,

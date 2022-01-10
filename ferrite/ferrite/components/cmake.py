@@ -1,5 +1,8 @@
 from __future__ import annotations
+from typing import Dict, List, Optional
+
 import os
+
 from ferrite.utils.run import run
 from ferrite.components.base import Component, Task, Context
 from ferrite.components.toolchains import Toolchain
@@ -14,20 +17,20 @@ class CmakeTask(Task):
 
 class CmakeBuildTask(CmakeTask):
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         self.owner.configure(ctx)
-        return self.owner.build(ctx)
+        self.owner.build(ctx)
 
-    def artifacts(self) -> str[list]:
+    def artifacts(self) -> List[str]:
         return [self.owner.build_dir]
 
 
 class CmakeTestTask(CmakeTask):
 
-    def run(self, ctx: Context):
+    def run(self, ctx: Context) -> None:
         self.owner.test(ctx)
 
-    def dependencies(self) -> list[Task]:
+    def dependencies(self) -> List[Task]:
         return [self.owner.build_task]
 
 
@@ -38,8 +41,8 @@ class Cmake(Component):
         src_dir: str,
         build_dir: str,
         toolchain: Toolchain,
-        opt: list[str] = [],
-        env: dict[str, str] = None,
+        opt: List[str] = [],
+        env: Optional[Dict[str, str]] = None,
     ):
         super().__init__()
 
@@ -52,10 +55,10 @@ class Cmake(Component):
         self.build_task = CmakeBuildTask(self)
         self.test_task = CmakeTestTask(self)
 
-    def create_build_dir(self):
+    def create_build_dir(self) -> None:
         os.makedirs(self.build_dir, exist_ok=True)
 
-    def configure(self, ctx: Context):
+    def configure(self, ctx: Context) -> None:
         self.create_build_dir()
         run(
             [
@@ -68,8 +71,7 @@ class Cmake(Component):
             quiet=ctx.capture,
         )
 
-    # TODO: Detect that project is already built
-    def build(self, ctx: Context, target=None, verbose=False) -> bool:
+    def build(self, ctx: Context, target: Optional[str] = None, verbose: bool = False) -> None:
         run(
             [
                 "cmake",
@@ -82,12 +84,11 @@ class Cmake(Component):
             cwd=self.build_dir,
             quiet=ctx.capture,
         )
-        return True
 
-    def test(self, ctx: Context):
+    def test(self, ctx: Context) -> None:
         run(["ctest", "--verbose"], cwd=self.build_dir, quiet=ctx.capture)
 
-    def tasks(self) -> dict[str, Task]:
+    def tasks(self) -> Dict[str, Task]:
         return {
             "build": self.build_task,
             "test": self.test_task,

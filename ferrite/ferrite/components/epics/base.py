@@ -1,17 +1,20 @@
 from __future__ import annotations
+from typing import List, Optional
+
 import os
 import shutil
 import logging
-from ferrite.utils.run import run
+
+from ferrite.utils.run import capture, run
 from ferrite.components.base import Task, Context
 from ferrite.components.toolchains import Target, Toolchain, HostToolchain
 
 
-def epics_host_arch(epics_base_dir: str):
-    return run([
+def epics_host_arch(epics_base_dir: str) -> str:
+    return capture([
         "perl",
         os.path.join(epics_base_dir, "src", "tools", "EpicsHostArch.pl"),
-    ], capture=True, log=False).strip()
+    ]).strip()
 
 
 def epics_arch_by_target(target: Target) -> str:
@@ -24,7 +27,7 @@ def epics_arch_by_target(target: Target) -> str:
     raise Exception(f"Unknown target for EPICS: {str(target)}")
 
 
-def epics_arch(epics_base_dir: str, toolchain: Toolchain):
+def epics_arch(epics_base_dir: str, toolchain: Toolchain) -> str:
     if isinstance(toolchain, HostToolchain):
         return epics_host_arch(epics_base_dir)
     else:
@@ -39,8 +42,8 @@ class EpicsBuildTask(Task):
         build_dir: str,
         install_dir: str,
         clean: bool = False,
-        mk_target: str = None,
-        deps: list[Task] = [],
+        mk_target: Optional[str] = None,
+        deps: List[Task] = [],
     ):
         super().__init__()
         self.src_dir = src_dir
@@ -50,13 +53,13 @@ class EpicsBuildTask(Task):
         self.mk_target = mk_target
         self.deps = deps
 
-    def _configure(self):
-        raise NotImplementedError
+    def _configure(self) -> None:
+        raise NotImplementedError()
 
-    def _install(self):
-        raise NotImplementedError
+    def _install(self) -> None:
+        raise NotImplementedError()
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         if self.clean:
             shutil.rmtree(self.build_dir, ignore_errors=True)
             shutil.rmtree(self.install_dir, ignore_errors=True)
@@ -79,12 +82,10 @@ class EpicsBuildTask(Task):
         os.makedirs(self.install_dir, exist_ok=True)
         self._install()
 
-        return True
-
-    def dependencies(self) -> list[Task]:
+    def dependencies(self) -> List[Task]:
         return self.deps
 
-    def artifacts(self) -> list[str]:
+    def artifacts(self) -> List[str]:
         return [
             self.build_dir,
             self.install_dir,
@@ -97,30 +98,29 @@ class EpicsDeployTask(Task):
         self,
         install_dir: str,
         deploy_dir: str,
-        deps: list[Task] = [],
+        deps: List[Task] = [],
     ):
         super().__init__()
         self.install_dir = install_dir
         self.deploy_dir = deploy_dir
         self.deps = deps
 
-    def _pre(self, ctx: Context):
+    def _pre(self, ctx: Context) -> None:
         pass
 
-    def _post(self, ctx: Context):
+    def _post(self, ctx: Context) -> None:
         pass
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         assert ctx.device is not None
         self._pre(ctx)
         logging.info(f"Deploy {self.install_dir} to {ctx.device.name()}:{self.deploy_dir}")
         ctx.device.store(
             self.install_dir,
             self.deploy_dir,
-            r=True,
+            recursive=True,
         )
         self._post(ctx)
-        return True
 
-    def dependencies(self) -> list[Task]:
+    def dependencies(self) -> List[Task]:
         return self.deps

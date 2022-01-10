@@ -1,40 +1,38 @@
 from __future__ import annotations
-from typing import List, Optional
+from typing import Dict, List, Optional
+
 from ferrite.remote.base import Device
 
 
 class Context:
 
-    def __init__(self, device: Device = None, capture: bool = False):
-        super().__init__()
+    def __init__(self, device: Optional[Device] = None, capture: bool = False):
         self.device = device
         self.capture = capture
 
 
-class Task(object):
+class Task:
 
     def __init__(self) -> None:
-        super().__init__()
-        self._name = None
+        self._name: Optional[str] = None
 
     def name(self) -> str:
         return self._name or str(self)
 
-    def run(self, ctx: Context) -> bool:
-        raise NotImplementedError
+    def run(self, ctx: Context) -> None:
+        raise NotImplementedError()
 
     def dependencies(self) -> List[Task]:
         return []
 
-    def run_with_dependencies(self, ctx: Context) -> bool:
-        ret = False
+    def run_with_dependencies(self, ctx: Context) -> None:
         deps = self.dependencies()
         assert isinstance(deps, list)
 
         for dep in deps:
-            ret = dep.run_with_dependencies(ctx) or ret
+            dep.run_with_dependencies(ctx)
 
-        return self.run(ctx) or ret
+        self.run(ctx)
 
     def artifacts(self) -> List[str]:
         return []
@@ -52,12 +50,9 @@ class TaskList(Task):
         super().__init__()
         self.tasks = tasks
 
-    def run(self, ctx: Context) -> bool:
-        res = False
+    def run(self, ctx: Context) -> None:
         for task in self.tasks:
-            if task.run(ctx):
-                res = True
-        return res
+            task.run(ctx)
 
     def dependencies(self) -> List[Task]:
         return [dep for task in self.tasks for dep in task.dependencies()]
@@ -79,11 +74,9 @@ class TaskWrapper(Task):
         else:
             return super().name()
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         if self.inner is not None:
-            return self.inner.run(ctx)
-        else:
-            return False
+            self.inner.run(ctx)
 
     def dependencies(self) -> List[Task]:
         inner_deps = []
@@ -100,8 +93,5 @@ class TaskWrapper(Task):
 
 class Component:
 
-    def __init__(self) -> None:
-        super().__init__()
-
-    def tasks(self) -> dict[str, Task]:
-        raise NotImplementedError
+    def tasks(self) -> Dict[str, Task]:
+        raise NotImplementedError()

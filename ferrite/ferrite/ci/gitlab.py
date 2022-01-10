@@ -1,5 +1,8 @@
 from __future__ import annotations
+from typing import List
+
 import os
+
 from ferrite.components.base import Task
 from ferrite.manage.tree import components
 from ferrite.manage.paths import BASE_DIR
@@ -14,21 +17,21 @@ def base_path(path):
     return os.path.relpath(path, BASE_DIR)
 
 
-class Cache(object):
+class Cache:
 
     def __init__(self):
         super().__init__()
 
     def is_cached(self, path):
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def text(self) -> str:
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
-class Job(object):
+class Job:
 
-    def __init__(self, task: Task, level: int, deps: list[Job]):
+    def __init__(self, task: Task, level: int, deps: List[Job]):
         super().__init__()
         self.task = task
         self.level = level
@@ -70,7 +73,7 @@ class Job(object):
         return text
 
 
-class Graph(object):
+class Graph:
 
     def __init__(self):
         self.jobs = {}

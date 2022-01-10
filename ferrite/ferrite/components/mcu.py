@@ -1,10 +1,13 @@
 from __future__ import annotations
+from typing import Dict, List, Optional
+
 import os
 import shutil
+
 from ferrite.manage.paths import BASE_DIR, TARGET_DIR
 from ferrite.components.base import Component, Task, Context, TaskWrapper
 from ferrite.components.cmake import Cmake
-from ferrite.components.toolchains import McuToolchainImx7, McuToolchainImx8mn, Toolchain
+from ferrite.components.toolchains import CrossToolchain, McuToolchainImx7, McuToolchainImx8mn, Toolchain
 from ferrite.components.ipp import Ipp
 from ferrite.components.freertos import Freertos
 from ferrite.remote.tasks import RebootTask
@@ -22,22 +25,22 @@ class McuBuildTask(McuTask):
     def __init__(self, owner: Mcu):
         super().__init__(owner)
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         # Workaround to disable cmake caching (incremental build is broken anyway)
         build_dir = self.owner.cmake.build_dir
         if os.path.exists(build_dir):
             shutil.rmtree(build_dir)
 
-        return self.owner.cmake.build_task.run(ctx)
+        self.owner.cmake.build_task.run(ctx)
 
-    def dependencies(self) -> list[Task]:
+    def dependencies(self) -> List[Task]:
         return [
             self.owner.toolchain.download_task,
             self.owner.freertos.clone_task,
             self.owner.ipp.generate_task,
         ]
 
-    def artifacts(self) -> str[list]:
+    def artifacts(self) -> List[str]:
         return [self.owner.cmake.build_dir]
 
 
@@ -46,7 +49,7 @@ class McuDeployTask(McuTask):
     def __init__(self, owner: Mcu):
         super().__init__(owner)
 
-    def dependencies(self) -> list[Task]:
+    def dependencies(self) -> List[Task]:
         return [self.owner.tasks()["build"]]
 
 
@@ -55,7 +58,7 @@ class McuDeployTaskImx7(McuDeployTask):
     def __init__(self, owner: Mcu):
         super().__init__(owner)
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         assert ctx.device is not None
         ctx.device.store(
             os.path.join(self.owner.cmake.build_dir, "release/m4image.bin"),
@@ -73,7 +76,7 @@ class McuDeployTaskImx8mn(McuDeployTask):
     def __init__(self, owner: Mcu):
         super().__init__(owner)
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         assert ctx.device is not None
         ctx.device.store(
             os.path.join(self.owner.cmake.build_dir, "m7image.bin"),
@@ -83,7 +86,7 @@ class McuDeployTaskImx8mn(McuDeployTask):
 
 class Mcu(Component):
 
-    def __init__(self, freertos: Freertos, toolchain: Toolchain, ipp: Ipp):
+    def __init__(self, freertos: Freertos, toolchain: CrossToolchain, ipp: Ipp):
         super().__init__()
 
         self.src_dir = os.path.join(BASE_DIR, f"mcu/{toolchain.name}")
@@ -115,7 +118,7 @@ class Mcu(Component):
         self.build_task = McuBuildTask(self)
 
         if isinstance(toolchain, McuToolchainImx7):
-            self.deploy_task = McuDeployTaskImx7(self)
+            self.deploy_task: McuDeployTask = McuDeployTaskImx7(self)
         elif isinstance(toolchain, McuToolchainImx8mn):
             self.deploy_task = McuDeployTaskImx8mn(self)
         else:
@@ -123,7 +126,7 @@ class Mcu(Component):
 
         self.deploy_and_reboot_task = TaskWrapper(RebootTask(), deps=[self.deploy_task])
 
-    def tasks(self) -> dict[str, Task]:
+    def tasks(self) -> Dict[str, Task]:
         return {
             "build": self.build_task,
             "deploy": self.deploy_task,

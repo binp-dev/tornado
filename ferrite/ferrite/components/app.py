@@ -1,5 +1,8 @@
 from __future__ import annotations
+from typing import Dict, List
+
 import os
+
 from ferrite.utils.run import run
 from ferrite.manage.paths import BASE_DIR, TARGET_DIR
 from ferrite.components.base import Component, Task, Context
@@ -17,14 +20,14 @@ class AppBuildUnittestTask(Task):
         self.cmake = cmake
         self.ipp = ipp
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         self.cmake.configure(ctx)
-        return self.cmake.build(ctx, "app_unittest")
+        self.cmake.build(ctx, "app_unittest")
 
-    def dependencies(self) -> list[Task]:
+    def dependencies(self) -> List[Task]:
         return [self.ipp.generate_task]
 
-    def artifacts(self) -> str[list]:
+    def artifacts(self) -> List[str]:
         return [self.cmake.build_dir]
 
 
@@ -35,11 +38,10 @@ class AppRunUnittestTask(Task):
         self.cmake = cmake
         self.build_task = build_task
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         run(["./app_unittest"], cwd=self.cmake.build_dir, quiet=ctx.capture)
-        return True
 
-    def dependencies(self) -> list[Task]:
+    def dependencies(self) -> List[Task]:
         return [self.build_task]
 
 
@@ -50,7 +52,7 @@ class AppBuildTask(Task):
         cmake: Cmake,
         cmake_target: str,
         ipp: Ipp,
-        deps: list[Task] = [],
+        deps: List[Task] = [],
     ):
         super().__init__()
         self.cmake = cmake
@@ -59,18 +61,18 @@ class AppBuildTask(Task):
         self.ipp = ipp
         self.deps = deps
 
-    def run(self, ctx: Context) -> bool:
+    def run(self, ctx: Context) -> None:
         self.cmake.configure(ctx)
-        return self.cmake.build(ctx, self.cmake_target)
+        self.cmake.build(ctx, self.cmake_target)
 
-    def dependencies(self) -> list[Task]:
+    def dependencies(self) -> List[Task]:
         deps = list(self.deps)
         if isinstance(self.cmake.toolchain, CrossToolchain):
             deps.append(self.cmake.toolchain.download_task)
         deps.append(self.ipp.generate_task)
         return deps
 
-    def artifacts(self) -> str[list]:
+    def artifacts(self) -> List[str]:
         return [self.cmake.build_dir]
 
 
@@ -107,8 +109,8 @@ class App(Component):
 
         self.build_main_task = AppBuildTask(self.cmake, "app", self.ipp)
 
-    def tasks(self) -> dict[str, Task]:
-        tasks = {
+    def tasks(self) -> Dict[str, Task]:
+        tasks: Dict[str, Task] = {
             "build_main": self.build_main_task,
         }
         if isinstance(self.toolchain, HostToolchain):
