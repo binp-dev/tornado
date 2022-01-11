@@ -82,12 +82,13 @@ class Job:
             ])
 
         if len(self.artifacts()) > 0:
-            paths = sorted([art.path.relative_to(base_dir) for art in self.artifacts()])
+            paths = sorted([str(art.path.relative_to(base_dir)) for art in self.artifacts()])
             lines.extend([
                 "  artifacts:",
                 "    paths:",
                 *[f"      - {art}" for art in paths],
             ])
+            del paths
 
         cached_artifacts = [art.path for art in self.artifacts() if art.cached]
         if len(cached_artifacts) > 0:
@@ -101,6 +102,7 @@ class Job:
                 "      paths:",
                 *[f"        - {p}" for p in paths],
             ])
+            del paths
 
         for k, v in self.attributes().items():
             if isinstance(v, str):
