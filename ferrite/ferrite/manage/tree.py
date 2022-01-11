@@ -68,13 +68,15 @@ imx8mn = CrossComponentStorage(
     FreertosImx8mn(),
 )
 
-components: Dict[str, Component] = {
+ComponentsDict = Dict[str, Component]
+
+COMPONENTS: ComponentsDict = {
     **{f"host_{k}": c for k, c in host.__dict__.items()},
     **{f"imx7_{k}": c for k, c in imx7.__dict__.items()},
     **{f"imx8mn_{k}": c for k, c in imx8mn.__dict__.items()},
 }
 
-for cname, comp in components.items():
+for cname, comp in COMPONENTS.items():
     for tname, task in comp.tasks().items():
         if not task._name:
             task._name = f"{cname}.{tname}"

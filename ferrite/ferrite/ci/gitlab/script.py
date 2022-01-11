@@ -6,7 +6,7 @@ import zlib
 from dataclasses import dataclass
 
 from ferrite.components.base import Artifact, Task
-from ferrite.manage.tree import components
+from ferrite.manage.tree import COMPONENTS
 from ferrite.manage.paths import BASE_DIR
 from ferrite.utils.strings import quote
 
@@ -212,7 +212,7 @@ def make_graph(end_tasks: List[str]) -> Graph:
 
     for etn in end_tasks:
         cn, tn = etn.split(".")
-        task = components[cn].tasks()[tn]
+        task = COMPONENTS[cn].tasks()[tn]
         graph.add_task_with_deps(task)
 
     stage = min(graph.stages()) - 1
