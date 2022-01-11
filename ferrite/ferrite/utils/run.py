@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, List, Dict, Optional
+from typing import List, Dict, Optional
 
 import os
 import sys
@@ -11,9 +11,8 @@ RunError = subprocess.CalledProcessError
 
 
 def run(
-    cmd: List[str],
-    # TODO: Change by Path
-    cwd: Optional[Path | str] = None,
+    cmd: List[str | Path],
+    cwd: Optional[Path] = None,
     add_env: Optional[Dict[str, str]] = None,
     capture: bool = False,
     quiet: bool = False,
@@ -54,8 +53,8 @@ def run(
 
 
 def capture(
-    cmd: List[str],
-    cwd: Optional[str] = None,
+    cmd: List[str | Path],
+    cwd: Optional[Path] = None,
     add_env: Optional[Dict[str, str]] = None,
 ) -> str:
     result = run(cmd, cwd, add_env=add_env, capture=True)

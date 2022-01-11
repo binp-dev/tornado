@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Dict, List
 
-import os
 from pathlib import Path
 
 from ferrite.utils.run import run
@@ -90,13 +89,13 @@ class App(Component):
         self.toolchain = toolchain
         self.ipp = ipp
 
-        self.src_dir = os.path.join(source_dir, "app")
-        self.build_dir = os.path.join(target_dir, f"app_{self.toolchain.name}")
+        self.src_dir = source_dir / "app"
+        self.build_dir = target_dir / f"app_{self.toolchain.name}"
 
         opts = ["-DCMAKE_BUILD_TYPE=Debug", *self.ipp.cmake_opts]
         envs = {}
         if isinstance(self.toolchain, CrossToolchain):
-            toolchain_cmake_path = os.path.join(self.src_dir, "armgcc.cmake")
+            toolchain_cmake_path = self.src_dir / "armgcc.cmake"
             opts.append(f"-DCMAKE_TOOLCHAIN_FILE={toolchain_cmake_path}")
             envs.update({
                 "TOOLCHAIN_DIR": str(self.toolchain.path),

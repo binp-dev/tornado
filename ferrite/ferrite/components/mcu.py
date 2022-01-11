@@ -1,9 +1,8 @@
 from __future__ import annotations
 from typing import Dict, List, Optional
 
-import os
 import shutil
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from ferrite.components.base import Artifact, Component, Task, Context, TaskWrapper
 from ferrite.components.cmake import Cmake
@@ -28,7 +27,7 @@ class McuBuildTask(McuTask):
     def run(self, ctx: Context) -> None:
         # Workaround to disable cmake caching (incremental build is broken anyway)
         build_dir = self.owner.cmake.build_dir
-        if os.path.exists(build_dir):
+        if build_dir.exists():
             shutil.rmtree(build_dir)
 
         self.owner.cmake.build_task.run(ctx)
@@ -61,8 +60,8 @@ class McuDeployTaskImx7(McuDeployTask):
     def run(self, ctx: Context) -> None:
         assert ctx.device is not None
         ctx.device.store(
-            os.path.join(self.owner.cmake.build_dir, "release/m4image.bin"),
-            "/m4image.bin",
+            self.owner.cmake.build_dir / "release/m4image.bin",
+            PurePosixPath("/m4image.bin"),
         )
         ctx.device.run(["bash", "-c", " && ".join([
             "mount /dev/mmcblk2p1 /mnt",
@@ -79,8 +78,8 @@ class McuDeployTaskImx8mn(McuDeployTask):
     def run(self, ctx: Context) -> None:
         assert ctx.device is not None
         ctx.device.store(
-            os.path.join(self.owner.cmake.build_dir, "m7image.bin"),
-            "/boot/m7image.bin",
+            self.owner.cmake.build_dir / "m7image.bin",
+            PurePosixPath("/boot/m7image.bin"),
         )
 
 
@@ -96,22 +95,17 @@ class Mcu(Component):
     ):
         super().__init__()
 
-        self.src_dir = os.path.join(source_dir, f"mcu/{toolchain.name}")
+        self.src_dir = source_dir / f"mcu/{toolchain.name}"
         self.toolchain = toolchain
         self.freertos = freertos
         self.ipp = ipp
 
         self.cmake = Cmake(
             self.src_dir,
-            os.path.join(target_dir, f"mcu_{self.toolchain.name}"),
+            target_dir / f"mcu_{self.toolchain.name}",
             toolchain,
             opt=[
-                "-DCMAKE_TOOLCHAIN_FILE={}".format(
-                    os.path.join(
-                        self.freertos.path,
-                        "tools/cmake_toolchain_files/armgcc.cmake",
-                    )
-                ),
+                "-DCMAKE_TOOLCHAIN_FILE={}".format(self.freertos.path / "tools/cmake_toolchain_files/armgcc.cmake"),
                 "-DCMAKE_BUILD_TYPE=Release",
                 *self.ipp.cmake_opts,
             ],

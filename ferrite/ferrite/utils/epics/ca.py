@@ -1,9 +1,11 @@
 from __future__ import annotations
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import os
 import time
+import logging
 from subprocess import Popen
+from pathlib import Path
 
 from ferrite.utils.run import run, capture
 
@@ -15,17 +17,17 @@ def _env() -> Dict[str, str]:
     }
 
 
-def get(prefix: str, pv: str) -> float:
-    print(f"caget {pv} ...")
-    out = capture([os.path.join(prefix, "caget"), "-t", "-f 3", pv], add_env=_env()).strip()
-    print(f"  {out}")
+def get(prefix: Path, pv: str) -> float:
+    logging.debug(f"caget {pv} ...")
+    out = capture([prefix / "caget", "-t", "-f 3", pv], add_env=_env())
+    logging.debug(f"  {out}")
     return float(out)
 
 
-def put(prefix: str, pv: str, value: Union[int, float, List[float]], array: bool = False) -> None:
-    print(f"caput {pv} {value} ...")
+def put(prefix: Path, pv: str, value: Union[int, float, List[float]], array: bool = False) -> None:
+    logging.debug(f"caput {pv} {value} ...")
 
-    args = [os.path.join(prefix, "caput"), "-t"]
+    args: List[str | Path] = [prefix / "caput", "-t"]
     if not array:
         assert isinstance(value, int) or isinstance(value, float)
         args += [pv, str(value)]
@@ -38,28 +40,28 @@ def put(prefix: str, pv: str, value: Union[int, float, List[float]], array: bool
         add_env=_env(),
         quiet=True,
     )
-    print("  done")
+    logging.debug("  done")
 
 
 class Repeater:
 
-    def __init__(self, prefix: str):
+    def __init__(self, prefix: Path):
         self.proc: Optional[Popen[bytes]] = None
         self.prefix = prefix
 
     def __enter__(self) -> None:
-        print("starting caRepeater ...")
+        logging.debug("starting caRepeater ...")
         env = dict(os.environ)
         env.update(_env())
         self.proc = Popen(
-            [os.path.join(self.prefix, "caRepeater")],
+            [self.prefix / "caRepeater"],
             env=env,
         )
         time.sleep(1)
-        print("caRepeater started")
+        logging.debug("caRepeater started")
 
     def __exit__(self, *args: Any) -> None:
-        print("terminating caRepeater ...")
+        logging.debug("terminating caRepeater ...")
         assert self.proc is not None
         self.proc.terminate()
-        print("caRepeater terminated")
+        logging.debug("caRepeater terminated")

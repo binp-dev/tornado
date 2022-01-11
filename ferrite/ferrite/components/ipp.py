@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Dict, List
 
-import os
 from pathlib import Path
 
 from ferrite.utils.run import run
@@ -71,9 +70,9 @@ class Ipp(Component):
 
         self.codegen = codegen
 
-        self.src_dir = os.path.join(source_dir, "ipp")
-        self.generated_dir = os.path.join(target_dir, f"ipp_generated")
-        self.build_dir = os.path.join(target_dir, f"ipp_{toolchain.name}")
+        self.src_dir = source_dir / "ipp"
+        self.generated_dir = target_dir / f"ipp_generated"
+        self.build_dir = target_dir / f"ipp_{toolchain.name}"
 
         self.cmake_opts = [f"-DIPP_GENERATED={self.generated_dir}"]
         self.test_cmake = CmakeWithConan(

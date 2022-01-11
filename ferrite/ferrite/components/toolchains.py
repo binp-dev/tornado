@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Dict, List
 
-import os
 import shutil
 import logging
 from pathlib import Path
@@ -92,11 +91,11 @@ class CrossToolchain(Toolchain):
             logging.info(f"Toolchain archive {self.archive} already exists")
 
         logging.info(f"Extracting toolchain {self.archive} ...")
-        dir_path = os.path.join(tmp_dir, self.dir_name)
+        dir_path = tmp_dir / self.dir_name
         try:
             shutil.unpack_archive(archive_path, tmp_dir)
         except:
-            if os.path.exists(dir_path):
+            if dir_path.exists():
                 shutil.rmtree(dir_path)
             raise
 

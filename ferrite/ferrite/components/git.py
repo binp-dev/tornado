@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Dict, List, Optional
 
-import os
 import shutil
 import logging
 from pathlib import Path
@@ -18,8 +17,8 @@ def clone(path: Path, remote: str, branch: Optional[str] = None, clean: bool = F
         return False
     try:
         run(
-            ["git", "clone", remote, os.path.basename(path)],
-            cwd=os.path.dirname(path),
+            ["git", "clone", remote, path.name],
+            cwd=path.parent,
             add_env={"GIT_TERMINAL_PROMPT": "0"},
             quiet=quiet,
         )

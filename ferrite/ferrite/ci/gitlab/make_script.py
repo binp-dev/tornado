@@ -78,14 +78,15 @@ class Job:
         if len(self.needs()) > 0:
             lines.extend([
                 "  needs:",
-                *[f"    - {dj.name()}" for dj in self.needs()],
+                *[f"    - {n}" for n in sorted([dj.name() for dj in self.needs()])],
             ])
 
         if len(self.artifacts()) > 0:
+            paths = sorted([art.path.relative_to(base_dir) for art in self.artifacts()])
             lines.extend([
                 "  artifacts:",
                 "    paths:",
-                *[f"      - {art.path.relative_to(base_dir)}" for art in self.artifacts()],
+                *[f"      - {art}" for art in paths],
             ])
 
         cached_artifacts = [art.path for art in self.artifacts() if art.cached]
@@ -93,8 +94,8 @@ class Job:
             lines.append("  cache:")
             if cache is not None:
                 lines.append(f"    - *{cache.name}")
-            paths = [path.relative_to(base_dir) for path in cached_artifacts]
-            hash = zlib.adler32("\n".join(sorted(paths)).encode("utf-8"))
+            paths = sorted([str(path.relative_to(base_dir)) for path in cached_artifacts])
+            hash = zlib.adler32("\n".join(paths).encode("utf-8"))
             lines.extend([
                 f"    - key: \"{self.name()}:{hash:x}\"",
                 "      paths:",

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Dict, List, Optional
 
-import os
+from pathlib import Path
 
 from ferrite.utils.run import run
 from ferrite.components.base import Artifact, Component, Task, Context
@@ -38,8 +38,8 @@ class Cmake(Component):
 
     def __init__(
         self,
-        src_dir: str,
-        build_dir: str,
+        src_dir: Path,
+        build_dir: Path,
         toolchain: Toolchain,
         opt: List[str] = [],
         env: Optional[Dict[str, str]] = None,
@@ -56,7 +56,7 @@ class Cmake(Component):
         self.test_task = CmakeTestTask(self)
 
     def create_build_dir(self) -> None:
-        os.makedirs(self.build_dir, exist_ok=True)
+        self.build_dir.mkdir(exist_ok=True)
 
     def configure(self, ctx: Context) -> None:
         self.create_build_dir()

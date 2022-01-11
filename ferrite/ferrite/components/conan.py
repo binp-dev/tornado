@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import List, Dict, Optional
 
-import os
+from pathlib import Path
 
 from ferrite.utils.run import capture, run
 from ferrite.components.base import Context
@@ -66,7 +66,7 @@ class ConanProfile:
 
         return "\n".join(content)
 
-    def save(self, path: str) -> None:
+    def save(self, path: Path) -> None:
         with open(path, "w") as f:
             f.write(self.generate())
 
@@ -75,8 +75,8 @@ class CmakeWithConan(Cmake):
 
     def __init__(
         self,
-        src_dir: str,
-        build_dir: str,
+        src_dir: Path,
+        build_dir: Path,
         toolchain: Toolchain,
         opt: List[str] = [],
         env: Optional[Dict[str, str]] = None,
@@ -92,7 +92,7 @@ class CmakeWithConan(Cmake):
     def configure(self, ctx: Context) -> None:
         self.create_build_dir()
 
-        profile_path = os.path.join(self.build_dir, "profile.conan")
+        profile_path = self.build_dir / "profile.conan"
         ConanProfile(self.toolchain).save(profile_path)
 
         run(

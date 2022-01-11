@@ -54,22 +54,21 @@ class DownloadHook:
             self.prev_progress = progress
 
 
-def download(src_url: str, dst_path: Path | str) -> None:
+def download(src_url: str, dst_path: Path) -> None:
     logging.debug(f"downloading from '{src_url}' ...")
     try:
         urlretrieve(src_url, dst_path, DownloadHook())
     except:
         print(flush=True)
-        if os.path.exists(dst_path):
-            os.remove(dst_path)
-        logging.debug(f"download failed")
+        dst_path.unlink(missing_ok=True)
+        logging.warning(f"download failed")
         raise
     else:
         print(flush=True)
         logging.debug(f"downloaded to '{dst_path}'")
 
 
-def download_alt(src_urls: List[str], dst_path: Path | str) -> None:
+def download_alt(src_urls: List[str], dst_path: Path) -> None:
     for url in src_urls:
         last_error = None
         try:

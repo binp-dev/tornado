@@ -2,12 +2,11 @@ from __future__ import annotations
 from subprocess import Popen
 from typing import Any, Dict, List, Optional
 
-import os
 import shutil
 import re
 import logging
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from ferrite.utils.files import substitute
 from ferrite.components.base import Component, Task, FinalTask, Context
@@ -22,11 +21,11 @@ class IocBuildTask(EpicsBuildTask):
 
     def __init__(
         self,
-        src_dir: str,
-        build_dir: str,
-        install_dir: str,
+        src_dir: Path,
+        build_dir: Path,
+        install_dir: Path,
         deps: List[Task],
-        epics_base_dir: str,
+        epics_base_dir: Path,
         toolchain: Toolchain,
     ):
         super().__init__(
@@ -42,24 +41,33 @@ class IocBuildTask(EpicsBuildTask):
     def _configure(self) -> None:
         arch = epics_arch(self.epics_base_dir, self.toolchain)
 
-        substitute([
-            ("^\\s*#*(\\s*EPICS_BASE\\s*=).*$", f"\\1 {self.epics_base_dir}"),
-        ], os.path.join(self.build_dir, "configure/RELEASE"))
+        substitute(
+            [
+                ("^\\s*#*(\\s*EPICS_BASE\\s*=).*$", f"\\1 {self.epics_base_dir}"),
+            ],
+            self.build_dir / "configure/RELEASE",
+        )
 
         if not isinstance(self.toolchain, HostToolchain):
-            substitute([
-                ("^\\s*#*(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {arch}"),
-            ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
+            substitute(
+                [
+                    ("^\\s*#*(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {arch}"),
+                ],
+                self.build_dir / "configure/CONFIG_SITE",
+            )
 
-        substitute([
-            ("^\\s*#*(\\s*INSTALL_LOCATION\\s*=).*$", f"\\1 {self.install_dir}"),
-        ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
-        os.makedirs(self.install_dir, exist_ok=True)
+        substitute(
+            [
+                ("^\\s*#*(\\s*INSTALL_LOCATION\\s*=).*$", f"\\1 {self.install_dir}"),
+            ],
+            self.build_dir / "configure/CONFIG_SITE",
+        )
+        self.install_dir.mkdir(exist_ok=True)
 
     def _install(self) -> None:
         shutil.copytree(
-            os.path.join(self.build_dir, "iocBoot"),
-            os.path.join(self.install_dir, "iocBoot"),
+            self.build_dir / "iocBoot",
+            self.install_dir / "iocBoot",
             dirs_exist_ok=True,
             ignore=shutil.ignore_patterns("Makefile"),
         )
@@ -69,13 +77,13 @@ class AppIocBuildTask(IocBuildTask):
 
     def __init__(
         self,
-        src_dir: str,
-        build_dir: str,
-        install_dir: str,
+        src_dir: Path,
+        build_dir: Path,
+        install_dir: Path,
         deps: List[Task],
-        epics_base_dir: str,
-        app_src_dir: str,
-        app_build_dir: str,
+        epics_base_dir: Path,
+        app_src_dir: Path,
+        app_build_dir: Path,
         app_fakedev: bool,
         toolchain: Toolchain,
     ):
@@ -97,22 +105,28 @@ class AppIocBuildTask(IocBuildTask):
 
         arch = epics_arch(self.epics_base_dir, self.toolchain)
 
-        substitute([
-            ("^\\s*#*(\\s*APP_SRC_DIR\\s*=).*$", f"\\1 {self.app_src_dir}"),
-            ("^\\s*#*(\\s*APP_BUILD_DIR\\s*=).*$", f"\\1 {self.app_build_dir}"),
-        ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
+        substitute(
+            [
+                ("^\\s*#*(\\s*APP_SRC_DIR\\s*=).*$", f"\\1 {self.app_src_dir}"),
+                ("^\\s*#*(\\s*APP_BUILD_DIR\\s*=).*$", f"\\1 {self.app_build_dir}"),
+            ],
+            self.build_dir / "configure/CONFIG_SITE",
+        )
 
-        substitute([
-            ("^\\s*#*(\\s*APP_ARCH\\s*=).*$", f"\\1 {arch}"),
-            ("^\\s*#*(\\s*APP_FAKEDEV\\s*=).*$", f"\\1 {'1' if self.app_fakedev else ''}"),
-        ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
+        substitute(
+            [
+                ("^\\s*#*(\\s*APP_ARCH\\s*=).*$", f"\\1 {arch}"),
+                ("^\\s*#*(\\s*APP_FAKEDEV\\s*=).*$", f"\\1 {'1' if self.app_fakedev else ''}"),
+            ],
+            self.build_dir / "configure/CONFIG_SITE",
+        )
 
-        lib_dir = os.path.join(self.install_dir, "lib", arch)
+        lib_dir = self.install_dir / "lib" / arch
         lib_name = "libapp{}.so".format("_fakedev" if self.app_fakedev else "")
-        os.makedirs(lib_dir, exist_ok=True)
+        lib_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(
-            os.path.join(self.app_build_dir, lib_name),
-            os.path.join(lib_dir, lib_name),
+            self.app_build_dir / lib_name,
+            lib_dir / lib_name,
         )
 
 
@@ -120,9 +134,9 @@ class IocDeployTask(EpicsDeployTask):
 
     def __init__(
         self,
-        install_dir: str,
-        deploy_dir: str,
-        epics_deploy_path: str,
+        install_dir: Path,
+        deploy_dir: PurePosixPath,
+        epics_deploy_path: PurePosixPath,
         deps: List[Task] = [],
     ):
         super().__init__(
@@ -134,19 +148,19 @@ class IocDeployTask(EpicsDeployTask):
 
     def _post(self, ctx: Context) -> None:
         assert ctx.device is not None
-        boot_dir = os.path.join(self.install_dir, "iocBoot")
-        for ioc_name in os.listdir(boot_dir):
-            ioc_dir = os.path.join(boot_dir, ioc_name)
-            if not os.path.isdir(ioc_dir):
+        boot_dir = self.install_dir / "iocBoot"
+        for ioc_name in boot_dir.iterdir():
+            ioc_dir = boot_dir / ioc_name
+            if not ioc_dir.is_dir():
                 continue
-            env_path = os.path.join(ioc_dir, "envPaths")
-            if not os.path.isfile(env_path):
+            env_path = ioc_dir / "envPaths"
+            if not env_path.is_file():
                 continue
             with open(env_path, "r") as f:
                 text = f.read()
             text = re.sub(r'(epicsEnvSet\("TOP",)[^\n]+', f'\\1"{self.deploy_dir}")', text)
             text = re.sub(r'(epicsEnvSet\("EPICS_BASE",)[^\n]+', f'\\1"{self.epics_deploy_path}")', text)
-            ctx.device.store_mem(text, os.path.join(self.deploy_dir, "iocBoot", ioc_name, "envPaths"))
+            ctx.device.store_mem(text, self.deploy_dir / "iocBoot" / ioc_name / "envPaths")
 
 
 class IocRemoteRunner:
@@ -154,8 +168,8 @@ class IocRemoteRunner:
     def __init__(
         self,
         device: Device,
-        deploy_path: str,
-        epics_deploy_path: str,
+        deploy_path: PurePosixPath,
+        epics_deploy_path: PurePosixPath,
         arch: str,
     ):
         super().__init__()
@@ -251,8 +265,7 @@ class Ioc(Component):
 
     def _make_build_task(self) -> IocBuildTask:
         return IocBuildTask(
-            # TODO: Change by Path
-            str(self.src_path),
+            self.src_path,
             self.paths["build"],
             self.paths["install"],
             self._build_deps(),
@@ -281,8 +294,8 @@ class Ioc(Component):
             "build": f"{self.name}_build_{self.toolchain.name}",
             "install": f"{self.name}_install_{self.toolchain.name}",
         }
-        self.paths = {k: os.path.join(target_dir, v) for k, v in self.names.items()}
-        self.deploy_path = "/opt/ioc"
+        self.paths = {k: target_dir / v for k, v in self.names.items()}
+        self.deploy_path = PurePosixPath("/opt/ioc")
 
         self.build_task = self._make_build_task()
 
@@ -306,8 +319,7 @@ class AppIoc(Ioc):
 
     def _make_build_task(self) -> AppIocBuildTask:
         return AppIocBuildTask(
-            # TODO: Change by Path
-            str(self.src_path),
+            self.src_path,
             self.paths["build"],
             self.paths["install"],
             self._build_deps(),

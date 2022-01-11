@@ -1,9 +1,8 @@
 from __future__ import annotations
 from typing import List, Optional
 
-import os
 import shutil
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import logging
 
 from ferrite.utils.run import capture, run
@@ -11,11 +10,11 @@ from ferrite.components.base import Artifact, Task, Context
 from ferrite.components.toolchains import Target, Toolchain, HostToolchain
 
 
-def epics_host_arch(epics_base_dir: Path | str) -> str:
+def epics_host_arch(epics_base_dir: Path) -> str:
     return capture([
         "perl",
-        os.path.join(epics_base_dir, "src", "tools", "EpicsHostArch.pl"),
-    ]).strip()
+        epics_base_dir / "src" / "tools" / "EpicsHostArch.pl",
+    ])
 
 
 def epics_arch_by_target(target: Target) -> str:
@@ -28,8 +27,7 @@ def epics_arch_by_target(target: Target) -> str:
     raise Exception(f"Unknown target for EPICS: {str(target)}")
 
 
-# TODO: Use only Path
-def epics_arch(epics_base_dir: Path | str, toolchain: Toolchain) -> str:
+def epics_arch(epics_base_dir: Path, toolchain: Toolchain) -> str:
     if isinstance(toolchain, HostToolchain):
         return epics_host_arch(epics_base_dir)
     else:
@@ -40,9 +38,9 @@ class EpicsBuildTask(Task):
 
     def __init__(
         self,
-        src_dir: str,
-        build_dir: str,
-        install_dir: str,
+        src_dir: Path,
+        build_dir: Path,
+        install_dir: Path,
         clean: bool = False,
         mk_target: Optional[str] = None,
         deps: List[Task] = [],
@@ -83,7 +81,7 @@ class EpicsBuildTask(Task):
             quiet=ctx.capture)
 
         logging.info(f"Install {self.build_dir} to {self.install_dir}")
-        os.makedirs(self.install_dir, exist_ok=True)
+        self.install_dir.mkdir(exist_ok=True)
         self._install()
 
     def dependencies(self) -> List[Task]:
@@ -100,8 +98,8 @@ class EpicsDeployTask(Task):
 
     def __init__(
         self,
-        install_dir: str,
-        deploy_dir: str,
+        install_dir: Path,
+        deploy_dir: PurePosixPath,
         deps: List[Task] = [],
     ):
         super().__init__()

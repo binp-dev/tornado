@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple
 import time
 import logging
 from subprocess import Popen
+from pathlib import Path, PurePosixPath
 
 from ferrite.utils.run import run, RunError
 from ferrite.utils.strings import quote
@@ -33,18 +34,18 @@ class SshDevice(Device):
 
         self.user = user
 
-    def store(self, src: str, dst: str, recursive: bool = False) -> None:
+    def store(self, src: Path, dst: PurePosixPath, recursive: bool = False) -> None:
         if not recursive:
             run(["bash", "-c", f"test -f {src} && cat {src} | ssh -p {self.port} {self.user}@{self.host} 'cat > {dst}'"])
         else:
-            run(["rsync", "-rlpt", "--progress", "--rsh", f"ssh -p {self.port}", src + "/", f"{self.user}@{self.host}:{dst}"])
+            run(["rsync", "-rlpt", "--progress", "--rsh", f"ssh -p {self.port}", f"{src}/", f"{self.user}@{self.host}:{dst}"])
 
-    def store_mem(self, src_data: str, dst_path: str) -> None:
+    def store_mem(self, src_data: str, dst_path: PurePosixPath) -> None:
         logging.debug(f"Store {len(src_data)} chars to {self.name()}:{dst_path}")
         logging.debug(src_data)
         run(["bash", "-c", f"echo {quote(src_data)} | ssh -p {self.port} {self.user}@{self.host} 'cat > {dst_path}'"])
 
-    def _prefix(self) -> List[str]:
+    def _prefix(self) -> List[str | Path]:
         return ["ssh", "-p", str(self.port), f"{self.user}@{self.host}"]
 
     def name(self) -> str:

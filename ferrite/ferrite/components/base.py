@@ -15,8 +15,7 @@ class Context:
 
 @dataclass
 class Artifact:
-    # TODO: Remove str
-    path: Path | str
+    path: Path
     cached: bool = False
 
 

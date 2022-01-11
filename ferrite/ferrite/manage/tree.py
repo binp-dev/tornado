@@ -30,7 +30,7 @@ class HostComponentStorage(ComponentStorage):
         toolchain: HostToolchain,
     ) -> None:
         self.toolchain = toolchain
-        self.epics_base = EpicsBaseHost(toolchain, target_dir)
+        self.epics_base = EpicsBaseHost(target_dir, toolchain)
         self.codegen = Codegen(source_dir, target_dir, toolchain)
         self.ipp = Ipp(source_dir, target_dir, toolchain, self.codegen)
         self.app = App(source_dir, target_dir, toolchain, self.ipp)
@@ -52,7 +52,7 @@ class CrossComponentStorage(ComponentStorage):
         self.app_toolchain = app_toolchain
         self.mcu_toolchain = mcu_toolchain
         self.freertos = freertos
-        self.epics_base = EpicsBaseCross(app_toolchain, target_dir, host_components.epics_base)
+        self.epics_base = EpicsBaseCross(target_dir, app_toolchain, host_components.epics_base)
         self.ipp = host_components.ipp
         self.app = App(source_dir, target_dir, app_toolchain, self.ipp)
         self.ioc = AppIoc(source_dir, target_dir, self.epics_base, self.app, app_toolchain)
