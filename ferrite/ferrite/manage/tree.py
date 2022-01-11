@@ -1,6 +1,8 @@
 from __future__ import annotations
 from typing import Dict
 
+from pathlib import Path
+
 from ferrite.components.base import Component
 from ferrite.components.toolchains import HostToolchain, CrossToolchain
 from ferrite.components.freertos import Freertos, FreertosImx7, FreertosImx8mn
@@ -23,14 +25,16 @@ class HostComponentStorage(ComponentStorage):
 
     def __init__(
         self,
+        source_dir: Path,
+        target_dir: Path,
         toolchain: HostToolchain,
     ) -> None:
         self.toolchain = toolchain
-        self.epics_base = EpicsBaseHost(toolchain)
-        self.codegen = Codegen(toolchain)
-        self.ipp = Ipp(toolchain, self.codegen)
-        self.app = App(toolchain, self.ipp)
-        self.ioc = AppIoc(self.epics_base, self.app, toolchain)
+        self.epics_base = EpicsBaseHost(toolchain, target_dir)
+        self.codegen = Codegen(source_dir, target_dir, toolchain)
+        self.ipp = Ipp(source_dir, target_dir, toolchain, self.codegen)
+        self.app = App(source_dir, target_dir, toolchain, self.ipp)
+        self.ioc = AppIoc(source_dir, target_dir, self.epics_base, self.app, toolchain)
         self.all = AllHost(self.epics_base, self.codegen, self.ipp, self.app, self.ioc)
 
 
@@ -39,6 +43,8 @@ class CrossComponentStorage(ComponentStorage):
     def __init__(
         self,
         host_components: HostComponentStorage,
+        source_dir: Path,
+        target_dir: Path,
         app_toolchain: CrossToolchain,
         mcu_toolchain: CrossToolchain,
         freertos: Freertos,
@@ -46,37 +52,49 @@ class CrossComponentStorage(ComponentStorage):
         self.app_toolchain = app_toolchain
         self.mcu_toolchain = mcu_toolchain
         self.freertos = freertos
-        self.epics_base = EpicsBaseCross(app_toolchain, host_components.epics_base)
+        self.epics_base = EpicsBaseCross(app_toolchain, target_dir, host_components.epics_base)
         self.ipp = host_components.ipp
-        self.app = App(app_toolchain, self.ipp)
-        self.ioc = AppIoc(self.epics_base, self.app, app_toolchain)
-        self.mcu = Mcu(freertos, mcu_toolchain, self.ipp)
+        self.app = App(source_dir, target_dir, app_toolchain, self.ipp)
+        self.ioc = AppIoc(source_dir, target_dir, self.epics_base, self.app, app_toolchain)
+        self.mcu = Mcu(source_dir, target_dir, mcu_toolchain, freertos, self.ipp)
         self.all = AllCross(self.epics_base, self.app, self.ioc, self.mcu)
 
 
-host = HostComponentStorage(toolchains.HostToolchain(),)
-imx7 = CrossComponentStorage(
-    host,
-    toolchains.AppToolchainImx7(),
-    toolchains.McuToolchainImx7(),
-    FreertosImx7(),
-)
-imx8mn = CrossComponentStorage(
-    host,
-    toolchains.AppToolchainImx8mn(),
-    toolchains.McuToolchainImx8mn(),
-    FreertosImx8mn(),
-)
-
 ComponentsDict = Dict[str, Component]
 
-COMPONENTS: ComponentsDict = {
-    **{f"host_{k}": c for k, c in host.__dict__.items()},
-    **{f"imx7_{k}": c for k, c in imx7.__dict__.items()},
-    **{f"imx8mn_{k}": c for k, c in imx8mn.__dict__.items()},
-}
 
-for cname, comp in COMPONENTS.items():
-    for tname, task in comp.tasks().items():
-        if not task._name:
-            task._name = f"{cname}.{tname}"
+def make_components(source_dir: Path, target_dir: Path) -> ComponentsDict:
+    host = HostComponentStorage(
+        source_dir,
+        target_dir,
+        toolchains.HostToolchain(),
+    )
+    imx7 = CrossComponentStorage(
+        host,
+        source_dir,
+        target_dir,
+        toolchains.AppToolchainImx7(target_dir),
+        toolchains.McuToolchainImx7(target_dir),
+        FreertosImx7(target_dir),
+    )
+    imx8mn = CrossComponentStorage(
+        host,
+        source_dir,
+        target_dir,
+        toolchains.AppToolchainImx8mn(target_dir),
+        toolchains.McuToolchainImx8mn(target_dir),
+        FreertosImx8mn(target_dir),
+    )
+
+    comps: ComponentsDict = {
+        **{f"host_{k}": c for k, c in host.__dict__.items()},
+        **{f"imx7_{k}": c for k, c in imx7.__dict__.items()},
+        **{f"imx8mn_{k}": c for k, c in imx8mn.__dict__.items()},
+    }
+
+    for cname, comp in comps.items():
+        for tname, task in comp.tasks().items():
+            if not task._name:
+                task._name = f"{cname}.{tname}"
+
+    return comps

@@ -1,7 +1,4 @@
 # type: ignore
-from __future__ import annotations
-from typing import List
-
 import os
 import time
 import zmq
@@ -38,7 +35,6 @@ VALUE: int = 0
 def run_test(
     epics_base_dir: str,
     ioc_dir: str,
-    ipp_dir: str,
     arch: str,
 ) -> None:
     global IDS

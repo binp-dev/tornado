@@ -2,8 +2,9 @@ from __future__ import annotations
 from typing import List
 
 import os
+from pathlib import Path
 from urllib.request import urlretrieve
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 import logging
 
 
@@ -53,7 +54,7 @@ class DownloadHook:
             self.prev_progress = progress
 
 
-def download(src_url: str, dst_path: str) -> None:
+def download(src_url: str, dst_path: Path | str) -> None:
     logging.debug(f"downloading from '{src_url}' ...")
     try:
         urlretrieve(src_url, dst_path, DownloadHook())
@@ -68,13 +69,13 @@ def download(src_url: str, dst_path: str) -> None:
         logging.debug(f"downloaded to '{dst_path}'")
 
 
-def download_alt(src_urls: List[str], dst_path: str) -> None:
+def download_alt(src_urls: List[str], dst_path: Path | str) -> None:
     for url in src_urls:
         last_error = None
         try:
             download(url, dst_path)
             break
-        except HTTPError as e:
+        except (HTTPError, URLError) as e:
             last_error = e
             logging.warning(str(e))
             continue

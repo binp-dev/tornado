@@ -3,6 +3,7 @@ from typing import List, Optional
 
 import os
 import shutil
+from pathlib import Path
 import logging
 
 from ferrite.utils.run import capture, run
@@ -10,7 +11,7 @@ from ferrite.components.base import Artifact, Task, Context
 from ferrite.components.toolchains import Target, Toolchain, HostToolchain
 
 
-def epics_host_arch(epics_base_dir: str) -> str:
+def epics_host_arch(epics_base_dir: Path | str) -> str:
     return capture([
         "perl",
         os.path.join(epics_base_dir, "src", "tools", "EpicsHostArch.pl"),
@@ -27,7 +28,8 @@ def epics_arch_by_target(target: Target) -> str:
     raise Exception(f"Unknown target for EPICS: {str(target)}")
 
 
-def epics_arch(epics_base_dir: str, toolchain: Toolchain) -> str:
+# TODO: Use only Path
+def epics_arch(epics_base_dir: Path | str, toolchain: Toolchain) -> str:
     if isinstance(toolchain, HostToolchain):
         return epics_host_arch(epics_base_dir)
     else:

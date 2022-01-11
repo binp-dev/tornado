@@ -2,9 +2,9 @@ from __future__ import annotations
 from typing import Dict, List
 
 import os
+from pathlib import Path
 
 from ferrite.utils.run import run
-from ferrite.manage.paths import BASE_DIR, TARGET_DIR
 from ferrite.components.base import Artifact, Component, Task, Context
 from ferrite.components.cmake import Cmake
 from ferrite.components.conan import CmakeWithConan
@@ -80,6 +80,8 @@ class App(Component):
 
     def __init__(
         self,
+        source_dir: Path,
+        target_dir: Path,
         toolchain: Toolchain,
         ipp: Ipp,
     ):
@@ -88,8 +90,8 @@ class App(Component):
         self.toolchain = toolchain
         self.ipp = ipp
 
-        self.src_dir = os.path.join(BASE_DIR, "app")
-        self.build_dir = os.path.join(TARGET_DIR, f"app_{self.toolchain.name}")
+        self.src_dir = os.path.join(source_dir, "app")
+        self.build_dir = os.path.join(target_dir, f"app_{self.toolchain.name}")
 
         opts = ["-DCMAKE_BUILD_TYPE=Debug", *self.ipp.cmake_opts]
         envs = {}
@@ -97,7 +99,7 @@ class App(Component):
             toolchain_cmake_path = os.path.join(self.src_dir, "armgcc.cmake")
             opts.append(f"-DCMAKE_TOOLCHAIN_FILE={toolchain_cmake_path}")
             envs.update({
-                "TOOLCHAIN_DIR": self.toolchain.path,
+                "TOOLCHAIN_DIR": str(self.toolchain.path),
                 "TARGET_TRIPLE": str(self.toolchain.target),
             })
         self.cmake = CmakeWithConan(self.src_dir, self.build_dir, self.toolchain, opt=opts, env=envs)

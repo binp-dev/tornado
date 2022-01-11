@@ -2,9 +2,9 @@ from __future__ import annotations
 from typing import Dict, List
 
 import os
+from pathlib import Path
 
 from ferrite.utils.run import run
-from ferrite.manage.paths import BASE_DIR, TARGET_DIR
 from ferrite.components.base import Artifact, Component, Task, Context
 from ferrite.components.cmake import Cmake
 from ferrite.components.conan import CmakeWithConan
@@ -62,6 +62,8 @@ class Ipp(Component):
 
     def __init__(
         self,
+        source_dir: Path,
+        target_dir: Path,
         toolchain: Toolchain,
         codegen: Codegen,
     ):
@@ -69,9 +71,9 @@ class Ipp(Component):
 
         self.codegen = codegen
 
-        self.src_dir = os.path.join(BASE_DIR, "ipp")
-        self.generated_dir = os.path.join(TARGET_DIR, f"ipp_generated")
-        self.build_dir = os.path.join(TARGET_DIR, f"ipp_{toolchain.name}")
+        self.src_dir = os.path.join(source_dir, "ipp")
+        self.generated_dir = os.path.join(target_dir, f"ipp_generated")
+        self.build_dir = os.path.join(target_dir, f"ipp_{toolchain.name}")
 
         self.cmake_opts = [f"-DIPP_GENERATED={self.generated_dir}"]
         self.test_cmake = CmakeWithConan(

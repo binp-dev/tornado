@@ -3,13 +3,13 @@ from typing import Dict, List
 
 import os
 import shutil
+from pathlib import Path
 import logging
 
 from ferrite.utils.files import substitute, allow_patterns
 from ferrite.components.base import Component, Task, Context
 from ferrite.components.git import RepoList, RepoSource
 from ferrite.components.toolchains import Toolchain, HostToolchain, CrossToolchain
-from ferrite.manage.paths import TARGET_DIR
 from ferrite.components.epics.base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch, epics_arch_by_target
 
 
@@ -136,17 +136,16 @@ class EpicsBase(Component):
 
 class EpicsBaseHost(EpicsBase):
 
-    def __init__(self, toolchain: HostToolchain):
+    def __init__(self, toolchain: HostToolchain, target_dir: Path):
         super().__init__()
 
         self.toolchain = toolchain
 
         self.version = "7.0.4.1"
         self.prefix = f"epics_base_{self.version}"
-        self.src_name = f"{self.prefix}_src"
-        self.src_path = os.path.join(TARGET_DIR, self.src_name)
+        self.src_path = target_dir / f"{self.prefix}_src"
         self.repo = RepoList(
-            self.src_name,
+            self.src_path,
             [
                 RepoSource("https://gitlab.inp.nsk.su/epics/epics-base.git", f"binp-R{self.version}"),
                 RepoSource("https://github.com/epics-base/epics-base.git", f"R{self.version}"),
@@ -158,10 +157,10 @@ class EpicsBaseHost(EpicsBase):
             "build": f"{self.prefix}_build_{self.toolchain.name}",
             "install": f"{self.prefix}_install_{self.toolchain.name}",
         }
-        self.paths = {k: os.path.join(TARGET_DIR, v) for k, v in self.names.items()}
+        self.paths = {k: os.path.join(target_dir, v) for k, v in self.names.items()}
 
         self.build_task = EpicsBaseBuildTask(
-            self.src_path,
+            str(self.src_path),
             self.paths["build"],
             self.paths["install"],
             [self.repo.clone_task],
@@ -180,7 +179,7 @@ class EpicsBaseHost(EpicsBase):
 
 class EpicsBaseCross(EpicsBase):
 
-    def __init__(self, toolchain: CrossToolchain, host_base: EpicsBaseHost):
+    def __init__(self, toolchain: CrossToolchain, target_dir: Path, host_base: EpicsBaseHost):
         super().__init__()
 
         self.toolchain = toolchain
@@ -192,7 +191,7 @@ class EpicsBaseCross(EpicsBase):
             "build": f"{self.prefix}_build_{self.toolchain.name}",
             "install": f"{self.prefix}_install_{self.toolchain.name}",
         }
-        self.paths = {k: os.path.join(TARGET_DIR, v) for k, v in self.names.items()}
+        self.paths = {k: os.path.join(target_dir, v) for k, v in self.names.items()}
         self.deploy_path = "/opt/epics_base"
 
         self.build_task = EpicsBaseBuildTask(

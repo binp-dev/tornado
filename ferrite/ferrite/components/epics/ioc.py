@@ -7,18 +7,65 @@ import shutil
 import re
 import logging
 import time
+from pathlib import Path
 
 from ferrite.utils.files import substitute
 from ferrite.components.base import Component, Task, FinalTask, Context
 from ferrite.components.toolchains import Toolchain, HostToolchain, CrossToolchain
 from ferrite.components.app import App
-from ferrite.manage.paths import BASE_DIR, TARGET_DIR
 from ferrite.remote.base import Device
 from ferrite.components.epics.base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch
 from ferrite.components.epics.epics_base import EpicsBase, EpicsBaseCross, EpicsBaseHost
 
 
 class IocBuildTask(EpicsBuildTask):
+
+    def __init__(
+        self,
+        src_dir: str,
+        build_dir: str,
+        install_dir: str,
+        deps: List[Task],
+        epics_base_dir: str,
+        toolchain: Toolchain,
+    ):
+        super().__init__(
+            src_dir,
+            build_dir,
+            install_dir,
+            clean=True,
+            deps=deps,
+        )
+        self.epics_base_dir = epics_base_dir
+        self.toolchain = toolchain
+
+    def _configure(self) -> None:
+        arch = epics_arch(self.epics_base_dir, self.toolchain)
+
+        substitute([
+            ("^\\s*#*(\\s*EPICS_BASE\\s*=).*$", f"\\1 {self.epics_base_dir}"),
+        ], os.path.join(self.build_dir, "configure/RELEASE"))
+
+        if not isinstance(self.toolchain, HostToolchain):
+            substitute([
+                ("^\\s*#*(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {arch}"),
+            ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
+
+        substitute([
+            ("^\\s*#*(\\s*INSTALL_LOCATION\\s*=).*$", f"\\1 {self.install_dir}"),
+        ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
+        os.makedirs(self.install_dir, exist_ok=True)
+
+    def _install(self) -> None:
+        shutil.copytree(
+            os.path.join(self.build_dir, "iocBoot"),
+            os.path.join(self.install_dir, "iocBoot"),
+            dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns("Makefile"),
+        )
+
+
+class AppIocBuildTask(IocBuildTask):
 
     def __init__(
         self,
@@ -36,43 +83,30 @@ class IocBuildTask(EpicsBuildTask):
             src_dir,
             build_dir,
             install_dir,
-            clean=True,
-            deps=deps,
+            deps,
+            epics_base_dir,
+            toolchain,
         )
-        self.epics_base_dir = epics_base_dir
+
         self.app_src_dir = app_src_dir
         self.app_build_dir = app_build_dir
         self.app_fakedev = app_fakedev
-        self.toolchain = toolchain
 
     def _configure(self) -> None:
-        arch = epics_arch(self.epics_base_dir, self.toolchain)
+        super()._configure()
 
-        substitute([
-            ("^\\s*#*(\\s*EPICS_BASE\\s*=).*$", f"\\1 {self.epics_base_dir}"),
-        ], os.path.join(self.build_dir, "configure/RELEASE"))
+        arch = epics_arch(self.epics_base_dir, self.toolchain)
 
         substitute([
             ("^\\s*#*(\\s*APP_SRC_DIR\\s*=).*$", f"\\1 {self.app_src_dir}"),
             ("^\\s*#*(\\s*APP_BUILD_DIR\\s*=).*$", f"\\1 {self.app_build_dir}"),
         ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
 
-        if not isinstance(self.toolchain, HostToolchain):
-            substitute([
-                ("^\\s*#*(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {arch}"),
-            ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
-
         substitute([
             ("^\\s*#*(\\s*APP_ARCH\\s*=).*$", f"\\1 {arch}"),
             ("^\\s*#*(\\s*APP_FAKEDEV\\s*=).*$", f"\\1 {'1' if self.app_fakedev else ''}"),
         ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
 
-        substitute([
-            ("^\\s*#*(\\s*INSTALL_LOCATION\\s*=).*$", f"\\1 {self.install_dir}"),
-        ], os.path.join(self.build_dir, "configure/CONFIG_SITE"))
-        os.makedirs(self.install_dir, exist_ok=True)
-
-        #for top_dir in [self.build_dir, self.lib_dir]:
         lib_dir = os.path.join(self.install_dir, "lib", arch)
         lib_name = "libapp{}.so".format("_fakedev" if self.app_fakedev else "")
         os.makedirs(lib_dir, exist_ok=True)
@@ -80,36 +114,6 @@ class IocBuildTask(EpicsBuildTask):
             os.path.join(self.app_build_dir, lib_name),
             os.path.join(lib_dir, lib_name),
         )
-
-    def _install(self) -> None:
-        shutil.copytree(
-            os.path.join(self.build_dir, "iocBoot"),
-            os.path.join(self.install_dir, "iocBoot"),
-            dirs_exist_ok=True,
-            ignore=shutil.ignore_patterns("Makefile"),
-        )
-
-
-class IocTestFakeDevTask(Task):
-
-    def __init__(self, owner: Ioc) -> None:
-        super().__init__()
-        self.owner = owner
-
-    def run(self, ctx: Context) -> None:
-        import ferrite.ioc.tests.fakedev as fakedev
-        fakedev.run_test( # type: ignore
-            self.owner.epics_base.paths["install"],
-            self.owner.paths["install"],
-            os.path.join(BASE_DIR, "ipp"),
-            epics_host_arch(self.owner.epics_base.paths["build"]),
-        )
-
-    def dependencies(self) -> List[Task]:
-        return [
-            self.owner.epics_base.tasks()["build"],
-            self.owner.build_task,
-        ]
 
 
 class IocDeployTask(EpicsDeployTask):
@@ -145,7 +149,7 @@ class IocDeployTask(EpicsDeployTask):
             ctx.device.store_mem(text, os.path.join(self.deploy_dir, "iocBoot", ioc_name, "envPaths"))
 
 
-class IocRunner:
+class IocRemoteRunner:
 
     def __init__(
         self,
@@ -189,14 +193,14 @@ class IocRunner:
 
 class IocRunTask(FinalTask):
 
-    def __init__(self, owner: Ioc):
+    def __init__(self, owner: AppIoc):
         super().__init__()
         self.owner = owner
 
     def run(self, ctx: Context) -> None:
         assert ctx.device is not None
         assert isinstance(self.owner.epics_base, EpicsBaseCross)
-        with IocRunner(
+        with IocRemoteRunner(
             ctx.device,
             self.owner.deploy_path,
             self.owner.epics_base.deploy_path,
@@ -216,12 +220,51 @@ class IocRunTask(FinalTask):
         ]
 
 
+class AppIocTestFakeDevTask(Task):
+
+    def __init__(self, owner: Ioc) -> None:
+        super().__init__()
+        self.owner = owner
+
+    def run(self, ctx: Context) -> None:
+        import ferrite.ioc.tests.fakedev as fakedev
+        fakedev.run_test( # type: ignore
+            self.owner.epics_base.paths["install"],
+            self.owner.paths["install"],
+            epics_host_arch(self.owner.epics_base.paths["build"]),
+        )
+
+    def dependencies(self) -> List[Task]:
+        return [
+            self.owner.epics_base.tasks()["build"],
+            self.owner.build_task,
+        ]
+
+
 class Ioc(Component):
+
+    def _build_deps(self) -> List[Task]:
+        deps = [self.epics_base.tasks()["build"]]
+        if isinstance(self.toolchain, CrossToolchain):
+            deps.append(self.toolchain.download_task)
+        return deps
+
+    def _make_build_task(self) -> IocBuildTask:
+        return IocBuildTask(
+            # TODO: Change by Path
+            str(self.src_path),
+            self.paths["build"],
+            self.paths["install"],
+            self._build_deps(),
+            self.epics_base.paths["build"],
+            self.toolchain,
+        )
 
     def __init__(
         self,
         name: str,
-        path: str,
+        ioc_dir: Path,
+        target_dir: Path,
         epics_base: EpicsBase,
         app: App,
         toolchain: Toolchain,
@@ -229,7 +272,7 @@ class Ioc(Component):
         super().__init__()
 
         self.name = name
-        self.src_path = path
+        self.src_path = ioc_dir
         self.epics_base = epics_base
         self.app = app
         self.toolchain = toolchain
@@ -238,29 +281,64 @@ class Ioc(Component):
             "build": f"{self.name}_build_{self.toolchain.name}",
             "install": f"{self.name}_install_{self.toolchain.name}",
         }
-        self.paths = {k: os.path.join(TARGET_DIR, v) for k, v in self.names.items()}
+        self.paths = {k: os.path.join(target_dir, v) for k, v in self.names.items()}
         self.deploy_path = "/opt/ioc"
 
-        self.build_task = IocBuildTask(
-            self.src_path,
+        self.build_task = self._make_build_task()
+
+    def tasks(self) -> Dict[str, Task]:
+        return {
+            "build": self.build_task,
+        }
+
+
+class AppIoc(Ioc):
+
+    def _build_deps(self) -> List[Task]:
+        deps = super()._build_deps()
+        if isinstance(self.epics_base, EpicsBaseHost):
+            deps.append(self.app.build_fakedev_task)
+        elif isinstance(self.epics_base, EpicsBaseCross):
+            deps.append(self.app.build_main_task)
+        else:
+            assert False, "Unknown toolchain type"
+        return deps
+
+    def _make_build_task(self) -> AppIocBuildTask:
+        return AppIocBuildTask(
+            # TODO: Change by Path
+            str(self.src_path),
             self.paths["build"],
             self.paths["install"],
-            [
-                *([self.toolchain.download_task] if isinstance(self.toolchain, CrossToolchain) else []),
-                self.epics_base.tasks()["build"],
-                self.app.build_main_task if not isinstance(self.toolchain, HostToolchain) else self.app.build_fakedev_task,
-            ],
+            self._build_deps(),
             self.epics_base.paths["build"],
             self.app.src_dir,
             self.app.build_dir,
-            isinstance(self.toolchain, HostToolchain),
+            isinstance(self.epics_base, EpicsBaseHost),
             self.toolchain,
         )
-        if isinstance(self.toolchain, HostToolchain):
-            assert isinstance(self.epics_base, EpicsBaseHost)
-            self.test_fakedev_task = IocTestFakeDevTask(self)
-        elif isinstance(self.toolchain, CrossToolchain):
-            assert isinstance(self.epics_base, EpicsBaseCross)
+
+    def __init__(
+        self,
+        source_dir: Path,
+        target_dir: Path,
+        epics_base: EpicsBase,
+        app: App,
+        toolchain: Toolchain,
+    ):
+        super().__init__(
+            "ioc",
+            source_dir / "ioc",
+            target_dir,
+            epics_base,
+            app,
+            toolchain,
+        )
+
+        if isinstance(self.epics_base, EpicsBaseHost):
+            self.test_fakedev_task = AppIocTestFakeDevTask(self)
+
+        if isinstance(self.epics_base, EpicsBaseCross):
             self.deploy_task = IocDeployTask(
                 self.paths["install"],
                 self.deploy_path,
@@ -268,37 +346,20 @@ class Ioc(Component):
                 [self.build_task],
             )
             self.run_task = IocRunTask(self)
-        else:
-            raise RuntimeError("Unknown toolchain type")
 
     def tasks(self) -> Dict[str, Task]:
-        tasks: Dict[str, Task] = {
-            "build": self.build_task,
-        }
+        tasks = super().tasks()
+
         if isinstance(self.toolchain, HostToolchain):
             tasks.update({
                 "test_fakedev": self.test_fakedev_task,
             })
-        else:
+        elif isinstance(self.toolchain, CrossToolchain):
             tasks.update({
                 "deploy": self.deploy_task,
                 "run": self.run_task,
             })
+        else:
+            assert False, "Unknown toolchain type"
+
         return tasks
-
-
-class AppIoc(Ioc):
-
-    def __init__(
-        self,
-        epics_base: EpicsBase,
-        app: App,
-        toolchain: Toolchain,
-    ):
-        super().__init__(
-            "ioc",
-            os.path.join(BASE_DIR, "ioc"),
-            epics_base,
-            app,
-            toolchain,
-        )

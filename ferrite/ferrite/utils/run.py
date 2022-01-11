@@ -5,16 +5,19 @@ import os
 import sys
 import logging
 import subprocess
+from pathlib import Path
 
 RunError = subprocess.CalledProcessError
 
 
 def run(
     cmd: List[str],
-    cwd: Optional[str] = None,
+    # TODO: Change by Path
+    cwd: Optional[Path | str] = None,
     add_env: Optional[Dict[str, str]] = None,
     capture: bool = False,
     quiet: bool = False,
+    timeout: Optional[float] = None,
 ) -> Optional[str]:
     logging.debug(f"run({cmd}, cwd={cwd})")
     env = dict(os.environ)
@@ -37,6 +40,7 @@ def run(
             env=env,
             stdout=stdout,
             stderr=stderr,
+            timeout=timeout,
         )
     except RunError as e:
         if capture or quiet:
@@ -56,4 +60,4 @@ def capture(
 ) -> str:
     result = run(cmd, cwd, add_env=add_env, capture=True)
     assert result is not None
-    return result
+    return result.strip()

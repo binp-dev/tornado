@@ -4,20 +4,19 @@ from typing import Dict, List, Optional
 import os
 import shutil
 import logging
+from pathlib import Path
 
 from dataclasses import dataclass
 from ferrite.utils.run import run, RunError
 from ferrite.components.base import Artifact, Component, Task, Context
-from ferrite.manage.paths import TARGET_DIR
 
 
-def clone(path: str, remote: str, branch: Optional[str] = None, clean: bool = False, quiet: bool = False) -> bool:
-    if os.path.exists(path):
+def clone(path: Path, remote: str, branch: Optional[str] = None, clean: bool = False, quiet: bool = False) -> bool:
+    if path.exists():
         # FIXME: Pull if update available
         logging.info(f"Repo '{remote}' is cloned already")
         return False
     try:
-        os.makedirs(TARGET_DIR, exist_ok=True)
         run(
             ["git", "clone", remote, os.path.basename(path)],
             cwd=os.path.dirname(path),
@@ -28,11 +27,11 @@ def clone(path: str, remote: str, branch: Optional[str] = None, clean: bool = Fa
             run(["git", "checkout", branch], cwd=path, quiet=quiet)
         run(["git", "submodule", "update", "--init", "--recursive"], cwd=path, quiet=quiet)
     except RunError:
-        if os.path.exists(path):
+        if path.exists():
             shutil.rmtree(path)
         raise
     if clean:
-        shutil.rmtree(os.path.join(path, ".git"))
+        shutil.rmtree(path / ".git")
     return True
 
 
@@ -44,7 +43,7 @@ class RepoSource:
 
 class GitCloneTask(Task):
 
-    def __init__(self, path: str, sources: List[RepoSource], cached: bool = False):
+    def __init__(self, path: Path, sources: List[RepoSource], cached: bool = False):
         super().__init__()
         self.path = path
         self.sources = sources
@@ -68,11 +67,10 @@ class GitCloneTask(Task):
 
 class RepoList(Component):
 
-    def __init__(self, name: str, sources: List[RepoSource], cached: bool = False):
+    def __init__(self, dst_dir: Path, sources: List[RepoSource], cached: bool = False):
         super().__init__()
 
-        self.name = name
-        self.path = os.path.join(TARGET_DIR, name)
+        self.path = dst_dir
         self.sources = sources
         self.cached = cached
 
@@ -86,5 +84,5 @@ class RepoList(Component):
 
 class Repo(RepoList):
 
-    def __init__(self, name: str, remote: str, branch: Optional[str] = None):
-        super().__init__(name, [RepoSource(remote, branch)])
+    def __init__(self, dst_dir: Path, remote: str, branch: Optional[str] = None):
+        super().__init__(dst_dir, [RepoSource(remote, branch)])

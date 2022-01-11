@@ -3,8 +3,8 @@ from typing import Dict, List, Optional
 
 import os
 import shutil
+from pathlib import Path
 
-from ferrite.manage.paths import BASE_DIR, TARGET_DIR
 from ferrite.components.base import Artifact, Component, Task, Context, TaskWrapper
 from ferrite.components.cmake import Cmake
 from ferrite.components.toolchains import CrossToolchain, McuToolchainImx7, McuToolchainImx8mn, Toolchain
@@ -86,17 +86,24 @@ class McuDeployTaskImx8mn(McuDeployTask):
 
 class Mcu(Component):
 
-    def __init__(self, freertos: Freertos, toolchain: CrossToolchain, ipp: Ipp):
+    def __init__(
+        self,
+        source_dir: Path,
+        target_dir: Path,
+        toolchain: CrossToolchain,
+        freertos: Freertos,
+        ipp: Ipp,
+    ):
         super().__init__()
 
-        self.src_dir = os.path.join(BASE_DIR, f"mcu/{toolchain.name}")
-        self.freertos = freertos
+        self.src_dir = os.path.join(source_dir, f"mcu/{toolchain.name}")
         self.toolchain = toolchain
+        self.freertos = freertos
         self.ipp = ipp
 
         self.cmake = Cmake(
             self.src_dir,
-            os.path.join(TARGET_DIR, f"mcu_{self.toolchain.name}"),
+            os.path.join(target_dir, f"mcu_{self.toolchain.name}"),
             toolchain,
             opt=[
                 "-DCMAKE_TOOLCHAIN_FILE={}".format(
@@ -109,9 +116,8 @@ class Mcu(Component):
                 *self.ipp.cmake_opts,
             ],
             env={
-                "COMMON_DIR": os.path.join(BASE_DIR, "common"),
-                "FREERTOS_DIR": self.freertos.path,
-                "ARMGCC_DIR": self.toolchain.path,
+                "FREERTOS_DIR": str(self.freertos.path),
+                "ARMGCC_DIR": str(self.toolchain.path),
             }
         )
 

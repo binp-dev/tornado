@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Dict, List, Optional
 
+from pathlib import Path
 from dataclasses import dataclass
 
 from ferrite.remote.base import Device
@@ -14,7 +15,8 @@ class Context:
 
 @dataclass
 class Artifact:
-    path: str
+    # TODO: Remove str
+    path: Path | str
     cached: bool = False
 
 
