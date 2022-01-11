@@ -2,6 +2,17 @@
 
 image: agerasev/debian-psc
 
+variables:
+  POETRY_VIRTUALENVS_IN_PROJECT: "true"
+
+cache:
+  - key:
+      files:
+        - pyproject.toml
+    paths:
+      - poetry.lock
+      - .venv/
+
 stages:
   - "-1"
   - "0"
