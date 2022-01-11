@@ -6,7 +6,7 @@ import shutil
 import logging
 
 from ferrite.utils.run import capture, run
-from ferrite.components.base import Task, Context
+from ferrite.components.base import Artifact, Task, Context
 from ferrite.components.toolchains import Target, Toolchain, HostToolchain
 
 
@@ -44,6 +44,7 @@ class EpicsBuildTask(Task):
         clean: bool = False,
         mk_target: Optional[str] = None,
         deps: List[Task] = [],
+        cached: bool = False,
     ):
         super().__init__()
         self.src_dir = src_dir
@@ -52,6 +53,7 @@ class EpicsBuildTask(Task):
         self.clean = clean
         self.mk_target = mk_target
         self.deps = deps
+        self.cached = cached
 
     def _configure(self) -> None:
         raise NotImplementedError()
@@ -85,10 +87,10 @@ class EpicsBuildTask(Task):
     def dependencies(self) -> List[Task]:
         return self.deps
 
-    def artifacts(self) -> List[str]:
+    def artifacts(self) -> List[Artifact]:
         return [
-            self.build_dir,
-            self.install_dir,
+            Artifact(self.build_dir, cached=self.cached),
+            Artifact(self.install_dir, cached=self.cached),
         ]
 
 

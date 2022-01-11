@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from ferrite.utils.run import capture
 from ferrite.utils.net import download_alt
 from ferrite.utils.strings import try_format
-from ferrite.components.base import Component, Task, Context
+from ferrite.components.base import Artifact, Component, Task, Context
 from ferrite.manage.paths import TARGET_DIR
 
 
@@ -29,11 +29,12 @@ class Target:
 
 class Toolchain(Component):
 
-    def __init__(self, name: str, target: Target):
+    def __init__(self, name: str, target: Target, cached: bool = False):
         super().__init__()
 
         self.name = name
         self.target = target
+        self.cached = cached
 
 
 class HostToolchain(Toolchain):
@@ -54,14 +55,14 @@ class ToolchainDownloadTask(Task):
     def run(self, ctx: Context) -> None:
         self.owner.download()
 
-    def artifacts(self) -> List[str]:
-        return [self.owner.path]
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.owner.path, cached=self.owner.cached)]
 
 
 class CrossToolchain(Toolchain):
 
     def __init__(self, name: str, target: Target, dir_name: str, archive: str, urls: List[str]):
-        super().__init__(name, target)
+        super().__init__(name, target, cached=True)
         info = {"target": str(self.target)}
 
         self.dir_name = try_format(dir_name, **info)

@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 import os
 
 from ferrite.utils.run import run
-from ferrite.components.base import Component, Task, Context
+from ferrite.components.base import Artifact, Component, Task, Context
 from ferrite.components.toolchains import Toolchain
 
 
@@ -21,8 +21,8 @@ class CmakeBuildTask(CmakeTask):
         self.owner.configure(ctx)
         self.owner.build(ctx)
 
-    def artifacts(self) -> List[str]:
-        return [self.owner.build_dir]
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.owner.build_dir)]
 
 
 class CmakeTestTask(CmakeTask):

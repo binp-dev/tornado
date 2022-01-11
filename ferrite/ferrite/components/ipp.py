@@ -5,7 +5,7 @@ import os
 
 from ferrite.utils.run import run
 from ferrite.manage.paths import BASE_DIR, TARGET_DIR
-from ferrite.components.base import Component, Task, Context
+from ferrite.components.base import Artifact, Component, Task, Context
 from ferrite.components.cmake import Cmake
 from ferrite.components.conan import CmakeWithConan
 from ferrite.components.toolchains import Toolchain
@@ -23,8 +23,8 @@ class IppBuildUnittestTask(Task):
         self.cmake.configure(ctx)
         self.cmake.build(ctx, "ipp_test")
 
-    def artifacts(self) -> List[str]:
-        return [self.cmake.build_dir]
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.cmake.build_dir)]
 
     def dependencies(self) -> List[Task]:
         return [self.generate_task]
@@ -54,8 +54,8 @@ class IppGenerate(Task):
         from ferrite.ipp import generate
         generate(self.owner.generated_dir)
 
-    def artifacts(self) -> List[str]:
-        return [self.owner.generated_dir]
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.owner.generated_dir)]
 
 
 class Ipp(Component):

@@ -28,6 +28,7 @@ class EpicsBaseBuildTask(EpicsBuildTask):
             build_dir,
             install_dir,
             deps=deps,
+            cached=True,
         )
         self.toolchain = toolchain
 
@@ -150,6 +151,7 @@ class EpicsBaseHost(EpicsBase):
                 RepoSource("https://gitlab.inp.nsk.su/epics/epics-base.git", f"binp-R{self.version}"),
                 RepoSource("https://github.com/epics-base/epics-base.git", f"R{self.version}"),
             ],
+            cached=True,
         )
 
         self.names = {

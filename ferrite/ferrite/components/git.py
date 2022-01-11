@@ -7,13 +7,13 @@ import logging
 
 from dataclasses import dataclass
 from ferrite.utils.run import run, RunError
-from ferrite.components.base import Component, Task, Context
+from ferrite.components.base import Artifact, Component, Task, Context
 from ferrite.manage.paths import TARGET_DIR
 
 
 def clone(path: str, remote: str, branch: Optional[str] = None, clean: bool = False, quiet: bool = False) -> bool:
-    # FIXME: Pull if update available
     if os.path.exists(path):
+        # FIXME: Pull if update available
         logging.info(f"Repo '{remote}' is cloned already")
         return False
     try:
@@ -44,36 +44,39 @@ class RepoSource:
 
 class GitCloneTask(Task):
 
-    def __init__(self, path: str, sources: List[RepoSource]):
+    def __init__(self, path: str, sources: List[RepoSource], cached: bool = False):
         super().__init__()
         self.path = path
         self.sources = sources
+        self.cached = cached
 
     def run(self, ctx: Context) -> None:
         last_error = None
         for source in self.sources:
             try:
                 clone(self.path, source.remote, source.branch, clean=True, quiet=ctx.capture)
+                return
             except RunError as e:
                 last_error = e
                 continue
         if last_error is not None:
             raise last_error
 
-    def artifacts(self) -> List[str]:
-        return [self.path]
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.path, cached=self.cached)]
 
 
 class RepoList(Component):
 
-    def __init__(self, name: str, sources: List[RepoSource]):
+    def __init__(self, name: str, sources: List[RepoSource], cached: bool = False):
         super().__init__()
 
         self.name = name
         self.path = os.path.join(TARGET_DIR, name)
         self.sources = sources
+        self.cached = cached
 
-        self.clone_task = GitCloneTask(self.path, self.sources)
+        self.clone_task = GitCloneTask(self.path, self.sources, cached=cached)
 
     def tasks(self) -> Dict[str, Task]:
         return {

@@ -1,14 +1,21 @@
 from __future__ import annotations
 from typing import Dict, List, Optional
 
+from dataclasses import dataclass
+
 from ferrite.remote.base import Device
 
 
+@dataclass
 class Context:
+    device: Optional[Device] = None
+    capture: bool = False
 
-    def __init__(self, device: Optional[Device] = None, capture: bool = False):
-        self.device = device
-        self.capture = capture
+
+@dataclass
+class Artifact:
+    path: str
+    cached: bool = False
 
 
 class Task:
@@ -34,7 +41,7 @@ class Task:
 
         self.run(ctx)
 
-    def artifacts(self) -> List[str]:
+    def artifacts(self) -> List[Artifact]:
         return []
 
 
@@ -57,7 +64,7 @@ class TaskList(Task):
     def dependencies(self) -> List[Task]:
         return [dep for task in self.tasks for dep in task.dependencies()]
 
-    def artifacts(self) -> List[str]:
+    def artifacts(self) -> List[Artifact]:
         return [art for task in self.tasks for art in task.artifacts()]
 
 
@@ -84,7 +91,7 @@ class TaskWrapper(Task):
             inner_deps = self.inner.dependencies()
         return inner_deps + self.deps
 
-    def artifacts(self) -> List[str]:
+    def artifacts(self) -> List[Artifact]:
         if self.inner is not None:
             return self.inner.artifacts()
         else:

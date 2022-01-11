@@ -5,7 +5,7 @@ import os
 import shutil
 
 from ferrite.manage.paths import BASE_DIR, TARGET_DIR
-from ferrite.components.base import Component, Task, Context, TaskWrapper
+from ferrite.components.base import Artifact, Component, Task, Context, TaskWrapper
 from ferrite.components.cmake import Cmake
 from ferrite.components.toolchains import CrossToolchain, McuToolchainImx7, McuToolchainImx8mn, Toolchain
 from ferrite.components.ipp import Ipp
@@ -40,8 +40,8 @@ class McuBuildTask(McuTask):
             self.owner.ipp.generate_task,
         ]
 
-    def artifacts(self) -> List[str]:
-        return [self.owner.cmake.build_dir]
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.owner.cmake.build_dir)]
 
 
 class McuDeployTask(McuTask):

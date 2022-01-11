@@ -5,7 +5,7 @@ image: agerasev/debian-psc
 variables:
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
 
-cache:
+cache: &global_cache
   - key:
       files:
         - pyproject.toml
@@ -61,6 +61,11 @@ host_epics_base.clone:
   artifacts:
     paths:
       - target/epics_base_7.0.4.1_src
+  cache:
+    - *global_cache
+    - key: "host_epics_base.clone:a1a70a21"
+      paths:
+        - target/epics_base_7.0.4.1_src
 
 imx8mn_mcu_toolchain.download:
   stage: "0"
@@ -70,6 +75,11 @@ imx8mn_mcu_toolchain.download:
   artifacts:
     paths:
       - target/toolchain_gcc-arm-none-eabi-9-2020-q2-update
+  cache:
+    - *global_cache
+    - key: "imx8mn_mcu_toolchain.download:ebbf11e3"
+      paths:
+        - target/toolchain_gcc-arm-none-eabi-9-2020-q2-update
 
 imx8mn_freertos.clone:
   stage: "0"
@@ -79,6 +89,11 @@ imx8mn_freertos.clone:
   artifacts:
     paths:
       - target/mcuxpresso_sdk_2.9.x-var01
+  cache:
+    - *global_cache
+    - key: "imx8mn_freertos.clone:dcfe0c26"
+      paths:
+        - target/mcuxpresso_sdk_2.9.x-var01
 
 imx8mn_app_toolchain.download:
   stage: "0"
@@ -88,6 +103,11 @@ imx8mn_app_toolchain.download:
   artifacts:
     paths:
       - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
+  cache:
+    - *global_cache
+    - key: "imx8mn_app_toolchain.download:f68a15dd"
+      paths:
+        - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
 
 host_codegen.build:
   stage: "1"
@@ -133,6 +153,12 @@ host_epics_base.build:
     paths:
       - target/epics_base_7.0.4.1_build_host
       - target/epics_base_7.0.4.1_install_host
+  cache:
+    - *global_cache
+    - key: "host_epics_base.build:a91afc"
+      paths:
+        - target/epics_base_7.0.4.1_build_host
+        - target/epics_base_7.0.4.1_install_host
 
 host_app.build_fakedev:
   stage: "1"
@@ -219,6 +245,12 @@ imx8mn_epics_base.build:
     paths:
       - target/epics_base_7.0.4.1_build_imx8mn
       - target/epics_base_7.0.4.1_install_imx8mn
+  cache:
+    - *global_cache
+    - key: "imx8mn_epics_base.build:6c101c42"
+      paths:
+        - target/epics_base_7.0.4.1_build_imx8mn
+        - target/epics_base_7.0.4.1_install_imx8mn
 
 host_ioc.test_fakedev:
   stage: "3"

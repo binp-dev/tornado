@@ -5,7 +5,7 @@ import os
 
 from ferrite.utils.run import run
 from ferrite.manage.paths import BASE_DIR, TARGET_DIR
-from ferrite.components.base import Component, Task, Context
+from ferrite.components.base import Artifact, Component, Task, Context
 from ferrite.components.cmake import Cmake
 from ferrite.components.conan import CmakeWithConan
 from ferrite.components.epics.epics_base import EpicsBase
@@ -27,8 +27,8 @@ class AppBuildUnittestTask(Task):
     def dependencies(self) -> List[Task]:
         return [self.ipp.generate_task]
 
-    def artifacts(self) -> List[str]:
-        return [self.cmake.build_dir]
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.cmake.build_dir)]
 
 
 class AppRunUnittestTask(Task):
@@ -72,8 +72,8 @@ class AppBuildTask(Task):
         deps.append(self.ipp.generate_task)
         return deps
 
-    def artifacts(self) -> List[str]:
-        return [self.cmake.build_dir]
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.cmake.build_dir)]
 
 
 class App(Component):

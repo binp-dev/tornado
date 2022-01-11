@@ -12,6 +12,7 @@ class Freertos(RepoList):
                 RepoSource("https://gitlab.inp.nsk.su/psc/freertos-variscite.git", branch),
                 RepoSource("https://github.com/varigit/freertos-variscite.git", branch),
             ],
+            cached=True,
         )
         self.name = name
         self.branch = branch
