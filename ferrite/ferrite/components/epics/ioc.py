@@ -1,11 +1,11 @@
 from __future__ import annotations
-from subprocess import Popen
 from typing import Any, Dict, List, Optional
 
 import shutil
 import re
 import logging
 import time
+from subprocess import Popen
 from pathlib import Path, PurePosixPath
 
 from ferrite.utils.files import substitute
@@ -149,7 +149,7 @@ class IocDeployTask(EpicsDeployTask):
     def _post(self, ctx: Context) -> None:
         assert ctx.device is not None
         boot_dir = self.install_dir / "iocBoot"
-        for ioc_name in boot_dir.iterdir():
+        for ioc_name in [path.name for path in boot_dir.iterdir()]:
             ioc_dir = boot_dir / ioc_name
             if not ioc_dir.is_dir():
                 continue
