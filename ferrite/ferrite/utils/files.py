@@ -4,12 +4,13 @@ from typing import Callable, List, Optional, Set, Tuple
 import re
 import logging
 import shutil
+from pathlib import Path
 
 
 def substitute(
     rep: List[Tuple[str, str]],
-    src: str,
-    dst: Optional[str] = None,
+    src: Path,
+    dst: Optional[Path] = None,
     force: bool = False,
 ) -> None:
     if dst is None:

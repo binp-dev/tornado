@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, List, Tuple
 
-import os
+from pathlib import Path
 
 from ferrite.codegen.base import CONTEXT, Context, Location, Name, Source, Type
 from ferrite.codegen.structure import Field, Struct
@@ -15,7 +15,7 @@ def make_variant(name: Name, messages: List[Tuple[Name, List[Field]]]) -> Varian
     )
 
 
-def generate_and_write(types: List[Type[Any]], base_path: str, context: Context) -> None:
+def generate_and_write(types: List[Type[Any]], base_path: Path, context: Context) -> None:
     for attr in dir(context):
         if attr.startswith('__'):
             continue
@@ -94,17 +94,17 @@ def generate_and_write(types: List[Type[Any]], base_path: str, context: Context)
     }
 
     paths = [
-        "include",
-        "src",
+        Path("include"),
+        Path("src"),
     ]
-    os.makedirs(base_path, exist_ok=True)
+    base_path.mkdir(exist_ok=True)
     for p in paths:
-        os.makedirs(os.path.join(base_path, p), exist_ok=True)
+        (base_path / p).mkdir(exist_ok=True)
     for name, text in files.items():
-        path = os.path.join(base_path, name)
+        path = base_path / name
         content = text + "\n"
         old_content = None
-        if os.path.exists(path):
+        if path.exists():
             with open(path, "r") as f:
                 old_content = f.read()
         if old_content is None or content != old_content:

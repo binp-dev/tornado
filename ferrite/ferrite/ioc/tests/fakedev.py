@@ -1,15 +1,12 @@
 # type: ignore
-from __future__ import annotations
-from typing import List
-
-import os
 import time
 import zmq
 from threading import Thread
-from ferrite.codegen.variant import VariantValue
+from pathlib import Path
 
 from ferrite.ipp import AppMsg, McuMsg
 from ferrite.utils.epics.ioc import Ioc
+from ferrite.codegen.variant import VariantValue
 import ferrite.utils.epics.ca as ca
 
 
@@ -36,20 +33,22 @@ VALUE: int = 0
 
 
 def run_test(
-    epics_base_dir: str,
-    ioc_dir: str,
-    ipp_dir: str,
+    epics_base_dir: Path,
+    ioc_dir: Path,
     arch: str,
 ) -> None:
     global IDS
 
-    ioc = Ioc(os.path.join(ioc_dir, "bin", arch, "PSC"), os.path.join(ioc_dir, "iocBoot/iocPSC/st.cmd"))
+    ioc = Ioc(
+        ioc_dir / "bin" / arch / "PSC",
+        ioc_dir / "iocBoot/iocPSC/st.cmd",
+    )
 
     context = zmq.Context()
     socket = context.socket(zmq.PAIR)
     socket.bind("tcp://127.0.0.1:8321")
 
-    prefix = os.path.join(epics_base_dir, "bin", arch)
+    prefix = epics_base_dir / "bin" / arch
 
     global DONE
     global VALUE

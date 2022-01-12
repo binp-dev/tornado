@@ -1,6 +1,8 @@
 from __future__ import annotations
 from typing import Any, List
 
+from pathlib import Path
+
 from ferrite.codegen.variant import Variant
 from ferrite.codegen.base import Context, Name, Type
 from ferrite.codegen.primitive import Float, Int
@@ -9,6 +11,7 @@ from ferrite.codegen.structure import Field, Struct
 from ferrite.codegen.generate import generate_and_write
 
 empty = Struct(Name(["empty", "struct"]), [])
+
 all_: List[Type[Any]] = [
     Array(Int(24), 5),
     Vector(Int(24)),
@@ -88,7 +91,7 @@ all_: List[Type[Any]] = [
 ]
 
 
-def generate(path: str) -> None:
+def generate(path: Path) -> None:
     generate_and_write(
         all_,
         path,

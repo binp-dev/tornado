@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from ferrite.codegen.base import Context, Name
 from ferrite.codegen.all import Int, Array, String, Field
 from ferrite.codegen.generate import make_variant, generate_and_write
@@ -31,7 +33,7 @@ McuMsg = make_variant(
 )
 
 
-def generate(path: str) -> None:
+def generate(path: Path) -> None:
     generate_and_write(
         [
             AppMsg,

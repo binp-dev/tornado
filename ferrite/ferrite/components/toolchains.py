@@ -1,16 +1,15 @@
 from __future__ import annotations
 from typing import Dict, List
 
-import os
 import shutil
 import logging
+from pathlib import Path
 from dataclasses import dataclass
 
 from ferrite.utils.run import capture
 from ferrite.utils.net import download_alt
 from ferrite.utils.strings import try_format
 from ferrite.components.base import Artifact, Component, Task, Context
-from ferrite.manage.paths import TARGET_DIR
 
 
 @dataclass
@@ -27,14 +26,11 @@ class Target:
         return f"{self.isa}-{self.api}-{self.abi}"
 
 
+@dataclass
 class Toolchain(Component):
-
-    def __init__(self, name: str, target: Target, cached: bool = False):
-        super().__init__()
-
-        self.name = name
-        self.target = target
-        self.cached = cached
+    name: str
+    target: Target
+    cached: bool = False
 
 
 class HostToolchain(Toolchain):
@@ -61,9 +57,11 @@ class ToolchainDownloadTask(Task):
 
 class CrossToolchain(Toolchain):
 
-    def __init__(self, name: str, target: Target, dir_name: str, archive: str, urls: List[str]):
+    def __init__(self, name: str, target: Target, target_dir: Path, dir_name: str, archive: str, urls: List[str]):
         super().__init__(name, target, cached=True)
         info = {"target": str(self.target)}
+
+        self.target_dir = target_dir
 
         self.dir_name = try_format(dir_name, **info)
         info["dir_name"] = self.dir_name
@@ -73,31 +71,31 @@ class CrossToolchain(Toolchain):
 
         self.urls = [try_format(url, **info) for url in urls]
 
-        self.path = os.path.join(TARGET_DIR, f"toolchain_{self.dir_name}")
+        self.path = target_dir / f"toolchain_{self.dir_name}"
 
         self.download_task = ToolchainDownloadTask(self)
 
     def download(self) -> bool:
-        if os.path.exists(self.path):
+        if self.path.exists():
             logging.info(f"Toolchain {self.archive} is already downloaded")
             return False
 
-        tmp_dir = os.path.join(TARGET_DIR, "download")
-        os.makedirs(tmp_dir, exist_ok=True)
+        tmp_dir = self.target_dir / "download"
+        tmp_dir.mkdir(exist_ok=True)
 
-        archive_path = os.path.join(tmp_dir, self.archive)
-        if not os.path.exists(archive_path):
+        archive_path = tmp_dir / self.archive
+        if not archive_path.exists():
             logging.info(f"Loading toolchain {self.archive} ...")
             download_alt(self.urls, archive_path)
         else:
             logging.info(f"Toolchain archive {self.archive} already exists")
 
         logging.info(f"Extracting toolchain {self.archive} ...")
-        dir_path = os.path.join(tmp_dir, self.dir_name)
+        dir_path = tmp_dir / self.dir_name
         try:
             shutil.unpack_archive(archive_path, tmp_dir)
         except:
-            if os.path.exists(dir_path):
+            if dir_path.exists():
                 shutil.rmtree(dir_path)
             raise
 
@@ -113,10 +111,11 @@ class CrossToolchain(Toolchain):
 
 class AppToolchain(CrossToolchain):
 
-    def __init__(self, name: str, target: Target):
+    def __init__(self, name: str, target: Target, target_dir: Path):
         super().__init__(
             name=name,
             target=target,
+            target_dir=target_dir,
             dir_name="gcc-linaro-7.5.0-2019.12-x86_64_{target}",
             archive="{dir_name}.tar.xz",
             urls=[
@@ -128,28 +127,31 @@ class AppToolchain(CrossToolchain):
 
 class AppToolchainImx7(AppToolchain):
 
-    def __init__(self) -> None:
+    def __init__(self, target_dir: Path) -> None:
         super().__init__(
             name="imx7",
             target=Target("arm", "linux", "gnueabihf"),
+            target_dir=target_dir,
         )
 
 
 class AppToolchainImx8mn(AppToolchain):
 
-    def __init__(self) -> None:
+    def __init__(self, target_dir: Path) -> None:
         super().__init__(
             name="imx8mn",
             target=Target("aarch64", "linux", "gnu"),
+            target_dir=target_dir,
         )
 
 
 class McuToolchainImx7(CrossToolchain):
 
-    def __init__(self) -> None:
+    def __init__(self, target_dir: Path) -> None:
         super().__init__(
             name="imx7",
             target=Target("arm", "none", "eabi"),
+            target_dir=target_dir,
             dir_name="gcc-{target}-5_4-2016q3",
             archive="{dir_name}-20160926-linux.tar.bz2",
             urls=[
@@ -161,10 +163,11 @@ class McuToolchainImx7(CrossToolchain):
 
 class McuToolchainImx8mn(CrossToolchain):
 
-    def __init__(self) -> None:
+    def __init__(self, target_dir: Path) -> None:
         super().__init__(
             name="imx8mn",
             target=Target("arm", "none", "eabi"),
+            target_dir=target_dir,
             dir_name="gcc-{target}-9-2020-q2-update",
             archive="{dir_name}-x86_64-linux.tar.bz2",
             urls=[
