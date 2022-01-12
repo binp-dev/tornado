@@ -13,14 +13,9 @@ Software for the BINP next-gen power supply controller.
 
 ### Python packages
 
-```bash
-pip3 install -r requirements.txt
-```
++ `poetry`
 
-### Testing dependencies
-
-+ `libgtest-dev`
-+ `libzmq3-dev`
+Remaining dependencies are automatically managed by `poetry`, you don't need to install them manually.
 
 ## Deploy dependencies
 
@@ -29,38 +24,48 @@ pip3 install -r requirements.txt
 
 ## Usage
 
-### Test locally
+### Preparation
 
-This command will build and test IOC locally with fake device:
+At first you need to install python dependencies. Run the following command in the project root:
 
 ```bash
-python3 -m manage host_ioc.test_fakedev
+poetry install
+```
+
+### Testing
+
+This command will build software and run all tests (unit, codegen, fakedev):
+
+```bash
+poetry run python -m ferrite.manage host_all.test
 ```
 
 ### Run on the device
 
-To build, deploy and run both aplication and real-time code and run it on the i.MX7 device:
+To build, deploy and run both aplication and real-time code and run it on the i.MX8M Nano device:
 
 ```bash
-python3 -m manage imx7_all.run --device <ip-addr>[:port]
+poetry run python -m ferrite.manage imx8mn_all.run --device <ip-addr>[:port]
 ```
+
+Device should be accessible through SSH as `root` user without password prompt.
 
 ### More information
 
 To get more information about `manage` scripts run:
 
 ```bash
-python3 -m manage --help
+poetry run python -m ferrite.manage --help
 ```
 
 To get the list of components:
 
 ```bash
-python3 -m manage .
+poetry run python -m ferrite.manage .
 ```
 
 To get the list of tasks for selected component:
 
 ```bash
-python3 -m manage <component>.
+poetry run python -m ferrite.manage <component>.
 ```
