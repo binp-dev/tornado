@@ -23,7 +23,6 @@ class Device {
 private:
     struct AdcEntry {
         std::atomic<int32_t> value;
-        std::function<void()> callback;
     };
 
     struct DacEntry {
@@ -78,10 +77,6 @@ private:
                 //static_assert(decltype(adcs)::size() == decltype(adc_val.values)::size());
                 for (size_t i = 0; i < ADC_COUNT; ++i) {
                     adcs[i].value.store(adc_val.values[i]);
-
-                    if (adcs[i].callback) {
-                        adcs[i].callback();
-                    }
                 }
 
             } else if (std::holds_alternative<ipp::McuMsgDebug>(incoming.variant)) {
@@ -123,8 +118,6 @@ public:
         channel(std::move(channel)),
         adc_req_period(period)
     {
-        std::lock_guard device_guard(device_mutex);
-
         done.store(false);
         recv_worker = std::thread([this]() { this->recv_loop(); });
         adc_req_worker = std::thread([this]() { this->adc_req_loop(); });
@@ -136,22 +129,12 @@ public:
     }
 
     void write_dac(int32_t value) {
-        std::lock_guard device_guard(device_mutex);
         dac.value.store(value);
         dac.update.store(true);
     }
 
     int32_t read_adc(size_t index) {
-        std::lock_guard device_guard(device_mutex);
-        
         assert_true(index < ADC_COUNT);
         return adcs[index].value.load();
-    }
-
-    void set_adc_callback(size_t index, std::function<void()> && callback) {
-        std::lock_guard device_guard(device_mutex);
-        
-        assert_true(index < ADC_COUNT);
-        adcs[index].callback = std::move(callback);
     }
 };

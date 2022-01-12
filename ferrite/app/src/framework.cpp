@@ -50,7 +50,7 @@ public:
     }
 
     virtual bool is_async() const override {
-        return true;
+        return false;
     }
 };
 
@@ -67,11 +67,11 @@ public:
     }
 
     virtual void set_read_request(InputValueRecord<int32_t> &, std::function<void()> && callback) override {
-        device_.set_adc_callback(index_, std::move(callback));
+        panic("I/O INTR request is not expected");
     }
 
     virtual bool is_async() const override {
-        return true;
+        return false;
     }
 };
 
