@@ -18,18 +18,20 @@
 #include <hal/math.h>
 #include <hal/time.h>
 #include <hal/gpt.h>
+#include <hal/gpio.h>
 
 #include "skifio.h"
 
-#include "fsl_gpio.h"
-
 #define TASK_STACK_SIZE 256
 
-#define SMP_RDY_PIN 23u
-#define READ_RDY_PIN 9u
+#define SMP_RDY_PIN 5, 23
+#define READ_RDY_PIN 5, 9
 
-#define DAC_KEY_1 2u
-#define DAC_KEY_2 3u
+#define DAC_KEY_0 5, 2
+#define DAC_KEY_1 5, 3
+
+#define GPIO_PIN_0 5, 0
+#define GPIO_PIN_1 4, 30
 
 static volatile SemaphoreHandle_t smp_rdy_sem = NULL;
 
@@ -39,25 +41,16 @@ static volatile uint32_t g_sample_count = 0;
 
 static volatile uint32_t intr_count = 0;
 
-void GPIO5_Combined_16_31_IRQHandler() {
-    if (GPIO_GetPinsInterruptFlags(GPIO5) & (1 << SMP_RDY_PIN)) {
-        GPIO_ClearPinsInterruptFlags(GPIO5, 1 << SMP_RDY_PIN);
-        intr_count += 1;
+void smp_rdy_handler(void *user_data, HalGpioBlockIndex block, HalGpioPinMask mask) {
+    intr_count += 1;
 
-        BaseType_t hptw = pdFALSE;
+    BaseType_t hptw = pdFALSE;
 
-        // Notify target task
-        xSemaphoreGiveFromISR(smp_rdy_sem, &hptw);
+    // Notify target task
+    xSemaphoreGiveFromISR(smp_rdy_sem, &hptw);
 
-        // Yield to higher priority task
-        portYIELD_FROM_ISR(hptw);
-    }
-
-    // Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F, Cortex-M7, Cortex-M7F Store immediate overlapping
-    // exception return operation might vector to incorrect interrupt
-#if defined __CORTEX_M && (__CORTEX_M == 4U || __CORTEX_M == 7U)
-    __DSB();
-#endif
+    // Yield to higher priority task
+    portYIELD_FROM_ISR(hptw);
 }
 
 static void task_gpt(void *param) {
@@ -65,12 +58,12 @@ static void task_gpt(void *param) {
     hal_assert(hal_gpt_init(0) == HAL_SUCCESS);
 
     BOARD_InitGptPins();
-    gpio_pin_config_t gpt2_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
-    GPIO_PinInit(GPIO5, 0u, &gpt2_config);
-    gpio_pin_config_t gpt1_config = {kGPIO_DigitalInput, 0, kGPIO_NoIntmode};
-    GPIO_PinInit(GPIO4, 30u, &gpt1_config);
-
-    GPIO_PinWrite(GPIO5, 0u, 0);
+    HalGpioGroup group;
+    hal_gpio_group_init(&group);
+    HalGpioPin gpt_pins[2];
+    hal_gpio_pin_init(&gpt_pins[0], &group, GPIO_PIN_0, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
+    hal_gpio_pin_init(&gpt_pins[1], &group, GPIO_PIN_1, HAL_GPIO_INPUT, HAL_GPIO_INTR_DISABLED);
+    hal_gpio_pin_write(&gpt_pins[0], false);
 
     SemaphoreHandle_t gpt_sem = xSemaphoreCreateBinary();
     hal_assert(gpt_sem != NULL);
@@ -84,10 +77,9 @@ static void task_gpt(void *param) {
         }
         //hal_log_info("GPT tick: %d", i);
 
-        GPIO_PinWrite(GPIO5, 0u, 1);
+        hal_gpio_pin_write(&gpt_pins[0], true);
         hal_busy_wait_ns(100000ll);
-        GPIO_PinWrite(GPIO5, 0u, 0);
-
+        hal_gpio_pin_write(&gpt_pins[0], false);
     }
 
     hal_log_error("End of task_gpio()");
@@ -105,27 +97,26 @@ static void task_gpio(void *param) {
 
     BOARD_InitGpioPins();
 
-    // DAC keys
-    gpio_pin_config_t dac_key_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
-    GPIO_PinInit(GPIO5, DAC_KEY_1, &dac_key_config);
-    GPIO_PinInit(GPIO5, DAC_KEY_2, &dac_key_config);
-    GPIO_PinWrite(GPIO5, DAC_KEY_1, 1);
-    GPIO_PinWrite(GPIO5, DAC_KEY_2, 1);
+    HalGpioGroup group;
+    hal_gpio_group_init(&group);
 
-    gpio_pin_config_t read_rdy_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
-    GPIO_PinInit(GPIO5, READ_RDY_PIN, &read_rdy_config);
-    GPIO_PinWrite(GPIO5, READ_RDY_PIN, 0);
+    // DAC keys
+    HalGpioPin dac_keys[2];
+    hal_gpio_pin_init(&dac_keys[0], &group, DAC_KEY_0, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
+    hal_gpio_pin_init(&dac_keys[1], &group, DAC_KEY_1, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
+    hal_gpio_pin_write(&dac_keys[0], true);
+    hal_gpio_pin_write(&dac_keys[1], true);
+
+    HalGpioPin read_rdy;
+    hal_gpio_pin_init(&read_rdy, &group, READ_RDY_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
+    hal_gpio_pin_write(&read_rdy, false);
 
     smp_rdy_sem = xSemaphoreCreateBinary();
     hal_assert(smp_rdy_sem != NULL);
 
-    gpio_pin_config_t smp_rdy_config = {kGPIO_DigitalInput, 0, kGPIO_IntFallingEdge};
-    GPIO_PinInit(GPIO5, SMP_RDY_PIN, &smp_rdy_config);
-    GPIO_ClearPinsInterruptFlags(GPIO5, 1 << SMP_RDY_PIN);
-    GPIO_EnableInterrupts(GPIO5, 1 << SMP_RDY_PIN);
-
-    NVIC_SetPriority(GPIO5_Combined_16_31_IRQn, 4);
-    NVIC_EnableIRQ(GPIO5_Combined_16_31_IRQn);
+    HalGpioPin smp_rdy;
+    hal_gpio_pin_init(&smp_rdy, &group, SMP_RDY_PIN, HAL_GPIO_INPUT, HAL_GPIO_INTR_FALLING_EDGE);
+    hal_gpio_group_set_intr(&group, smp_rdy_handler, NULL);
 
     TickType_t meas_start = xTaskGetTickCount();
     hal_busy_wait_ns(1000000000ll);
@@ -176,10 +167,10 @@ static void task_gpio(void *param) {
         }
         g_sample_count += 1;
 
-        GPIO_PinWrite(GPIO5, READ_RDY_PIN, 1);
+        hal_gpio_pin_write(&read_rdy, true);
         //vTaskDelay(1);
         hal_busy_wait_ns(10000);
-        GPIO_PinWrite(GPIO5, READ_RDY_PIN, 0);
+        hal_gpio_pin_write(&read_rdy, false);
 
         if (xTaskGetTickCount() - last_ticks >= 1000) {
             hal_log_info("max_intr_count: %d", max_intr_count);

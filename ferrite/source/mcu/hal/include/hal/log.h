@@ -3,10 +3,12 @@
 #include "defs.h"
 #include "io.h"
 
-#define HAL_LOG_LEVEL_ERROR 1
-#define HAL_LOG_LEVEL_WARN  2
-#define HAL_LOG_LEVEL_INFO  3
-#define HAL_LOG_LEVEL_DEBUG 4
+typedef enum {
+    HAL_LOG_LEVEL_ERROR = 1,
+    HAL_LOG_LEVEL_WARN = 2,
+    HAL_LOG_LEVEL_INFO = 3,
+    HAL_LOG_LEVEL_DEBUG = 4,
+} HalLogLevel;
 
 #ifndef HAL_LOG_LEVEL
 #error "HAL_LOG_LEVEL must be defined"

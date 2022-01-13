@@ -30,7 +30,7 @@ hal_retcode hal_gpt_deinit(uint32_t instance);
  * @brief Start GPT.
  * @param[in] instance GPT instance index.
  * @param[in] period GPT ticks count.
- * @param[in] target Semaphore to be given on timer event.
+ * @param[in] target Semaphore to be given on timer event. FIXME: Replace with callback.
  * @return Return code.
  */
 hal_retcode hal_gpt_start(uint32_t instance, uint32_t period, SemaphoreHandle_t target);
