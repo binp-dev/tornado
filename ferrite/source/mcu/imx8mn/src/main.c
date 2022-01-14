@@ -2,6 +2,8 @@
 #include "pin_mux.h"
 #include "clock_config.h"
 #include "rsc_table.h"
+#include "fsl_common.h"
+#include "fsl_iomuxc.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -34,26 +36,34 @@ typedef struct {
 } Accum;
 
 typedef struct {
-    uint64_t max_intr_count;
+    uint32_t sample_count;
+    uint32_t max_intrs_per_sample;
     int32_t min_adc;
     int32_t max_adc;
     int32_t last_adcs[SKIFIO_ADC_CHANNEL_COUNT];
 } Statistics;
 
 static volatile Accum ACCUM = {0, {0}, 0};
-static volatile Statistics STATS = {0, 0, 0, {0}};
+static volatile Statistics STATS = {0, 0, 0, 0, {0}};
 
 static void task_gpt(void *param) {
     hal_log_info("GPT init");
     hal_assert(hal_gpt_init(0) == HAL_SUCCESS);
 
-    BOARD_InitGptPins();
+    IOMUXC_SetPinMux(IOMUXC_SAI3_TXC_GPIO5_IO00, 0u); // IOMUXC_SAI3_TXC_GPT1_COMPARE2
+    IOMUXC_SetPinMux(IOMUXC_SAI3_RXD_GPIO4_IO30, 0u); // IOMUXC_SAI3_RXD_GPT1_COMPARE1
+
+    // IOMUXC_UART4_RXD_GPT1_COMPARE1 // IOMUXC_UART4_RXD_GPIO5_IO28
+    // IOMUXC_UART2_TXD_GPT1_COMPARE2 // IOMUXC_UART2_TXD_GPIO5_IO25
+    // IOMUXC_SAI3_RXD_GPT1_COMPARE1 // IOMUXC_SAI3_RXD_GPIO4_IO30
+    // IOMUXC_SAI3_TXC_GPT1_COMPARE2 // IOMUXC_SAI3_TXC_GPIO5_IO00
+
     HalGpioGroup group;
     hal_gpio_group_init(&group);
     HalGpioPin gpt_pins[2];
     hal_gpio_pin_init(&gpt_pins[0], &group, GPIO_PIN_0, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
-    hal_gpio_pin_init(&gpt_pins[1], &group, GPIO_PIN_1, HAL_GPIO_INPUT, HAL_GPIO_INTR_DISABLED);
     hal_gpio_pin_write(&gpt_pins[0], false);
+    hal_gpio_pin_init(&gpt_pins[1], &group, GPIO_PIN_1, HAL_GPIO_INPUT, HAL_GPIO_INTR_DISABLED);
 
     SemaphoreHandle_t gpt_sem = xSemaphoreCreateBinary();
     hal_assert(gpt_sem != NULL);
@@ -68,7 +78,7 @@ static void task_gpt(void *param) {
         //hal_log_info("GPT tick: %d", i);
 
         hal_gpio_pin_write(&gpt_pins[0], true);
-        hal_busy_wait_ns(100000ll);
+        hal_busy_wait_ns(100000);
         hal_gpio_pin_write(&gpt_pins[0], false);
     }
 
@@ -82,7 +92,7 @@ static void task_gpt(void *param) {
 static void task_skifio(void *param) {
     TickType_t meas_start = xTaskGetTickCount();
     hal_busy_wait_ns(1000000000ll);
-    hal_log_info("ms per 1e9 busy loop ns: %d", xTaskGetTickCount() - meas_start);
+    hal_log_info("ms per 1e9 busy loop ns: %ld", xTaskGetTickCount() - meas_start);
 
     hal_log_info("SkifIO driver init");
     hal_assert(skifio_init() == HAL_SUCCESS);
@@ -97,12 +107,16 @@ static void task_skifio(void *param) {
 
         ret = skifio_wait_ready(1000);
         if (ret == HAL_TIMED_OUT) {
-            hal_log_info("SkifIO timeout %ld", i);
+            hal_log_info("SkifIO timeout %d", i);
             continue;
         }
         hal_assert(ret == HAL_SUCCESS);
 
-        STATS.max_intr_count = hal_max(STATS.max_intr_count, _SKIFIO_DEBUG_INFO.intr_count - prev_intr_count);
+
+        STATS.max_intrs_per_sample = hal_max(
+            STATS.max_intrs_per_sample,
+            (uint32_t)(_SKIFIO_DEBUG_INFO.intr_count - prev_intr_count) //
+        );
         prev_intr_count = _SKIFIO_DEBUG_INFO.intr_count;
 
         output.dac = (int16_t)ACCUM.dac;
@@ -125,6 +139,7 @@ static void task_skifio(void *param) {
             STATS.last_adcs[j] = value;
         }
         ACCUM.sample_count += 1;
+        STATS.sample_count += 1;
     }
 
     hal_log_error("End of task_skifio()");
@@ -135,15 +150,22 @@ static void task_skifio(void *param) {
 
 static void task_stats(void *param) {
     for (;;) {
-        hal_log_info("max_intr_count: %d", STATS.max_intr_count);
-        hal_log_info("min_adc: 0x%x, max_adc: 0x%x", STATS.min_adc, STATS.max_adc);
+        hal_log_info("");
+        hal_log_info("sample_count: %ld", STATS.sample_count);
+        hal_log_info("max_intrs_per_sample: %ld", STATS.max_intrs_per_sample);
+        int32_t v_min = STATS.min_adc;
+        hal_log_info("min_adc: (0x%08lx) %ld", v_min, v_min);
+        int32_t v_max = STATS.max_adc;
+        hal_log_info("max_adc: (0x%08lx) %ld", v_max, v_max);
 
-        STATS.max_intr_count = 0;
+        STATS.sample_count = 0;
+        STATS.max_intrs_per_sample = 0;
         STATS.min_adc = 0;
         STATS.max_adc = 0;
 
         for (size_t j = 0; j < SKIFIO_ADC_CHANNEL_COUNT; ++j) {
-            hal_log_info("adc%d: %x", j, STATS.last_adcs[j]);
+            int32_t v = STATS.last_adcs[j];
+            hal_log_info("adc%d: (0x%08lx) %ld", j, v, v);
         }
 
         vTaskDelay(1000);
