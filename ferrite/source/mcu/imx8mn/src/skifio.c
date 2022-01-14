@@ -23,10 +23,10 @@
 #include <hal/log.h>
 #endif // _SKIFIO_PRINT_SPI
 
-#define SPI_BAUD_RATE 20000000
+#define SPI_BAUD_RATE 25000000
 
-#define READY_DELAY_NS 60000
-#define READ_RDY_DURATION_NS 2000
+#define READY_DELAY_NS 0
+#define READ_RDY_DURATION_NS 1000
 
 #define SPI_DEV_ID 0
 #define XFER_LEN 26
@@ -115,10 +115,10 @@ hal_retcode skifio_init() {
 
     hal_gpio_group_init(&GS.pins.group);
     hal_gpio_pin_init(&GS.pins.read_rdy, &GS.pins.group, READ_RDY_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
-    hal_gpio_pin_write(&GS.pins.read_rdy, false);
-    hal_gpio_pin_init(&GS.pins.smp_rdy, &GS.pins.group, SMP_RDY_PIN, HAL_GPIO_INPUT, HAL_GPIO_INTR_FALLING_EDGE);
+    hal_gpio_pin_init(&GS.pins.smp_rdy, &GS.pins.group, SMP_RDY_PIN, HAL_GPIO_INPUT, HAL_GPIO_INTR_RISING_EDGE);
     hal_gpio_pin_init(&GS.pins.dac_keys[0], &GS.pins.group, DAC_KEY_0_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
     hal_gpio_pin_init(&GS.pins.dac_keys[1], &GS.pins.group, DAC_KEY_1_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
+    hal_gpio_pin_write(&GS.pins.read_rdy, false);
 
     GS.smp_rdy_sem = xSemaphoreCreateBinary();
     hal_assert(GS.smp_rdy_sem != NULL);
