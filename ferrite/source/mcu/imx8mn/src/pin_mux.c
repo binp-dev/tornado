@@ -69,32 +69,9 @@ void BOARD_InitPins(void) {                                /*!< Function assigne
     IOMUXC_SetPinConfig(IOMUXC_UART3_TXD_UART3_TX,
                         IOMUXC_SW_PAD_CTL_PAD_DSE(6U) |
                         IOMUXC_SW_PAD_CTL_PAD_FSEL(2U));
-
-    // ECSPI pins
-    IOMUXC_SetPinMux(IOMUXC_ECSPI1_MISO_ECSPI1_MISO, 0U);
-    IOMUXC_SetPinConfig(IOMUXC_ECSPI1_MISO_ECSPI1_MISO,
-                        IOMUXC_SW_PAD_CTL_PAD_DSE(6U) |
-                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK);
-    IOMUXC_SetPinMux(IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI, 0U);
-    IOMUXC_SetPinConfig(IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI,
-                        IOMUXC_SW_PAD_CTL_PAD_DSE(6U) |
-                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK);
-    IOMUXC_SetPinMux(IOMUXC_ECSPI1_SCLK_ECSPI1_SCLK, 0U);
-    IOMUXC_SetPinConfig(IOMUXC_ECSPI1_SCLK_ECSPI1_SCLK,
-                        IOMUXC_SW_PAD_CTL_PAD_DSE(6U) |
-                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK |
-                        IOMUXC_SW_PAD_CTL_PAD_PE_MASK);
-
 }
 
-void BOARD_InitGpioPins(void) {                                /*!< Function assigned for the core: Cortex-M7F[m7] */
-    // GPIO pins
-    IOMUXC_SetPinMux(IOMUXC_UART1_TXD_GPIO5_IO23, 0U); // SMP_RDY
-    IOMUXC_SetPinMux(IOMUXC_ECSPI1_SS0_GPIO5_IO09, 0U); // Read_RDY
-
-    // DAC keys
-    IOMUXC_SetPinMux(IOMUXC_SAI3_MCLK_GPIO5_IO02, 0U);
-    IOMUXC_SetPinMux(IOMUXC_SPDIF_TX_GPIO5_IO03, 0U);
+void BOARD_InitGpioPins(void) { /*!< Function assigned for the core: Cortex-M7F[m7] */
 }
 
 void BOARD_InitGptPins(void) {
