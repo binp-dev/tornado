@@ -26,8 +26,16 @@
 
 #define TASK_STACK_SIZE 256
 
-#define GPIO_PIN_0 5, 0
-#define GPIO_PIN_1 4, 30
+#define SYN_10K_MUX IOMUXC_SAI3_TXC_GPIO5_IO00
+// #define SYN_10K_MUX IOMUXC_SAI3_TXC_GPT1_COMPARE2
+#define SYN_10K_PIN 5, 0
+
+#define SYN_1_MUX IOMUXC_SAI3_RXD_GPIO4_IO30
+// #define SYN_1_MUX IOMUXC_SAI3_RXD_GPT1_COMPARE1
+#define SYN_1_PIN 4, 30
+
+#define GPT_CHANNEL 1
+#define GPT_PERIOD_US 10000
 
 typedef struct {
     int32_t dac;
@@ -36,6 +44,7 @@ typedef struct {
 } Accum;
 
 typedef struct {
+    uint32_t clock_count;
     uint32_t sample_count;
     uint32_t max_intrs_per_sample;
     int32_t min_adc;
@@ -44,49 +53,60 @@ typedef struct {
 } Statistics;
 
 static volatile Accum ACCUM = {0, {0}, 0};
-static volatile Statistics STATS = {0, 0, 0, 0, {0}};
+static volatile Statistics STATS = {0, 0, 0, 0, 0, {0}};
+
+static void handle_gpt(void *data) {
+    BaseType_t hptw = pdFALSE;
+    SemaphoreHandle_t *sem = (SemaphoreHandle_t *)data;
+
+    // Notify target task
+    xSemaphoreGiveFromISR(*sem, &hptw);
+
+    // Yield to higher priority task
+    portYIELD_FROM_ISR(hptw);
+}
 
 static void task_gpt(void *param) {
     hal_log_info("GPT init");
-    hal_assert(hal_gpt_init(0) == HAL_SUCCESS);
 
-    IOMUXC_SetPinMux(IOMUXC_SAI3_TXC_GPIO5_IO00, 0u); // IOMUXC_SAI3_TXC_GPT1_COMPARE2
-    IOMUXC_SetPinMux(IOMUXC_SAI3_RXD_GPIO4_IO30, 0u); // IOMUXC_SAI3_RXD_GPT1_COMPARE1
+    HalGpt gpt;
+    hal_assert(hal_gpt_init(&gpt, 1) == HAL_SUCCESS);
 
-    // IOMUXC_UART4_RXD_GPT1_COMPARE1 // IOMUXC_UART4_RXD_GPIO5_IO28
-    // IOMUXC_UART2_TXD_GPT1_COMPARE2 // IOMUXC_UART2_TXD_GPIO5_IO25
-    // IOMUXC_SAI3_RXD_GPT1_COMPARE1 // IOMUXC_SAI3_RXD_GPIO4_IO30
-    // IOMUXC_SAI3_TXC_GPT1_COMPARE2 // IOMUXC_SAI3_TXC_GPIO5_IO00
+    IOMUXC_SetPinMux(SYN_10K_MUX, 0u);
+    IOMUXC_SetPinMux(SYN_1_MUX, 0u);
 
     HalGpioGroup group;
     hal_gpio_group_init(&group);
     HalGpioPin gpt_pins[2];
-    hal_gpio_pin_init(&gpt_pins[0], &group, GPIO_PIN_0, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
+    hal_gpio_pin_init(&gpt_pins[0], &group, SYN_10K_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
+    hal_gpio_pin_init(&gpt_pins[1], &group, SYN_1_PIN, HAL_GPIO_INPUT, HAL_GPIO_INTR_DISABLED);
     hal_gpio_pin_write(&gpt_pins[0], false);
-    hal_gpio_pin_init(&gpt_pins[1], &group, GPIO_PIN_1, HAL_GPIO_INPUT, HAL_GPIO_INTR_DISABLED);
 
-    SemaphoreHandle_t gpt_sem = xSemaphoreCreateBinary();
-    hal_assert(gpt_sem != NULL);
+    SemaphoreHandle_t sem = xSemaphoreCreateBinary();
+    hal_assert(sem != NULL);
 
-    hal_assert(hal_gpt_start(0, 1000, gpt_sem) == HAL_SUCCESS);
-
+    bool pin_state = false;
+    hal_assert(hal_gpt_start(&gpt, GPT_CHANNEL, GPT_PERIOD_US / 2, handle_gpt, (void *)&sem) == HAL_SUCCESS);
     for (size_t i = 0;;++i) {
-        if (xSemaphoreTake(gpt_sem, 10000) != pdTRUE) {
+        if (xSemaphoreTake(sem, 10000) != pdTRUE) {
             hal_log_info("GPT semaphore timeout %x", i);
             continue;
         }
-        //hal_log_info("GPT tick: %d", i);
 
-        hal_gpio_pin_write(&gpt_pins[0], true);
-        hal_busy_wait_ns(100000);
-        hal_gpio_pin_write(&gpt_pins[0], false);
+        // Toggle pin
+        pin_state = !pin_state;
+        hal_gpio_pin_write(&gpt_pins[0], pin_state);
+
+        if (pin_state) {
+            STATS.clock_count += 1;
+        }
     }
 
     hal_log_error("End of task_gpt()");
     hal_panic();
 
-    hal_assert(hal_gpt_stop(0) == HAL_SUCCESS);
-    hal_assert(hal_gpt_deinit(0) == HAL_SUCCESS);
+    hal_assert(hal_gpt_stop(&gpt) == HAL_SUCCESS);
+    hal_assert(hal_gpt_deinit(&gpt) == HAL_SUCCESS);
 }
 
 static void task_skifio(void *param) {
@@ -151,6 +171,7 @@ static void task_skifio(void *param) {
 static void task_stats(void *param) {
     for (;;) {
         hal_log_info("");
+        hal_log_info("clock_count: %ld", STATS.clock_count);
         hal_log_info("sample_count: %ld", STATS.sample_count);
         hal_log_info("max_intrs_per_sample: %ld", STATS.max_intrs_per_sample);
         int32_t v_min = STATS.min_adc;
@@ -158,6 +179,7 @@ static void task_stats(void *param) {
         int32_t v_max = STATS.max_adc;
         hal_log_info("max_adc: (0x%08lx) %ld", v_max, v_max);
 
+        STATS.clock_count = 0;
         STATS.sample_count = 0;
         STATS.max_intrs_per_sample = 0;
         STATS.min_adc = 0;

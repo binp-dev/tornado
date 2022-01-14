@@ -23,10 +23,10 @@
 #include <hal/log.h>
 #endif // _SKIFIO_PRINT_SPI
 
-#define SPI_BAUD_RATE 25000000
+#define SPI_BAUD_RATE 20000000
 
-#define READY_DELAY_NS 0 // 100000
-#define READ_RDY_DURATION_NS 1000
+#define READY_DELAY_NS 60000
+#define READ_RDY_DURATION_NS 2000
 
 #define SPI_DEV_ID 0
 #define XFER_LEN 26
