@@ -3,7 +3,6 @@
 #include "clock_config.h"
 #include "rsc_table.h"
 #include "fsl_common.h"
-#include "fsl_iomuxc.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -19,23 +18,16 @@
 #include <hal/rpmsg.h>
 #include <hal/math.h>
 #include <hal/time.h>
-#include <hal/gpt.h>
-#include <hal/gpio.h>
 
 #include "skifio.h"
+#include "stats.h"
+
+#ifdef GENERATE_SYNC
+#include "sync.h"
+#endif
+
 
 #define TASK_STACK_SIZE 256
-
-#define SYN_10K_MUX IOMUXC_SAI3_TXC_GPIO5_IO00
-// #define SYN_10K_MUX IOMUXC_SAI3_TXC_GPT1_COMPARE2
-#define SYN_10K_PIN 5, 0
-
-#define SYN_1_MUX IOMUXC_SAI3_RXD_GPIO4_IO30
-// #define SYN_1_MUX IOMUXC_SAI3_RXD_GPT1_COMPARE1
-#define SYN_1_PIN 4, 30
-
-#define GPT_CHANNEL 1
-#define GPT_PERIOD_US 1000 // 100
 
 typedef struct {
     int32_t dac;
@@ -43,71 +35,8 @@ typedef struct {
     uint32_t sample_count;
 } Accum;
 
-typedef struct {
-    uint32_t clock_count;
-    uint32_t sample_count;
-    uint32_t max_intrs_per_sample;
-    int32_t min_adc;
-    int32_t max_adc;
-    int32_t last_adcs[SKIFIO_ADC_CHANNEL_COUNT];
-} Statistics;
-
 static volatile Accum ACCUM = {0, {0}, 0};
-static volatile Statistics STATS = {0, 0, 0, 0, 0, {0}};
 
-static void handle_gpt(void *data) {
-    BaseType_t hptw = pdFALSE;
-    SemaphoreHandle_t *sem = (SemaphoreHandle_t *)data;
-
-    // Notify target task
-    xSemaphoreGiveFromISR(*sem, &hptw);
-
-    // Yield to higher priority task
-    portYIELD_FROM_ISR(hptw);
-}
-
-static void task_gpt(void *param) {
-    hal_log_info("GPT init");
-
-    HalGpt gpt;
-    hal_assert(hal_gpt_init(&gpt, 1) == HAL_SUCCESS);
-
-    IOMUXC_SetPinMux(SYN_10K_MUX, 0u);
-    IOMUXC_SetPinMux(SYN_1_MUX, 0u);
-
-    HalGpioGroup group;
-    hal_gpio_group_init(&group);
-    HalGpioPin gpt_pins[2];
-    hal_gpio_pin_init(&gpt_pins[0], &group, SYN_10K_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
-    hal_gpio_pin_init(&gpt_pins[1], &group, SYN_1_PIN, HAL_GPIO_INPUT, HAL_GPIO_INTR_DISABLED);
-    hal_gpio_pin_write(&gpt_pins[0], false);
-
-    SemaphoreHandle_t sem = xSemaphoreCreateBinary();
-    hal_assert(sem != NULL);
-
-    bool pin_state = false;
-    hal_assert(hal_gpt_start(&gpt, GPT_CHANNEL, GPT_PERIOD_US / 2, handle_gpt, (void *)&sem) == HAL_SUCCESS);
-    for (size_t i = 0;;++i) {
-        if (xSemaphoreTake(sem, 10000) != pdTRUE) {
-            hal_log_info("GPT semaphore timeout %x", i);
-            continue;
-        }
-
-        // Toggle pin
-        pin_state = !pin_state;
-        hal_gpio_pin_write(&gpt_pins[0], pin_state);
-
-        if (pin_state) {
-            STATS.clock_count += 1;
-        }
-    }
-
-    hal_log_error("End of task_gpt()");
-    hal_panic();
-
-    hal_assert(hal_gpt_stop(&gpt) == HAL_SUCCESS);
-    hal_assert(hal_gpt_deinit(&gpt) == HAL_SUCCESS);
-}
 
 static void task_skifio(void *param) {
     TickType_t meas_start = xTaskGetTickCount();
@@ -166,32 +95,6 @@ static void task_skifio(void *param) {
     hal_panic();
 
     hal_assert(skifio_deinit() == HAL_SUCCESS);
-}
-
-static void task_stats(void *param) {
-    for (;;) {
-        hal_log_info("");
-        hal_log_info("clock_count: %ld", STATS.clock_count);
-        hal_log_info("sample_count: %ld", STATS.sample_count);
-        hal_log_info("max_intrs_per_sample: %ld", STATS.max_intrs_per_sample);
-        int32_t v_min = STATS.min_adc;
-        hal_log_info("min_adc: (0x%08lx) %ld", v_min, v_min);
-        int32_t v_max = STATS.max_adc;
-        hal_log_info("max_adc: (0x%08lx) %ld", v_max, v_max);
-
-        STATS.clock_count = 0;
-        STATS.sample_count = 0;
-        STATS.max_intrs_per_sample = 0;
-        STATS.min_adc = 0;
-        STATS.max_adc = 0;
-
-        for (size_t j = 0; j < SKIFIO_ADC_CHANNEL_COUNT; ++j) {
-            int32_t v = STATS.last_adcs[j];
-            hal_log_info("adc%d: (0x%08lx) %ld", j, v, v);
-        }
-
-        vTaskDelay(1000);
-    }
 }
 
 static void task_rpmsg(void *param) {
@@ -276,6 +179,15 @@ static void task_rpmsg(void *param) {
     hal_rpmsg_deinit();
 }
 
+static void task_stats(void *param) {
+    for (;;) {
+        hal_log_info("");
+        stats_print();
+        stats_reset();
+        vTaskDelay(1000);
+    }
+}
+
 int main(void)
 {
     /* Initialize standard SDK demo application pins */
@@ -299,14 +211,16 @@ int main(void)
 #endif
     hal_log_info("\n\r\n\r** Board started **");
 
-    hal_log_info("Create GPT task");
-    xTaskCreate(task_gpt, "GPT task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL);
+#ifdef GENERATE_SYNC
+    hal_log_info("Create sync generator task");
+    xTaskCreate(sync_generator_task, "Sync generator task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 4, NULL);
+#endif
 
     hal_log_info("Create SkifIO task");
-    xTaskCreate(task_skifio, "SkifIO task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
+    xTaskCreate(task_skifio, "SkifIO task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL);
 
     hal_log_info("Create RPMsg task");
-    xTaskCreate(task_rpmsg, "RPMsg task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(task_rpmsg, "RPMsg task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
 
     hal_log_info("Create statistics task");
     xTaskCreate(task_stats, "Statistics task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
