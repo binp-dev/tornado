@@ -25,6 +25,7 @@ based_on_style = "yapf"
 column_limit = 128
 indent_width = 4
 continuation_indent_width = 4
+spaces_before_comment = 1
 continuation_align_style = "space"
 dedent_closing_brackets = true
 coalesce_brackets = true
