@@ -31,7 +31,7 @@ void init_device(MaybeUninit<Device> &mem) {
         ))
 #endif // FAKEDEV
     ;
-    mem.init_in_place(std::move(channel), std::chrono::milliseconds{1000});
+    mem.init_in_place(std::move(channel), std::chrono::milliseconds{500});
 }
 
 /// We use LazyStatic to initialize global Device without global constructor. 
@@ -50,7 +50,7 @@ public:
     }
 
     virtual bool is_async() const override {
-        return true;
+        return false;
     }
 };
 
@@ -66,12 +66,13 @@ public:
         record.set_value(device_.read_adc(index_));
     }
 
-    virtual void set_read_request(InputValueRecord<int32_t> &, std::function<void()> && callback) override {
-        device_.set_adc_callback(index_, std::move(callback));
+    virtual void set_read_request(InputValueRecord<int32_t> &, std::function<void()> &&) override
+    {
+        panic("I/O INTR request is not expected");
     }
 
     virtual bool is_async() const override {
-        return true;
+        return false;
     }
 };
 

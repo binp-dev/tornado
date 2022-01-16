@@ -2,6 +2,12 @@
 
 #include <hal/assert.h>
 
+#ifdef HAL_PRINT_UART
+
+char __hal_io_buffer[__HAL_IO_BUFFER_SIZE];
+
+#endif
+
 #ifdef HAL_PRINT_RPMSG
 
 static bool io_rpmsg_initialized = false;
