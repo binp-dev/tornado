@@ -78,23 +78,7 @@ void BOARD_InitGptPins(void) {
     // Internal Sync
 }
 
-void BOARD_InitDigitalIoPins(void) {
-    // Digital inputs
-    IOMUXC_SetPinMux(IOMUXC_GPIO1_IO01_GPIO1_IO01, 0u);
-    IOMUXC_SetPinMux(IOMUXC_GPIO1_IO11_GPIO1_IO11, 0u); // used by linux
-    IOMUXC_SetPinMux(IOMUXC_GPIO1_IO13_GPIO1_IO13, 0u);
-    IOMUXC_SetPinMux(IOMUXC_GPIO1_IO15_GPIO1_IO15, 0u);
-    IOMUXC_SetPinMux(IOMUXC_SPDIF_RX_GPIO5_IO04, 0u);
-    IOMUXC_SetPinMux(IOMUXC_SPDIF_EXT_CLK_GPIO5_IO05, 0u); // used by linux
-    IOMUXC_SetPinMux(IOMUXC_I2C4_SCL_GPIO5_IO20, 0u);
-    IOMUXC_SetPinMux(IOMUXC_I2C4_SDA_GPIO5_IO21, 0u);
-
-    // Digital outputs
-    IOMUXC_SetPinMux(IOMUXC_SAI2_RXD0_GPIO4_IO23, 0u);
-    IOMUXC_SetPinMux(IOMUXC_SAI2_TXD0_GPIO4_IO26, 0u);
-    IOMUXC_SetPinMux(IOMUXC_SAI2_MCLK_GPIO4_IO27, 0u);
-    IOMUXC_SetPinMux(IOMUXC_SAI3_RXC_GPIO4_IO29, 0u); // used by linux
-}
+void BOARD_InitDigitalIoPins(void) {}
 
 /***********************************************************************************************************************
  * EOF

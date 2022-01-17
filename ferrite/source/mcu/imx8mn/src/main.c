@@ -34,10 +34,18 @@ typedef struct {
     int32_t dac;
     int64_t adcs[SKIFIO_ADC_CHANNEL_COUNT];
     uint32_t sample_count;
+    SkifioDin din;
+    SkifioDout dout;
 } Accum;
 
-static volatile Accum ACCUM = {0, {0}, 0};
+static volatile Accum ACCUM = {0, {0}, 0, 0, 0};
 
+static void din_handler(void *data, SkifioDin value) {
+    ACCUM.din = value;
+    // BaseType_t hptw = pdFALSE;
+    // xSemaphoreGiveFromISR(din_sem, &hptw);
+    // portYIELD_FROM_ISR(hptw);
+}
 
 static void task_skifio(void *param) {
     TickType_t meas_start = xTaskGetTickCount();
@@ -46,6 +54,7 @@ static void task_skifio(void *param) {
 
     hal_log_info("SkifIO driver init");
     hal_assert(skifio_init() == HAL_SUCCESS);
+    hal_assert(skifio_din_subscribe(din_handler, NULL) == HAL_SUCCESS);
 
     SkifioInput input = {{0}};
     SkifioOutput output = {0};
@@ -181,47 +190,12 @@ static void task_rpmsg(void *param) {
 }
 
 static void task_stats(void *param) {
-    hal_log_info("DIO init");
-    BOARD_InitDigitalIoPins();
-    gpio_pin_config_t din_config = {kGPIO_DigitalInput, 0, kGPIO_NoIntmode};
-    GPIO_PinInit(GPIO1, 1u, &din_config);
-    GPIO_PinInit(GPIO1, 11u, &din_config);
-    GPIO_PinInit(GPIO1, 13u, &din_config);
-    GPIO_PinInit(GPIO1, 15u, &din_config);
-    GPIO_PinInit(GPIO5, 4u, &din_config);
-    GPIO_PinInit(GPIO5, 5u, &din_config);
-    GPIO_PinInit(GPIO5, 20u, &din_config);
-    GPIO_PinInit(GPIO5, 21u, &din_config);
-    gpio_pin_config_t dout_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
-    GPIO_PinInit(GPIO4, 23u, &dout_config);
-    GPIO_PinInit(GPIO4, 26u, &dout_config);
-    GPIO_PinInit(GPIO4, 27u, &dout_config);
-    GPIO_PinInit(GPIO4, 29u, &dout_config);
-
     for (size_t i = 0;;++i) {
         hal_log_info("");
         stats_print();
         stats_reset();
-
-        // clang-format off
-        uint32_t input_reg = 
-            (!!GPIO_PinRead(GPIO1,  1u) << 0) |
-            (!!GPIO_PinRead(GPIO1, 11u) << 1) |
-            (!!GPIO_PinRead(GPIO1, 13u) << 2) |
-            (!!GPIO_PinRead(GPIO1, 15u) << 3) |
-            (!!GPIO_PinRead(GPIO5,  4u) << 4) |
-            (!!GPIO_PinRead(GPIO5,  5u) << 5) |
-            (!!GPIO_PinRead(GPIO5, 20u) << 6) |
-            (!!GPIO_PinRead(GPIO5, 21u) << 7);
-        // clang-format on
-        hal_log_info("Input reg: %02lx", input_reg);
-        uint32_t output_reg = (uint32_t)i & 0xF;
-        GPIO_PinWrite(GPIO4, 23u, (output_reg >> 0) & 1);
-        GPIO_PinWrite(GPIO4, 26u, (output_reg >> 1) & 1);
-        GPIO_PinWrite(GPIO4, 27u, (output_reg >> 2) & 1);
-        GPIO_PinWrite(GPIO4, 29u, (output_reg >> 3) & 1);
-        hal_log_info("Output reg: %01lx", output_reg);
-
+        hal_log_info("din: 0x%02lx", (uint32_t)ACCUM.din);
+        hal_log_info("dout: 0x%01lx", (uint32_t)ACCUM.dout);
         vTaskDelay(1000);
     }
 }

@@ -238,8 +238,10 @@ static void handle_irq(_HalGpioBaseIndex base_index, bool upper) {
         HalGpioPinMask intrs = group_intrs_half(group, base_index, upper);
         HalGpioPinMask group_flags = intrs & flags;
         if (group_flags) {
-            if (group->callback != NULL) {
-                group->callback(group->user_data, base_index + _HAL_GPIO_BLOCK_START, group_flags);
+            void *user_data = group->user_data;
+            HalGpioIntrCallback callback = group->callback;
+            if (callback != NULL) {
+                callback(user_data, base_index + _HAL_GPIO_BLOCK_START, group_flags);
             }
             handled_flags |= group_flags;
         }

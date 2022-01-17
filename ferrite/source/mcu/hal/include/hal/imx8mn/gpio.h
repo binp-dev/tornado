@@ -23,7 +23,7 @@ typedef HalGpioBlockIndex _HalGpioBaseIndex;
  */
 typedef struct {
     volatile uint32_t intrs[_HAL_GPIO_BASE_COUNT];
-    void (*volatile callback)(void *, HalGpioBlockIndex, HalGpioPinMask);
+    volatile HalGpioIntrCallback callback;
     void *volatile user_data;
 } HalGpioGroup;
 
