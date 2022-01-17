@@ -1,0 +1,44 @@
+record(ai, "ai0")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "1 second")
+}
+record(ai, "ai1")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "1 second")
+}
+record(ai, "ai2")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "1 second")
+}
+record(ai, "ai3")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "1 second")
+}
+record(ai, "ai4")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "1 second")
+}
+record(ai, "ai5")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "1 second")
+}
+
+record(ao, "ao0")
+{
+    field(DTYP, "devsup")
+}
+
+record(mbbiDirect, "di0") {
+	field(DTYP, "devsup")
+	field(SCAN, "I/O Intr")
+}
+record(mbboDirect, "do0") {
+	field(DTYP, "devsup")
+	field(OMSL, "closed_loop")
+}
