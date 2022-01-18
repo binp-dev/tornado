@@ -79,6 +79,11 @@ static void task_skifio(void *param) {
         }
         hal_assert(ret == HAL_SUCCESS);
 
+        SkifioDin din = skifio_din_read();
+        if (din != ACCUM.din) {
+            ACCUM.din = din;
+            xSemaphoreGive(din_sem);
+        }
 
         STATS.max_intrs_per_sample = hal_max(
             STATS.max_intrs_per_sample,

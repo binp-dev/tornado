@@ -75,24 +75,25 @@ typedef struct {
     uint32_t mux[5];
     HalGpioBlockIndex block;
     HalGpioPinIndex index;
+    bool intr;
 } PinInfo;
 
 static const PinInfo DIN_PINS[DIN_SIZE] = {
-    {{DIN_0_MUX}, DIN_0_PIN},
-    {{DIN_1_MUX}, DIN_1_PIN},
-    {{DIN_2_MUX}, DIN_2_PIN},
-    {{DIN_3_MUX}, DIN_3_PIN},
-    {{DIN_4_MUX}, DIN_4_PIN},
-    {{DIN_5_MUX}, DIN_5_PIN},
-    {{DIN_6_MUX}, DIN_6_PIN},
-    {{DIN_7_MUX}, DIN_7_PIN},
+    {{DIN_0_MUX}, DIN_0_PIN, false},
+    {{DIN_1_MUX}, DIN_1_PIN, false},
+    {{DIN_2_MUX}, DIN_2_PIN, false},
+    {{DIN_3_MUX}, DIN_3_PIN, false},
+    {{DIN_4_MUX}, DIN_4_PIN, true},
+    {{DIN_5_MUX}, DIN_5_PIN, true},
+    {{DIN_6_MUX}, DIN_6_PIN, true},
+    {{DIN_7_MUX}, DIN_7_PIN, true},
 };
 
 static const PinInfo DOUT_PINS[DOUT_SIZE] = {
-    {{DOUT_0_MUX}, DOUT_0_PIN},
-    {{DOUT_1_MUX}, DOUT_1_PIN},
-    {{DOUT_2_MUX}, DOUT_2_PIN},
-    {{DOUT_3_MUX}, DOUT_3_PIN},
+    {{DOUT_0_MUX}, DOUT_0_PIN, false},
+    {{DOUT_1_MUX}, DOUT_1_PIN, false},
+    {{DOUT_2_MUX}, DOUT_2_PIN, false},
+    {{DOUT_3_MUX}, DOUT_3_PIN, false},
 };
 
 typedef struct {
@@ -150,42 +151,42 @@ void init_ctrl_pins() {
     IOMUXC_SetPinMux(DAC_KEY_0_MUX, 0U);
     IOMUXC_SetPinMux(DAC_KEY_1_MUX, 0U);
 
-    hal_gpio_group_init(&GS.ctrl_pins.group);
-    hal_gpio_pin_init(&GS.ctrl_pins.read_rdy, &GS.ctrl_pins.group, READ_RDY_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
-    hal_gpio_pin_init(&GS.ctrl_pins.smp_rdy, &GS.ctrl_pins.group, SMP_RDY_PIN, HAL_GPIO_INPUT, HAL_GPIO_INTR_RISING_EDGE);
-    hal_gpio_pin_init(&GS.ctrl_pins.dac_keys[0], &GS.ctrl_pins.group, DAC_KEY_0_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
-    hal_gpio_pin_init(&GS.ctrl_pins.dac_keys[1], &GS.ctrl_pins.group, DAC_KEY_1_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
+    hal_assert(hal_gpio_group_init(&GS.ctrl_pins.group) == HAL_SUCCESS);
+    hal_assert(hal_gpio_pin_init(&GS.ctrl_pins.read_rdy, &GS.ctrl_pins.group, READ_RDY_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED) == HAL_SUCCESS);
+    hal_assert(hal_gpio_pin_init(&GS.ctrl_pins.smp_rdy, &GS.ctrl_pins.group, SMP_RDY_PIN, HAL_GPIO_INPUT, HAL_GPIO_INTR_RISING_EDGE) == HAL_SUCCESS);
+    hal_assert(hal_gpio_pin_init(&GS.ctrl_pins.dac_keys[0], &GS.ctrl_pins.group, DAC_KEY_0_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED) == HAL_SUCCESS);
+    hal_assert(hal_gpio_pin_init(&GS.ctrl_pins.dac_keys[1], &GS.ctrl_pins.group, DAC_KEY_1_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED) == HAL_SUCCESS);
     hal_gpio_pin_write(&GS.ctrl_pins.read_rdy, false);
 }
 
 void init_dio_pins() {
-    hal_gpio_group_init(&GS.dio_pins.group);
+    hal_assert(hal_gpio_group_init(&GS.dio_pins.group) == HAL_SUCCESS);
 
     for (size_t i = 0; i < DIN_SIZE; ++i) {
         const PinInfo *pin = &DIN_PINS[i];
         IOMUXC_SetPinMux(pin->mux[0], pin->mux[1], pin->mux[2], pin->mux[3], pin->mux[4], 0U);
-        hal_gpio_pin_init(
+        hal_assert(hal_gpio_pin_init(
             &GS.dio_pins.din[i],
             &GS.dio_pins.group,
             pin->block,
             pin->index,
             HAL_GPIO_INPUT,
-            HAL_GPIO_INTR_DISABLED);
+            pin->intr ? HAL_GPIO_INTR_RISING_OR_FALLING_EDGE : HAL_GPIO_INTR_DISABLED) == HAL_SUCCESS);
     }
 
     for (size_t i = 0; i < DOUT_SIZE; ++i) {
         const PinInfo *pin = &DOUT_PINS[i];
         IOMUXC_SetPinMux(pin->mux[0], pin->mux[1], pin->mux[2], pin->mux[3], pin->mux[4], 0U);
-        hal_gpio_pin_init(
+        hal_assert(hal_gpio_pin_init(
             &GS.dio_pins.dout[i],
             &GS.dio_pins.group,
             pin->block,
             pin->index,
-            HAL_GPIO_INPUT,
-            HAL_GPIO_INTR_DISABLED);
+            HAL_GPIO_OUTPUT,
+            HAL_GPIO_INTR_DISABLED) == HAL_SUCCESS);
     }
 
-    hal_gpio_group_set_intr(&GS.dio_pins.group, din_handler, NULL);
+    hal_assert(hal_gpio_group_set_intr(&GS.dio_pins.group, din_handler, NULL) == HAL_SUCCESS);
 }
 
 void switch_dac_keys(bool state) {
@@ -229,6 +230,9 @@ hal_retcode init_spi() {
 hal_retcode skifio_init() {
     hal_retcode ret;
 
+    GS.din_callback = NULL;
+    GS.din_user_data = NULL;
+
     init_ctrl_pins();
     init_dio_pins();
 
@@ -239,9 +243,6 @@ hal_retcode skifio_init() {
     if (ret != HAL_SUCCESS) {
         return ret;
     }
-
-    GS.din_callback = NULL;
-    GS.din_user_data = NULL;
 
 #ifdef _SKIFIO_DEBUG
     _SKIFIO_DEBUG_INFO.intr_count = 0;
