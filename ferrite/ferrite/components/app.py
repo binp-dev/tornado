@@ -94,6 +94,9 @@ class App(Component):
 
         opts = ["-DCMAKE_BUILD_TYPE=Debug", *self.ipp.cmake_opts]
         envs = {}
+        if isinstance(self.toolchain, HostToolchain):
+            opts.append("-DAPP_TEST=1")
+            self.cmake = CmakeWithConan(self.src_dir, self.build_dir, self.toolchain, opt=opts, env=envs)
         if isinstance(self.toolchain, CrossToolchain):
             toolchain_cmake_path = self.src_dir / "armgcc.cmake"
             opts.append(f"-DCMAKE_TOOLCHAIN_FILE={toolchain_cmake_path}")
@@ -101,7 +104,7 @@ class App(Component):
                 "TOOLCHAIN_DIR": str(self.toolchain.path),
                 "TARGET_TRIPLE": str(self.toolchain.target),
             })
-        self.cmake = CmakeWithConan(self.src_dir, self.build_dir, self.toolchain, opt=opts, env=envs)
+            self.cmake = Cmake(self.src_dir, self.build_dir, self.toolchain, opt=opts, env=envs)
 
         if isinstance(self.toolchain, HostToolchain):
             self.build_unittest_task = AppBuildUnittestTask(self.cmake, self.ipp)

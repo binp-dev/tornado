@@ -87,7 +87,7 @@ def run_test(
     thread.start()
 
     with ca.Repeater(prefix), ioc:
-        time.sleep(0.2)
+        time.sleep(5)
         assert_eq(ca.get(prefix, f"ai0"), 0)
         for i in range(5):
             assert_eq(ca.get(prefix, f"ai{i + 1}"), values[i])
