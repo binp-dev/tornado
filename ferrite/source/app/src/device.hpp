@@ -18,6 +18,7 @@
 #include <ipp.hpp>
 
 constexpr size_t ADC_COUNT = 6;
+constexpr auto START_DELAY = std::chrono::seconds(4);
 
 class Device {
 private:
@@ -41,6 +42,8 @@ private:
 
 private:
     void recv_loop() {
+        std::this_thread::sleep_for(START_DELAY);
+
         std::cout << "[app] Channel serve thread started" << std::endl;
         const auto timeout = std::chrono::milliseconds(10);
 
@@ -97,12 +100,15 @@ private:
     }
 
     void adc_req_loop() {
+        std::this_thread::sleep_for(std::chrono::seconds(START_DELAY));
+
+        std::cout << "[app] ADC req thread started" << std::endl;
         for(size_t i = 0; !this->done.load(); ++i) {
             std::this_thread::sleep_for(adc_req_period);
             {
                 std::lock_guard channel_guard(channel_mutex);
 
-                std::cout << "[app] Request ADC measurements: " << i << std::endl;
+                // std::cout << "[app] Request ADC measurements: " << i << std::endl;
                 channel->send(ipp::AppMsg{ipp::AppMsgAdcReq{}}, std::nullopt).unwrap();
             }
         }
