@@ -304,6 +304,12 @@ hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in) {
     if (st != HAL_SUCCESS) {
         return st;
     }
+
+    // Notify that data is ready
+    hal_gpio_pin_write(&GS.ctrl_pins.read_rdy, true);
+    hal_busy_wait_ns(READ_RDY_DURATION_NS);
+    hal_gpio_pin_write(&GS.ctrl_pins.read_rdy, false);
+
     for (size_t i = 0; i < XFER_LEN; ++i) {
         rx[i] = (uint8_t)rx4[i];
 #ifdef _SKIFIO_PRINT_SPI
@@ -326,11 +332,6 @@ hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in) {
         // CRC mismatch
         return HAL_INVALID_DATA;
     }
-
-    // Notify that data is ready
-    hal_gpio_pin_write(&GS.ctrl_pins.read_rdy, true);
-    hal_busy_wait_ns(READ_RDY_DURATION_NS);
-    hal_gpio_pin_write(&GS.ctrl_pins.read_rdy, false);
 
     return HAL_SUCCESS;
 }
