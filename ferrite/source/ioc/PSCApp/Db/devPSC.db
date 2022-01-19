@@ -1,37 +1,55 @@
 record(ai, "ai0")
 {
     field(DTYP, "devsup")
-    field(SCAN, "1 second")
+    field(SCAN, "I/O Intr")
+    field(LINR, "NO_CONVERSION")
+    field(ASLO, 1.354692188e-6)
 }
 record(ai, "ai1")
 {
     field(DTYP, "devsup")
-    field(SCAN, "1 second")
+    field(SCAN, "I/O Intr")
+    field(LINR, "NO_CONVERSION")
+    field(ASLO, 1.354692188e-6)
 }
 record(ai, "ai2")
 {
     field(DTYP, "devsup")
-    field(SCAN, "1 second")
+    field(SCAN, "I/O Intr")
+    field(LINR, "NO_CONVERSION")
+    field(ASLO, 1.354692188e-6)
 }
 record(ai, "ai3")
 {
     field(DTYP, "devsup")
-    field(SCAN, "1 second")
+    field(SCAN, "I/O Intr")
+    field(LINR, "NO_CONVERSION")
+    field(ASLO, 1.354692188e-6)
 }
 record(ai, "ai4")
 {
     field(DTYP, "devsup")
-    field(SCAN, "1 second")
+    field(SCAN, "I/O Intr")
+    field(LINR, "NO_CONVERSION")
+    field(ASLO, 1.354692188e-6)
 }
 record(ai, "ai5")
 {
     field(DTYP, "devsup")
-    field(SCAN, "1 second")
+    field(SCAN, "I/O Intr")
+    field(LINR, "NO_CONVERSION")
+    field(ASLO, 1.354692188e-6)
 }
 
 record(ao, "ao0")
 {
     field(DTYP, "devsup")
+    field(LINR, "NO_CONVERSION")
+    field(ASLO, 0.0003157445)
+    field(AOFF, -10.346000031)
+    #field(ROFF, -32767)
+    field(RVAL, 32767)
+    field(PINI, "YES")
 }
 
 record(mbbiDirect, "di0") {

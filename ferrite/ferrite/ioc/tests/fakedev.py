@@ -1,4 +1,6 @@
 # type: ignore
+from __future__ import annotations
+
 import time
 import zmq
 from threading import Thread
@@ -12,6 +14,14 @@ import ferrite.utils.epics.ca as ca
 
 def assert_eq(a: float, b: float, eps: float = 1e2) -> None:
     assert abs(a - b) < eps
+
+
+def dac_code_to_volt(code: int) -> float:
+    return (code - 32767) * 315.7445 * 1e-6
+
+
+def adc_volt_to_code(voltage: float) -> int:
+    return round(voltage / (346.8012 * 1e-6) * 256)
 
 
 def send_msg(socket: zmq.Socket, msg: bytes) -> None:
@@ -29,7 +39,7 @@ def recv_msg(socket: zmq.Socket) -> VariantValue:
 
 
 DONE: bool = False
-VALUE: int = 0
+VALUE: float = 0
 
 
 def run_test(
@@ -55,10 +65,10 @@ def run_test(
     DONE = False
     VALUE = 0
 
-    max_val = 0x7FFFFFFF
-    min_val = -0x80000000
-    some_val = 0x789ABCDE
-    values = [1, -1, some_val, max_val, min_val]
+    max_val = 10.0
+    min_val = -10.0
+    some_val = 3.1415
+    values = [1.0, -1.0, some_val, min_val, max_val]
 
     def worker() -> None:
         global DONE
@@ -77,9 +87,9 @@ def run_test(
                 continue
             msg = AppMsg.load(socket.recv())
             if msg.variant.is_instance_of(AppMsg.DacSet):
-                VALUE = msg.variant.value
+                VALUE = dac_code_to_volt(msg.variant.value)
             elif msg.variant.is_instance_of(AppMsg.AdcReq):
-                send_msg(socket, McuMsg.AdcVal([VALUE] + values))
+                send_msg(socket, McuMsg.AdcVal([adc_volt_to_code(v) for v in [VALUE] + values]))
             else:
                 raise Exception("Unexpected message type")
 
@@ -87,7 +97,8 @@ def run_test(
     thread.start()
 
     with ca.Repeater(prefix), ioc:
-        time.sleep(5)
+        time.sleep(3)
+
         assert_eq(ca.get(prefix, f"ai0"), 0)
         for i in range(5):
             assert_eq(ca.get(prefix, f"ai{i + 1}"), values[i])

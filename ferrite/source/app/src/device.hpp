@@ -5,6 +5,7 @@
 #include <memory>
 #include <atomic>
 #include <mutex>
+#include <condition_variable>
 #include <thread>
 #include <cstring>
 #include <cassert>
@@ -18,27 +19,44 @@
 #include <ipp.hpp>
 
 constexpr size_t ADC_COUNT = 6;
-constexpr auto START_DELAY = std::chrono::seconds(4);
+constexpr auto START_DELAY = std::chrono::seconds(2); // FIXME: Signal from outside
+constexpr auto ADC_REQ_PERIOD = std::chrono::seconds(1);
 
 class Device {
 private:
-    // Shared data
+    struct AdcEntry {
+        std::atomic<int32_t> value;
+        std::function<void()> notify;
+    };
+
+    struct DacEntry {
+        std::atomic<int32_t> value;
+        std::atomic<bool> update = false;
+    };
+
+    struct DinEntry {
+        std::atomic<uint8_t> value;
+        std::function<void()> notify;
+    };
+
+    struct DoutEntry {
+        std::atomic<uint8_t> value;
+        std::atomic<bool> update = false;
+    };
+
+private:
     std::atomic_bool done;
-    std::mutex device_mutex; // FIXME: Allow concurrent operation.
-    std::array<std::atomic<int32_t>, ADC_COUNT> adcs;
-    std::atomic<uint8_t> din;
-    std::function<void()> din_notify;
-
-    // Device support data
     std::thread recv_worker;
-    std::thread adc_req_worker;
+    std::thread send_worker;
+    std::condition_variable send_ready;
+    std::mutex send_mutex;
 
-    // Communication channel
+    std::array<AdcEntry, ADC_COUNT> adcs;
+    DacEntry dac;
+    DinEntry din;
+    DoutEntry dout;
+
     std::unique_ptr<Channel> channel;
-    std::mutex channel_mutex;
-
-    // ADC request period
-    std::chrono::milliseconds adc_req_period;
 
 private:
     void recv_loop() {
@@ -47,12 +65,10 @@ private:
         std::cout << "[app] Channel serve thread started" << std::endl;
         const auto timeout = std::chrono::milliseconds(10);
 
-        {
-            std::lock_guard channel_guard(channel_mutex);
+        channel->send(ipp::AppMsg{ipp::AppMsgStart{}}, std::nullopt).unwrap(); // Wait forever
+        std::cout << "[app] Start signal sent" << std::endl;
 
-            channel->send(ipp::AppMsg{ipp::AppMsgStart{}}, std::nullopt).unwrap(); // Wait forever
-            std::cout << "[app] Start signal sent" << std::endl;
-        }
+        send_worker = std::thread([this]() { this->send_loop(); });
 
         while(!this->done.load()) {
             auto result = channel->receive(timeout);
@@ -75,15 +91,19 @@ private:
 
                 //static_assert(decltype(adcs)::size() == decltype(adc_val.values)::size());
                 for (size_t i = 0; i < ADC_COUNT; ++i) {
-                    adcs[i].store(adc_val.values[i]);
+                    auto &adc = adcs[i];
+                    adc.value.store(adc_val.values[i]);
+                    if (adc.notify) {
+                        adc.notify();
+                    }
                 }
 
             } else if (std::holds_alternative<ipp::McuMsgDinVal>(incoming.variant)) {
                 const auto din_val = std::get<ipp::McuMsgDinVal>(incoming.variant);
                 std::cout << "Din updated: " << uint32_t(din_val.value) << std::endl;
-                din.store(din_val.value);
-                if (din_notify) {
-                    din_notify();
+                din.value.store(din_val.value);
+                if (din.notify) {
+                    din.notify();
                 }
 
             } else if (std::holds_alternative<ipp::McuMsgDebug>(incoming.variant)) {
@@ -97,19 +117,33 @@ private:
                 unimplemented();
             }
         }
+
+        send_ready.notify_all();
+        send_worker.join();
     }
 
-    void adc_req_loop() {
-        std::this_thread::sleep_for(std::chrono::seconds(START_DELAY));
-
+    void send_loop() {
         std::cout << "[app] ADC req thread started" << std::endl;
-        for(size_t i = 0; !this->done.load(); ++i) {
-            std::this_thread::sleep_for(adc_req_period);
-            {
-                std::lock_guard channel_guard(channel_mutex);
 
-                // std::cout << "[app] Request ADC measurements: " << i << std::endl;
+        auto next_wakeup = std::chrono::system_clock::now();
+        while (!this->done.load()) {
+            std::unique_lock send_lock(send_mutex);
+            auto status = send_ready.wait_until(send_lock, next_wakeup);
+
+            if (status == std::cv_status::timeout) {
+                // std::cout << "[app] Request ADC measurements." << std::endl;
                 channel->send(ipp::AppMsg{ipp::AppMsgAdcReq{}}, std::nullopt).unwrap();
+                next_wakeup = std::chrono::system_clock::now() + ADC_REQ_PERIOD;
+            }
+            if (dac.update.exchange(false)) {
+                int32_t value = dac.value.load();
+                std::cout << "[app] Send DAC value: " << value << std::endl;
+                channel->send(ipp::AppMsg{ipp::AppMsgDacSet{value}}, std::nullopt).unwrap();
+            }
+            if (dout.update.exchange(false)) {
+                uint8_t value = dout.value.load();
+                std::cout << "[app] Send Dout value: " << value << std::endl;
+                channel->send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
             }
         }
     }
@@ -118,45 +152,47 @@ public:
     Device(const Device &dev) = delete;
     Device &operator=(const Device &dev) = delete;
 
-    Device(std::unique_ptr<Channel> channel, std::chrono::milliseconds period) :
-        channel(std::move(channel)),
-        adc_req_period(period)
-    {
+    Device(std::unique_ptr<Channel> channel) : channel(std::move(channel)) {
         done.store(false);
         recv_worker = std::thread([this]() { this->recv_loop(); });
-        adc_req_worker = std::thread([this]() { this->adc_req_loop(); });
     }
     virtual ~Device() {
         done.store(true);
-        adc_req_worker.join();
         recv_worker.join();
     }
 
+public:
     void write_dac(int32_t value) {
-        std::lock_guard channel_guard(channel_mutex);
-
-        std::cout << "[app] Send DAC value: " << value << std::endl;
-        channel->send(ipp::AppMsg{ipp::AppMsgDacSet{value}}, std::nullopt).unwrap();
+        {
+            std::lock_guard send_guard(send_mutex);
+            dac.value.store(value);
+            dac.update.store(true);
+        }
+        send_ready.notify_all();
     }
 
     int32_t read_adc(size_t index) {
         assert_true(index < ADC_COUNT);
-        return adcs[index].load();
+        return adcs[index].value.load();
+    }
+    void set_adc_callback(size_t index, std::function<void()> &&callback) {
+        assert_true(index < ADC_COUNT);
+        adcs[index].notify = std::move(callback);
     }
 
     void write_dout(uint32_t value) {
-        std::lock_guard channel_guard(channel_mutex);
-
-        std::cout << "[app] Send dout value: " << value << std::endl;
-        // FIXME: Check value overflow
-        channel->send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
+        {
+            std::lock_guard send_guard(send_mutex);
+            dac.value.store(value);
+            dac.update.store(true);
+        }
+        send_ready.notify_all();
     }
 
     uint32_t read_din() {
-        return din.load();
+        return din.value.load();
     }
-
     void set_din_callback(std::function<void()> &&callback) {
-        din_notify = std::move(callback);
+        din.notify = std::move(callback);
     }
 };
