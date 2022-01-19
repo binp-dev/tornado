@@ -38,7 +38,7 @@ record(mbbiDirect, "di0") {
 	field(DTYP, "devsup")
 	field(SCAN, "I/O Intr")
 }
+
 record(mbboDirect, "do0") {
 	field(DTYP, "devsup")
-	field(OMSL, "closed_loop")
 }

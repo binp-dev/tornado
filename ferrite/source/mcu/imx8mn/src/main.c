@@ -3,6 +3,7 @@
 #include "clock_config.h"
 #include "rsc_table.h"
 #include "fsl_common.h"
+#include "fsl_gpio.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -28,15 +29,27 @@
 
 
 #define TASK_STACK_SIZE 256
+#define RPMSG_TASK_PRIORITY tskIDLE_PRIORITY + 1
 
 typedef struct {
     int32_t dac;
     int64_t adcs[SKIFIO_ADC_CHANNEL_COUNT];
     uint32_t sample_count;
+    SkifioDin din;
+    SkifioDout dout;
 } Accum;
 
-static volatile Accum ACCUM = {0, {0}, 0};
+static volatile Accum ACCUM = {0, {0}, 0, 0, 0};
 
+static hal_rpmsg_channel channel;
+static SemaphoreHandle_t din_sem = NULL;
+
+static void din_handler(void *data, SkifioDin value) {
+    ACCUM.din = value;
+    BaseType_t hptw = pdFALSE;
+    xSemaphoreGiveFromISR(din_sem, &hptw);
+    portYIELD_FROM_ISR(hptw);
+}
 
 static void task_skifio(void *param) {
     TickType_t meas_start = xTaskGetTickCount();
@@ -45,6 +58,11 @@ static void task_skifio(void *param) {
 
     hal_log_info("SkifIO driver init");
     hal_assert(skifio_init() == HAL_SUCCESS);
+
+    ACCUM.din = skifio_din_read();
+    xSemaphoreGive(din_sem);
+
+    hal_assert(skifio_din_subscribe(din_handler, NULL) == HAL_SUCCESS);
 
     SkifioInput input = {{0}};
     SkifioOutput output = {0};
@@ -61,6 +79,11 @@ static void task_skifio(void *param) {
         }
         hal_assert(ret == HAL_SUCCESS);
 
+        SkifioDin din = skifio_din_read();
+        if (din != ACCUM.din) {
+            ACCUM.din = din;
+            xSemaphoreGive(din_sem);
+        }
 
         STATS.max_intrs_per_sample = hal_max(
             STATS.max_intrs_per_sample,
@@ -97,10 +120,26 @@ static void task_skifio(void *param) {
     hal_assert(skifio_deinit() == HAL_SUCCESS);
 }
 
-static void task_rpmsg(void *param) {
+static void task_rpmsg_send_din(void *param) {
+    for (;;) {
+        xSemaphoreTake(din_sem, portMAX_DELAY);
+        hal_log_info("Din changed");
+
+        uint8_t *buffer = NULL;
+        size_t len = 0;
+        hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+        IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
+        mcu_msg->type = IPP_MCU_MSG_DIN_VAL;
+        mcu_msg->din_val.value = ACCUM.din;
+        hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
+
+        vTaskDelay(10);
+    }
+}
+
+static void task_rpmsg_recv(void *param) {
     hal_rpmsg_init();
 
-    hal_rpmsg_channel channel;
     hal_assert(hal_rpmsg_create_channel(&channel, 0) == HAL_SUCCESS);
 #ifdef HAL_PRINT_RPMSG
     hal_io_rpmsg_init(&channel);
@@ -133,6 +172,9 @@ static void task_rpmsg(void *param) {
     buffer = NULL;
     len = 0;
 
+    hal_log_info("Create rpmsg_send_din task");
+    xTaskCreate(task_rpmsg_send_din, "rpmsg_send_din task", TASK_STACK_SIZE, NULL, RPMSG_TASK_PRIORITY, NULL);
+
     hal_log_info("Enter RPMSG loop");
 
     for (;;) {
@@ -163,11 +205,15 @@ static void task_rpmsg(void *param) {
             ACCUM.sample_count = 0;
             hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
             break;
-
+        case IPP_APP_MSG_DOUT_SET:
+            ACCUM.dout = app_msg->dout_set.value;
+            hal_log_info("Dout write: 0x%lx", (uint32_t)ACCUM.dout);
+            hal_assert(skifio_dout_write(ACCUM.dout) == HAL_SUCCESS);
+            break;
         default:
             hal_log_error("Wrong message type: %d", (int)app_msg->type);
             hal_panic();
-        }   
+        }
     }
 
     hal_log_error("End of task_rpmsg()");
@@ -180,10 +226,12 @@ static void task_rpmsg(void *param) {
 }
 
 static void task_stats(void *param) {
-    for (;;) {
+    for (size_t i = 0;;++i) {
         hal_log_info("");
         stats_print();
         stats_reset();
+        hal_log_info("din: 0x%02lx", (uint32_t)ACCUM.din);
+        hal_log_info("dout: 0x%01lx", (uint32_t)ACCUM.dout);
         vTaskDelay(1000);
     }
 }
@@ -216,14 +264,17 @@ int main(void)
     xTaskCreate(sync_generator_task, "Sync generator task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 4, NULL);
 #endif
 
+    din_sem = xSemaphoreCreateBinary();
+    hal_assert(din_sem != NULL);
+
     hal_log_info("Create SkifIO task");
     xTaskCreate(task_skifio, "SkifIO task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL);
 
     hal_log_info("Create RPMsg task");
-    xTaskCreate(task_rpmsg, "RPMsg task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
+    xTaskCreate(task_rpmsg_recv, "RPMsg task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
 
     hal_log_info("Create statistics task");
-    xTaskCreate(task_stats, "Statistics task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(task_stats, "Statistics task", TASK_STACK_SIZE, NULL, RPMSG_TASK_PRIORITY, NULL);
 
     vTaskStartScheduler();
 

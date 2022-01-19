@@ -50,7 +50,7 @@ public:
     }
 
     virtual bool is_async() const override {
-        return false;
+        return true;
     }
 };
 
@@ -76,6 +76,42 @@ public:
     }
 };
 
+class DoutHandler final : public OutputValueHandler<uint32_t> {
+private:
+    Device &device_;
+
+public:
+    DoutHandler(Device &device) : device_(device) {}
+
+    virtual void write(OutputValueRecord<uint32_t> &record) override {
+        device_.write_dout(record.value());
+    }
+
+    virtual bool is_async() const override {
+        return false;
+    }
+};
+
+class DinHandler final : public InputValueHandler<uint32_t> {
+private:
+    Device &device_;
+
+public:
+    DinHandler(Device &device) : device_(device) {}
+
+    virtual void read(InputValueRecord<uint32_t> &record) override {
+        record.set_value(device_.read_din());
+    }
+
+    virtual void set_read_request(InputValueRecord<uint32_t> &, std::function<void()> &&callback) override {
+        device_.set_din_callback(std::move(callback));
+    }
+
+    virtual bool is_async() const override {
+        return false;
+    }
+};
+
 void framework_init() {
     // Explicitly initialize device.
     *DEVICE;
@@ -92,8 +128,12 @@ void framework_record_init(Record &record) {
         uint8_t index = std::stoi(std::string(index_str));
         auto &ai_record = dynamic_cast<InputValueRecord<int32_t> &>(record);
         ai_record.set_handler(std::make_unique<AdcHandler>(*DEVICE, index));
-    } else if (name.rfind("di", 0) == 0 || name.rfind("do", 0) == 0) {
-        // TODO: Handle digital input/output
+    } else if (name == "do0") {
+        auto &do_record = dynamic_cast<OutputValueRecord<uint32_t> &>(record);
+        do_record.set_handler(std::make_unique<DoutHandler>(*DEVICE));
+    } else if (name == "di0") {
+        auto &di_record = dynamic_cast<InputValueRecord<uint32_t> &>(record);
+        di_record.set_handler(std::make_unique<DinHandler>(*DEVICE));
     } else {
         unimplemented();
     }

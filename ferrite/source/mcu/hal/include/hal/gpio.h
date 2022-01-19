@@ -9,6 +9,8 @@ typedef uint8_t HalGpioBlockIndex;
 typedef uint8_t HalGpioPinIndex;
 typedef uint32_t HalGpioPinMask;
 
+typedef void (*HalGpioIntrCallback)(void *, HalGpioBlockIndex, HalGpioPinMask);
+
 #if defined(HAL_IMX7)
 #include "imx7/gpio.h"
 #elif defined(HAL_IMX8MN)
@@ -52,10 +54,7 @@ hal_retcode hal_gpio_group_deinit(HalGpioGroup *group);
  * @param[in] user_data Data to pass to interrupt callback.
  * @return Return code.
  */
-hal_retcode hal_gpio_group_set_intr(
-    HalGpioGroup *group,
-    void (*callback)(void *, HalGpioBlockIndex, HalGpioPinMask),
-    void *user_data);
+hal_retcode hal_gpio_group_set_intr(HalGpioGroup *group, HalGpioIntrCallback callback, void *user_data);
 
 /*!
  * @brief Initialize specific pin.

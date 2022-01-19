@@ -200,7 +200,8 @@ hal_retcode hal_gpio_pin_init(
         hal_unreachable();
     }
 
-    if ((*group_intrs_ptr(group, base_index) & pin_index) != 0) {
+    HalGpioPinMask pin_mask = (HalGpioPinMask)1 << (HalGpioPinMask)pin_index;
+    if ((*group_intrs_ptr(group, base_index) & pin_mask) != 0) {
         // Interrupt already registered for this pin.
         return HAL_FAILURE;
     }
@@ -237,9 +238,11 @@ static void handle_irq(_HalGpioBaseIndex base_index, bool upper) {
         HalGpioGroup *group = GROUPS[i];
         HalGpioPinMask intrs = group_intrs_half(group, base_index, upper);
         HalGpioPinMask group_flags = intrs & flags;
-        if (group_flags) {
-            if (group->callback != NULL) {
-                group->callback(group->user_data, base_index + _HAL_GPIO_BLOCK_START, group_flags);
+        if (group_flags != 0) {
+            void *user_data = group->user_data;
+            HalGpioIntrCallback callback = group->callback;
+            if (callback != NULL) {
+                callback(user_data, base_index + _HAL_GPIO_BLOCK_START, group_flags);
             }
             handled_flags |= group_flags;
         }
