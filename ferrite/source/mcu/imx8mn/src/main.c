@@ -51,6 +51,24 @@ static void din_handler(void *data, SkifioDin value) {
     portYIELD_FROM_ISR(hptw);
 }
 
+static void task_rpmsg_send_din(void *param) {
+    for (;;) {
+        xSemaphoreTake(din_sem, portMAX_DELAY);
+        ACCUM.din = skifio_din_read();
+        hal_log_info("din changed: %lx", (uint32_t)ACCUM.din);
+
+        uint8_t *buffer = NULL;
+        size_t len = 0;
+        hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+        IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
+        mcu_msg->type = IPP_MCU_MSG_DIN_VAL;
+        mcu_msg->din_val.value = ACCUM.din;
+        hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
+
+        vTaskDelay(10);
+    }
+}
+
 static void task_skifio(void *param) {
     TickType_t meas_start = xTaskGetTickCount();
     hal_busy_wait_ns(1000000000ll);
@@ -59,9 +77,8 @@ static void task_skifio(void *param) {
     hal_log_info("SkifIO driver init");
     hal_assert(skifio_init() == HAL_SUCCESS);
 
-    ACCUM.din = skifio_din_read();
-    xSemaphoreGive(din_sem);
-
+    hal_log_info("Create rpmsg_send_din task");
+    xTaskCreate(task_rpmsg_send_din, "rpmsg_send_din task", TASK_STACK_SIZE, NULL, RPMSG_TASK_PRIORITY, NULL);
     hal_assert(skifio_din_subscribe(din_handler, NULL) == HAL_SUCCESS);
 
     SkifioInput input = {{0}};
@@ -120,23 +137,6 @@ static void task_skifio(void *param) {
     hal_assert(skifio_deinit() == HAL_SUCCESS);
 }
 
-static void task_rpmsg_send_din(void *param) {
-    for (;;) {
-        xSemaphoreTake(din_sem, portMAX_DELAY);
-        hal_log_info("Din changed");
-
-        uint8_t *buffer = NULL;
-        size_t len = 0;
-        hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
-        IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
-        mcu_msg->type = IPP_MCU_MSG_DIN_VAL;
-        mcu_msg->din_val.value = ACCUM.din;
-        hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
-
-        vTaskDelay(10);
-    }
-}
-
 static void task_rpmsg_recv(void *param) {
     hal_rpmsg_init();
 
@@ -164,6 +164,7 @@ static void task_rpmsg_recv(void *param) {
     app_msg = (const IppAppMsg *)buffer;
     if (app_msg->type == IPP_APP_MSG_START) {
         hal_log_info("Start message received");
+        xSemaphoreGive(din_sem);
     } else {
         hal_log_error("Message error: type mismatch: %d", (int)app_msg->type);
         hal_panic();
@@ -171,9 +172,6 @@ static void task_rpmsg_recv(void *param) {
     hal_rpmsg_free_rx_buffer(&channel, buffer);
     buffer = NULL;
     len = 0;
-
-    hal_log_info("Create rpmsg_send_din task");
-    xTaskCreate(task_rpmsg_send_din, "rpmsg_send_din task", TASK_STACK_SIZE, NULL, RPMSG_TASK_PRIORITY, NULL);
 
     hal_log_info("Enter RPMSG loop");
 
@@ -185,7 +183,8 @@ static void task_rpmsg_recv(void *param) {
 
         switch (app_msg->type) {
         case IPP_APP_MSG_START:
-            hal_log_warn("MCU program is already started");
+            xSemaphoreGive(din_sem);
+            hal_log_info("MCU program is already started");
             break;
 
         case IPP_APP_MSG_DAC_SET:

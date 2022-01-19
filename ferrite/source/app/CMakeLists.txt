@@ -18,26 +18,18 @@ include_directories(
 set(BASE_SRC
     "src/core/panic.cpp"
     "src/channel/base.cpp"
-)
-set(EPICS_SRC
-    #"src/record/waveform.cpp"
-    #"src/record/analogArrayIO.cpp"
-    #"src/record/mbbIODirect.cpp"
-    #"src/record/iointr.cpp"
+    "src/device.cpp"
+    "src/framework.cpp"
 )
 set(MAIN_SRC
     ${BASE_SRC}
-    ${EPICS_SRC}
     "src/channel/rpmsg.cpp"
-    "src/framework.cpp"
 )
 set(FAKEDEV_SRC
     ${BASE_SRC}
-    ${EPICS_SRC}
     "src/channel/zmq.cpp"
-    "src/framework.cpp"
-)
-set(UNITTEST_SRC
+    )
+    set(UNITTEST_SRC
     ${BASE_SRC}
     "src/core/io_test.cpp"
     "src/channel/zmq.cpp"

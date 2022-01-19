@@ -1,3 +1,5 @@
+#include "framework.hpp"
+
 #include <iostream>
 #include <string>
 #include <type_traits>
@@ -6,9 +8,7 @@
 #include <core/lazy_static.hpp>
 #include <core/mutex.hpp>
 #include <record/value.hpp>
-#include <encoder.hpp>
 #include <device.hpp>
-#include "framework.hpp"
 
 #ifdef FAKEDEV
 #include <channel/zmq.hpp>
