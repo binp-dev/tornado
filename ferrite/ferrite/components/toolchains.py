@@ -14,7 +14,7 @@ from ferrite.components.base import Artifact, Component, Task, Context
 
 @dataclass
 class Target:
-    isa: str  # Instruction set architecture
+    isa: str # Instruction set architecture
     api: str
     abi: str
 

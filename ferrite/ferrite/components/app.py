@@ -92,11 +92,11 @@ class App(Component):
         self.src_dir = source_dir / "app"
         self.build_dir = target_dir / f"app_{self.toolchain.name}"
 
-        opts = ["-DCMAKE_BUILD_TYPE=Debug", *self.ipp.cmake_opts]
-        envs = {}
+        opts: List[str] = ["-DCMAKE_BUILD_TYPE=Debug", *self.ipp.cmake_opts]
+        envs: Dict[str, str] = {}
         if isinstance(self.toolchain, HostToolchain):
             opts.append("-DAPP_TEST=1")
-            self.cmake = CmakeWithConan(self.src_dir, self.build_dir, self.toolchain, opt=opts, env=envs)
+            self.cmake: Cmake = CmakeWithConan(self.src_dir, self.build_dir, self.toolchain, opt=opts, env=envs)
         if isinstance(self.toolchain, CrossToolchain):
             toolchain_cmake_path = self.src_dir / "armgcc.cmake"
             opts.append(f"-DCMAKE_TOOLCHAIN_FILE={toolchain_cmake_path}")
