@@ -12,7 +12,7 @@ from ferrite.utils.files import substitute
 from ferrite.components.base import Component, Task, FinalTask, Context
 from ferrite.components.toolchains import Toolchain, HostToolchain, CrossToolchain
 from ferrite.components.app import App
-from ferrite.remote.base import Device
+from ferrite.remote.base import Device, Connection
 from ferrite.components.epics.base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch
 from ferrite.components.epics.epics_base import EpicsBase, EpicsBaseCross, EpicsBaseHost
 
@@ -177,7 +177,7 @@ class IocRemoteRunner:
         self.deploy_path = deploy_path
         self.epics_deploy_path = epics_deploy_path
         self.arch = arch
-        self.proc: Optional[Popen[bytes]] = None
+        self.proc: Optional[Connection] = None
 
     def __enter__(self) -> None:
         self.proc = self.device.run(
@@ -192,7 +192,7 @@ class IocRemoteRunner:
                     "st.cmd",
                 ),
             ],
-            popen=True,
+            wait=False,
         )
         assert self.proc is not None
         time.sleep(1)
@@ -201,7 +201,7 @@ class IocRemoteRunner:
     def __exit__(self, *args: Any) -> None:
         logging.info("terminating IOC ...")
         assert self.proc is not None
-        self.proc.terminate()
+        self.proc.close()
         logging.info("IOC terminated")
 
 
