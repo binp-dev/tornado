@@ -10,6 +10,9 @@
 
 #define SKIFIO_ADC_CHANNEL_COUNT 6
 
+#define SKIFIO_DIN_SIZE 8
+#define SKIFIO_DOUT_SIZE 4
+
 typedef int32_t SkifioAin;
 typedef int16_t SkifioAout;
 

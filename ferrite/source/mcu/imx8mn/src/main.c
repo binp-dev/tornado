@@ -184,11 +184,16 @@ static void task_rpmsg_recv(void *param) {
         //hal_log_info("Received message: 0x%02x", (int)app_msg->type);
 
         switch (app_msg->type) {
+        case IPP_APP_MSG_START:
+            hal_log_warn("MCU program is already started");
+            break;
+
         case IPP_APP_MSG_DAC_SET:
             ACCUM.dac = app_msg->dac_set.value;
             // hal_log_info("Write DAC value: %x", ACCUM.dac);
             hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
             break;
+
         case IPP_APP_MSG_ADC_REQ:
             //hal_log_info("Read ADC values");
             hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
@@ -205,14 +210,21 @@ static void task_rpmsg_recv(void *param) {
             ACCUM.sample_count = 0;
             hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
             break;
-        case IPP_APP_MSG_DOUT_SET:
-            ACCUM.dout = app_msg->dout_set.value;
-            hal_log_info("Dout write: 0x%lx", (uint32_t)ACCUM.dout);
+
+        case IPP_APP_MSG_DOUT_SET: {
+            SkifioDout mask = (SkifioDout)((1 << SKIFIO_DOUT_SIZE) - 1);
+            SkifioDout value = app_msg->dout_set.value;
+            if (~mask & value) {
+                hal_log_warn("dout is out of bounds: %lx", (uint32_t)value);
+            }
+            ACCUM.dout = value & mask;
+            // hal_log_info("Dout write: 0x%lx", (uint32_t)ACCUM.dout);
             hal_assert(skifio_dout_write(ACCUM.dout) == HAL_SUCCESS);
             break;
+        }
         default:
             hal_log_error("Wrong message type: %d", (int)app_msg->type);
-            hal_panic();
+            continue;
         }
     }
 

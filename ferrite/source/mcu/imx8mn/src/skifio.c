@@ -42,9 +42,6 @@
 #define DAC_KEY_1_MUX IOMUXC_SPDIF_TX_GPIO5_IO03
 #define DAC_KEY_1_PIN 5, 3
 
-#define DIN_SIZE 8
-#define DOUT_SIZE 4
-
 #define DIN_0_MUX IOMUXC_GPIO1_IO01_GPIO1_IO01
 #define DIN_0_PIN 1, 1
 #define DIN_1_MUX IOMUXC_GPIO1_IO11_GPIO1_IO11
@@ -78,7 +75,7 @@ typedef struct {
     bool intr;
 } PinInfo;
 
-static const PinInfo DIN_PINS[DIN_SIZE] = {
+static const PinInfo DIN_PINS[SKIFIO_DIN_SIZE] = {
     {{DIN_0_MUX}, DIN_0_PIN, false},
     {{DIN_1_MUX}, DIN_1_PIN, false},
     {{DIN_2_MUX}, DIN_2_PIN, false},
@@ -89,7 +86,7 @@ static const PinInfo DIN_PINS[DIN_SIZE] = {
     {{DIN_7_MUX}, DIN_7_PIN, true},
 };
 
-static const PinInfo DOUT_PINS[DOUT_SIZE] = {
+static const PinInfo DOUT_PINS[SKIFIO_DOUT_SIZE] = {
     {{DOUT_0_MUX}, DOUT_0_PIN, false},
     {{DOUT_1_MUX}, DOUT_1_PIN, false},
     {{DOUT_2_MUX}, DOUT_2_PIN, false},
@@ -105,8 +102,8 @@ typedef struct {
 
 typedef struct {
     HalGpioGroup group;
-    HalGpioPin din[DIN_SIZE];
-    HalGpioPin dout[DOUT_SIZE];
+    HalGpioPin din[SKIFIO_DIN_SIZE];
+    HalGpioPin dout[SKIFIO_DOUT_SIZE];
 } SkifioDioPins;
 
 typedef struct {
@@ -162,7 +159,7 @@ void init_ctrl_pins() {
 void init_dio_pins() {
     hal_assert(hal_gpio_group_init(&GS.dio_pins.group) == HAL_SUCCESS);
 
-    for (size_t i = 0; i < DIN_SIZE; ++i) {
+    for (size_t i = 0; i < SKIFIO_DIN_SIZE; ++i) {
         const PinInfo *pin = &DIN_PINS[i];
         IOMUXC_SetPinMux(pin->mux[0], pin->mux[1], pin->mux[2], pin->mux[3], pin->mux[4], 0U);
         hal_assert(hal_gpio_pin_init(
@@ -174,7 +171,7 @@ void init_dio_pins() {
             pin->intr ? HAL_GPIO_INTR_RISING_OR_FALLING_EDGE : HAL_GPIO_INTR_DISABLED) == HAL_SUCCESS);
     }
 
-    for (size_t i = 0; i < DOUT_SIZE; ++i) {
+    for (size_t i = 0; i < SKIFIO_DOUT_SIZE; ++i) {
         const PinInfo *pin = &DOUT_PINS[i];
         IOMUXC_SetPinMux(pin->mux[0], pin->mux[1], pin->mux[2], pin->mux[3], pin->mux[4], 0U);
         hal_assert(hal_gpio_pin_init(
@@ -349,10 +346,10 @@ hal_retcode skifio_wait_ready(uint32_t timeout_ms) {
 }
 
 hal_retcode skifio_dout_write(SkifioDout value) {
-    if ((value & ~((1 << DOUT_SIZE) - 1)) != 0) {
+    if ((value & ~((1 << SKIFIO_DOUT_SIZE) - 1)) != 0) {
         return HAL_INVALID_INPUT;
     }
-    for (size_t i = 0; i < DOUT_SIZE; ++i) {
+    for (size_t i = 0; i < SKIFIO_DOUT_SIZE; ++i) {
         hal_gpio_pin_write(&GS.dio_pins.dout[i], (value & (1 << i)) != 0);
     }
     return HAL_SUCCESS;
@@ -360,7 +357,7 @@ hal_retcode skifio_dout_write(SkifioDout value) {
 
 SkifioDin skifio_din_read() {
     SkifioDin value = 0;
-    for (size_t i = 0; i < DIN_SIZE; ++i) {
+    for (size_t i = 0; i < SKIFIO_DIN_SIZE; ++i) {
         if (hal_gpio_pin_read(&GS.dio_pins.din[i])) {
             value |= (SkifioDin)(1 << i);
         }
