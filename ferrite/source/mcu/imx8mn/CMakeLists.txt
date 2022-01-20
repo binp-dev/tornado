@@ -25,6 +25,7 @@ SET(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 project(m7image)
 
 option(INTERNAL_SYNC "Whether sync signal should be generated internally" ON)
+option(AVERAGE_ADC "Enable averaging of ADC measurements" OFF)
 
 set(MCUX_SDK_PROJECT_NAME m7image.elf)
 
@@ -60,6 +61,10 @@ set(SRC
     "${ProjDirPath}/src/sync.h"
 )
 add_definitions("-DGENERATE_SYNC")
+endif()
+
+if(${AVERAGE_ADC})
+add_definitions("-DAVERAGE_ADC")
 endif()
 
 add_executable(${MCUX_SDK_PROJECT_NAME} ${SRC})

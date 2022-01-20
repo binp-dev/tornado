@@ -32,14 +32,19 @@
 #define RPMSG_TASK_PRIORITY tskIDLE_PRIORITY + 1
 
 typedef struct {
+    int32_t last;
+    int64_t sum;
+} AdcAccum;
+
+typedef struct {
     int32_t dac;
-    int64_t adcs[SKIFIO_ADC_CHANNEL_COUNT];
+    AdcAccum adcs[SKIFIO_ADC_CHANNEL_COUNT];
     uint32_t sample_count;
     SkifioDin din;
     SkifioDout dout;
 } Accum;
 
-static volatile Accum ACCUM = {0, {0}, 0, 0, 0};
+static volatile Accum ACCUM = {0, {{0, 0}}, 0, 0, 0};
 
 static hal_rpmsg_channel channel;
 static SemaphoreHandle_t din_sem = NULL;
@@ -114,18 +119,22 @@ static void task_skifio(void *param) {
         hal_assert(ret == HAL_SUCCESS || ret == HAL_INVALID_DATA); // Ignore CRC check error
 
         for (size_t j = 0; j < SKIFIO_ADC_CHANNEL_COUNT; ++j) {
-            volatile int64_t *accum = &ACCUM.adcs[j];
+            volatile AdcAccum *accum = &ACCUM.adcs[j];
+            volatile AdcStats *stats = &STATS.adcs[j];
             int32_t value = input.adcs[j];
 
-            if (ACCUM.sample_count == 0) {
-                *accum = value;
-            } else {
-                *accum += value;
-            }
+            accum->last = value;
+            accum->sum += value;
 
-            STATS.min_adc = hal_min(STATS.min_adc, value);
-            STATS.max_adc = hal_max(STATS.max_adc, value);
-            STATS.last_adcs[j] = value;
+            if (STATS.sample_count == 0) {
+                stats->min = value;
+                stats->max = value;
+            } else {
+                stats->min = hal_min(stats->min, value);
+                stats->max = hal_max(stats->max, value);
+            }
+            stats->last = value;
+            stats->sum += value;
         }
         ACCUM.sample_count += 1;
         STATS.sample_count += 1;
@@ -200,11 +209,15 @@ static void task_rpmsg_recv(void *param) {
             IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
             mcu_msg->type = IPP_MCU_MSG_ADC_VAL;
             for (size_t i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
-                volatile int64_t *accum = &ACCUM.adcs[i];
-                if (ACCUM.sample_count > 0) {
-                    *accum /= ACCUM.sample_count;
-                }
-                mcu_msg->adc_val.values.data[i] = (int32_t)(*accum);
+                volatile AdcAccum *accum = &ACCUM.adcs[i];
+                int32_t value = 0;
+#ifdef AVERAGE_ADC
+                value = (int32_t)(accum->sum / ACCUM.sample_count);
+#else
+                value = accum->last;
+#endif
+                accum->sum = 0;
+                mcu_msg->adc_val.values.data[i] = value;
             }
             ACCUM.sample_count = 0;
             hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
@@ -243,7 +256,7 @@ static void task_stats(void *param) {
         stats_reset();
         hal_log_info("din: 0x%02lx", (uint32_t)ACCUM.din);
         hal_log_info("dout: 0x%01lx", (uint32_t)ACCUM.dout);
-        vTaskDelay(1000);
+        vTaskDelay(10000);
     }
 }
 

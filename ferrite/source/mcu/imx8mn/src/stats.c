@@ -11,9 +11,7 @@ volatile Statistics STATS = {
 #endif
     0,
     0,
-    0,
-    0,
-    {0},
+    {{0, 0, 0, 0}},
 };
 
 
@@ -23,8 +21,9 @@ void stats_reset() {
 #endif
     STATS.sample_count = 0;
     STATS.max_intrs_per_sample = 0;
-    STATS.min_adc = 0;
-    STATS.max_adc = 0;
+    for (size_t i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
+        STATS.adcs[i].sum = 0;
+    }
 }
 
 void stats_print() {
@@ -33,13 +32,14 @@ void stats_print() {
 #endif
     hal_log_info("sample_count: %ld", STATS.sample_count);
     hal_log_info("max_intrs_per_sample: %ld", STATS.max_intrs_per_sample);
-    int32_t v_min = STATS.min_adc;
-    hal_log_info("min_adc: (0x%08lx) %ld", v_min, v_min);
-    int32_t v_max = STATS.max_adc;
-    hal_log_info("max_adc: (0x%08lx) %ld", v_max, v_max);
 
     for (size_t j = 0; j < SKIFIO_ADC_CHANNEL_COUNT; ++j) {
-        int32_t v = STATS.last_adcs[j];
-        hal_log_info("adc%d: (0x%08lx) %ld", j, v, v);
+        volatile AdcStats *adc = &STATS.adcs[j];
+        hal_log_info("adc[%d]:", j);
+        hal_log_info("    last: (0x%08lx) %ld", adc->last, adc->last);
+        hal_log_info("    min: (0x%08lx) %ld", adc->min, adc->min);
+        hal_log_info("    max: (0x%08lx) %ld", adc->max, adc->max);
+        int32_t avg = (int32_t)(adc->sum / STATS.sample_count);
+        hal_log_info("    avg: (0x%08lx) %ld", avg, avg);
     }
 }
