@@ -4,6 +4,7 @@
 
 #include <core/assert.hpp>
 #include <core/panic.hpp>
+#include <core/cast.hpp>
 #include <ipp.hpp>
 
 
@@ -134,8 +135,12 @@ void Device::set_adc_callback(size_t index, std::function<void()> &&callback) {
 
 void Device::write_dout(uint32_t value) {
     {
+        constexpr uint32_t mask = 0xfu;
         std::lock_guard send_guard(send_mutex);
-        dout.value.store(uint8_t(value)); // FIXME: Check for overflow
+        if ((value & ~mask) != 0) {
+            std::cout << "[app:warning] Ignoring extra bits in dout 4-bit mask: " << value << std::endl;
+        }
+        dout.value.store(uint8_t(value & mask));
         dout.update.store(true);
     }
     send_ready.notify_all();
