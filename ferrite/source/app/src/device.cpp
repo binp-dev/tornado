@@ -8,8 +8,6 @@
 
 
 void Device::recv_loop() {
-    std::this_thread::sleep_for(START_DELAY);
-
     std::cout << "[app] Channel serve thread started" << std::endl;
     const auto timeout = std::chrono::milliseconds(10);
 
@@ -98,12 +96,22 @@ void Device::send_loop() {
 }
 
 Device::Device(std::unique_ptr<Channel> channel) : channel(std::move(channel)) {
+    done.store(true);
+}
+Device::~Device() {
+    stop();
+}
+
+void Device::start() {
     done.store(false);
     recv_worker = std::thread([this]() { this->recv_loop(); });
 }
-Device::~Device() {
-    done.store(true);
-    recv_worker.join();
+
+void Device::stop() {
+    if (!done.load()) {
+        done.store(true);
+        recv_worker.join();
+    }
 }
 
 void Device::write_dac(int32_t value) {

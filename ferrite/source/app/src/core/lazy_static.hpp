@@ -44,6 +44,6 @@ public:
         return value();
     }
     T *operator->() {
-        return &*this;
+        return &*(*this);
     }
 };

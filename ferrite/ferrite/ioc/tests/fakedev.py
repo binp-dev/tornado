@@ -11,6 +11,7 @@ from ferrite.utils.epics.ioc import Ioc
 from ferrite.codegen.variant import VariantValue
 import ferrite.utils.epics.ca as ca
 
+SCAN_PERIOD = 1.0 # second
 
 def assert_eq(a: float, b: float, eps: float = 1e-6) -> None:
     if abs(a - b) > eps:
@@ -40,7 +41,7 @@ def recv_msg(socket: zmq.Socket) -> VariantValue:
 
 
 DONE: bool = False
-VALUE: float = 0
+VALUE: float = 0.0
 
 
 def run_test(
@@ -99,7 +100,7 @@ def run_test(
     thread.start()
 
     with ca.Repeater(prefix), ioc:
-        time.sleep(3)
+        time.sleep(SCAN_PERIOD)
 
         assert_eq(ca.get(prefix, f"ai0"), 0, eps=eps)
         for i in range(5):
@@ -108,7 +109,7 @@ def run_test(
         ca.put(prefix, "ao0", some_val)
 
         print("Waiting for record to scan ...")
-        time.sleep(2.0)
+        time.sleep(SCAN_PERIOD)
 
         assert_eq(ca.get(prefix, f"ai0"), some_val, eps=eps)
         for i in range(5):

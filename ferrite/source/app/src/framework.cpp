@@ -137,3 +137,8 @@ void framework_record_init(Record &record) {
         unimplemented();
     }
 }
+
+void framework_start() {
+    // Start device workers.
+    DEVICE->start();
+}

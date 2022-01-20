@@ -14,7 +14,6 @@
 class Device final {
 public:
     static constexpr size_t ADC_COUNT = 6;
-    static constexpr auto START_DELAY = std::chrono::seconds(2); // FIXME: Signal from outside
     static constexpr auto ADC_REQ_PERIOD = std::chrono::seconds(1);
 
 private:
@@ -59,9 +58,14 @@ private:
 public:
     Device(const Device &dev) = delete;
     Device &operator=(const Device &dev) = delete;
+    Device(Device &&dev) = delete;
+    Device &operator=(Device &&dev) = delete;
 
     Device(std::unique_ptr<Channel> channel);
     ~Device();
+
+    void start();
+    void stop();
 
 public:
     void write_dac(int32_t value);
