@@ -37,6 +37,7 @@ set(IMX8MN_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/imx8mn/spi.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/imx8mn/gpt.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/imx8mn/gpio.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/imx8mn/io.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/imx8mn/rpmsg.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/imx8mn/spi.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/imx8mn/gpt.c"

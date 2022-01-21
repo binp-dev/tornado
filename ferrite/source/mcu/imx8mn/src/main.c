@@ -273,7 +273,8 @@ int main(void)
 
     BOARD_InitBootPins();
     BOARD_BootClockRUN();
-    BOARD_InitDebugConsole();
+
+    hal_io_uart_init(4);
 
     copyResourceTable();
 
