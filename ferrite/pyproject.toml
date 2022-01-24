@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "ferrite"
+version = "0.0.0"
+description = "Power supply controller framework"
+authors = ["Alexey Gerasev <a.v.gerasyov@inp.nsk.su>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+conan = "^1.44.0"
+paramiko = "^2.9.2"
+pyzmq = "^22.3.0"
+colorama = "^0.4.4"
+
+[tool.poetry.dev-dependencies]
+toml = "^0.10.2"
+yapf = "^0.32.0"
+mypy = "^0.931"
+types-paramiko = "^2.8.10"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.yapf]
+based_on_style = "yapf"
+column_limit = 128
+indent_width = 4
+continuation_indent_width = 4
+spaces_before_comment = 1
+continuation_align_style = "space"
+dedent_closing_brackets = true
+coalesce_brackets = true
+
+[tool.mypy]
+strict = true
+namespace_packages = true
+ignore_missing_imports = true
