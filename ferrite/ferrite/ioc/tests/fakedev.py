@@ -13,17 +13,18 @@ import ferrite.utils.epics.ca as ca
 
 SCAN_PERIOD = 1.0 # second
 
-def assert_eq(a: float, b: float, eps: float = 1e-6) -> None:
+
+def assert_eq(a: float, b: float, eps: float = 1e-3) -> None:
     if abs(a - b) > eps:
         raise AssertionError(f"abs({a} - {b}) < {eps}")
 
 
-def dac_code_to_uvolt(code: int) -> float:
-    return (code - 32767) * 315.7445
+def dac_code_to_volt(code: int) -> float:
+    return (code - 32767) * (315.7445 * 1e-6)
 
 
-def adc_uvolt_to_code(voltage: float) -> int:
-    return round(voltage / 346.8012 * 256)
+def adc_volt_to_code(voltage: float) -> int:
+    return round(voltage / (346.8012 * 1e-6) * 256)
 
 
 def send_msg(socket: zmq.Socket, msg: bytes) -> None:
@@ -67,11 +68,10 @@ def run_test(
     DONE = False
     VALUE = 0
 
-    eps = 1e+3
-    max_val = 10.0e+6
-    min_val = -10.0e+6
-    some_val = 3.1415e+6
-    values = [1.0e+6, -1.0e+6, some_val, min_val, max_val]
+    max_val = 10.0
+    min_val = -10.0
+    some_val = 3.1415
+    values = [1.0, -1.0, some_val, min_val, max_val]
 
     def worker() -> None:
         global DONE
@@ -90,9 +90,9 @@ def run_test(
                 continue
             msg = AppMsg.load(socket.recv())
             if msg.variant.is_instance_of(AppMsg.DacSet):
-                VALUE = dac_code_to_uvolt(msg.variant.value)
+                VALUE = dac_code_to_volt(msg.variant.value)
             elif msg.variant.is_instance_of(AppMsg.AdcReq):
-                send_msg(socket, McuMsg.AdcVal([adc_uvolt_to_code(v) for v in [VALUE] + values]))
+                send_msg(socket, McuMsg.AdcVal([adc_volt_to_code(v) for v in [VALUE] + values]))
             else:
                 raise Exception("Unexpected message type")
 
@@ -102,18 +102,18 @@ def run_test(
     with ca.Repeater(prefix), ioc:
         time.sleep(SCAN_PERIOD)
 
-        assert_eq(ca.get(prefix, f"ai0"), 0, eps=eps)
+        assert_eq(ca.get(prefix, f"ai0"), 0)
         for i in range(5):
-            assert_eq(ca.get(prefix, f"ai{i + 1}"), values[i], eps=eps)
+            assert_eq(ca.get(prefix, f"ai{i + 1}"), values[i])
 
         ca.put(prefix, "ao0", some_val)
 
         print("Waiting for record to scan ...")
         time.sleep(SCAN_PERIOD)
 
-        assert_eq(ca.get(prefix, f"ai0"), some_val, eps=eps)
+        assert_eq(ca.get(prefix, f"ai0"), some_val)
         for i in range(5):
-            assert_eq(ca.get(prefix, f"ai{i + 1}"), values[i], eps=eps)
+            assert_eq(ca.get(prefix, f"ai{i + 1}"), values[i])
 
     DONE = True
     thread.join()
