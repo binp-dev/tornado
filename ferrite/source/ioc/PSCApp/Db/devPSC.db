@@ -1,3 +1,4 @@
+# ADC channels
 record(ai, "ai0")
 {
     field(DTYP, "devsup")
@@ -47,6 +48,7 @@ record(ai, "ai5")
     field(PREC, 6)
 }
 
+# DAC channel
 record(ao, "ao0")
 {
     field(DTYP, "devsup")
@@ -59,13 +61,24 @@ record(ao, "ao0")
     field(PINI, "YES")
 }
 
+# Discrete input
 record(mbbiDirect, "di0") {
 	field(DTYP, "devsup")
-	field(SCAN, "I/O Intr")
 	field(NOBT, 8)
+	field(SCAN, "I/O Intr")
 }
 
+# Discrete output
 record(mbboDirect, "do0") {
 	field(DTYP, "devsup")
 	field(NOBT, 4)
+}
+
+# Scan frequency
+record(ao, "scan_freq")
+{
+    field(DTYP, "devsup")
+    field(PREC, 1)
+    field(RVAL, 1)
+    field(PINI, "YES")
 }
