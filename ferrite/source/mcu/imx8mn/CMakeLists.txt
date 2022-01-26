@@ -24,13 +24,16 @@ SET(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 
 project(m7image)
 
+option(INTERNAL_SYNC "Whether sync signal should be generated internally" ON)
+option(AVERAGE_ADC "Enable averaging of ADC measurements" OFF)
+
 set(MCUX_SDK_PROJECT_NAME m7image.elf)
 
 include(${ProjDirPath}/flags.cmake)
 
 include(${ProjDirPath}/config.cmake)
 
-add_executable(${MCUX_SDK_PROJECT_NAME} 
+set(SRC
     "${ProjDirPath}/src/main.c"
     #"${ProjDirPath}/src/main_remote.c"
     "${ProjDirPath}/src/FreeRTOSConfig.h"
@@ -47,7 +50,24 @@ add_executable(${MCUX_SDK_PROJECT_NAME}
     #"${ProjDirPath}/src/fsl_iomuxc.h"
     "${ProjDirPath}/src/skifio.c"
     "${ProjDirPath}/src/skifio.h"
+    "${ProjDirPath}/src/stats.c"
+    "${ProjDirPath}/src/stats.h"
 )
+
+if(${INTERNAL_SYNC})
+set(SRC
+    ${SRC}
+    "${ProjDirPath}/src/sync.c"
+    "${ProjDirPath}/src/sync.h"
+)
+add_definitions("-DGENERATE_SYNC")
+endif()
+
+if(${AVERAGE_ADC})
+add_definitions("-DAVERAGE_ADC")
+endif()
+
+add_executable(${MCUX_SDK_PROJECT_NAME} ${SRC})
 
 target_include_directories(${MCUX_SDK_PROJECT_NAME} PRIVATE
     ${ProjDirPath}/src

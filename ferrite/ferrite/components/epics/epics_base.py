@@ -61,7 +61,7 @@ class EpicsBaseBuildTask(EpicsBuildTask):
             host_arch = epics_host_arch(self.src_dir)
             cross_arch = epics_arch_by_target(self.toolchain.target)
             if cross_arch == "linux-arm" and host_arch.endswith("-x86_64"):
-                host_arch = host_arch[:-3]  # Trim '_64'
+                host_arch = host_arch[:-3] # Trim '_64'
 
             substitute(
                 [

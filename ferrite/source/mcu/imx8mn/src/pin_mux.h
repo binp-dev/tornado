@@ -42,6 +42,8 @@ void BOARD_InitBootPins(void);
  */
 void BOARD_InitPins(void);                                 /*!< Function assigned for the core: Cortex-M7F[m7] */
 void BOARD_InitGpioPins(void);                                 /*!< Function assigned for the core: Cortex-M7F[m7] */
+void BOARD_InitGptPins(void);
+void BOARD_InitDigitalIoPins(void);
 
 #if defined(__cplusplus)
 }

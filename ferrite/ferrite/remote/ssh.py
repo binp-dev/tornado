@@ -6,9 +6,12 @@ import logging
 from subprocess import Popen
 from pathlib import Path, PurePosixPath
 
+from paramiko import SSHClient
+from paramiko.channel import ChannelFile
+
 from ferrite.utils.run import run, RunError
 from ferrite.utils.strings import quote
-from ferrite.remote.base import Device
+from ferrite.remote.base import Connection, Device
 
 
 def _split_addr(addr: str) -> Tuple[str, int]:
@@ -19,6 +22,25 @@ def _split_addr(addr: str) -> Tuple[str, int]:
         return addr, 22
     else:
         raise Exception(f"Bad address format: '{addr}'")
+
+
+class _ParamikoConnection(Connection):
+
+    def __init__(self, client: SSHClient, channels: List[ChannelFile]) -> None:
+        self.client = client
+        self.channels = channels
+
+    def close(self) -> None:
+        self.client.close()
+
+
+class SshConnection(Connection):
+
+    def __init__(self, proc: Popen[bytes]) -> None:
+        self.proc = proc
+
+    def close(self) -> None:
+        self.proc.terminate()
 
 
 class SshDevice(Device):
@@ -51,15 +73,34 @@ class SshDevice(Device):
     def name(self) -> str:
         return f"{self.user}@{self.host}:{self.port}"
 
-    def run(self, args: List[str], popen: bool = False) -> Optional[Popen[bytes]]:
+    def run(self, args: List[str], wait: bool = True) -> Optional[SshConnection]:
         argstr = " ".join([quote(a) for a in args])
-        if not popen:
+        if wait:
             logging.info(f"SSH run {self.name()} {args}")
             run(self._prefix() + [argstr])
             return None
         else:
             logging.info(f"SSH popen {self.name()} {args}")
-            return Popen(self._prefix() + [argstr])
+            return SshConnection(Popen(self._prefix() + [argstr]))
+
+    def _paramiko_client(self) -> SSHClient:
+        client = SSHClient()
+        client.load_system_host_keys()
+        client.connect(self.host, port=self.port, username=self.user)
+        return client
+
+    def _paramiko_run(self, args: List[str], wait: bool = True) -> Optional[_ParamikoConnection]:
+        client = self._paramiko_client()
+        argstr = " ".join([quote(a) for a in args])
+        logging.info(f"SSH run {self.name()} {args}")
+        _, stdout, stderr = client.exec_command(argstr, timeout=None if wait else 0)
+        if wait:
+            print(stderr.read())
+            print(stdout.read())
+            return None
+        else:
+            logging.info(f"SSH popen {self.name()} {args}")
+            return _ParamikoConnection(client, [stderr, stdout])
 
     def wait_online(self, attempts: int = 10, timeout: float = 10.0) -> None:
         time.sleep(timeout)

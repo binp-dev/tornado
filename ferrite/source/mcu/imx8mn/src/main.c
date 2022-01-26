@@ -2,6 +2,8 @@
 #include "pin_mux.h"
 #include "clock_config.h"
 #include "rsc_table.h"
+#include "fsl_common.h"
+#include "fsl_gpio.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -17,184 +19,136 @@
 #include <hal/rpmsg.h>
 #include <hal/math.h>
 #include <hal/time.h>
-#include <hal/gpt.h>
 
 #include "skifio.h"
+#include "stats.h"
 
-#include "fsl_gpio.h"
+#ifdef GENERATE_SYNC
+#include "sync.h"
+#endif
+
 
 #define TASK_STACK_SIZE 256
+#define RPMSG_TASK_PRIORITY tskIDLE_PRIORITY + 1
 
-#define SMP_RDY_PIN 23u
-#define READ_RDY_PIN 9u
+typedef struct {
+    int32_t last;
+    int64_t sum;
+} AdcAccum;
 
-#define DAC_KEY_1 2u
-#define DAC_KEY_2 3u
+typedef struct {
+    int32_t dac;
+    AdcAccum adcs[SKIFIO_ADC_CHANNEL_COUNT];
+    uint32_t sample_count;
+    SkifioDin din;
+    SkifioDout dout;
+} Accum;
 
-static volatile SemaphoreHandle_t smp_rdy_sem = NULL;
+static volatile Accum ACCUM = {0, {{0, 0}}, 0, 0, 0};
 
-static volatile int32_t g_dac = 0;
-static volatile int64_t g_adcs[SKIFIO_ADC_CHANNEL_COUNT] = {0};
-static volatile uint32_t g_sample_count = 0;
+static hal_rpmsg_channel channel;
+static SemaphoreHandle_t din_sem = NULL;
 
-static volatile uint32_t intr_count = 0;
-
-void GPIO5_Combined_16_31_IRQHandler() {
-    if (GPIO_GetPinsInterruptFlags(GPIO5) & (1 << SMP_RDY_PIN)) {
-        GPIO_ClearPinsInterruptFlags(GPIO5, 1 << SMP_RDY_PIN);
-        intr_count += 1;
-
-        BaseType_t hptw = pdFALSE;
-
-        // Notify target task
-        xSemaphoreGiveFromISR(smp_rdy_sem, &hptw);
-
-        // Yield to higher priority task
-        portYIELD_FROM_ISR(hptw);
-    }
-
-    // Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F, Cortex-M7, Cortex-M7F Store immediate overlapping
-    // exception return operation might vector to incorrect interrupt
-#if defined __CORTEX_M && (__CORTEX_M == 4U || __CORTEX_M == 7U)
-    __DSB();
-#endif
+static void din_handler(void *data, SkifioDin value) {
+    ACCUM.din = value;
+    BaseType_t hptw = pdFALSE;
+    xSemaphoreGiveFromISR(din_sem, &hptw);
+    portYIELD_FROM_ISR(hptw);
 }
 
-static void task_gpt(void *param) {
-    hal_log_info("GPT init");
-    hal_assert(hal_gpt_init(0) == HAL_SUCCESS);
+static void task_rpmsg_send_din(void *param) {
+    for (;;) {
+        xSemaphoreTake(din_sem, portMAX_DELAY);
+        ACCUM.din = skifio_din_read();
+        hal_log_info("din changed: %lx", (uint32_t)ACCUM.din);
 
-    SemaphoreHandle_t gpt_sem = xSemaphoreCreateBinary();
-    hal_assert(gpt_sem != NULL);
+        uint8_t *buffer = NULL;
+        size_t len = 0;
+        hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+        IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
+        mcu_msg->type = IPP_MCU_MSG_DIN_VAL;
+        mcu_msg->din_val.value = ACCUM.din;
+        hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
 
-    hal_assert(hal_gpt_start(0, 1000000, gpt_sem) == HAL_SUCCESS);
-
-    for (size_t i = 0;;++i) {
-        if (xSemaphoreTake(gpt_sem, 10000) != pdTRUE) {
-            hal_log_info("GPT semaphore timeout %x", i);
-            continue;
-        }
-        hal_log_info("GPT tick: %d", i);
+        vTaskDelay(10);
     }
-
-    hal_log_error("End of task_gpio()");
-    hal_panic();
-
-    hal_assert(hal_gpt_stop(0) == HAL_SUCCESS);
-    hal_assert(hal_gpt_deinit(0) == HAL_SUCCESS);
 }
 
-static void task_gpio(void *param) {
+static void task_skifio(void *param) {
+    TickType_t meas_start = xTaskGetTickCount();
+    hal_busy_wait_ns(1000000000ll);
+    hal_log_info("ms per 1e9 busy loop ns: %ld", xTaskGetTickCount() - meas_start);
+
     hal_log_info("SkifIO driver init");
     hal_assert(skifio_init() == HAL_SUCCESS);
 
-    hal_log_info("GPIO init");
+    hal_log_info("Create rpmsg_send_din task");
+    xTaskCreate(task_rpmsg_send_din, "rpmsg_send_din task", TASK_STACK_SIZE, NULL, RPMSG_TASK_PRIORITY, NULL);
+    hal_assert(skifio_din_subscribe(din_handler, NULL) == HAL_SUCCESS);
 
-    BOARD_InitGpioPins();
-
-    // DAC keys
-    gpio_pin_config_t dac_key_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
-    GPIO_PinInit(GPIO5, DAC_KEY_1, &dac_key_config);
-    GPIO_PinInit(GPIO5, DAC_KEY_2, &dac_key_config);
-    GPIO_PinWrite(GPIO5, DAC_KEY_1, 1);
-    GPIO_PinWrite(GPIO5, DAC_KEY_2, 1);
-
-    gpio_pin_config_t read_rdy_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
-    GPIO_PinInit(GPIO5, READ_RDY_PIN, &read_rdy_config);
-    GPIO_PinWrite(GPIO5, READ_RDY_PIN, 0);
-
-    smp_rdy_sem = xSemaphoreCreateBinary();
-    hal_assert(smp_rdy_sem != NULL);
-
-    gpio_pin_config_t smp_rdy_config = {kGPIO_DigitalInput, 0, kGPIO_IntFallingEdge};
-    GPIO_PinInit(GPIO5, SMP_RDY_PIN, &smp_rdy_config);
-    GPIO_ClearPinsInterruptFlags(GPIO5, 1 << SMP_RDY_PIN);
-    GPIO_EnableInterrupts(GPIO5, 1 << SMP_RDY_PIN);
-
-    NVIC_SetPriority(GPIO5_Combined_16_31_IRQn, 4);
-    NVIC_EnableIRQ(GPIO5_Combined_16_31_IRQn);
-
-    TickType_t meas_start = xTaskGetTickCount();
-    hal_busy_wait_ns(1000000000ll);
-    hal_log_info("ms per 1e9 busy loop ns: %d", xTaskGetTickCount() - meas_start);
-
-    hal_log_info("Enter GPIO loop");
-
-    // Statistics
-    size_t prev_intr_count = 0;
-    size_t max_intr_count = 0;
-    int32_t min_adc = 0;
-    int32_t max_adc = 0;
-    int32_t last_adcs[SKIFIO_ADC_CHANNEL_COUNT] = {0};
-
-    TickType_t last_ticks = 0; 
     SkifioInput input = {{0}};
     SkifioOutput output = {0};
+
+    hal_log_info("Enter SkifIO loop");
+    uint64_t prev_intr_count = _SKIFIO_DEBUG_INFO.intr_count;
     for (size_t i = 0;;++i) {
         hal_retcode ret;
 
-        if (xSemaphoreTake(smp_rdy_sem, 1000) != pdTRUE) {
-            hal_log_info("GPIO semaphore timeout %x", i);
+        ret = skifio_wait_ready(1000);
+        if (ret == HAL_TIMED_OUT) {
+            hal_log_info("SkifIO timeout %d", i);
             continue;
         }
-        max_intr_count = hal_max(max_intr_count, intr_count - prev_intr_count);
-        prev_intr_count = intr_count;
+        hal_assert(ret == HAL_SUCCESS);
 
-        // Wait before data request to reduce ADC noise.
-        //vTaskDelay(1);
-        hal_busy_wait_ns(100000);
+        SkifioDin din = skifio_din_read();
+        if (din != ACCUM.din) {
+            ACCUM.din = din;
+            xSemaphoreGive(din_sem);
+        }
 
-        output.dac = (int16_t)g_dac;
+        STATS.max_intrs_per_sample = hal_max(
+            STATS.max_intrs_per_sample,
+            (uint32_t)(_SKIFIO_DEBUG_INFO.intr_count - prev_intr_count) //
+        );
+        prev_intr_count = _SKIFIO_DEBUG_INFO.intr_count;
+
+        output.dac = (int16_t)ACCUM.dac;
+
         ret = skifio_transfer(&output, &input);
         hal_assert(ret == HAL_SUCCESS || ret == HAL_INVALID_DATA); // Ignore CRC check error
+
         for (size_t j = 0; j < SKIFIO_ADC_CHANNEL_COUNT; ++j) {
-            volatile int64_t *accum = &g_adcs[j];
+            volatile AdcAccum *accum = &ACCUM.adcs[j];
+            volatile AdcStats *stats = &STATS.adcs[j];
             int32_t value = input.adcs[j];
 
-            if (g_sample_count == 0) {
-                *accum = value;
+            accum->last = value;
+            accum->sum += value;
+
+            if (STATS.sample_count == 0) {
+                stats->min = value;
+                stats->max = value;
             } else {
-                *accum += value;
+                stats->min = hal_min(stats->min, value);
+                stats->max = hal_max(stats->max, value);
             }
-
-            min_adc = hal_min(min_adc, value);
-            max_adc = hal_max(max_adc, value);
-            last_adcs[j] = value;
+            stats->last = value;
+            stats->sum += value;
         }
-        g_sample_count += 1;
-
-        GPIO_PinWrite(GPIO5, READ_RDY_PIN, 1);
-        //vTaskDelay(1);
-        hal_busy_wait_ns(10000);
-        GPIO_PinWrite(GPIO5, READ_RDY_PIN, 0);
-
-        if (xTaskGetTickCount() - last_ticks >= 1000) {
-            hal_log_info("max_intr_count: %d", max_intr_count);
-            hal_log_info("min_adc: 0x%x, max_adc: 0x%x", min_adc, max_adc);
-            max_intr_count = 0;
-            min_adc = 0;
-            max_adc = 0;
-            for (size_t j = 0; j < SKIFIO_ADC_CHANNEL_COUNT; ++j) {
-                hal_log_info("adc%d: %x", j, last_adcs[j]);
-            }
-            last_ticks = xTaskGetTickCount();
-
-            // To skip interrupts occured while printing debug info.
-            xSemaphoreTake(smp_rdy_sem, 0);
-            prev_intr_count = intr_count;
-        }
+        ACCUM.sample_count += 1;
+        STATS.sample_count += 1;
     }
 
-    hal_log_error("End of task_gpio()");
+    hal_log_error("End of task_skifio()");
     hal_panic();
 
     hal_assert(skifio_deinit() == HAL_SUCCESS);
 }
 
-static void task_rpmsg(void *param) {
+static void task_rpmsg_recv(void *param) {
     hal_rpmsg_init();
 
-    hal_rpmsg_channel channel;
     hal_assert(hal_rpmsg_create_channel(&channel, 0) == HAL_SUCCESS);
 #ifdef HAL_PRINT_RPMSG
     hal_io_rpmsg_init(&channel);
@@ -219,6 +173,7 @@ static void task_rpmsg(void *param) {
     app_msg = (const IppAppMsg *)buffer;
     if (app_msg->type == IPP_APP_MSG_START) {
         hal_log_info("Start message received");
+        xSemaphoreGive(din_sem);
     } else {
         hal_log_error("Message error: type mismatch: %d", (int)app_msg->type);
         hal_panic();
@@ -226,13 +181,6 @@ static void task_rpmsg(void *param) {
     hal_rpmsg_free_rx_buffer(&channel, buffer);
     buffer = NULL;
     len = 0;
-
-    // Create GPIO task.
-    hal_log_info("Create GPIO task");
-    xTaskCreate(
-        task_gpio, "GPIO task",
-        TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL
-    );
 
     hal_log_info("Enter RPMSG loop");
 
@@ -243,11 +191,17 @@ static void task_rpmsg(void *param) {
         //hal_log_info("Received message: 0x%02x", (int)app_msg->type);
 
         switch (app_msg->type) {
+        case IPP_APP_MSG_START:
+            xSemaphoreGive(din_sem);
+            hal_log_info("MCU program is already started");
+            break;
+
         case IPP_APP_MSG_DAC_SET:
-            g_dac = app_msg->dac_set.value;
-            //hal_log_info("Write DAC value: %x", g_dac);
+            ACCUM.dac = app_msg->dac_set.value;
+            // hal_log_info("Write DAC value: %x", ACCUM.dac);
             hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
             break;
+
         case IPP_APP_MSG_ADC_REQ:
             //hal_log_info("Read ADC values");
             hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
@@ -255,20 +209,35 @@ static void task_rpmsg(void *param) {
             IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
             mcu_msg->type = IPP_MCU_MSG_ADC_VAL;
             for (size_t i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
-                volatile int64_t *accum = &g_adcs[i];
-                if (g_sample_count > 0) {
-                    *accum /= g_sample_count;
-                }
-                mcu_msg->adc_val.values.data[i] = (int32_t)(*accum);
+                volatile AdcAccum *accum = &ACCUM.adcs[i];
+                int32_t value = 0;
+#ifdef AVERAGE_ADC
+                value = (int32_t)(accum->sum / ACCUM.sample_count);
+#else
+                value = accum->last;
+#endif
+                accum->sum = 0;
+                mcu_msg->adc_val.values.data[i] = value;
             }
-            g_sample_count = 0;
+            ACCUM.sample_count = 0;
             hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
             break;
 
+        case IPP_APP_MSG_DOUT_SET: {
+            SkifioDout mask = (SkifioDout)((1 << SKIFIO_DOUT_SIZE) - 1);
+            SkifioDout value = app_msg->dout_set.value;
+            if (~mask & value) {
+                hal_log_warn("dout is out of bounds: %lx", (uint32_t)value);
+            }
+            ACCUM.dout = value & mask;
+            // hal_log_info("Dout write: 0x%lx", (uint32_t)ACCUM.dout);
+            hal_assert(skifio_dout_write(ACCUM.dout) == HAL_SUCCESS);
+            break;
+        }
         default:
             hal_log_error("Wrong message type: %d", (int)app_msg->type);
-            hal_panic();
-        }   
+            continue;
+        }
     }
 
     hal_log_error("End of task_rpmsg()");
@@ -280,9 +249,17 @@ static void task_rpmsg(void *param) {
     hal_rpmsg_deinit();
 }
 
-/*!
- * @brief Main function
- */
+static void task_stats(void *param) {
+    for (size_t i = 0;;++i) {
+        hal_log_info("");
+        stats_print();
+        stats_reset();
+        hal_log_info("din: 0x%02lx", (uint32_t)ACCUM.din);
+        hal_log_info("dout: 0x%01lx", (uint32_t)ACCUM.dout);
+        vTaskDelay(10000);
+    }
+}
+
 int main(void)
 {
     /* Initialize standard SDK demo application pins */
@@ -296,34 +273,36 @@ int main(void)
 
     BOARD_InitBootPins();
     BOARD_BootClockRUN();
-    BOARD_InitDebugConsole();
+
+    hal_io_uart_init(4);
 
     copyResourceTable();
 
 #ifdef MCMGR_USED
     /* Initialize MCMGR before calling its API */
     (void)MCMGR_Init();
-#endif /* MCMGR_USED */
+#endif
+    hal_log_info("\n\r\n\r** Board started **");
 
-    /*
-    // Create GPT task.
-    hal_log_info("Create GPT task");
-    xTaskCreate(
-        task_gpt, "GPT task",
-        TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL
-    );
-    */
+#ifdef GENERATE_SYNC
+    hal_log_info("Create sync generator task");
+    xTaskCreate(sync_generator_task, "Sync generator task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 4, NULL);
+#endif
 
-    /* Create task. */
-    xTaskCreate(
-        task_rpmsg, "RPMSG task",
-        TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL
-    );
+    din_sem = xSemaphoreCreateBinary();
+    hal_assert(din_sem != NULL);
 
-    /* Start FreeRTOS scheduler. */
+    hal_log_info("Create SkifIO task");
+    xTaskCreate(task_skifio, "SkifIO task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL);
+
+    hal_log_info("Create RPMsg task");
+    xTaskCreate(task_rpmsg_recv, "RPMsg task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
+
+    hal_log_info("Create statistics task");
+    xTaskCreate(task_stats, "Statistics task", TASK_STACK_SIZE, NULL, RPMSG_TASK_PRIORITY, NULL);
+
     vTaskStartScheduler();
 
-    /* Should never reach this point. */
     hal_log_error("End of main()");
     hal_panic();
 

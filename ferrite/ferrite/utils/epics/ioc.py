@@ -7,6 +7,13 @@ from pathlib import Path
 import logging
 
 
+def make_ioc(ioc_dir: Path, arch: str) -> Ioc:
+    return Ioc(
+        ioc_dir / "bin" / arch / "PSC",
+        ioc_dir / "iocBoot/iocPSC/st.cmd",
+    )
+
+
 class Ioc:
 
     def __init__(self, binary: Path, script: Path) -> None:
