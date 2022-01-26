@@ -17,6 +17,7 @@ toml = "^0.10.2"
 yapf = "^0.32.0"
 mypy = "^0.931"
 types-paramiko = "^2.8.10"
+types-colorama = "^0.4.4"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -35,4 +36,3 @@ coalesce_brackets = true
 [tool.mypy]
 strict = true
 namespace_packages = true
-ignore_missing_imports = true
