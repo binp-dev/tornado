@@ -77,6 +77,49 @@ public:
     }
 };
 
+class DacWfHandler final : public DeviceHandler, public OutputArrayHandler<int32_t> {
+public:
+    DacWfHandler(Device &device, OutputArrayRecord<int32_t> &record) :
+        DeviceHandler(device)
+    {
+        device_.init_dac_wf(record.max_length());
+    }
+
+    virtual void write(OutputArrayRecord<int32_t> &record) override {
+        // device_.write_waveform(record.data(), record.length());
+    }
+
+    virtual bool is_async() const override {
+        return true;
+    }
+};
+
+class AdcWfHandler final : public DeviceHandler, public InputArrayHandler<int32_t> {
+private:
+    uint8_t index_;
+
+public:
+    AdcWfHandler(Device &device, InputArrayRecord<int32_t> &record, uint8_t index) :
+        DeviceHandler(device),
+        index_(index)
+    {
+        device_.init_adc_wf(index_, record.max_length());
+    }
+
+    virtual void read(InputArrayRecord<int32_t> &record) override {
+        auto adc_wf = device_.read_adc_wf(index_);
+        record.set_data(adc_wf.data(), adc_wf.size());
+    }
+
+    virtual void set_read_request(InputArrayRecord<int32_t> &record, std::function<void()> &&callback) override {
+        device_.set_adc_wf_callback(index_, std::move(callback));
+    }
+
+    virtual bool is_async() const override {
+        return true;
+    }
+};
+
 class ScanFreqHandler final : public DeviceHandler, public OutputValueHandler<int32_t> {
 public:
     ScanFreqHandler(Device &device) : DeviceHandler(device) {}

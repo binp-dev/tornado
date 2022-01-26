@@ -1,6 +1,7 @@
 #include "device.hpp"
 
 #include <variant>
+#include <cstring>
 
 #include <core/assert.hpp>
 #include <core/panic.hpp>
@@ -53,6 +54,18 @@ void Device::recv_loop() {
                 din.notify();
             }
 
+        } else if (std::holds_alternative<ipp::McuMsgAdcWf>(incoming.variant)) {
+            const auto adc_wf_msg = std::get<ipp::McuMsgAdcWf>(incoming.variant);
+            
+            auto &adc_wf = adc_wfs[adc_wf_msg.index];
+            {
+                std::lock_guard<std::mutex> lock(adc_wf.mutex);
+                adc_wf.wf_data.insert(adc_wf.wf_data.end(), adc_wf_msg.elements.begin(), adc_wf_msg.elements.end());
+
+                if (adc_wf.wf_data.size() >= adc_wf.wf_max_size) {
+                    adc_wf.notify();
+                }
+            }
         } else if (std::holds_alternative<ipp::McuMsgDebug>(incoming.variant)) {
             std::cout << "Device: " << std::get<ipp::McuMsgDebug>(incoming.variant).message << std::endl;
 
@@ -155,4 +168,30 @@ uint32_t Device::read_din() {
 }
 void Device::set_din_callback(std::function<void()> &&callback) {
     din.notify = std::move(callback);
+}
+
+void Device::init_dac_wf(size_t wf_max_size) {
+    for (size_t i = 0; i < dac_wf.wf_data.size(); ++i) {
+        dac_wf.wf_data[i].resize(wf_max_size, 0.0);
+    }
+}
+
+void Device::init_adc_wf(uint8_t index, size_t wf_max_size) {
+     adc_wfs[index].wf_max_size = wf_max_size;
+}
+
+void Device::set_adc_wf_callback(size_t index, std::function<void()> &&callback) {
+    assert_true(index < ADC_COUNT);
+    adc_wfs[index].notify = std::move(callback);
+}
+
+const std::vector<int32_t> Device::read_adc_wf(size_t index) {
+    auto &adc_wf = adc_wfs[index];
+
+    std::lock_guard<std::mutex> lock(adc_wf.mutex);
+
+    std::vector<int32_t> wf_data(adc_wf.wf_data.begin(), adc_wf.wf_data.begin() + adc_wf.wf_max_size);
+    adc_wf.wf_data.erase(adc_wf.wf_data.begin(), adc_wf.wf_data.begin() + adc_wf.wf_max_size);
+
+    return wf_data;
 }
