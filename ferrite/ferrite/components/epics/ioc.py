@@ -241,8 +241,29 @@ class AppIocTestFakeDevTask(Task):
         self.owner = owner
 
     def run(self, ctx: Context) -> None:
-        import ferrite.ioc.tests.fakedev as fakedev
-        fakedev.run_test( # type: ignore
+        import ferrite.ioc.fakedev.test as fakedev
+        fakedev.run(
+            self.owner.epics_base.paths["install"],
+            self.owner.paths["install"],
+            epics_host_arch(self.owner.epics_base.paths["build"]),
+        )
+
+    def dependencies(self) -> List[Task]:
+        return [
+            self.owner.epics_base.tasks()["build"],
+            self.owner.build_task,
+        ]
+
+
+class AppIocRunFakeDevTask(Task):
+
+    def __init__(self, owner: Ioc) -> None:
+        super().__init__()
+        self.owner = owner
+
+    def run(self, ctx: Context) -> None:
+        import ferrite.ioc.fakedev.dummy as fakedev
+        fakedev.run(
             self.owner.epics_base.paths["install"],
             self.owner.paths["install"],
             epics_host_arch(self.owner.epics_base.paths["build"]),
@@ -348,6 +369,7 @@ class AppIoc(Ioc):
         )
 
         if isinstance(self.epics_base, EpicsBaseHost):
+            self.run_fakedev_task = AppIocRunFakeDevTask(self)
             self.test_fakedev_task = AppIocTestFakeDevTask(self)
 
         if isinstance(self.epics_base, EpicsBaseCross):
@@ -364,6 +386,7 @@ class AppIoc(Ioc):
 
         if isinstance(self.toolchain, HostToolchain):
             tasks.update({
+                "run_fakedev": self.run_fakedev_task,
                 "test_fakedev": self.test_fakedev_task,
             })
         elif isinstance(self.toolchain, CrossToolchain):

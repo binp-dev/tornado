@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict
+from typing import Dict, Optional
 
 import argparse
 import logging
@@ -132,7 +132,7 @@ def _prepare_for_run(params: RunParams) -> None:
     logging.basicConfig(format='[%(levelname)s] %(message)s', level=log_level, force=True)
 
 
-def _print_title(text: str, style: Fore = None, end: bool = True) -> None:
+def _print_title(text: str, style: Optional[str] = None, end: bool = True) -> None:
     if style is not None:
         text = style + text + Style.RESET_ALL
     print(text, flush=True, end=("" if not end else None))

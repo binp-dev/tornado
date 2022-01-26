@@ -14,7 +14,6 @@
 class Device final {
 public:
     static constexpr size_t ADC_COUNT = 6;
-    static constexpr auto ADC_REQ_PERIOD = std::chrono::seconds(1);
 
 private:
     struct AdcEntry {
@@ -50,6 +49,7 @@ private:
     DoutEntry dout;
 
     std::unique_ptr<Channel> channel;
+    std::chrono::milliseconds adc_req_period = std::chrono::milliseconds(1);
 
 private:
     void recv_loop();
@@ -72,6 +72,7 @@ public:
 
     int32_t read_adc(size_t index);
     void set_adc_callback(size_t index, std::function<void()> &&callback);
+    void set_adc_req_period(std::chrono::milliseconds period);
 
     void write_dout(uint32_t value);
 

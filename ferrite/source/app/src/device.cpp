@@ -81,7 +81,7 @@ void Device::send_loop() {
         if (status == std::cv_status::timeout) {
             // std::cout << "[app] Request ADC measurements." << std::endl;
             channel->send(ipp::AppMsg{ipp::AppMsgAdcReq{}}, std::nullopt).unwrap();
-            next_wakeup = std::chrono::system_clock::now() + ADC_REQ_PERIOD;
+            next_wakeup = std::chrono::system_clock::now() + adc_req_period;
         }
         if (dac.update.exchange(false)) {
             int32_t value = dac.value.load();
@@ -131,6 +131,10 @@ int32_t Device::read_adc(size_t index) {
 void Device::set_adc_callback(size_t index, std::function<void()> &&callback) {
     assert_true(index < ADC_COUNT);
     adcs[index].notify = std::move(callback);
+}
+
+void Device::set_adc_req_period(std::chrono::milliseconds period) {
+    adc_req_period = period;
 }
 
 void Device::write_dout(uint32_t value) {

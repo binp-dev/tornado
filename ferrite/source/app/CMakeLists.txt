@@ -41,6 +41,7 @@ set(BASE_SRC
 
     "src/device.hpp"
     "src/device.cpp"
+    "src/handlers.hpp"
     "src/framework.hpp"
     "src/framework.cpp"
 )
