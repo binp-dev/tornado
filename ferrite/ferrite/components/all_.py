@@ -1,50 +1,46 @@
 from __future__ import annotations
 from typing import Dict
 
+from dataclasses import dataclass
+
 from ferrite.components.base import Component, Task, TaskWrapper, TaskList
-from ferrite.components.epics.epics_base import EpicsBase
+from ferrite.components.epics.epics_base import EpicsBase, EpicsBaseCross, EpicsBaseHost
 from ferrite.components.codegen import Codegen
-from ferrite.components.app import App
+from ferrite.components.app import App, AppTest
 from ferrite.components.ipp import Ipp
 from ferrite.components.epics.ioc import AppIoc
 from ferrite.components.mcu import Mcu
 from ferrite.remote.tasks import RebootTask
 
 
+@dataclass
 class AllHost(Component):
 
-    def __init__(
-        self,
-        epics_base: EpicsBase,
-        codegen: Codegen,
-        ipp: Ipp,
-        app: App,
-        ioc: AppIoc,
-    ):
-        super().__init__()
-        self.epics_base = epics_base
-        self.codegen = codegen
-        self.ipp = ipp
-        self.app = app
-        self.ioc = ioc
+    epics_base: EpicsBaseHost
+    codegen: Codegen
+    ipp: Ipp
+    app_test: AppTest
+    app: App
+    ioc: AppIoc
 
+    def __post_init__(self) -> None:
         self.build_task = TaskWrapper(
             deps=[
-                self.epics_base.tasks()["build"],
-                self.codegen.tasks()["build"],
-                self.ipp.tasks()["build"],
-                self.app.tasks()["build_unittest"],
-                self.app.tasks()["build_fakedev"],
-                self.ioc.tasks()["build"],
-            ]
+                self.epics_base.build_task,
+                self.codegen.build_task,
+                self.ipp.build_task,
+                self.app_test.build_task,
+                self.app.build_task,
+                self.ioc.build_task,
+            ],
         )
         self.test_task = TaskWrapper(
             deps=[
-                self.codegen.tasks()["test"],
-                self.ipp.tasks()["test"],
-                self.app.tasks()["run_unittest"],
-                self.ioc.tasks()["test_fakedev"],
-            ]
+                self.codegen.test_task,
+                self.ipp.test_task,
+                self.app_test.test_task,
+                self.ioc.test_fakedev_task,
+            ],
         )
 
     def tasks(self) -> Dict[str, Task]:
@@ -54,41 +50,35 @@ class AllHost(Component):
         }
 
 
+@dataclass
 class AllCross(Component):
 
-    def __init__(
-        self,
-        epics_base: EpicsBase,
-        app: App,
-        ioc: AppIoc,
-        mcu: Mcu,
-    ):
-        super().__init__()
-        self.epics_base = epics_base
-        self.app = app
-        self.ioc = ioc
-        self.mcu = mcu
+    epics_base: EpicsBaseCross
+    app: App
+    ioc: AppIoc
+    mcu: Mcu
 
+    def __post_init__(self) -> None:
         self.build_task = TaskWrapper(
             deps=[
-                self.mcu.tasks()["build"],
-                self.epics_base.tasks()["build"],
-                self.ioc.tasks()["build"],
-            ]
+                self.mcu.build_task,
+                self.epics_base.build_task,
+                self.ioc.build_task,
+            ],
         )
         self.deploy_task = TaskWrapper(
             deps=[
-                self.mcu.tasks()["deploy"],
-                self.epics_base.tasks()["deploy"],
-                self.ioc.tasks()["deploy"],
-            ]
+                self.mcu.deploy_task,
+                self.epics_base.deploy_task,
+                self.ioc.deploy_task,
+            ],
         )
         self.deploy_and_reboot_task = TaskWrapper(
             RebootTask(),
             deps=[self.deploy_task],
         )
         self.run_task = TaskWrapper(
-            self.ioc.tasks()["run"],
+            self.ioc.run_task,
             deps=[self.deploy_and_reboot_task],
         )
 

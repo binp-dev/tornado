@@ -8,8 +8,12 @@
 #include <thread>
 #include <functional>
 
-#include <channel/base.hpp>
 
+#include <channel/message.hpp>
+
+#include <ipp.hpp>
+
+using DeviceChannel = MessageChannel<ipp::AppMsg, ipp::McuMsg>;
 
 class Device final {
 public:
@@ -48,7 +52,7 @@ private:
     DinEntry din;
     DoutEntry dout;
 
-    std::unique_ptr<Channel> channel;
+    DeviceChannel channel;
     std::chrono::milliseconds adc_req_period = std::chrono::milliseconds(1);
 
 private:
@@ -61,7 +65,7 @@ public:
     Device(Device &&dev) = delete;
     Device &operator=(Device &&dev) = delete;
 
-    Device(std::unique_ptr<Channel> channel);
+    Device(DeviceChannel &&channel);
     ~Device();
 
     void start();

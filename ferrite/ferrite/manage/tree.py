@@ -11,7 +11,7 @@ from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 from ferrite.components.mcu import Mcu
 from ferrite.components.codegen import CodegenTest
 from ferrite.components.ipp import Ipp
-from ferrite.components.app import App
+from ferrite.components.app import App, AppTest
 from ferrite.components.epics.ioc import AppIoc
 from ferrite.components.all_ import AllHost, AllCross
 
@@ -30,9 +30,10 @@ class FerriteHostComponents(ComponentGroup):
         self.epics_base = EpicsBaseHost(target_dir, toolchain)
         self.codegen = CodegenTest(source_dir, target_dir, toolchain)
         self.ipp = Ipp(source_dir, target_dir, toolchain)
+        self.app_test = AppTest(source_dir, target_dir, toolchain)
         self.app = App(source_dir, target_dir, toolchain, self.ipp)
         self.ioc = AppIoc(source_dir, target_dir, self.epics_base, self.app, toolchain)
-        self.all = AllHost(self.epics_base, self.codegen, self.ipp, self.app, self.ioc)
+        self.all = AllHost(self.epics_base, self.codegen, self.ipp, self.app_test, self.app, self.ioc)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
         return self.__dict__

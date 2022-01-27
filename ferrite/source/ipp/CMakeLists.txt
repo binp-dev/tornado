@@ -2,26 +2,22 @@ cmake_minimum_required(VERSION 3.16)
 
 project("ipp")
 
-if(NOT DEFINED IPP_GENERATED)
-    message(FATAL_ERROR "IPP_GENERATED is not defined")
-endif()
-
 include_directories(
-    "${IPP_GENERATED}/include"
+    "include"
 )
 
 set(SRC
-    "${IPP_GENERATED}/include/ipp.h"
-    "${IPP_GENERATED}/src/ipp.c"
+    "include/ipp.h"
+    "src/ipp.c"
 )
 set(SRC_CPP
     ${SRC}
-    "${IPP_GENERATED}/include/ipp.hpp"
-    "${IPP_GENERATED}/src/ipp.cpp"
+    "include/ipp.hpp"
+    "src/ipp.cpp"
 )
 set(SRC_TEST
     ${SRC_CPP}
-    "${IPP_GENERATED}/src/ipp_test.cpp"
+    "src/ipp_test.cpp"
 )
 
 set(LIB ${PROJECT_NAME})

@@ -330,12 +330,7 @@ class AppIoc(Ioc):
 
     def _build_deps(self) -> List[Task]:
         deps = super()._build_deps()
-        if isinstance(self.epics_base, EpicsBaseHost):
-            deps.append(self.app.build_fakedev_task)
-        elif isinstance(self.epics_base, EpicsBaseCross):
-            deps.append(self.app.build_main_task)
-        else:
-            assert False, "Unknown toolchain type"
+        deps.append(self.app.build_task)
         return deps
 
     def _make_build_task(self) -> AppIocBuildTask:

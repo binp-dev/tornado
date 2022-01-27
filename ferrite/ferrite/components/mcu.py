@@ -104,12 +104,12 @@ class Mcu(Component):
             self.src_dir,
             target_dir / f"mcu_{self.toolchain.name}",
             toolchain,
-            opt=[
+            opts=[
                 "-DCMAKE_TOOLCHAIN_FILE={}".format(self.freertos.path / "tools/cmake_toolchain_files/armgcc.cmake"),
                 "-DCMAKE_BUILD_TYPE=Release",
-                *self.ipp.cmake_opts,
+                f"-DIPP_GENERATED={self.ipp.gen_dir}",
             ],
-            env={
+            envs={
                 "FREERTOS_DIR": str(self.freertos.path),
                 "ARMGCC_DIR": str(self.toolchain.path),
             }

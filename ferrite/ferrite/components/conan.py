@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from typing import List, Dict, Optional
 
 from pathlib import Path
@@ -71,34 +72,22 @@ class ConanProfile:
             f.write(self.generate())
 
 
+@dataclass
 class CmakeWithConan(Cmake):
-
-    def __init__(
-        self,
-        src_dir: Path,
-        build_dir: Path,
-        toolchain: Toolchain,
-        opt: List[str] = [],
-        env: Optional[Dict[str, str]] = None,
-    ):
-        super().__init__(
-            src_dir,
-            build_dir,
-            toolchain,
-            opt,
-            env,
-        )
+    # FIXME: Remove this option
+    disable_conan: bool = False
 
     def configure(self, ctx: Context) -> None:
-        self.create_build_dir()
+        if not self.disable_conan:
+            self.create_build_dir()
 
-        profile_path = self.build_dir / "profile.conan"
-        ConanProfile(self.toolchain).save(profile_path)
+            profile_path = self.build_dir / "profile.conan"
+            ConanProfile(self.toolchain).save(profile_path)
 
-        run(
-            ["conan", "install", "--build", "missing", self.src_dir, "--profile", profile_path],
-            cwd=self.build_dir,
-            quiet=ctx.capture,
-        )
+            run(
+                ["conan", "install", "--build", "missing", self.src_dir, "--profile", profile_path],
+                cwd=self.build_dir,
+                quiet=ctx.capture,
+            )
 
         super().configure(ctx)
