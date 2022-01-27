@@ -2,8 +2,9 @@ from __future__ import annotations
 from typing import Dict
 
 from pathlib import Path
+from dataclasses import dataclass
 
-from ferrite.components.base import Component
+from ferrite.components.base import Component, ComponentGroup
 from ferrite.components.toolchains import HostToolchain, CrossToolchain
 from ferrite.components.freertos import Freertos, FreertosImx7, FreertosImx8mn
 from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
@@ -17,11 +18,7 @@ from ferrite.components.all_ import AllHost, AllCross
 import ferrite.components.toolchains as toolchains
 
 
-class ComponentStorage:
-    pass
-
-
-class HostComponentStorage(ComponentStorage):
+class FerriteHostComponents(ComponentGroup):
 
     def __init__(
         self,
@@ -37,12 +34,15 @@ class HostComponentStorage(ComponentStorage):
         self.ioc = AppIoc(source_dir, target_dir, self.epics_base, self.app, toolchain)
         self.all = AllHost(self.epics_base, self.codegen, self.ipp, self.app, self.ioc)
 
+    def components(self) -> Dict[str, Component | ComponentGroup]:
+        return self.__dict__
 
-class CrossComponentStorage(ComponentStorage):
+
+class FerriteCrossComponents(ComponentGroup):
 
     def __init__(
         self,
-        host_components: HostComponentStorage,
+        host_components: FerriteHostComponents,
         source_dir: Path,
         target_dir: Path,
         app_toolchain: CrossToolchain,
@@ -59,42 +59,47 @@ class CrossComponentStorage(ComponentStorage):
         self.mcu = Mcu(source_dir, target_dir, mcu_toolchain, freertos, self.ipp)
         self.all = AllCross(self.epics_base, self.app, self.ioc, self.mcu)
 
+    def components(self) -> Dict[str, Component | ComponentGroup]:
+        return self.__dict__
 
-ComponentsDict = Dict[str, Component]
+
+@dataclass
+class FerriteComponents(ComponentGroup):
+    host: FerriteHostComponents
+    cross: Dict[str, FerriteCrossComponents]
+
+    def components(self) -> Dict[str, Component | ComponentGroup]:
+        return {
+            "host": self.host,
+            **self.cross,
+        }
 
 
-def make_components(source_dir: Path, target_dir: Path) -> ComponentsDict:
-    host = HostComponentStorage(
+def make_components(source_dir: Path, target_dir: Path) -> FerriteComponents:
+    host = FerriteHostComponents(
         source_dir,
         target_dir,
         toolchains.HostToolchain(),
     )
-    imx7 = CrossComponentStorage(
-        host,
-        source_dir,
-        target_dir,
-        toolchains.AppToolchainImx7(target_dir),
-        toolchains.McuToolchainImx7(target_dir),
-        FreertosImx7(target_dir),
+    tree = FerriteComponents(
+        host, {
+            "imx7": FerriteCrossComponents(
+                host,
+                source_dir,
+                target_dir,
+                toolchains.AppToolchainImx7(target_dir),
+                toolchains.McuToolchainImx7(target_dir),
+                FreertosImx7(target_dir),
+            ),
+            "imx8mn": FerriteCrossComponents(
+                host,
+                source_dir,
+                target_dir,
+                toolchains.AppToolchainImx8mn(target_dir),
+                toolchains.McuToolchainImx8mn(target_dir),
+                FreertosImx8mn(target_dir),
+            ),
+        }
     )
-    imx8mn = CrossComponentStorage(
-        host,
-        source_dir,
-        target_dir,
-        toolchains.AppToolchainImx8mn(target_dir),
-        toolchains.McuToolchainImx8mn(target_dir),
-        FreertosImx8mn(target_dir),
-    )
-
-    comps: ComponentsDict = {
-        **{f"host_{k}": c for k, c in host.__dict__.items()},
-        **{f"imx7_{k}": c for k, c in imx7.__dict__.items()},
-        **{f"imx8mn_{k}": c for k, c in imx8mn.__dict__.items()},
-    }
-
-    for cname, comp in comps.items():
-        for tname, task in comp.tasks().items():
-            if not task._name:
-                task._name = f"{cname}.{tname}"
-
-    return comps
+    tree._update_names()
+    return tree
