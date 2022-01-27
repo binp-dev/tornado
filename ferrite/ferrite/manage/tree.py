@@ -75,7 +75,10 @@ class FerriteComponents(ComponentGroup):
         }
 
 
-def make_components(source_dir: Path, target_dir: Path) -> FerriteComponents:
+def make_components(base_dir: Path, target_dir: Path) -> FerriteComponents:
+    source_dir = base_dir / "source"
+    assert source_dir.exists()
+
     host = FerriteHostComponents(
         source_dir,
         target_dir,

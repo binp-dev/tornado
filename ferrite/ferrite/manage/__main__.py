@@ -7,13 +7,11 @@ from ferrite.manage.tree import make_components
 from ferrite.manage.cli import add_parser_args, read_run_params, ReadRunParamsError, run_with_params
 
 if __name__ == "__main__":
-    source_dir = Path.cwd() / "source"
-    assert source_dir.exists()
-
-    target_dir = Path.cwd() / "target"
+    base_dir = Path.cwd()
+    target_dir = base_dir / "target"
     target_dir.mkdir(exist_ok=True)
 
-    components = make_components(source_dir, target_dir)
+    components = make_components(base_dir, target_dir)
 
     parser = argparse.ArgumentParser(
         description="Power supply controller software development automation tool",
