@@ -8,7 +8,7 @@ import logging
 from ferrite.utils.files import substitute, allow_patterns
 from ferrite.components.base import Component, Task, Context
 from ferrite.components.git import RepoList, RepoSource
-from ferrite.components.toolchains import Toolchain, HostToolchain, CrossToolchain
+from ferrite.components.toolchain import Toolchain, HostToolchain, CrossToolchain
 from ferrite.components.epics.base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch, epics_arch_by_target
 
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from ferrite.utils.run import run
 from ferrite.components.base import Artifact, Component, Task, Context
-from ferrite.components.toolchains import CrossToolchain, Toolchain
+from ferrite.components.toolchain import CrossToolchain, Toolchain
 
 
 @dataclass

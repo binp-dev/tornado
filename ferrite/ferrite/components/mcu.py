@@ -1,14 +1,16 @@
 from __future__ import annotations
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from typing import Dict, List
 
 import shutil
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from ferrite.components.base import Artifact, Component, Task, Context, TaskWrapper
 from ferrite.components.cmake import Cmake
-from ferrite.components.toolchains import CrossToolchain, McuToolchainImx7, McuToolchainImx8mn, Toolchain
+from ferrite.components.toolchain import CrossToolchain
 from ferrite.components.ipp import Ipp
 from ferrite.components.freertos import Freertos
+from ferrite.remote.base import Device
 from ferrite.remote.tasks import RebootTask
 
 
@@ -19,71 +21,32 @@ class McuTask(Task):
         self.owner = owner
 
 
-class McuBuildTask(McuTask):
+class McuDeployer:
 
-    def __init__(self, owner: Mcu):
-        super().__init__(owner)
+    def deploy(self, build_dir: Path, device: Device) -> None:
+        raise NotImplementedError()
 
-    def run(self, ctx: Context) -> None:
+
+class Mcu(Cmake):
+
+    @dataclass
+    class DeployTask(Task):
+        owner: Mcu
+        deployer: McuDeployer
+
+        def run(self, ctx: Context) -> None:
+            assert ctx.device is not None
+            self.deployer.deploy(self.owner.build_dir, ctx.device)
+
+        def dependencies(self) -> List[Task]:
+            return [self.owner.build_task]
+
+    def configure(self, ctx: Context) -> None:
         # Workaround to disable cmake caching (incremental build is broken anyway)
-        build_dir = self.owner.cmake.build_dir
-        if build_dir.exists():
-            shutil.rmtree(build_dir)
+        if self.build_dir.exists():
+            shutil.rmtree(self.build_dir)
 
-        self.owner.cmake.build_task.run(ctx)
-
-    def dependencies(self) -> List[Task]:
-        return [
-            self.owner.toolchain.download_task,
-            self.owner.freertos.clone_task,
-            self.owner.ipp.generate_task,
-        ]
-
-    def artifacts(self) -> List[Artifact]:
-        return [Artifact(self.owner.cmake.build_dir)]
-
-
-class McuDeployTask(McuTask):
-
-    def __init__(self, owner: Mcu):
-        super().__init__(owner)
-
-    def dependencies(self) -> List[Task]:
-        return [self.owner.tasks()["build"]]
-
-
-class McuDeployTaskImx7(McuDeployTask):
-
-    def __init__(self, owner: Mcu):
-        super().__init__(owner)
-
-    def run(self, ctx: Context) -> None:
-        assert ctx.device is not None
-        ctx.device.store(
-            self.owner.cmake.build_dir / "release/m4image.bin",
-            PurePosixPath("/m4image.bin"),
-        )
-        ctx.device.run(["bash", "-c", " && ".join([
-            "mount /dev/mmcblk2p1 /mnt",
-            "mv /m4image.bin /mnt",
-            "umount /mnt",
-        ])])
-
-
-class McuDeployTaskImx8mn(McuDeployTask):
-
-    def __init__(self, owner: Mcu):
-        super().__init__(owner)
-
-    def run(self, ctx: Context) -> None:
-        assert ctx.device is not None
-        ctx.device.store(
-            self.owner.cmake.build_dir / "m7image.bin",
-            PurePosixPath("/boot/m7image.bin"),
-        )
-
-
-class Mcu(Component):
+        super().configure(ctx)
 
     def __init__(
         self,
@@ -92,43 +55,39 @@ class Mcu(Component):
         toolchain: CrossToolchain,
         freertos: Freertos,
         ipp: Ipp,
+        deployer: McuDeployer,
     ):
-        super().__init__()
+        src_dir = source_dir / f"mcu/{toolchain.name}"
+        toolchain = toolchain
 
-        self.src_dir = source_dir / f"mcu/{toolchain.name}"
-        self.toolchain = toolchain
+        super().__init__(
+            src_dir,
+            target_dir / f"mcu_{toolchain.name}",
+            toolchain,
+            opts=[
+                "-DCMAKE_TOOLCHAIN_FILE={}".format(freertos.path / "tools/cmake_toolchain_files/armgcc.cmake"),
+                "-DCMAKE_BUILD_TYPE=Release",
+                f"-DIPP_GENERATED={ipp.gen_dir}",
+            ],
+            envs={
+                "FREERTOS_DIR": str(freertos.path),
+                "ARMGCC_DIR": str(toolchain.path),
+            },
+            deps=[
+                freertos.clone_task,
+                ipp.generate_task,
+            ],
+        )
         self.freertos = freertos
         self.ipp = ipp
 
-        self.cmake = Cmake(
-            self.src_dir,
-            target_dir / f"mcu_{self.toolchain.name}",
-            toolchain,
-            opts=[
-                "-DCMAKE_TOOLCHAIN_FILE={}".format(self.freertos.path / "tools/cmake_toolchain_files/armgcc.cmake"),
-                "-DCMAKE_BUILD_TYPE=Release",
-                f"-DIPP_GENERATED={self.ipp.gen_dir}",
-            ],
-            envs={
-                "FREERTOS_DIR": str(self.freertos.path),
-                "ARMGCC_DIR": str(self.toolchain.path),
-            }
-        )
-
-        self.build_task = McuBuildTask(self)
-
-        if isinstance(toolchain, McuToolchainImx7):
-            self.deploy_task: McuDeployTask = McuDeployTaskImx7(self)
-        elif isinstance(toolchain, McuToolchainImx8mn):
-            self.deploy_task = McuDeployTaskImx8mn(self)
-        else:
-            raise Exception("Unknown toolchain class")
-
+        self.deploy_task = self.DeployTask(self, deployer)
         self.deploy_and_reboot_task = TaskWrapper(RebootTask(), deps=[self.deploy_task])
 
     def tasks(self) -> Dict[str, Task]:
-        return {
-            "build": self.build_task,
+        tasks = super().tasks()
+        tasks.update({
             "deploy": self.deploy_task,
             "deploy_and_reboot": self.deploy_and_reboot_task,
-        }
+        })
+        return tasks

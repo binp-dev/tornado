@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ferrite.components.toolchains import Toolchain
+from ferrite.components.toolchain import Toolchain
 from ferrite.components.codegen import Codegen
 
 

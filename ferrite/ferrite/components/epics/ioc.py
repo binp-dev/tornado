@@ -5,12 +5,11 @@ import shutil
 import re
 import logging
 import time
-from subprocess import Popen
 from pathlib import Path, PurePosixPath
 
 from ferrite.utils.files import substitute
 from ferrite.components.base import Component, Task, FinalTask, Context
-from ferrite.components.toolchains import Toolchain, HostToolchain, CrossToolchain
+from ferrite.components.toolchain import Toolchain, HostToolchain, CrossToolchain
 from ferrite.components.app import App
 from ferrite.remote.base import Device, Connection
 from ferrite.components.epics.base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch

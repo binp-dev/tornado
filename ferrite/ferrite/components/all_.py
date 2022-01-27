@@ -3,8 +3,8 @@ from typing import Dict
 
 from dataclasses import dataclass
 
-from ferrite.components.base import Component, Task, TaskWrapper, TaskList
-from ferrite.components.epics.epics_base import EpicsBase, EpicsBaseCross, EpicsBaseHost
+from ferrite.components.base import Component, Task, TaskWrapper
+from ferrite.components.epics.epics_base import EpicsBaseCross, EpicsBaseHost
 from ferrite.components.codegen import Codegen
 from ferrite.components.app import App, AppTest
 from ferrite.components.ipp import Ipp
