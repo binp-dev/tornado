@@ -8,15 +8,15 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -fno-exceptions")
 
 include_directories(
-    "${CODEGEN_TEST}/include"
+    "${CODEGEN_GENERATED}/include"
 )
 
 set(SRC
-    "${CODEGEN_TEST}/include/codegen.h"
-    "${CODEGEN_TEST}/src/codegen.c"
-    "${CODEGEN_TEST}/include/codegen.hpp"
-    "${CODEGEN_TEST}/src/codegen.cpp"
-    "${CODEGEN_TEST}/src/codegen_test.cpp"
+    "${CODEGEN_GENERATED}/include/codegen.h"
+    "${CODEGEN_GENERATED}/src/codegen.c"
+    "${CODEGEN_GENERATED}/include/codegen.hpp"
+    "${CODEGEN_GENERATED}/src/codegen.cpp"
+    "${CODEGEN_GENERATED}/src/codegen_test.cpp"
 )
 
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)

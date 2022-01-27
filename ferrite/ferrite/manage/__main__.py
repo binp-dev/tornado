@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         description="Power supply controller software development automation tool",
-        usage="python -m ferrite.manage <component>.<task> [options...]",
+        usage="python -m ferrite.manage <task> [options...]",
     )
     add_parser_args(parser, components)
 
