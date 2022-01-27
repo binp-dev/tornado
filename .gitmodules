@@ -1,0 +1,3 @@
+[submodule "ferrite"]
+	path = ferrite
+	url = ../ferrite.git
