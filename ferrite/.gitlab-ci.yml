@@ -42,13 +42,13 @@ host.codegen.generate:
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.codegen.generate
   artifacts:
     paths:
-      - target/codegen_test_src
+      - target/codegen_generated
 
-imx8mn.ipp.generate:
+host.ipp.generate:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.ipp.generate
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.ipp.generate
   artifacts:
     paths:
       - target/ipp_generated
@@ -120,13 +120,13 @@ host.codegen.build:
     paths:
       - target/codegen_host
 
-imx8mn.ipp.build:
+host.ipp.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.ipp.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.ipp.build
   needs:
-    - imx8mn.ipp.generate
+    - host.ipp.generate
   artifacts:
     paths:
       - target/ipp_host
@@ -137,7 +137,7 @@ host.app.build_unittest:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app.build_unittest
   needs:
-    - imx8mn.ipp.generate
+    - host.ipp.generate
   artifacts:
     paths:
       - target/app_host
@@ -166,7 +166,7 @@ host.app.build_fakedev:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app.build_fakedev
   needs:
-    - imx8mn.ipp.generate
+    - host.ipp.generate
   artifacts:
     paths:
       - target/app_host
@@ -177,8 +177,8 @@ imx8mn.mcu.build:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.mcu.build
   needs:
+    - host.ipp.generate
     - imx8mn.freertos.clone
-    - imx8mn.ipp.generate
     - imx8mn.mcu_toolchain.download
   artifacts:
     paths:
@@ -190,8 +190,8 @@ imx8mn.app.build_main:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.app.build_main
   needs:
+    - host.ipp.generate
     - imx8mn.app_toolchain.download
-    - imx8mn.ipp.generate
   artifacts:
     paths:
       - target/app_imx8mn
@@ -204,13 +204,13 @@ host.codegen.test:
   needs:
     - host.codegen.build
 
-imx8mn.ipp.test:
+host.ipp.test:
   stage: "2"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.ipp.test
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.ipp.test
   needs:
-    - imx8mn.ipp.build
+    - host.ipp.build
 
 host.app.run_unittest:
   stage: "2"
@@ -284,7 +284,7 @@ host.all.test:
     - host.app.run_unittest
     - host.codegen.test
     - host.ioc.test_fakedev
-    - imx8mn.ipp.test
+    - host.ipp.test
 
 imx8mn.all.build:
   stage: "4"

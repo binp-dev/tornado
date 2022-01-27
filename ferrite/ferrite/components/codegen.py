@@ -1,25 +1,26 @@
 from __future__ import annotations
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 from pathlib import Path
+from dataclasses import dataclass
 
 from ferrite.utils.run import run
 from ferrite.components.base import Artifact, Component, Task, Context
 from ferrite.components.cmake import Cmake
 from ferrite.components.conan import CmakeWithConan
-from ferrite.components.toolchains import HostToolchain
+from ferrite.components.toolchains import HostToolchain, Toolchain
 
 
+@dataclass
 class CodegenBuildTestTask(Task):
 
-    def __init__(self, cmake: Cmake, generate_task: Task):
-        super().__init__()
-        self.cmake = cmake
-        self.generate_task = generate_task
+    executable: str
+    cmake: Cmake
+    generate_task: Task
 
     def run(self, ctx: Context) -> None:
         self.cmake.configure(ctx)
-        self.cmake.build(ctx, "codegen_test")
+        self.cmake.build(ctx, self.executable)
 
     def artifacts(self) -> List[Artifact]:
         return [Artifact(self.cmake.build_dir)]
@@ -28,29 +29,27 @@ class CodegenBuildTestTask(Task):
         return [self.generate_task]
 
 
+@dataclass
 class CodegenRunTestTask(Task):
-
-    def __init__(self, cmake: Cmake, build_task: Task):
-        super().__init__()
-        self.cmake = cmake
-        self.build_task = build_task
+    executable: str
+    cmake: Cmake
+    build_task: Task
 
     def run(self, ctx: Context) -> None:
-        run(["./codegen_test"], cwd=self.cmake.build_dir, quiet=ctx.capture)
+        run([f"./{self.executable}"], cwd=self.cmake.build_dir, quiet=ctx.capture)
 
     def dependencies(self) -> List[Task]:
         return [self.build_task]
 
 
+@dataclass
 class CodegenGenerateTestTask(Task):
 
-    def __init__(self, owner: Codegen) -> None:
-        super().__init__()
-        self.owner = owner
+    owner: Codegen
+    generate: Callable[[Path], None]
 
     def run(self, ctx: Context) -> None:
-        from ferrite.codegen.test import generate
-        generate(self.owner.generated_dir)
+        self.generate(self.owner.generated_dir)
 
     def artifacts(self) -> List[Artifact]:
         return [Artifact(self.owner.generated_dir)]
@@ -62,22 +61,36 @@ class Codegen(Component):
         self,
         source_dir: Path,
         target_dir: Path,
-        toolchain: HostToolchain,
+        toolchain: Toolchain,
+        prefix: str,
+        generate: Callable[[Path], None],
     ):
         super().__init__()
 
-        assert isinstance(toolchain, HostToolchain)
         self.toolchain = toolchain
+        self.prefix = prefix
+        self.generate = generate
 
-        self.src_dir = source_dir / "codegen"
-        self.generated_dir = target_dir / f"codegen_test_src"
-        self.build_dir = target_dir / f"codegen_{self.toolchain.name}"
+        self.src_dir = source_dir / self.prefix
+        self.generated_dir = target_dir / f"{self.prefix}_generated"
+        self.build_dir = target_dir / f"{self.prefix}_{self.toolchain.name}"
 
-        self.cmake = CmakeWithConan(self.src_dir, self.build_dir, self.toolchain, [f"-DCODEGEN_TEST={self.generated_dir}"])
+        self.cmake_opts = [f"-D{self.prefix.upper()}_GENERATED={self.generated_dir}"]
+        self.cmake = CmakeWithConan(
+            self.src_dir,
+            self.build_dir,
+            self.toolchain,
+            opt=[
+                "-DCMAKE_BUILD_TYPE=Debug",
+                f"-D{self.prefix.upper()}_TEST=1",
+                *self.cmake_opts,
+            ],
+        )
 
-        self.generate_task = CodegenGenerateTestTask(self)
-        self.build_test_task = CodegenBuildTestTask(self.cmake, self.generate_task)
-        self.run_test_task = CodegenRunTestTask(self.cmake, self.build_test_task)
+        self.executable = f"{self.prefix}_test"
+        self.generate_task = CodegenGenerateTestTask(self, self.generate)
+        self.build_test_task = CodegenBuildTestTask(self.executable, self.cmake, self.generate_task)
+        self.run_test_task = CodegenRunTestTask(self.executable, self.cmake, self.build_test_task)
 
     def tasks(self) -> Dict[str, Task]:
         return {
@@ -85,3 +98,16 @@ class Codegen(Component):
             "build": self.build_test_task,
             "test": self.run_test_task,
         }
+
+
+class CodegenTest(Codegen):
+
+    def __init__(
+        self,
+        source_dir: Path,
+        target_dir: Path,
+        toolchain: HostToolchain,
+    ):
+        from ferrite.codegen.test import generate
+
+        super().__init__(source_dir, target_dir, toolchain, "codegen", generate)

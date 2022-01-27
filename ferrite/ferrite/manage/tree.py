@@ -9,7 +9,7 @@ from ferrite.components.toolchains import HostToolchain, CrossToolchain
 from ferrite.components.freertos import Freertos, FreertosImx7, FreertosImx8mn
 from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 from ferrite.components.mcu import Mcu
-from ferrite.components.codegen import Codegen
+from ferrite.components.codegen import CodegenTest
 from ferrite.components.ipp import Ipp
 from ferrite.components.app import App
 from ferrite.components.epics.ioc import AppIoc
@@ -28,8 +28,8 @@ class FerriteHostComponents(ComponentGroup):
     ) -> None:
         self.toolchain = toolchain
         self.epics_base = EpicsBaseHost(target_dir, toolchain)
-        self.codegen = Codegen(source_dir, target_dir, toolchain)
-        self.ipp = Ipp(source_dir, target_dir, toolchain, self.codegen)
+        self.codegen = CodegenTest(source_dir, target_dir, toolchain)
+        self.ipp = Ipp(source_dir, target_dir, toolchain)
         self.app = App(source_dir, target_dir, toolchain, self.ipp)
         self.ioc = AppIoc(source_dir, target_dir, self.epics_base, self.app, toolchain)
         self.all = AllHost(self.epics_base, self.codegen, self.ipp, self.app, self.ioc)
@@ -53,10 +53,9 @@ class FerriteCrossComponents(ComponentGroup):
         self.mcu_toolchain = mcu_toolchain
         self.freertos = freertos
         self.epics_base = EpicsBaseCross(target_dir, app_toolchain, host_components.epics_base)
-        self.ipp = host_components.ipp
-        self.app = App(source_dir, target_dir, app_toolchain, self.ipp)
+        self.app = App(source_dir, target_dir, app_toolchain, host_components.ipp)
         self.ioc = AppIoc(source_dir, target_dir, self.epics_base, self.app, app_toolchain)
-        self.mcu = Mcu(source_dir, target_dir, mcu_toolchain, freertos, self.ipp)
+        self.mcu = Mcu(source_dir, target_dir, mcu_toolchain, freertos, host_components.ipp)
         self.all = AllCross(self.epics_base, self.app, self.ioc, self.mcu)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
