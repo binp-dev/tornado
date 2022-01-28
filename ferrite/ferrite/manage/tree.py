@@ -5,8 +5,7 @@ from pathlib import Path
 from dataclasses import dataclass
 
 from ferrite.components.base import Component, ComponentGroup
-from ferrite.components.toolchain import HostToolchain, CrossToolchain
-from ferrite.components.freertos import Freertos
+from ferrite.components.toolchain import HostToolchain
 from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 from ferrite.components.mcu import Mcu
 from ferrite.components.codegen import CodegenTest
@@ -17,8 +16,6 @@ from ferrite.components.all_ import AllHost, AllCross
 from ferrite.components.platforms.base import Platform
 from ferrite.components.platforms.imx7 import Imx7Platform
 from ferrite.components.platforms.imx8mn import Imx8mnPlatform
-
-import ferrite.components.toolchain as toolchain
 
 
 class FerriteHostComponents(ComponentGroup):
@@ -83,7 +80,7 @@ def make_components(base_dir: Path, target_dir: Path) -> FerriteComponents:
     host = FerriteHostComponents(
         source_dir,
         target_dir,
-        toolchain.HostToolchain(),
+        HostToolchain(),
     )
     tree = FerriteComponents(
         host, {
