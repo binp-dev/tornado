@@ -7,7 +7,7 @@ import logging
 
 from ferrite.utils.run import capture, run
 from ferrite.components.base import Artifact, Task, Context
-from ferrite.components.toolchains import Target, Toolchain, HostToolchain
+from ferrite.components.toolchain import Target, Toolchain, HostToolchain
 
 
 def epics_host_arch(epics_base_dir: Path) -> str:

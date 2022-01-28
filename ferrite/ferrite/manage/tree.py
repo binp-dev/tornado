@@ -5,17 +5,17 @@ from pathlib import Path
 from dataclasses import dataclass
 
 from ferrite.components.base import Component, ComponentGroup
-from ferrite.components.toolchains import HostToolchain, CrossToolchain
-from ferrite.components.freertos import Freertos, FreertosImx7, FreertosImx8mn
+from ferrite.components.toolchain import HostToolchain
 from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 from ferrite.components.mcu import Mcu
 from ferrite.components.codegen import CodegenTest
 from ferrite.components.ipp import Ipp
-from ferrite.components.app import App
+from ferrite.components.app import App, AppTest
 from ferrite.components.epics.ioc import AppIoc
 from ferrite.components.all_ import AllHost, AllCross
-
-import ferrite.components.toolchains as toolchains
+from ferrite.components.platforms.base import Platform
+from ferrite.components.platforms.imx7 import Imx7Platform
+from ferrite.components.platforms.imx8mn import Imx8mnPlatform
 
 
 class FerriteHostComponents(ComponentGroup):
@@ -30,9 +30,10 @@ class FerriteHostComponents(ComponentGroup):
         self.epics_base = EpicsBaseHost(target_dir, toolchain)
         self.codegen = CodegenTest(source_dir, target_dir, toolchain)
         self.ipp = Ipp(source_dir, target_dir, toolchain)
+        self.app_test = AppTest(source_dir, target_dir, toolchain)
         self.app = App(source_dir, target_dir, toolchain, self.ipp)
         self.ioc = AppIoc(source_dir, target_dir, self.epics_base, self.app, toolchain)
-        self.all = AllHost(self.epics_base, self.codegen, self.ipp, self.app, self.ioc)
+        self.all = AllHost(self.epics_base, self.codegen, self.ipp, self.app_test, self.app, self.ioc)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
         return self.__dict__
@@ -42,20 +43,18 @@ class FerriteCrossComponents(ComponentGroup):
 
     def __init__(
         self,
-        host_components: FerriteHostComponents,
         source_dir: Path,
         target_dir: Path,
-        app_toolchain: CrossToolchain,
-        mcu_toolchain: CrossToolchain,
-        freertos: Freertos,
+        host_components: FerriteHostComponents,
+        platform: Platform,
     ) -> None:
-        self.app_toolchain = app_toolchain
-        self.mcu_toolchain = mcu_toolchain
-        self.freertos = freertos
-        self.epics_base = EpicsBaseCross(target_dir, app_toolchain, host_components.epics_base)
-        self.app = App(source_dir, target_dir, app_toolchain, host_components.ipp)
-        self.ioc = AppIoc(source_dir, target_dir, self.epics_base, self.app, app_toolchain)
-        self.mcu = Mcu(source_dir, target_dir, mcu_toolchain, freertos, host_components.ipp)
+        self.app_toolchain = platform.app.toolchain
+        self.mcu_toolchain = platform.mcu.toolchain
+        self.freertos = platform.mcu.freertos
+        self.epics_base = EpicsBaseCross(target_dir, self.app_toolchain, host_components.epics_base)
+        self.app = App(source_dir, target_dir, self.app_toolchain, host_components.ipp)
+        self.ioc = AppIoc(source_dir, target_dir, self.epics_base, self.app, self.app_toolchain)
+        self.mcu = Mcu(source_dir, target_dir, self.mcu_toolchain, self.freertos, platform.mcu.deployer, host_components.ipp)
         self.all = AllCross(self.epics_base, self.app, self.ioc, self.mcu)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
@@ -74,29 +73,28 @@ class FerriteComponents(ComponentGroup):
         }
 
 
-def make_components(source_dir: Path, target_dir: Path) -> FerriteComponents:
+def make_components(base_dir: Path, target_dir: Path) -> FerriteComponents:
+    source_dir = base_dir / "source"
+    assert source_dir.exists()
+
     host = FerriteHostComponents(
         source_dir,
         target_dir,
-        toolchains.HostToolchain(),
+        HostToolchain(),
     )
     tree = FerriteComponents(
         host, {
             "imx7": FerriteCrossComponents(
-                host,
                 source_dir,
                 target_dir,
-                toolchains.AppToolchainImx7(target_dir),
-                toolchains.McuToolchainImx7(target_dir),
-                FreertosImx7(target_dir),
+                host,
+                Imx7Platform(target_dir),
             ),
             "imx8mn": FerriteCrossComponents(
-                host,
                 source_dir,
                 target_dir,
-                toolchains.AppToolchainImx8mn(target_dir),
-                toolchains.McuToolchainImx8mn(target_dir),
-                FreertosImx8mn(target_dir),
+                host,
+                Imx8mnPlatform(target_dir),
             ),
         }
     )

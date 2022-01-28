@@ -5,13 +5,12 @@ import shutil
 import re
 import logging
 import time
-from subprocess import Popen
 from pathlib import Path, PurePosixPath
 
 from ferrite.utils.files import substitute
 from ferrite.components.base import Component, Task, FinalTask, Context
-from ferrite.components.toolchains import Toolchain, HostToolchain, CrossToolchain
-from ferrite.components.app import App
+from ferrite.components.toolchain import Toolchain, HostToolchain, CrossToolchain
+from ferrite.components.app import AppBase
 from ferrite.remote.base import Device, Connection
 from ferrite.components.epics.base import EpicsBuildTask, EpicsDeployTask, epics_arch, epics_host_arch
 from ferrite.components.epics.epics_base import EpicsBase, EpicsBaseCross, EpicsBaseHost
@@ -300,7 +299,6 @@ class Ioc(Component):
         ioc_dir: Path,
         target_dir: Path,
         epics_base: EpicsBase,
-        app: App,
         toolchain: Toolchain,
     ):
         super().__init__()
@@ -308,7 +306,6 @@ class Ioc(Component):
         self.name = name
         self.src_path = ioc_dir
         self.epics_base = epics_base
-        self.app = app
         self.toolchain = toolchain
 
         self.names = {
@@ -330,12 +327,7 @@ class AppIoc(Ioc):
 
     def _build_deps(self) -> List[Task]:
         deps = super()._build_deps()
-        if isinstance(self.epics_base, EpicsBaseHost):
-            deps.append(self.app.build_fakedev_task)
-        elif isinstance(self.epics_base, EpicsBaseCross):
-            deps.append(self.app.build_main_task)
-        else:
-            assert False, "Unknown toolchain type"
+        deps.append(self.app.build_task)
         return deps
 
     def _make_build_task(self) -> AppIocBuildTask:
@@ -356,15 +348,16 @@ class AppIoc(Ioc):
         source_dir: Path,
         target_dir: Path,
         epics_base: EpicsBase,
-        app: App,
+        app: AppBase,
         toolchain: Toolchain,
     ):
+        self.app = app
+
         super().__init__(
             "ioc",
             source_dir / "ioc",
             target_dir,
             epics_base,
-            app,
             toolchain,
         )
 

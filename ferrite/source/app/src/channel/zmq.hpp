@@ -37,10 +37,8 @@ private:
     inline ZmqChannel(
         const std::string &host,
         zmq_helper::ContextGuard &&context,
-        zmq_helper::SocketGuard &&socket,
-        size_t max_len
+        zmq_helper::SocketGuard &&socket
     ) :
-        Channel(max_len),
         host_(host),
         context_(std::move(context)),
         socket_(std::move(socket))
@@ -52,8 +50,8 @@ public:
     ZmqChannel(ZmqChannel &&) = default;
     ZmqChannel &operator=(ZmqChannel &&) = default;
 
-    static Result<ZmqChannel, Error> create(const std::string &host, size_t max_length);
+    static Result<ZmqChannel, Error> create(const std::string &host);
 
-    virtual Result<std::monostate, Error> send_raw(const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout) override;
-    virtual Result<size_t, Error> receive_raw(uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout) override;
+    virtual Result<std::monostate, Error> send(const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout) override;
+    virtual Result<size_t, Error> receive(uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout) override;
 };
