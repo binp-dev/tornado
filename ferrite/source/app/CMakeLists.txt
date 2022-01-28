@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project("app")
+project("app_lib")
 
 set(CMAKE_C_FLAGS_DEBUG "-g -rdynamic -funwind-tables")
 set(CMAKE_C_FLAGS "-Wall -Wextra -Werror=return-type")
@@ -9,14 +9,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -fno-exceptions")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include_directories("src")
-if(DEFINED APP_MAIN OR DEFINED APP_FAKEDEV)
-    # set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-checks=*")
-    if(NOT DEFINED IPP_GEN_DIR)
-        message(FATAL_ERROR "IPP_GEN_DIR is not defined")
-    endif()
-    include_directories("${IPP_GEN_DIR}/include")
-    add_subdirectory(${IPP_GEN_DIR} "ipp")
-endif()
+# set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-checks=*")
 
 set(COMMON_SRC
     "src/core/assert.hpp"
@@ -40,23 +33,15 @@ set(COMMON_SRC
     "src/channel/message.hpp"
     "src/channel/message.hxx"
 )
-set(BASE_SRC
-    ${COMMON_SRC}
 
-    "src/device.hpp"
-    "src/device.cpp"
-    "src/handlers.hpp"
-    "src/framework.cpp"
-    "src/framework.hpp"
-)
 set(MAIN_SRC
-    ${BASE_SRC}
+    ${COMMON_SRC}
 
     "src/channel/rpmsg.hpp"
     "src/channel/rpmsg.cpp"
 )
 set(FAKEDEV_SRC
-    ${BASE_SRC}
+    ${COMMON_SRC}
 
     "src/channel/zmq.hpp"
     "src/channel/zmq.cpp"
@@ -90,14 +75,12 @@ set(UNITTEST_DEFS
     "UNITTEST"
 )
 
-set(BASE_LIBS
-    "ipp_cpp"
-)
+set(COMMON_LIBS)
 set(MAIN_LIBS
-    ${BASE_LIBS}
+    ${COMMON_LIBS}
 )
 set(FAKEDEV_LIBS
-    ${BASE_LIBS}
+    ${COMMON_LIBS}
     ${CONAN_LIBS}
 )
 set(UNITTEST_LIBS
@@ -108,14 +91,14 @@ set(UNITTEST_LIBS
 
 if(DEFINED APP_MAIN)
     set(MAIN ${PROJECT_NAME})
-    add_library(${MAIN} SHARED ${MAIN_SRC})
+    add_library(${MAIN} OBJECT ${MAIN_SRC})
     target_compile_definitions(${MAIN} PRIVATE ${MAIN_DEFS})
     target_link_libraries(${MAIN} PRIVATE ${MAIN_LIBS})
 endif()
 
 if(DEFINED APP_FAKEDEV)
     set(FAKEDEV "${PROJECT_NAME}_fakedev")
-    add_library(${FAKEDEV} SHARED ${FAKEDEV_SRC})
+    add_library(${FAKEDEV} OBJECT ${FAKEDEV_SRC})
     target_compile_definitions(${FAKEDEV} PRIVATE ${FAKEDEV_DEFS})
     target_link_libraries(${FAKEDEV} PRIVATE ${FAKEDEV_LIBS})
 endif()

@@ -1,13 +1,12 @@
 from __future__ import annotations
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from pathlib import Path
 from dataclasses import dataclass
 
 from ferrite.components.cmake import CmakeWithTest
 from ferrite.components.conan import CmakeWithConan
-from ferrite.components.ipp import Ipp
-from ferrite.components.toolchain import Toolchain, HostToolchain, CrossToolchain
+from ferrite.components.toolchain import HostToolchain, CrossToolchain
 
 
 @dataclass
@@ -25,39 +24,6 @@ class AppBase(CmakeWithConan):
             })
 
         super().__post_init__()
-
-
-class App(AppBase):
-
-    def __init__(
-        self,
-        source_dir: Path,
-        target_dir: Path,
-        toolchain: Toolchain,
-        ipp: Ipp,
-    ):
-        src_dir = source_dir / "app"
-        build_dir = target_dir / f"app_{toolchain.name}"
-
-        opts: List[str] = [f"-DIPP_GEN_DIR={ipp.gen_dir}"]
-        if isinstance(toolchain, HostToolchain):
-            target = "app_fakedev"
-            opts.append("-DAPP_FAKEDEV=1")
-        if isinstance(toolchain, CrossToolchain):
-            target = "app"
-            opts.append("-DAPP_MAIN=1")
-
-        super().__init__(
-            src_dir,
-            build_dir,
-            toolchain,
-            opts=opts,
-            deps=[ipp.generate_task],
-            target=target,
-            cmake_toolchain_path=src_dir / "armgcc.cmake",
-            disable_conan=isinstance(toolchain, CrossToolchain),
-        )
-        self.ipp = ipp
 
 
 class AppTest(CmakeWithConan, CmakeWithTest):
