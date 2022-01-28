@@ -1,7 +1,8 @@
 from __future__ import annotations
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from pathlib import Path
+from dataclasses import dataclass
 
 from ferrite.components.cmake import CmakeWithTest
 from ferrite.components.conan import CmakeWithConan
@@ -9,7 +10,24 @@ from ferrite.components.ipp import Ipp
 from ferrite.components.toolchain import Toolchain, HostToolchain, CrossToolchain
 
 
-class App(CmakeWithConan):
+@dataclass
+class AppBase(CmakeWithConan):
+    cmake_toolchain_path: Optional[Path] = None
+
+    def __post_init__(self) -> None:
+        self.opts.append("-DCMAKE_BUILD_TYPE=Debug")
+
+        if isinstance(self.toolchain, CrossToolchain):
+            self.opts.append(f"-DCMAKE_TOOLCHAIN_FILE={self.cmake_toolchain_path}")
+            self.envs.update({
+                "TOOLCHAIN_DIR": str(self.toolchain.path),
+                "TARGET_TRIPLE": str(self.toolchain.target),
+            })
+
+        super().__post_init__()
+
+
+class App(AppBase):
 
     def __init__(
         self,
@@ -21,32 +39,22 @@ class App(CmakeWithConan):
         src_dir = source_dir / "app"
         build_dir = target_dir / f"app_{toolchain.name}"
 
-        opts: List[str] = [
-            "-DCMAKE_BUILD_TYPE=Debug",
-            f"-DIPP_GEN_DIR={ipp.gen_dir}",
-        ]
-        envs: Dict[str, str] = {}
+        opts: List[str] = [f"-DIPP_GEN_DIR={ipp.gen_dir}"]
         if isinstance(toolchain, HostToolchain):
             target = "app_fakedev"
             opts.append("-DAPP_FAKEDEV=1")
         if isinstance(toolchain, CrossToolchain):
             target = "app"
             opts.append("-DAPP_MAIN=1")
-            toolchain_cmake_path = src_dir / "armgcc.cmake"
-            opts.append(f"-DCMAKE_TOOLCHAIN_FILE={toolchain_cmake_path}")
-            envs.update({
-                "TOOLCHAIN_DIR": str(toolchain.path),
-                "TARGET_TRIPLE": str(toolchain.target),
-            })
 
         super().__init__(
             src_dir,
             build_dir,
             toolchain,
             opts=opts,
-            envs=envs,
             deps=[ipp.generate_task],
             target=target,
+            cmake_toolchain_path=src_dir / "armgcc.cmake",
             disable_conan=isinstance(toolchain, CrossToolchain),
         )
         self.ipp = ipp
