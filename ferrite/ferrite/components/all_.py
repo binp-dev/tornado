@@ -8,7 +8,7 @@ from ferrite.components.epics.epics_base import EpicsBaseCross, EpicsBaseHost
 from ferrite.components.codegen import Codegen
 from ferrite.components.app import App, AppTest
 from ferrite.components.ipp import Ipp
-from ferrite.components.epics.ioc import AppIoc
+from ferrite.components.epics.app_ioc import AppIoc
 from ferrite.components.mcu import Mcu
 from ferrite.remote.tasks import RebootTask
 

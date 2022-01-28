@@ -11,7 +11,7 @@ from ferrite.components.mcu import Mcu
 from ferrite.components.codegen import CodegenTest
 from ferrite.components.ipp import Ipp
 from ferrite.components.app import App, AppTest
-from ferrite.components.epics.ioc import AppIoc
+from ferrite.components.epics.app_ioc import AppIoc
 from ferrite.components.all_ import AllHost, AllCross
 from ferrite.components.platforms.base import Platform
 from ferrite.components.platforms.imx7 import Imx7Platform
