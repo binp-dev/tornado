@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List
 
 import shutil
@@ -27,11 +27,11 @@ class McuDeployer:
         raise NotImplementedError()
 
 
-class Mcu(Cmake):
+class McuBase(Cmake):
 
     @dataclass
     class DeployTask(Task):
-        owner: Mcu
+        owner: McuBase
         deployer: McuDeployer
 
         def run(self, ctx: Context) -> None:
@@ -54,8 +54,10 @@ class Mcu(Cmake):
         target_dir: Path,
         toolchain: CrossToolchain,
         freertos: Freertos,
-        ipp: Ipp,
         deployer: McuDeployer,
+        opts: List[str] = [],
+        envs: Dict[str, str] = {},
+        deps: List[Task] = [],
     ):
         src_dir = source_dir / f"mcu/{toolchain.name}"
         toolchain = toolchain
@@ -67,19 +69,19 @@ class Mcu(Cmake):
             opts=[
                 "-DCMAKE_TOOLCHAIN_FILE={}".format(freertos.path / "tools/cmake_toolchain_files/armgcc.cmake"),
                 "-DCMAKE_BUILD_TYPE=Release",
-                f"-DIPP_GENERATED={ipp.gen_dir}",
+                *opts,
             ],
             envs={
                 "FREERTOS_DIR": str(freertos.path),
                 "ARMGCC_DIR": str(toolchain.path),
+                **envs,
             },
             deps=[
                 freertos.clone_task,
-                ipp.generate_task,
+                *deps,
             ],
         )
         self.freertos = freertos
-        self.ipp = ipp
 
         self.deploy_task = self.DeployTask(self, deployer)
         self.deploy_and_reboot_task = TaskWrapper(RebootTask(), deps=[self.deploy_task])
@@ -91,3 +93,26 @@ class Mcu(Cmake):
             "deploy_and_reboot": self.deploy_and_reboot_task,
         })
         return tasks
+
+
+class Mcu(McuBase):
+
+    def __init__(
+        self,
+        source_dir: Path,
+        target_dir: Path,
+        toolchain: CrossToolchain,
+        freertos: Freertos,
+        deployer: McuDeployer,
+        ipp: Ipp,
+    ):
+        super().__init__(
+            source_dir,
+            target_dir,
+            toolchain,
+            freertos,
+            deployer,
+            opts=[f"-DIPP_GENERATED={ipp.gen_dir}"],
+            deps=[ipp.generate_task],
+        )
+        self.ipp = ipp

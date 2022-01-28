@@ -54,7 +54,7 @@ class FerriteCrossComponents(ComponentGroup):
         self.epics_base = EpicsBaseCross(target_dir, self.app_toolchain, host_components.epics_base)
         self.app = App(source_dir, target_dir, self.app_toolchain, host_components.ipp)
         self.ioc = AppIoc(source_dir, target_dir, self.epics_base, self.app, self.app_toolchain)
-        self.mcu = Mcu(source_dir, target_dir, self.mcu_toolchain, self.freertos, host_components.ipp, platform.mcu.deployer)
+        self.mcu = Mcu(source_dir, target_dir, self.mcu_toolchain, self.freertos, platform.mcu.deployer, host_components.ipp)
         self.all = AllCross(self.epics_base, self.app, self.ioc, self.mcu)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
