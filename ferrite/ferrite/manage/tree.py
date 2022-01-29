@@ -11,7 +11,7 @@ from ferrite.components.mcu import Mcu
 from ferrite.components.codegen import CodegenTest
 from ferrite.components.ipp import Ipp
 from ferrite.components.app import App, AppTest
-from ferrite.components.epics.app_ioc import AppIoc
+from ferrite.components.epics.app_ioc import AppIocHost, AppIocCross
 from ferrite.components.all_ import AllHost, AllCross
 from ferrite.components.platforms.base import Platform
 from ferrite.components.platforms.imx7 import Imx7Platform
@@ -32,7 +32,7 @@ class FerriteHostComponents(ComponentGroup):
         self.ipp = Ipp(source_dir, target_dir, toolchain)
         self.app_test = AppTest(source_dir, target_dir, toolchain)
         self.app = App(source_dir, target_dir, toolchain, self.ipp)
-        self.ioc = AppIoc(source_dir, target_dir, self.epics_base, self.app, toolchain)
+        self.ioc = AppIocHost(source_dir, target_dir, self.epics_base, self.app)
         self.all = AllHost(self.epics_base, self.codegen, self.ipp, self.app_test, self.app, self.ioc)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
@@ -53,7 +53,7 @@ class FerriteCrossComponents(ComponentGroup):
         self.freertos = platform.mcu.freertos
         self.epics_base = EpicsBaseCross(target_dir, self.app_toolchain, host_components.epics_base)
         self.app = App(source_dir, target_dir, self.app_toolchain, host_components.ipp)
-        self.ioc = AppIoc(source_dir, target_dir, self.epics_base, self.app, self.app_toolchain)
+        self.ioc = AppIocCross(source_dir, target_dir, self.epics_base, self.app)
         self.mcu = Mcu(source_dir, target_dir, self.mcu_toolchain, self.freertos, platform.mcu.deployer, host_components.ipp)
         self.all = AllCross(self.epics_base, self.app, self.ioc, self.mcu)
 

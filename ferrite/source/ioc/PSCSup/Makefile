@@ -27,8 +27,13 @@ devPSC_SRCS += \
 # Link with the libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)
 
-# Link with App
-include $(TOP)/PSCSup/link_app.mk
+# Link app
+# Workaround to link shared library
+ifeq ($(APP_ARCH),linux-x86_64)
+	PSC_LIBS += app_fakedev
+else
+	PSC_LDFLAGS += -Wl,-Bdynamic -l:libapp.so
+endif
 
 # Install .dbd and .db files
 DBD += devPSC.dbd

@@ -4,6 +4,3 @@ APP_BUILD_DIR =
 
 # The only architecture to build for 
 APP_ARCH =
-
-# Whether to build for real or fake device
-APP_FAKEDEV =
