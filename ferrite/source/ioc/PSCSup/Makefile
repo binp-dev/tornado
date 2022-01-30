@@ -8,7 +8,7 @@ LIBRARY = $(LIBRARY_$(T_A))
 
 # Library includes
 INCLUDES += \
-	-I$(APP_SRC_DIR)/src \
+	-I$(APP_LIB_SRC)/src \
 	-DUSE_TYPED_RSET
 
 # Library Source files

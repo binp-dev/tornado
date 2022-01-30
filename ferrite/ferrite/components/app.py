@@ -25,6 +25,10 @@ class AppBase(CmakeWithConan):
 
         super().__post_init__()
 
+    @property
+    def lib_src_dir(self) -> Path:
+        return self.src_dir
+
 
 class AppTest(CmakeWithConan, CmakeWithTest):
 

@@ -1,60 +1,17 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional
+from typing import Dict, List
 
 import shutil
 import re
 import time
 from pathlib import Path, PurePosixPath
-import logging
 
 from ferrite.utils.files import substitute
 from ferrite.components.base import Task, FinalTask, Context
 from ferrite.components.toolchain import HostToolchain, CrossToolchain
-from ferrite.remote.base import Device, Connection
 from ferrite.components.epics.base import AbstractEpicsProject
 from ferrite.components.epics.epics_base import AbstractEpicsBase, EpicsBaseCross, EpicsBaseHost
-
-
-class IocRemoteRunner:
-
-    def __init__(
-        self,
-        device: Device,
-        deploy_path: PurePosixPath,
-        epics_deploy_path: PurePosixPath,
-        arch: str,
-    ):
-        super().__init__()
-        self.device = device
-        self.deploy_path = deploy_path
-        self.epics_deploy_path = epics_deploy_path
-        self.arch = arch
-        self.proc: Optional[Connection] = None
-
-    def __enter__(self) -> None:
-        self.proc = self.device.run(
-            [
-                "bash",
-                "-c",
-                "export {}; export {}; cd {} && {} {}".format(
-                    f"TOP={self.deploy_path}",
-                    f"LD_LIBRARY_PATH={self.epics_deploy_path}/lib/{self.arch}:{self.deploy_path}/lib/{self.arch}",
-                    f"{self.deploy_path}/iocBoot/iocPSC",
-                    f"{self.deploy_path}/bin/{self.arch}/PSC",
-                    "st.cmd",
-                ),
-            ],
-            wait=False,
-        )
-        assert self.proc is not None
-        time.sleep(1)
-        logging.info("IOC started")
-
-    def __exit__(self, *args: Any) -> None:
-        logging.info("terminating IOC ...")
-        assert self.proc is not None
-        self.proc.close()
-        logging.info("IOC terminated")
+from ferrite.utils.epics.ioc_remote import IocRemoteRunner
 
 
 class AbstractIoc(AbstractEpicsProject):
@@ -73,6 +30,14 @@ class AbstractIoc(AbstractEpicsProject):
         @property
         def owner(self) -> AbstractIoc:
             return self._owner
+
+        def _prepare_source(self) -> None:
+            if len(self.owner.ioc_dirs) == 1:
+                # There is no patches
+                return
+
+            for ioc_dirs in self.owner.ioc_dirs:
+                shutil.copytree(ioc_dirs, self.src_dir, dirs_exist_ok=True)
 
         def _configure(self) -> None:
             substitute(
@@ -102,12 +67,20 @@ class AbstractIoc(AbstractEpicsProject):
     def __init__(
         self,
         name: str,
-        ioc_dir: Path,
+        ioc_dirs: List[Path],
         target_dir: Path,
         epics_base: AbstractEpicsBase,
     ):
+        assert len(ioc_dirs) > 0
+        if len(ioc_dirs) == 1:
+            src_dir = ioc_dirs[0]
+        else:
+            # Create separate source dir
+            src_dir = target_dir / f"{name}_src"
+
         self._epics_base = epics_base
-        super().__init__(target_dir, ioc_dir, name)
+        super().__init__(target_dir, src_dir, name)
+        self.ioc_dirs = ioc_dirs
         self.build_task = self._make_build_task()
 
     @property
@@ -127,12 +100,12 @@ class IocHost(AbstractIoc):
     def __init__(
         self,
         name: str,
-        ioc_dir: Path,
+        ioc_dirs: List[Path],
         target_dir: Path,
         epics_base: EpicsBaseHost,
     ):
         self._epics_base_host = epics_base
-        super().__init__(name, ioc_dir, target_dir, epics_base)
+        super().__init__(name, ioc_dirs, target_dir, epics_base)
         self.build_task = self._make_build_task()
 
     @property
@@ -171,10 +144,10 @@ class IocCross(AbstractIoc):
             assert ctx.device is not None
             boot_dir = self.install_dir / "iocBoot"
             for ioc_name in [path.name for path in boot_dir.iterdir()]:
-                ioc_dir = boot_dir / ioc_name
-                if not ioc_dir.is_dir():
+                ioc_dirs = boot_dir / ioc_name
+                if not ioc_dirs.is_dir():
                     continue
-                env_path = ioc_dir / "envPaths"
+                env_path = ioc_dirs / "envPaths"
                 if not env_path.is_file():
                     continue
                 with open(env_path, "r") as f:
@@ -214,12 +187,12 @@ class IocCross(AbstractIoc):
     def __init__(
         self,
         name: str,
-        ioc_dir: Path,
+        ioc_dirs: List[Path],
         target_dir: Path,
         epics_base: EpicsBaseCross,
     ):
         self._epics_base_cross = epics_base
-        super().__init__(name, ioc_dir, target_dir, epics_base)
+        super().__init__(name, ioc_dirs, target_dir, epics_base)
 
         self.deploy_path = PurePosixPath("/opt/ioc")
 

@@ -24,6 +24,7 @@ class AbstractAppIoc(AbstractIoc):
             self._app_owner = owner
             super().__init__(owner, deps=deps)
 
+            self.app_lib_src_dir = self.owner.app.lib_src_dir
             self.app_src_dir = self.owner.app.src_dir
             self.app_build_dir = self.owner.app.build_dir
             self.app_lib_name = app_lib_name
@@ -37,7 +38,7 @@ class AbstractAppIoc(AbstractIoc):
 
             substitute(
                 [
-                    ("^\\s*#*(\\s*APP_SRC_DIR\\s*=).*$", f"\\1 {self.app_src_dir}"),
+                    ("^\\s*#*(\\s*APP_LIB_SRC\\s*=).*$", f"\\1 {self.app_lib_src_dir}"),
                     ("^\\s*#*(\\s*APP_BUILD_DIR\\s*=).*$", f"\\1 {self.app_build_dir}"),
                     ("^\\s*#*(\\s*APP_ARCH\\s*=).*$", f"\\1 {self.owner.arch}"),
                 ],
@@ -61,7 +62,7 @@ class AbstractAppIoc(AbstractIoc):
 
     def __init__(
         self,
-        source_dir: Path,
+        ioc_dirs: List[Path],
         target_dir: Path,
         epics_base: AbstractEpicsBase,
         app: AppBase,
@@ -69,7 +70,7 @@ class AbstractAppIoc(AbstractIoc):
         self.app = app
         super().__init__(
             "ioc",
-            source_dir / "ioc",
+            ioc_dirs,
             target_dir,
             epics_base,
         )

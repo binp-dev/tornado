@@ -45,6 +45,9 @@ class AbstractEpicsProject(Component):
         def owner(self) -> AbstractEpicsProject:
             raise NotImplementedError()
 
+        def _prepare_source(self) -> None:
+            pass
+
         def _configure(self) -> None:
             raise NotImplementedError()
 
@@ -55,6 +58,8 @@ class AbstractEpicsProject(Component):
             if self.clean:
                 shutil.rmtree(self.build_dir, ignore_errors=True)
                 shutil.rmtree(self.install_dir, ignore_errors=True)
+
+            self._prepare_source()
 
             shutil.copytree(
                 self.src_dir,
