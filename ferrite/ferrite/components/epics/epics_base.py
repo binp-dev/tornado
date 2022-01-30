@@ -47,9 +47,11 @@ class AbstractEpicsBase(AbstractEpicsProject):
         def _configure(self) -> None:
             self._configure_common()
             self._configure_toolchain()
-            #self._configure_install()
+            #self._configure_install() # Install is broken
 
+        # Workaround for broken EPICS install
         def _install(self) -> None:
+            # Copy all required dirs manually
             paths = [
                 "bin",
                 "cfg",
@@ -135,10 +137,6 @@ class EpicsBaseHost(AbstractEpicsBase):
     @property
     def toolchain(self) -> HostToolchain:
         return self._toolchain
-
-    @property
-    def arch(self) -> str:
-        return epics_host_arch(self.src_path)
 
     def tasks(self) -> Dict[str, Task]:
         return {
@@ -230,10 +228,6 @@ class EpicsBaseCross(AbstractEpicsBase):
     @property
     def toolchain(self) -> CrossToolchain:
         return self._toolchain
-
-    @property
-    def arch(self) -> str:
-        return epics_arch_by_target(self.toolchain.target)
 
     def tasks(self) -> Dict[str, Task]:
         return {
