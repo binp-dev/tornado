@@ -242,9 +242,7 @@ def generate(
 
 if __name__ == "__main__":
     end_tasks = [
-        "host.all.test",
-        #"imx7.all.build",
-        "imx8mn.all.build",
+        "all.test",
     ]
     vars = Variables({
         "POETRY_VIRTUALENVS_IN_PROJECT": "true",
