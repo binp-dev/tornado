@@ -250,21 +250,33 @@ def default_variables() -> Variables:
     })
 
 
-def default_cache() -> Cache:
+def default_cache(lock_deps: bool = False) -> Cache:
+    if not lock_deps:
+        poetry = (["pyproject.toml"], ["poetry.lock", ".venv/"])
+    else:
+        poetry = (["pyproject.toml", "poetry.lock"], [".venv/"])
+
     return Cache("global_cache", [
-        (["pyproject.toml"], ["poetry.lock", ".venv/"]),
+        poetry,
     ])
 
 
-def main(module: str, base_dir: Path, components: Component, end_tasks: List[str]) -> None:
+def main(
+    module: str,
+    base_dir: Path,
+    components: Component,
+    end_tasks: List[str],
+    variables: Variables,
+    cache: Cache,
+) -> None:
     context = Context(module)
 
     print("Generating script ...")
     text = generate(
         base_dir,
         make_graph(context, components, end_tasks),
-        vars=default_variables(),
-        cache=default_cache(),
+        vars=variables,
+        cache=cache,
     )
 
     path = ".gitlab-ci.yml"
@@ -286,4 +298,4 @@ if __name__ == "__main__":
     target_dir = base_dir / "target"
     components = make_components(base_dir, target_dir)
 
-    main("ferrite", base_dir, components, end_tasks)
+    main("ferrite", base_dir, components, end_tasks, default_variables(), default_cache())
