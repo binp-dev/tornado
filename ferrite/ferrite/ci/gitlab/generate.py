@@ -245,6 +245,7 @@ def generate(
 
 def default_variables() -> Variables:
     return Variables({
+        "GIT_SUBMODULE_STRATEGY": "recursive",
         "POETRY_VIRTUALENVS_IN_PROJECT": "true",
     })
 
