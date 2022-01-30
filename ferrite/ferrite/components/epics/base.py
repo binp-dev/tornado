@@ -20,7 +20,9 @@ def epics_host_arch(epics_base_dir: Path) -> str:
 
 def epics_arch_by_target(target: Target) -> str:
     if target.api == "linux":
-        if target.isa == "arm":
+        if target.isa == "x86_64":
+            return "linux-x86_64"
+        elif target.isa == "arm":
             return "linux-arm"
         elif target.isa == "aarch64":
             return "linux-aarch64"
@@ -131,7 +133,7 @@ class AbstractEpicsProject(Component):
 
     @property
     def arch(self) -> str:
-        raise NotImplementedError()
+        return epics_arch_by_target(self.toolchain.target)
 
     @property
     def toolchain(self) -> Toolchain:
