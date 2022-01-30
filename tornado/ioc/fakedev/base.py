@@ -6,10 +6,11 @@ import zmq
 from threading import Thread
 from pathlib import Path
 
-from ferrite.ipp import AppMsg, McuMsg
 from ferrite.utils.epics.ioc import Ioc
 from ferrite.codegen.variant import VariantValue
 import ferrite.utils.epics.ca as ca
+
+from tornado.ipp import AppMsg, McuMsg
 
 
 def dac_code_to_volt(code: int) -> float:

@@ -6,7 +6,8 @@ from pathlib import Path
 
 from ferrite.utils.epics.ioc import make_ioc
 import ferrite.utils.epics.ca as ca
-from ferrite.ioc.fakedev.base import FakeDev
+
+from tornado.ioc.fakedev.base import FakeDev
 
 
 def assert_eq(a: float, b: float, eps: float = 1e-3) -> None:

@@ -7,12 +7,12 @@ from dataclasses import dataclass
 from ferrite.components.base import Component, ComponentGroup
 from ferrite.components.toolchain import HostToolchain
 from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
-from ferrite.components.epics.ioc import AppIoc
 from ferrite.components.platforms.base import Platform
 from ferrite.components.platforms.imx8mn import Imx8mnPlatform
 
 from tornado.components.ipp import Ipp
 from tornado.components.app import App
+from tornado.components.epics.app_ioc import AppIocHost, AppIocCross
 from tornado.components.mcu import Mcu
 from tornado.components.all_ import AllHost, AllCross
 
@@ -30,8 +30,13 @@ class TornadoHostComponents(ComponentGroup):
         self.epics_base = EpicsBaseHost(target_dir, toolchain)
         self.ipp = Ipp(source_dir, target_dir, toolchain)
         self.app = App(source_dir, ferrite_source_dir, target_dir, toolchain, self.ipp)
-        #self.ioc = AppIoc([ferrite_source_dir, source_dir], target_dir, self.epics_base, self.app, toolchain)
-        #self.all = AllHost(self.epics_base, self.ipp, self.app, self.ioc)
+        self.ioc = AppIocHost(
+            [ferrite_source_dir / "ioc", source_dir / "ioc"],
+            target_dir,
+            self.epics_base,
+            self.app,
+        )
+        self.all = AllHost(self.epics_base, self.ipp, self.app, self.ioc)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
         return self.__dict__
@@ -62,13 +67,12 @@ class TornadoCrossComponents(ComponentGroup):
             self.app_toolchain,
             host_components.ipp,
         )
-        #self.ioc = AppIoc(
-        #    [ferrite_source_dir, source_dir],
-        #    target_dir,
-        #    self.epics_base,
-        #    self.app,
-        #    self.app_toolchain,
-        #)
+        self.ioc = AppIocCross(
+            [ferrite_source_dir / "ioc", source_dir / "ioc"],
+            target_dir,
+            self.epics_base,
+            self.app,
+        )
         self.mcu = Mcu(
             source_dir,
             ferrite_source_dir,
@@ -78,7 +82,7 @@ class TornadoCrossComponents(ComponentGroup):
             platform.mcu.deployer,
             host_components.ipp,
         )
-        #self.all = AllCross(self.epics_base, self.app, self.ioc, self.mcu)
+        self.all = AllCross(self.epics_base, self.app, self.ioc, self.mcu)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
         return self.__dict__

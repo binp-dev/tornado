@@ -44,5 +44,9 @@ class App(AppBase):
             cmake_toolchain_path=(lib_src_dir / "armgcc.cmake"),
             disable_conan=isinstance(toolchain, CrossToolchain),
         )
-        self.lib_src_dir = lib_src_dir
+        self._lib_src_dir = lib_src_dir
         self.ipp = ipp
+
+    @property
+    def lib_src_dir(self) -> Path:
+        return self._lib_src_dir

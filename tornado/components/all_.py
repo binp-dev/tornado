@@ -5,11 +5,11 @@ from dataclasses import dataclass
 
 from ferrite.components.base import Component, Task, TaskWrapper
 from ferrite.components.epics.epics_base import EpicsBaseCross, EpicsBaseHost
-from ferrite.components.epics.ioc import AppIoc
 from ferrite.remote.tasks import RebootTask
 
-from tornado.components.app import App
 from tornado.components.ipp import Ipp
+from tornado.components.app import App
+from tornado.components.epics.app_ioc import AppIocHost, AppIocCross
 from tornado.components.mcu import Mcu
 
 
@@ -19,7 +19,7 @@ class AllHost(Component):
     epics_base: EpicsBaseHost
     ipp: Ipp
     app: App
-    ioc: AppIoc
+    ioc: AppIocHost
 
     def __post_init__(self) -> None:
         self.build_task = TaskWrapper(
@@ -49,7 +49,7 @@ class AllCross(Component):
 
     epics_base: EpicsBaseCross
     app: App
-    ioc: AppIoc
+    ioc: AppIocCross
     mcu: Mcu
 
     def __post_init__(self) -> None:
