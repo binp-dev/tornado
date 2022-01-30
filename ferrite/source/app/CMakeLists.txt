@@ -105,7 +105,7 @@ endif()
 
 if(DEFINED APP_TEST)
     enable_testing()
-    set(UNITTEST "${PROJECT_NAME}_unittest")
+    set(UNITTEST "${PROJECT_NAME}_test")
     add_executable(${UNITTEST} ${UNITTEST_SRC})
     target_compile_definitions(${UNITTEST} PRIVATE ${UNITTEST_DEFS})
     target_link_libraries(${UNITTEST} PRIVATE ${UNITTEST_LIBS})

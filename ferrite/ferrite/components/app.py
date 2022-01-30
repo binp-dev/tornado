@@ -43,5 +43,5 @@ class AppTest(CmakeWithConan, CmakeWithTest):
             target_dir / "app_test",
             toolchain,
             opts=["-DAPP_TEST=1"],
-            target="app_unittest",
+            target="app_lib_test",
         )
