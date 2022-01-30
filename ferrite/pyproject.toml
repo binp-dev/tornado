@@ -11,13 +11,13 @@ conan = "^1.44.0"
 paramiko = "^2.9.2"
 pyzmq = "^22.3.0"
 colorama = "^0.4.4"
+types-paramiko = "^2.8.10"
+types-colorama = "^0.4.4"
 
 [tool.poetry.dev-dependencies]
 toml = "^0.10.2"
 yapf = "^0.32.0"
 mypy = "^0.931"
-types-paramiko = "^2.8.10"
-types-colorama = "^0.4.4"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
