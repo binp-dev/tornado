@@ -211,6 +211,12 @@ class IocCross(AbstractIoc):
                 self.owner.deploy_task,
             ]
 
+    def _build_deps(self) -> List[Task]:
+        return [
+            self.toolchain.download_task,
+            *super()._build_deps(),
+        ]
+
     def __init__(
         self,
         name: str,
