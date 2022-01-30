@@ -9,10 +9,10 @@ import logging
 
 from ferrite.utils.files import substitute
 from ferrite.components.base import Task, FinalTask, Context
-from ferrite.components.toolchain import HostToolchain, CrossToolchain, Toolchain
+from ferrite.components.toolchain import HostToolchain, CrossToolchain
 from ferrite.remote.base import Device, Connection
-from ferrite.components.epics.base import epics_arch, Epics
-from ferrite.components.epics.epics_base import EpicsBase, EpicsBaseCross, EpicsBaseHost
+from ferrite.components.epics.base import AbstractEpicsProject
+from ferrite.components.epics.epics_base import AbstractEpicsBase, EpicsBaseCross, EpicsBaseHost
 
 
 class IocRemoteRunner:
@@ -57,13 +57,13 @@ class IocRemoteRunner:
         logging.info("IOC terminated")
 
 
-class Ioc(Epics):
+class AbstractIoc(AbstractEpicsProject):
 
-    class BuildTask(Epics.BuildTask):
+    class BuildTask(AbstractEpicsProject.BuildTask):
 
         def __init__(
             self,
-            owner: Ioc,
+            owner: AbstractIoc,
             deps: List[Task],
         ):
             self._owner = owner
@@ -71,21 +71,14 @@ class Ioc(Epics):
             self.epics_base_dir = self.owner.epics_base.build_path
 
         @property
-        def owner(self) -> Ioc:
+        def owner(self) -> AbstractIoc:
             return self._owner
 
         def _configure(self) -> None:
-            toolchain = self.owner.toolchain
-            arch = epics_arch(self.epics_base_dir, toolchain)
             substitute(
                 [("^\\s*#*(\\s*EPICS_BASE\\s*=).*$", f"\\1 {self.epics_base_dir}")],
                 self.build_dir / "configure/RELEASE",
             )
-            if not isinstance(toolchain, HostToolchain):
-                substitute(
-                    [("^\\s*#*(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {arch}")],
-                    self.build_dir / "configure/CONFIG_SITE",
-                )
             substitute(
                 [("^\\s*#*(\\s*INSTALL_LOCATION\\s*=).*$", f"\\1 {self.install_dir}")],
                 self.build_dir / "configure/CONFIG_SITE",
@@ -103,7 +96,7 @@ class Ioc(Epics):
     def _build_deps(self) -> List[Task]:
         return [self.epics_base.build_task]
 
-    def _make_build_task(self) -> Ioc.BuildTask:
+    def _make_build_task(self) -> AbstractIoc.BuildTask:
         return self.BuildTask(self, deps=self._build_deps())
 
     def __init__(
@@ -111,21 +104,25 @@ class Ioc(Epics):
         name: str,
         ioc_dir: Path,
         target_dir: Path,
-        epics_base: EpicsBase,
+        epics_base: AbstractEpicsBase,
     ):
         self._epics_base = epics_base
         super().__init__(target_dir, ioc_dir, name)
         self.build_task = self._make_build_task()
 
     @property
-    def epics_base(self) -> EpicsBase:
+    def epics_base(self) -> AbstractEpicsBase:
         return self._epics_base
+
+    @property
+    def arch(self) -> str:
+        return self.epics_base.arch
 
     def tasks(self) -> Dict[str, Task]:
         return {"build": self.build_task}
 
 
-class IocHost(Ioc):
+class IocHost(AbstractIoc):
 
     def __init__(
         self,
@@ -147,9 +144,18 @@ class IocHost(Ioc):
         return self.epics_base.toolchain
 
 
-class IocCross(Ioc):
+class IocCross(AbstractIoc):
 
-    class DeployTask(Epics.DeployTask):
+    class BuildTask(AbstractIoc.BuildTask):
+
+        def _configure(self) -> None:
+            super()._configure()
+            substitute(
+                [("^\\s*#*(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {self.owner.arch}")],
+                self.build_dir / "configure/CONFIG_SITE",
+            )
+
+    class DeployTask(AbstractEpicsProject.DeployTask):
 
         def __init__(
             self,
@@ -190,7 +196,7 @@ class IocCross(Ioc):
                 ctx.device,
                 self.owner.deploy_path,
                 self.owner.epics_base.deploy_path,
-                self.owner.epics_base.arch(),
+                self.owner.epics_base.arch,
             ):
                 try:
                     while True:

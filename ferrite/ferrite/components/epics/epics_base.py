@@ -1,5 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass
 from typing import Dict, List
 
 import shutil
@@ -10,12 +9,12 @@ from ferrite.utils.files import substitute, allow_patterns
 from ferrite.components.base import Task, Context
 from ferrite.components.git import RepoList, RepoSource
 from ferrite.components.toolchain import HostToolchain, CrossToolchain
-from ferrite.components.epics.base import Epics, epics_arch, epics_host_arch, epics_arch_by_target
+from ferrite.components.epics.base import AbstractEpicsProject, epics_host_arch, epics_arch_by_target
 
 
-class EpicsBase(Epics):
+class AbstractEpicsBase(AbstractEpicsProject):
 
-    class BuildTask(Epics.BuildTask):
+    class BuildTask(AbstractEpicsProject.BuildTask):
 
         def __init__(self, deps: List[Task]):
             super().__init__(deps=deps, cached=True)
@@ -51,8 +50,6 @@ class EpicsBase(Epics):
             #self._configure_install()
 
         def _install(self) -> None:
-            host_arch = epics_host_arch(self.build_dir)
-            arch = epics_arch(self.build_dir, self.owner.toolchain)
             paths = [
                 "bin",
                 "cfg",
@@ -72,14 +69,6 @@ class EpicsBase(Epics):
                     symlinks=True,
                     ignore=shutil.ignore_patterns("O.*"),
                 )
-            if arch != host_arch:
-                shutil.copytree(
-                    self.build_dir / "bin" / host_arch,
-                    self.install_dir / "bin" / arch,
-                    dirs_exist_ok=True,
-                    symlinks=True,
-                    ignore=allow_patterns("*.pl", "*.py"),
-                )
 
         def run(self, ctx: Context) -> None:
             done_path = self.build_dir / "build.done"
@@ -94,13 +83,13 @@ class EpicsBase(Epics):
                 f.write(str(self.build_dir))
 
     @property
-    def build_task(self) -> EpicsBase.BuildTask:
+    def build_task(self) -> AbstractEpicsBase.BuildTask:
         raise NotImplementedError()
 
 
-class EpicsBaseHost(EpicsBase):
+class EpicsBaseHost(AbstractEpicsBase):
 
-    class BuildTask(EpicsBase.BuildTask):
+    class BuildTask(AbstractEpicsBase.BuildTask):
 
         def __init__(self, owner: EpicsBaseHost, deps: List[Task]):
             self._owner = owner
@@ -147,6 +136,7 @@ class EpicsBaseHost(EpicsBase):
     def toolchain(self) -> HostToolchain:
         return self._toolchain
 
+    @property
     def arch(self) -> str:
         return epics_host_arch(self.src_path)
 
@@ -157,9 +147,9 @@ class EpicsBaseHost(EpicsBase):
         }
 
 
-class EpicsBaseCross(EpicsBase):
+class EpicsBaseCross(AbstractEpicsBase):
 
-    class BuildTask(EpicsBase.BuildTask):
+    class BuildTask(AbstractEpicsBase.BuildTask):
 
         def __init__(self, owner: EpicsBaseCross, deps: List[Task]):
             self._owner = owner
@@ -171,10 +161,14 @@ class EpicsBaseCross(EpicsBase):
 
         def _configure_toolchain(self) -> None:
             toolchain = self.owner.toolchain
-            host_arch = epics_host_arch(self.src_dir)
-            cross_arch = epics_arch_by_target(toolchain.target)
+
+            host_arch = self.owner.host_base.arch
+            cross_arch = self.owner.arch
+            assert cross_arch != host_arch
+
             if cross_arch == "linux-arm" and host_arch.endswith("-x86_64"):
                 host_arch = host_arch[:-3] # Trim '_64'
+
             substitute(
                 [("^(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {cross_arch}")],
                 self.build_dir / "configure/CONFIG_SITE",
@@ -185,6 +179,21 @@ class EpicsBaseCross(EpicsBase):
                     ("^(\\s*GNU_DIR\\s*=).*$", f"\\1 {toolchain.path}"),
                 ],
                 self.build_dir / f"configure/os/CONFIG_SITE.{host_arch}.{cross_arch}",
+            )
+
+        def _install(self) -> None:
+            super()._install()
+
+            host_arch = self.owner.host_base.arch
+            cross_arch = self.owner.arch
+            assert cross_arch != host_arch
+
+            shutil.copytree(
+                self.build_dir / "bin" / host_arch,
+                self.install_dir / "bin" / cross_arch,
+                dirs_exist_ok=True,
+                symlinks=True,
+                ignore=allow_patterns("*.pl", "*.py"),
             )
 
     def __init__(self, target_dir: Path, toolchain: CrossToolchain, host_base: EpicsBaseHost):
@@ -222,6 +231,7 @@ class EpicsBaseCross(EpicsBase):
     def toolchain(self) -> CrossToolchain:
         return self._toolchain
 
+    @property
     def arch(self) -> str:
         return epics_arch_by_target(self.toolchain.target)
 

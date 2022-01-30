@@ -8,7 +8,7 @@ from ferrite.components.epics.epics_base import EpicsBaseCross, EpicsBaseHost
 from ferrite.components.codegen import Codegen
 from ferrite.components.app import App, AppTest
 from ferrite.components.ipp import Ipp
-from ferrite.components.epics.app_ioc import AppIoc
+from ferrite.components.epics.app_ioc import AppIocCross, AppIocHost
 from ferrite.components.mcu import Mcu
 from ferrite.remote.tasks import RebootTask
 
@@ -21,7 +21,7 @@ class AllHost(Component):
     ipp: Ipp
     app_test: AppTest
     app: App
-    ioc: AppIoc
+    ioc: AppIocHost
 
     def __post_init__(self) -> None:
         self.build_task = TaskWrapper(
@@ -55,7 +55,7 @@ class AllCross(Component):
 
     epics_base: EpicsBaseCross
     app: App
-    ioc: AppIoc
+    ioc: AppIocCross
     mcu: Mcu
 
     def __post_init__(self) -> None:

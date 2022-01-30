@@ -24,12 +24,7 @@ PSC_DBD += devPSC.dbd
 PSC_LIBS += devPSC
 
 # Link app
-# Workaround to link shared library
-ifeq ($(APP_ARCH),linux-x86_64)
-	PSC_LIBS += app_fakedev
-else
-	PSC_LDFLAGS += -Wl,-Bdynamic -l:libapp.so
-endif
+include $(TOP)/link_app.mk
 
 # PSC_registerRecordDeviceDriver.cpp derives from PSC.dbd
 PSC_SRCS += PSC_registerRecordDeviceDriver.cpp

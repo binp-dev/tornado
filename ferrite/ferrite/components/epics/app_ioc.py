@@ -6,24 +6,20 @@ from pathlib import Path
 
 from ferrite.utils.files import substitute
 from ferrite.components.base import Task, Context
-from ferrite.components.toolchain import Toolchain, HostToolchain
 from ferrite.components.app import AppBase
-from ferrite.components.epics.base import epics_arch, epics_host_arch
-from ferrite.components.epics.epics_base import EpicsBase, EpicsBaseHost
-from ferrite.components.epics.ioc import Ioc, IocCross, IocHost
+from ferrite.components.epics.epics_base import AbstractEpicsBase
+from ferrite.components.epics.ioc import AbstractIoc, IocCross, IocHost
 
 
-class AppIoc(Ioc):
+class AbstractAppIoc(AbstractIoc):
 
-    class BuildTask(Ioc.BuildTask):
-
-        APP_LIB_NAME: str = "libapp.so"
+    class BuildTask(AbstractIoc.BuildTask):
 
         def __init__(
             self,
-            owner: AppIoc,
+            owner: AbstractAppIoc,
             deps: List[Task],
-            app_lib_name: str = APP_LIB_NAME,
+            app_lib_name: str = "libapp.so",
         ):
             self._app_owner = owner
             super().__init__(owner, deps=deps)
@@ -33,27 +29,26 @@ class AppIoc(Ioc):
             self.app_lib_name = app_lib_name
 
         @property
-        def owner(self) -> AppIoc:
+        def owner(self) -> AbstractAppIoc:
             return self._app_owner
 
         def _configure(self) -> None:
             super()._configure()
 
-            arch = epics_arch(self.epics_base_dir, self.owner.toolchain)
             substitute(
                 [
                     ("^\\s*#*(\\s*APP_SRC_DIR\\s*=).*$", f"\\1 {self.app_src_dir}"),
                     ("^\\s*#*(\\s*APP_BUILD_DIR\\s*=).*$", f"\\1 {self.app_build_dir}"),
-                    ("^\\s*#*(\\s*APP_ARCH\\s*=).*$", f"\\1 {arch}"),
+                    ("^\\s*#*(\\s*APP_ARCH\\s*=).*$", f"\\1 {self.owner.arch}"),
                 ],
                 self.build_dir / "configure/CONFIG_SITE.local",
             )
 
-            lib_dir = self.install_dir / "lib" / arch
+            lib_dir = self.install_dir / "lib" / self.owner.arch
             lib_dir.mkdir(parents=True, exist_ok=True)
             shutil.copy2(
                 self.app_build_dir / self.app_lib_name,
-                lib_dir / self.app_lib_name, # self.APP_LIB_NAME
+                lib_dir / self.app_lib_name,
             )
 
     def _build_deps(self) -> List[Task]:
@@ -61,14 +56,14 @@ class AppIoc(Ioc):
         deps.append(self.app.build_task)
         return deps
 
-    def _make_build_task(self) -> AppIoc.BuildTask:
+    def _make_build_task(self) -> AbstractAppIoc.BuildTask:
         return self.BuildTask(self, deps=self._build_deps())
 
     def __init__(
         self,
         source_dir: Path,
         target_dir: Path,
-        epics_base: EpicsBase,
+        epics_base: AbstractEpicsBase,
         app: AppBase,
     ):
         self.app = app
@@ -80,7 +75,10 @@ class AppIoc(Ioc):
         )
 
 
-class AppIocHost(AppIoc, IocHost):
+class AppIocHost(AbstractAppIoc, IocHost):
+
+    class BuildTask(AbstractAppIoc.BuildTask, IocHost.BuildTask):
+        pass
 
     class RunTask(Task):
 
@@ -93,7 +91,7 @@ class AppIocHost(AppIoc, IocHost):
             self.run_fn(
                 self.owner.epics_base.install_path,
                 self.owner.install_path,
-                epics_host_arch(self.owner.epics_base.build_path),
+                self.owner.arch,
             )
 
         def dependencies(self) -> List[Task]:
@@ -102,7 +100,7 @@ class AppIocHost(AppIoc, IocHost):
                 self.owner.build_task,
             ]
 
-    def _make_build_task(self) -> AppIoc.BuildTask:
+    def _make_build_task(self) -> AbstractAppIoc.BuildTask:
         return self.BuildTask(
             self,
             deps=self._build_deps(),
@@ -113,7 +111,7 @@ class AppIocHost(AppIoc, IocHost):
         self,
         source_dir: Path,
         target_dir: Path,
-        epics_base: EpicsBase,
+        epics_base: AbstractEpicsBase,
         app: AppBase,
     ):
         self.app = app
@@ -138,5 +136,7 @@ class AppIocHost(AppIoc, IocHost):
         return tasks
 
 
-class AppIocCross(AppIoc, IocCross):
-    pass
+class AppIocCross(AbstractAppIoc, IocCross):
+
+    class BuildTask(AbstractAppIoc.BuildTask, IocCross.BuildTask):
+        pass

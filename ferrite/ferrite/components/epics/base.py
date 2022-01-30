@@ -8,7 +8,7 @@ import logging
 
 from ferrite.utils.run import capture, run
 from ferrite.components.base import Artifact, Component, Task, Context
-from ferrite.components.toolchain import Target, Toolchain, HostToolchain
+from ferrite.components.toolchain import Target, Toolchain
 
 
 def epics_host_arch(epics_base_dir: Path) -> str:
@@ -28,14 +28,7 @@ def epics_arch_by_target(target: Target) -> str:
     raise Exception(f"Unknown target for EPICS: {str(target)}")
 
 
-def epics_arch(epics_base_dir: Path, toolchain: Toolchain) -> str:
-    if isinstance(toolchain, HostToolchain):
-        return epics_host_arch(epics_base_dir)
-    else:
-        return epics_arch_by_target(toolchain.target)
-
-
-class Epics(Component):
+class AbstractEpicsProject(Component):
 
     @dataclass
     class BuildTask(Task):
@@ -49,7 +42,7 @@ class Epics(Component):
             self.install_dir = self.owner.install_path
 
         @property
-        def owner(self) -> Epics:
+        def owner(self) -> AbstractEpicsProject:
             raise NotImplementedError()
 
         def _configure(self) -> None:
@@ -131,6 +124,7 @@ class Epics(Component):
         self.build_path = target_dir / f"{prefix}_build_{self.toolchain.name}"
         self.install_path = target_dir / f"{prefix}_install_{self.toolchain.name}"
 
+    @property
     def arch(self) -> str:
         raise NotImplementedError()
 
