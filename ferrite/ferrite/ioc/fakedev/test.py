@@ -22,8 +22,10 @@ class Handler(FakeDev.Handler):
         self.adc_count = 6
         self.adc_wf_size = 200
         self.adc_wfs = [[] for i in range(self.adc_count)]
-
         self.adc_wfs[0] = [x for x in range(self.adc_wf_size)]
+
+        self.dac_wf_size = 200
+        self.dac_wfs = []
 
     def write_dac(self, voltage: float) -> None:
         self.channels[0] = voltage
@@ -58,10 +60,16 @@ def run(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
         # time.sleep(scan_period)
         # assert_eq(ca.get(prefix, f"ai0"), some_val)
 
-        time.sleep(2.0)
+        time.sleep(3.0)
         adc_wf_numb = 0
         adc_wf = ca.get(prefix, "aai0", array=True)
+        print(handler.adc_wfs[0][adc_wf_numb*handler.adc_wf_size : (adc_wf_numb + 1)*handler.adc_wf_size])
         assert adc_wf == handler.adc_wfs[0][adc_wf_numb*handler.adc_wf_size : (adc_wf_numb + 1)*handler.adc_wf_size]
         
+        dac_wf = [i for i in range(handler.dac_wf_size)]
+        ca.put(prefix, "aao0", dac_wf, array=True)
+        time.sleep(3.0)
+        assert len(handler.dac_wfs) == 1
+        assert dac_wf == handler.dac_wfs[len(handler.dac_wfs) - 1]
 
     print("Test passed!")

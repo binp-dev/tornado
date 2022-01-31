@@ -56,16 +56,18 @@ void Device::recv_loop() {
 
         } else if (std::holds_alternative<ipp::McuMsgAdcWf>(incoming.variant)) {
             const auto adc_wf_msg = std::get<ipp::McuMsgAdcWf>(incoming.variant);
-            
             auto &adc_wf = adc_wfs[adc_wf_msg.index];
             {
                 std::lock_guard<std::mutex> lock(adc_wf.mutex);
                 adc_wf.wf_data.insert(adc_wf.wf_data.end(), adc_wf_msg.elements.begin(), adc_wf_msg.elements.end());
 
                 if (adc_wf.wf_data.size() >= adc_wf.wf_max_size) {
-                    adc_wf.notify();
+                    if (adc_wf.notify) {
+                        adc_wf.notify();
+                    }
                 }
             }
+
         } else if (std::holds_alternative<ipp::McuMsgDacWfReq>(incoming.variant)) {
             has_dac_wf_req_.store(true);
             send_ready.notify_all();
@@ -110,13 +112,25 @@ void Device::send_loop() {
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
             channel->send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
         }
-        if (has_dac_wf_req_.exchange(false) == true && dac_wf.wf_is_set.load() == true) {
+        //DEL
+        // std::cout << "has_dac_wf_req_ = " << has_dac_wf_req_.load() << std::endl;
+        // std::cout << "dac_wf.wf_is_set = " << dac_wf.wf_is_set.load() << std::endl;
+
+        if (has_dac_wf_req_.load() == true && dac_wf.wf_is_set.load() == true) {
+            has_dac_wf_req_.store(false);
             ipp::AppMsgDacWf dac_wf_msg;
             auto &buffer = dac_wf_msg.elements;
             size_t max_buffer_size = (msg_max_len_ - dac_wf_msg.packed_size()) / sizeof(int32_t);
             buffer.reserve(max_buffer_size);
 
-            // fill buffer
+            fill_dac_wf_msg(buffer, max_buffer_size);
+
+            //DEL
+            // std::cout << "SEND DAC WF:";
+            // for (int i = 0; i < dac_wf_msg.elements.size(); ++i) {
+            //     std::cout << dac_wf_msg.elements[i] << " ";
+            // }
+            // std::cout << std::endl;
 
             assert_true(dac_wf_msg.packed_size() < msg_max_len_);
             channel->send(ipp::AppMsg{std::move(dac_wf_msg)}, std::nullopt).unwrap();
@@ -232,18 +246,26 @@ const std::vector<int32_t> Device::read_adc_wf(size_t index) {
 
 void Device::fill_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size) {
     copy_dac_wf_to_dac_wf_msg(msg_buff, max_buffer_size);
-    
-    while (true) {
-        if (dac_wf.buff_position >= dac_wf.wf_max_size) {
-            if (swap_dac_wf_buffers() == true) {
-                copy_dac_wf_to_dac_wf_msg(msg_buff, max_buffer_size);
-            } else {
-                break;
-            }
-        }
-    }
 
-    
+    // while (true) {
+    //     if (msg_buff.size() < max_buffer_size) {
+    //         if (swap_dac_wf_buffers() == true) {
+    //             copy_dac_wf_to_dac_wf_msg(msg_buff, max_buffer_size);
+    //         } else {
+    //             break;
+    //         }
+    //     } else {
+    //         break;
+    //     }
+    // } 
+
+    while (msg_buff.size() < max_buffer_size) {
+        if (swap_dac_wf_buffers() == true) {
+            copy_dac_wf_to_dac_wf_msg(msg_buff, max_buffer_size);
+        } else {
+            break;
+        }
+    } 
 }
 
 void Device::copy_dac_wf_to_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size) {
@@ -260,13 +282,16 @@ void Device::copy_dac_wf_to_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t ma
 }
 
 bool Device::swap_dac_wf_buffers() {
-    std::lock_guard<std::mutex> guard(dac_wf.mutex);
-
-    if (dac_wf.swap_ready.exchange(false) == true) {
-        dac_wf.wf_data[0].swap(dac_wf.wf_data[1]);
-        return true;
+    if (dac_wf.buff_position = dac_wf.wf_data[0].size()) {
+        std::lock_guard<std::mutex> guard(dac_wf.mutex);
+        
+        if (dac_wf.swap_ready.exchange(false) == true) {
+            dac_wf.wf_data[0].swap(dac_wf.wf_data[1]);
+            return true;
+        } else {
+            dac_wf.wf_is_set.store(false);
+        }
     }
-    
-    dac_wf.wf_is_set.store(false);
+
     return false;
 }

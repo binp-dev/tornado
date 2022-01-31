@@ -33,7 +33,7 @@ def get(prefix: Path, pv: str, array: bool = False) -> Union[float, List[int]]:
     return float(out)
 
 
-def put(prefix: Path, pv: str, value: Union[int, float, List[float]], array: bool = False) -> None:
+def put(prefix: Path, pv: str, value: Union[int, float, List[int]], array: bool = False) -> None:
     logging.debug(f"caput {pv} {value} ...")
 
     args: List[str | Path] = [prefix / "caput", "-t"]

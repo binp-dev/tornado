@@ -1,5 +1,7 @@
 # type: ignore
 from __future__ import annotations
+import re
+from sys import prefix
 from typing import Any, List, Optional
 
 import zmq
@@ -54,6 +56,28 @@ class FakeDev:
         def read_adc_wfs(self) -> List[int]:
             return self.adc_wfs
 
+        def _fill_dac_wf_buff(self, dac_wf_buff, dac_wf_data, dac_wf_data_pos) -> int:
+            elems_to_fill = self.dac_wf_size - len(dac_wf_buff)
+            elems_left = len(dac_wf_data) - dac_wf_data_pos
+            if (elems_left < elems_to_fill):
+                elems_to_fill = elems_left
+
+            dac_wf_buff += dac_wf_data[dac_wf_data_pos : dac_wf_data_pos + elems_to_fill]
+            return elems_to_fill
+
+        def write_dac_wf(self, dac_wf_data) -> None:
+            if len(self.dac_wfs) == 0:
+                self.dac_wfs.append([])
+
+            dac_wf_data_pos = 0
+            dac_wf_buff = self.dac_wfs[len(self.dac_wfs) - 1]
+            while dac_wf_data_pos < len(dac_wf_data):
+                if len(dac_wf_buff) == self.dac_wf_size:
+                    self.dac_wfs.append([])
+                    dac_wf_buff = self.dac_wfs[len(self.dac_wfs) - 1]
+
+                dac_wf_data_pos += self._fill_dac_wf_buff(dac_wf_buff, dac_wf_data, dac_wf_data_pos)
+
     def __init__(self, prefix: Path, ioc: Ioc, handler: FakeDev.Handler) -> None:
         self.prefix = prefix
         self.ca_repeater = ca.Repeater(prefix)
@@ -75,9 +99,21 @@ class FakeDev:
         poller.register(self.socket, zmq.POLLIN)
 
         adc_wf_positions = [0 for i in range(self.handler.adc_count)]
+        
+        _send_msg(self.socket, McuMsg.DacWfReq())
 
         while not self.done:
             evts = poller.poll(100)
+
+            for i in range(len(self.handler.read_adc_wfs())):
+                adc_wf = self.handler.read_adc_wfs()[i]
+                if adc_wf_positions[i] == len(adc_wf):
+                    continue
+
+                adc_wf_msg_data = []
+                adc_wf_positions[i] += self._fill_adc_wf_msg_buff(adc_wf_msg_data, adc_wf, adc_wf_positions[i])
+                _send_msg(self.socket, McuMsg.AdcWf(i, adc_wf_msg_data))
+            
             if len(evts) == 0:
                 continue
             msg = AppMsg.load(self.socket.recv())
@@ -86,17 +122,11 @@ class FakeDev:
             elif msg.variant.is_instance_of(AppMsg.AdcReq):
                 adcs = self.handler.read_adc_codes()
                 _send_msg(self.socket, McuMsg.AdcVal(adcs))
+            elif msg.variant.is_instance_of(AppMsg.DacWf):
+                self.handler.write_dac_wf(msg.variant.elements)
+                _send_msg(self.socket, McuMsg.DacWfReq())
             else:
                 raise Exception("Unexpected message type")
-
-            for i in range(self.handler.adc_count):
-                adc_wf = self.handler.read_adc_wfs()[i]
-                if adc_wf_positions[i] == len(adc_wf):
-                    continue
-
-                adc_wf_msg_data = []
-                adc_wf_positions[i] += self._fill_adc_wf_msg_buff(adc_wf_msg_data, adc_wf, adc_wf_positions[i])
-                _send_msg(self.socket, McuMsg.AdcWf(i, adc_wf_msg_data))
 
     def _fill_adc_wf_msg_buff(self, buff, adc_wf, adc_wf_position) -> int:
         elems_to_send = self._adc_wf_msg_max_elems
@@ -106,7 +136,7 @@ class FakeDev:
 
         buff += adc_wf[adc_wf_position : adc_wf_position + elems_to_send]
         return elems_to_send
-            
+    
     def __enter__(self) -> None:
         self.socket.bind("tcp://127.0.0.1:8321")
 
