@@ -12,7 +12,7 @@ private:
     int fd_;
     struct termios tty_;
 
-    inline RpmsgChannel(int fd, struct termios tty, size_t max_len) : Channel(max_len), fd_(fd), tty_(tty) {}
+    inline RpmsgChannel(int fd, struct termios tty) : fd_(fd), tty_(tty) {}
     void close();
 
 public:
@@ -21,8 +21,8 @@ public:
     RpmsgChannel(RpmsgChannel &&other);
     RpmsgChannel &operator=(RpmsgChannel &&other);
 
-    static Result<RpmsgChannel, Error> create(const std::string &dev, size_t max_length);
+    static Result<RpmsgChannel, Error> create(const std::string &dev);
 
-    virtual Result<std::monostate, Error> send_raw(const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout) override;
-    virtual Result<size_t, Error> receive_raw(uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout) override;
+    virtual Result<std::monostate, Error> send(const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout) override;
+    virtual Result<size_t, Error> receive(uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout) override;
 };

@@ -5,7 +5,7 @@
 #include "rpmsg.hpp"
 
 
-Result<RpmsgChannel, RpmsgChannel::Error> RpmsgChannel::create(const std::string &dev, const size_t max_length) {
+Result<RpmsgChannel, RpmsgChannel::Error> RpmsgChannel::create(const std::string &dev) {
     //std::cout << "Init RPMSG channel: " << dev << std::endl;
     int fd = open(dev.c_str(), O_NOCTTY | O_RDWR);// | O_NONBLOCK);
     if (fd < 0) {
@@ -16,7 +16,7 @@ Result<RpmsgChannel, RpmsgChannel::Error> RpmsgChannel::create(const std::string
     if (tcsetattr(fd, TCSAFLUSH, &tty) < 0) {
         return Err(Error{ErrorKind::IoError, "Error tcsetattr"});
     }
-    return Ok(RpmsgChannel(fd, tty, max_length));
+    return Ok(RpmsgChannel(fd, tty));
 }
 void RpmsgChannel::close() {
     if (this->fd_ >= 0) {
@@ -29,7 +29,6 @@ RpmsgChannel::~RpmsgChannel() {
 }
 
 RpmsgChannel::RpmsgChannel(RpmsgChannel &&other) :
-    Channel(other.max_length()),
     fd_(other.fd_),
     tty_(other.tty_)
 {
@@ -44,7 +43,7 @@ RpmsgChannel &RpmsgChannel::operator=(RpmsgChannel &&other) {
     return *this;
 }
 
-Result<std::monostate, RpmsgChannel::Error> RpmsgChannel::send_raw(
+Result<std::monostate, RpmsgChannel::Error> RpmsgChannel::send(
     const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout
 ) {
     //std::cout << "Send data" << std::endl;
@@ -70,7 +69,7 @@ Result<std::monostate, RpmsgChannel::Error> RpmsgChannel::send_raw(
 
     return Ok(std::monostate{});
 }
-Result<size_t, RpmsgChannel::Error> RpmsgChannel::receive_raw(
+Result<size_t, RpmsgChannel::Error> RpmsgChannel::receive(
     uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout
 ) {
     pollfd pfd = {this->fd_, POLLIN, 0};

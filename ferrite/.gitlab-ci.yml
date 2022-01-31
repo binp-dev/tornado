@@ -53,6 +53,15 @@ host.ipp.generate:
     paths:
       - target/ipp_generated
 
+host.app_test.build:
+  stage: "0"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_test.build
+  artifacts:
+    paths:
+      - target/app_test
+
 host.epics_base.clone:
   stage: "0"
   script:
@@ -131,16 +140,13 @@ host.ipp.build:
     paths:
       - target/ipp_host
 
-host.app.build_unittest:
+host.app_test.test:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app.build_unittest
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_test.test
   needs:
-    - host.ipp.generate
-  artifacts:
-    paths:
-      - target/app_host
+    - host.app_test.build
 
 host.epics_base.build:
   stage: "1"
@@ -160,11 +166,11 @@ host.epics_base.build:
         - target/epics_base_7.0.4.1_build_host
         - target/epics_base_7.0.4.1_install_host
 
-host.app.build_fakedev:
+host.app.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app.build_fakedev
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app.build
   needs:
     - host.ipp.generate
   artifacts:
@@ -184,11 +190,11 @@ imx8mn.mcu.build:
     paths:
       - target/mcu_imx8mn
 
-imx8mn.app.build_main:
+imx8mn.app.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.app.build_main
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.app.build
   needs:
     - host.ipp.generate
     - imx8mn.app_toolchain.download
@@ -212,21 +218,13 @@ host.ipp.test:
   needs:
     - host.ipp.build
 
-host.app.run_unittest:
-  stage: "2"
-  script:
-    - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app.run_unittest
-  needs:
-    - host.app.build_unittest
-
 host.ioc.build:
   stage: "2"
   script:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.ioc.build
   needs:
-    - host.app.build_fakedev
+    - host.app.build
     - host.epics_base.build
   artifacts:
     paths:
@@ -267,7 +265,7 @@ imx8mn.ioc.build:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.ioc.build
   needs:
-    - imx8mn.app.build_main
+    - imx8mn.app.build
     - imx8mn.app_toolchain.download
     - imx8mn.epics_base.build
   artifacts:
@@ -281,7 +279,7 @@ host.all.test:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.all.test
   needs:
-    - host.app.run_unittest
+    - host.app_test.test
     - host.codegen.test
     - host.ioc.test_fakedev
     - host.ipp.test

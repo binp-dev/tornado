@@ -189,6 +189,7 @@ class Struct(Type[StructValue]):
             "\n".join([
                 f"class {self.cpp_type()} final {{",
                 f"public:",
+                *([f"    using Raw = {self.c_type()};"] if not self.is_empty() else []),
                 *list_join([["    " + s for s in lines] for lines in sections], [""]),
                 f"}};",
             ]),

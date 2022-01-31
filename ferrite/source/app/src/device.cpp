@@ -12,13 +12,13 @@ void Device::recv_loop() {
     std::cout << "[app] Channel serve thread started" << std::endl;
     const auto timeout = std::chrono::milliseconds(10);
 
-    channel->send(ipp::AppMsg{ipp::AppMsgStart{}}, std::nullopt).unwrap(); // Wait forever
+    channel.send(ipp::AppMsg{ipp::AppMsgStart{}}, std::nullopt).unwrap(); // Wait forever
     std::cout << "[app] Start signal sent" << std::endl;
 
     send_worker = std::thread([this]() { this->send_loop(); });
 
     while (!this->done.load()) {
-        auto result = channel->receive(timeout);
+        auto result = channel.receive(timeout);
         if (result.is_err()) {
             auto err = result.unwrap_err();
             if (err.kind == Channel::ErrorKind::TimedOut) {
@@ -80,23 +80,23 @@ void Device::send_loop() {
 
         if (status == std::cv_status::timeout) {
             // std::cout << "[app] Request ADC measurements." << std::endl;
-            channel->send(ipp::AppMsg{ipp::AppMsgAdcReq{}}, std::nullopt).unwrap();
+            channel.send(ipp::AppMsg{ipp::AppMsgAdcReq{}}, std::nullopt).unwrap();
             next_wakeup = std::chrono::system_clock::now() + adc_req_period;
         }
         if (dac.update.exchange(false)) {
             int32_t value = dac.value.load();
             std::cout << "[app] Send DAC value: " << value << std::endl;
-            channel->send(ipp::AppMsg{ipp::AppMsgDacSet{value}}, std::nullopt).unwrap();
+            channel.send(ipp::AppMsg{ipp::AppMsgDacSet{value}}, std::nullopt).unwrap();
         }
         if (dout.update.exchange(false)) {
             uint8_t value = dout.value.load();
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
-            channel->send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
+            channel.send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
         }
     }
 }
 
-Device::Device(std::unique_ptr<Channel> channel) : channel(std::move(channel)) {
+Device::Device(DeviceChannel &&channel) : channel(std::move(channel)) {
     done.store(true);
 }
 Device::~Device() {
