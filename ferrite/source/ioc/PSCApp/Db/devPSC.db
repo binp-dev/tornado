@@ -1,88 +1,88 @@
-# ADC channels
-record(ai, "ai0")
-{
-    field(DTYP, "devsup")
-    field(SCAN, "I/O Intr")
-    field(ASLO, 0.000001354692188)
-    field(LINR, "SLOPE")
-    field(PREC, 6)
-}
-record(ai, "ai1")
-{
-    field(DTYP, "devsup")
-    field(SCAN, "I/O Intr")
-    field(ASLO, 0.000001354692188)
-    field(LINR, "SLOPE")
-    field(PREC, 6)
-}
-record(ai, "ai2")
-{
-    field(DTYP, "devsup")
-    field(SCAN, "I/O Intr")
-    field(ASLO, 0.000001354692188)
-    field(LINR, "SLOPE")
-    field(PREC, 6)
-}
-record(ai, "ai3")
-{
-    field(DTYP, "devsup")
-    field(SCAN, "I/O Intr")
-    field(ASLO, 0.000001354692188)
-    field(LINR, "SLOPE")
-    field(PREC, 6)
-}
-record(ai, "ai4")
-{
-    field(DTYP, "devsup")
-    field(SCAN, "I/O Intr")
-    field(ASLO, 0.000001354692188)
-    field(LINR, "SLOPE")
-    field(PREC, 6)
-}
-record(ai, "ai5")
-{
-    field(DTYP, "devsup")
-    field(SCAN, "I/O Intr")
-    field(ASLO, 0.000001354692188)
-    field(LINR, "SLOPE")
-    field(PREC, 6)
-}
-
-# DAC channel
-record(ao, "ao0")
-{
-    field(DTYP, "devsup")
-    field(ASLO, 0.0003157445)
-    field(AOFF, -10.346)
-    field(LINR, "SLOPE")
-    field(PREC, 6)
-
-    field(RVAL, 32767)
-    field(PINI, "YES")
-}
-
-# Discrete input
-record(mbbiDirect, "di0") {
-	field(DTYP, "devsup")
-	field(NOBT, 8)
-	field(SCAN, "I/O Intr")
-}
-
-# Discrete output
-record(mbboDirect, "do0") {
-	field(DTYP, "devsup")
-	field(NOBT, 4)
-}
-
-# Scan frequency
-record(ao, "scan_freq")
-{
-    field(DTYP, "devsup")
-    field(PREC, 1)
-    field(RVAL, 1)
-    field(PINI, "YES")
-}
-
+## ADC channels
+#record(ai, "ai0")
+#{
+#    field(DTYP, "devsup")
+#    field(SCAN, "I/O Intr")
+#    field(ASLO, 0.000001354692188)
+#    field(LINR, "SLOPE")
+#    field(PREC, 6)
+#}
+#record(ai, "ai1")
+#{
+#    field(DTYP, "devsup")
+#    field(SCAN, "I/O Intr")
+#    field(ASLO, 0.000001354692188)
+#    field(LINR, "SLOPE")
+#    field(PREC, 6)
+#}
+#record(ai, "ai2")
+#{
+#    field(DTYP, "devsup")
+#    field(SCAN, "I/O Intr")
+#    field(ASLO, 0.000001354692188)
+#    field(LINR, "SLOPE")
+#    field(PREC, 6)
+#}
+#record(ai, "ai3")
+#{
+#    field(DTYP, "devsup")
+#    field(SCAN, "I/O Intr")
+#    field(ASLO, 0.000001354692188)
+#    field(LINR, "SLOPE")
+#    field(PREC, 6)
+#}
+#record(ai, "ai4")
+#{
+#    field(DTYP, "devsup")
+#    field(SCAN, "I/O Intr")
+#    field(ASLO, 0.000001354692188)
+#    field(LINR, "SLOPE")
+#    field(PREC, 6)
+#}
+#record(ai, "ai5")
+#{
+#    field(DTYP, "devsup")
+#    field(SCAN, "I/O Intr")
+#    field(ASLO, 0.000001354692188)
+#    field(LINR, "SLOPE")
+#    field(PREC, 6)
+#}
+#
+## DAC channel
+#record(ao, "ao0")
+#{
+#    field(DTYP, "devsup")
+#    field(ASLO, 0.0003157445)
+#    field(AOFF, -10.346)
+#    field(LINR, "SLOPE")
+#    field(PREC, 6)
+#
+#    field(RVAL, 32767)
+#    field(PINI, "YES")
+#}
+#
+## Discrete input
+#record(mbbiDirect, "di0") {
+#	field(DTYP, "devsup")
+#	field(NOBT, 8)
+#	field(SCAN, "I/O Intr")
+#}
+#
+## Discrete output
+#record(mbboDirect, "do0") {
+#	field(DTYP, "devsup")
+#	field(NOBT, 4)
+#}
+#
+## Scan frequency
+#record(ao, "scan_freq")
+#{
+#    field(DTYP, "devsup")
+#    field(PREC, 1)
+#    field(RVAL, 1)
+#    field(PINI, "YES")
+#}
+#
 record(aao, "aao0") {
     field(DTYP, "devsup")
     field(NELM, 200)

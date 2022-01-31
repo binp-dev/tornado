@@ -35,6 +35,7 @@ def _recv_msg(socket: zmq.Socket) -> VariantValue:
 
 
 class FakeDev:
+    _adc_wf_msg_max_elems = 10
 
     class Handler:
 
@@ -49,6 +50,9 @@ class FakeDev:
 
         def read_adc_codes(self) -> List[int]:
             return [adc_volt_to_code(v) for v in self.read_adcs()]
+
+        def read_adc_wfs(self) -> List[int]:
+            return self.adc_wfs
 
     def __init__(self, prefix: Path, ioc: Ioc, handler: FakeDev.Handler) -> None:
         self.prefix = prefix
@@ -70,6 +74,8 @@ class FakeDev:
         poller = zmq.Poller()
         poller.register(self.socket, zmq.POLLIN)
 
+        adc_wf_positions = [0 for i in range(self.handler.adc_count)]
+
         while not self.done:
             evts = poller.poll(100)
             if len(evts) == 0:
@@ -83,6 +89,24 @@ class FakeDev:
             else:
                 raise Exception("Unexpected message type")
 
+            for i in range(self.handler.adc_count):
+                adc_wf = self.handler.read_adc_wfs()[i]
+                if adc_wf_positions[i] == len(adc_wf):
+                    continue
+
+                adc_wf_msg_data = []
+                adc_wf_positions[i] += self._fill_adc_wf_msg_buff(adc_wf_msg_data, adc_wf, adc_wf_positions[i])
+                _send_msg(self.socket, McuMsg.AdcWf(i, adc_wf_msg_data))
+
+    def _fill_adc_wf_msg_buff(self, buff, adc_wf, adc_wf_position) -> int:
+        elems_to_send = self._adc_wf_msg_max_elems
+        elems_to_fill = len(adc_wf) - adc_wf_position
+        if elems_to_fill < elems_to_send:
+            elems_to_send = elems_to_fill
+
+        buff += adc_wf[adc_wf_position : adc_wf_position + elems_to_send]
+        return elems_to_send
+            
     def __enter__(self) -> None:
         self.socket.bind("tcp://127.0.0.1:8321")
 
