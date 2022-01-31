@@ -16,6 +16,9 @@ AppMsg = make_variant(
         (Name(["dout", "set"]), [
             Field("value", Int(8, signed=False)),
         ]),
+        (Name(["dac", "wf"]), [
+            Field("elements", Vector(Int(32, signed=True))),
+        ]),
     ],
 )
 
@@ -29,13 +32,13 @@ McuMsg = make_variant(
             Field("value", Int(8, signed=False)),
         ]),
         (Name(["error"]), [
-            Field("code", Int(8)),
+            Field("code", Int(8)), 
             Field("message", String()),
         ]),
         (Name(["debug"]), [
             Field("message", String()),
         ]),
-        (Name(["wf", "req"]), []),
+        (Name(["dac", "wf", "req"]), []),
         (Name(["adc", "wf"]), [
             Field("index", Int(8, signed=False)),
             Field("elements", Vector(Int(32, signed=True)))

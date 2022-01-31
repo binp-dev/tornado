@@ -66,6 +66,10 @@ void Device::recv_loop() {
                     adc_wf.notify();
                 }
             }
+        } else if (std::holds_alternative<ipp::McuMsgDacWfReq>(incoming.variant)) {
+            has_dac_wf_req_.store(true);
+            send_ready.notify_all();
+
         } else if (std::holds_alternative<ipp::McuMsgDebug>(incoming.variant)) {
             std::cout << "Device: " << std::get<ipp::McuMsgDebug>(incoming.variant).message << std::endl;
 
@@ -106,10 +110,24 @@ void Device::send_loop() {
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
             channel->send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
         }
+        if (has_dac_wf_req_.exchange(false) == true && dac_wf.wf_is_set.load() == true) {
+            ipp::AppMsgDacWf dac_wf_msg;
+            auto &buffer = dac_wf_msg.elements;
+            size_t max_buffer_size = (msg_max_len_ - dac_wf_msg.packed_size()) / sizeof(int32_t);
+            buffer.reserve(max_buffer_size);
+
+            // fill buffer
+
+            assert_true(dac_wf_msg.packed_size() < msg_max_len_);
+            channel->send(ipp::AppMsg{std::move(dac_wf_msg)}, std::nullopt).unwrap();
+        }
     }
 }
 
-Device::Device(std::unique_ptr<Channel> channel) : channel(std::move(channel)) {
+Device::Device(std::unique_ptr<Channel> channel, size_t msg_max_len) : 
+    channel(std::move(channel)),
+    msg_max_len_(msg_max_len) 
+{
     done.store(true);
 }
 Device::~Device() {
@@ -174,6 +192,22 @@ void Device::init_dac_wf(size_t wf_max_size) {
     for (size_t i = 0; i < dac_wf.wf_data.size(); ++i) {
         dac_wf.wf_data[i].resize(wf_max_size, 0.0);
     }
+
+    dac_wf.wf_max_size = wf_max_size;
+}
+
+void Device::write_dac_wf(const int32_t *wf_data, const size_t wf_len) {
+    std::lock_guard<std::mutex> guard(dac_wf.mutex);
+
+    if (!dac_wf.wf_is_set.load()) {
+        std::copy(wf_data, wf_data + wf_len, dac_wf.wf_data[0].begin());
+        dac_wf.wf_is_set.store(true);
+
+        send_ready.notify_all();
+    } else {
+        std::copy(wf_data, wf_data + wf_len, dac_wf.wf_data[1].begin());
+        dac_wf.swap_ready.store(true);
+    }
 }
 
 void Device::init_adc_wf(uint8_t index, size_t wf_max_size) {
@@ -194,4 +228,45 @@ const std::vector<int32_t> Device::read_adc_wf(size_t index) {
     adc_wf.wf_data.erase(adc_wf.wf_data.begin(), adc_wf.wf_data.begin() + adc_wf.wf_max_size);
 
     return wf_data;
+}
+
+void Device::fill_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size) {
+    copy_dac_wf_to_dac_wf_msg(msg_buff, max_buffer_size);
+    
+    while (true) {
+        if (dac_wf.buff_position >= dac_wf.wf_max_size) {
+            if (swap_dac_wf_buffers() == true) {
+                copy_dac_wf_to_dac_wf_msg(msg_buff, max_buffer_size);
+            } else {
+                break;
+            }
+        }
+    }
+
+    
+}
+
+void Device::copy_dac_wf_to_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size) {
+    size_t elements_to_fill = max_buffer_size - msg_buff.size();
+    size_t elements_left = dac_wf.wf_data[0].size() - dac_wf.buff_position;
+    if (elements_left < elements_to_fill) {
+        elements_to_fill = elements_left;
+    }
+
+    auto dac_wf_buff_pos_iter = dac_wf.wf_data[0].begin() + dac_wf.buff_position;
+    msg_buff.insert(msg_buff.end(), dac_wf_buff_pos_iter, dac_wf_buff_pos_iter + elements_to_fill);
+    
+    dac_wf.buff_position += elements_to_fill;
+}
+
+bool Device::swap_dac_wf_buffers() {
+    std::lock_guard<std::mutex> guard(dac_wf.mutex);
+
+    if (dac_wf.swap_ready.exchange(false) == true) {
+        dac_wf.wf_data[0].swap(dac_wf.wf_data[1]);
+        return true;
+    }
+    
+    dac_wf.wf_is_set.store(false);
+    return false;
 }

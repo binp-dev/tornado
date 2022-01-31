@@ -86,7 +86,7 @@ public:
     }
 
     virtual void write(OutputArrayRecord<int32_t> &record) override {
-        // device_.write_waveform(record.data(), record.length());
+        device_.write_dac_wf(record.data(), record.length());
     }
 
     virtual bool is_async() const override {

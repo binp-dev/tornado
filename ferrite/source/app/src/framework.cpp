@@ -31,7 +31,7 @@ void init_device(MaybeUninit<Device> &mem) {
         ))
 #endif // FAKEDEV
     ;
-    mem.init_in_place(std::move(channel));
+    mem.init_in_place(std::move(channel), message_max_length);
 }
 
 /// We use LazyStatic to initialize global Device without global constructor. 
