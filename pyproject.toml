@@ -26,7 +26,10 @@ continuation_indent_width = 4
 continuation_align_style = "space"
 dedent_closing_brackets = true
 coalesce_brackets = true
+allow_split_before_dict_value = false
+indent_dictionary_value = false
 
 [tool.mypy]
+mypy_path = "ferrite"
 strict = true
 namespace_packages = true

@@ -139,6 +139,8 @@ colorama = "^0.4.4"
 conan = "^1.44.0"
 paramiko = "^2.9.2"
 pyzmq = "^22.3.0"
+types-colorama = "^0.4.4"
+types-paramiko = "^2.8.10"
 
 [package.source]
 type = "directory"
@@ -385,6 +387,53 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 dev = ["py-make (>=0.1.0)", "twine", "wheel"]
 notebook = ["ipywidgets (>=6)"]
 telegram = ["requests"]
+
+[[package]]
+name = "types-colorama"
+version = "0.4.7"
+description = "Typing stubs for colorama"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "types-cryptography"
+version = "3.3.14"
+description = "Typing stubs for cryptography"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+types-enum34 = "*"
+types-ipaddress = "*"
+
+[[package]]
+name = "types-enum34"
+version = "1.1.8"
+description = "Typing stubs for enum34"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "types-ipaddress"
+version = "1.0.8"
+description = "Typing stubs for ipaddress"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "types-paramiko"
+version = "2.8.10"
+description = "Typing stubs for paramiko"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+types-cryptography = "*"
 
 [[package]]
 name = "typing-extensions"
@@ -785,6 +834,26 @@ tomli = [
 tqdm = [
     {file = "tqdm-4.62.3-py2.py3-none-any.whl", hash = "sha256:8dd278a422499cd6b727e6ae4061c40b48fce8b76d1ccbf5d34fca9b7f925b0c"},
     {file = "tqdm-4.62.3.tar.gz", hash = "sha256:d359de7217506c9851b7869f3708d8ee53ed70a1b8edbba4dbcb47442592920d"},
+]
+types-colorama = [
+    {file = "types-colorama-0.4.7.tar.gz", hash = "sha256:9c2eac716a7e946f90ada1a521e4d465ab822f39a22c716e797946e5ffc0a991"},
+    {file = "types_colorama-0.4.7-py3-none-any.whl", hash = "sha256:1bb0e165cfab2239581bbe100c992cc207206abd42c0f45d1101bf326aafb4aa"},
+]
+types-cryptography = [
+    {file = "types-cryptography-3.3.14.tar.gz", hash = "sha256:be07857ab3e52f254bf5559f8019d85b2200391c3e1f008b98f26ebedac027a8"},
+    {file = "types_cryptography-3.3.14-py3-none-any.whl", hash = "sha256:c90ec0031c3d5262660990b62d9ec076bf5ed55eebfbe0011a53778e8aa62b9d"},
+]
+types-enum34 = [
+    {file = "types-enum34-1.1.8.tar.gz", hash = "sha256:6f9c769641d06d73a55e11c14d38ac76fcd37eb545ce79cebb6eec9d50a64110"},
+    {file = "types_enum34-1.1.8-py3-none-any.whl", hash = "sha256:05058c7a495f6bfaaca0be4aeac3cce5cdd80a2bad2aab01fd49a20bf4a0209d"},
+]
+types-ipaddress = [
+    {file = "types-ipaddress-1.0.8.tar.gz", hash = "sha256:a03df3be5935e50ba03fa843daabff539a041a28e73e0fce2c5705bee54d3841"},
+    {file = "types_ipaddress-1.0.8-py3-none-any.whl", hash = "sha256:4933b74da157ba877b1a705d64f6fa7742745e9ffd65e51011f370c11ebedb55"},
+]
+types-paramiko = [
+    {file = "types-paramiko-2.8.10.tar.gz", hash = "sha256:25b7e5c1d61c7e317a08f544342b6042e819f0f420e1312c8c4df113cb7a77d0"},
+    {file = "types_paramiko-2.8.10-py3-none-any.whl", hash = "sha256:25c7daffb0cc2f58af1c18387823c8a1755a3aa01adde8b54841f625cf8fa394"},
 ]
 typing-extensions = [
     {file = "typing_extensions-4.0.1-py3-none-any.whl", hash = "sha256:7f001e5ac290a0c0401508864c7ec868be4e701886d5b573a9528ed3973d9d3b"},

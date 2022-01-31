@@ -3,17 +3,17 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from ferrite.manage.tree import make_components
 from ferrite.manage.cli import add_parser_args, read_run_params, ReadRunParamsError, run_with_params
 
-if __name__ == "__main__":
-    source_dir = Path.cwd() / "ferrite/source"
-    assert source_dir.exists()
+from tornado.manage.tree import make_components
 
-    target_dir = Path.cwd() / "target"
+if __name__ == "__main__":
+    base_dir = Path.cwd()
+    ferrite_dir = base_dir / "ferrite"
+    target_dir = base_dir / "target"
     target_dir.mkdir(exist_ok=True)
 
-    components = make_components(source_dir, target_dir)
+    components = make_components(base_dir, ferrite_dir, target_dir)
 
     parser = argparse.ArgumentParser(
         description="Tornado power supply controller development automation tool",
