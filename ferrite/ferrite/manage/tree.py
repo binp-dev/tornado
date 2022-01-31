@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import Dict
 
 from pathlib import Path
-from dataclasses import dataclass
 
 from ferrite.components.base import Component, ComponentGroup
 from ferrite.components.toolchain import HostToolchain
