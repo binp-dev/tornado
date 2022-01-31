@@ -61,6 +61,6 @@ class Imx8mnPlatform(Platform):
 
     def __init__(self, target_dir: Path) -> None:
         super().__init__(
-            McuPlatform(Imx8mnMcuToolchain(target_dir), Imx8mnFreertos(target_dir), McuDeployer()),
+            McuPlatform(Imx8mnMcuToolchain(target_dir), Imx8mnFreertos(target_dir), Imx8mnMcuDeployer()),
             AppPlatform(Imx8mnAppToolchain(target_dir)),
         )
