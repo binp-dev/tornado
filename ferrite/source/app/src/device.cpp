@@ -57,14 +57,16 @@ void Device::recv_loop() {
         } else if (std::holds_alternative<ipp::McuMsgAdcWf>(incoming.variant)) {
             const auto adc_wf_msg = std::get<ipp::McuMsgAdcWf>(incoming.variant);
             auto &adc_wf = adc_wfs[adc_wf_msg.index];
+            if (!adc_wf.notify) {
+                continue;
+            } 
+
             {
                 std::lock_guard<std::mutex> lock(adc_wf.mutex);
                 adc_wf.wf_data.insert(adc_wf.wf_data.end(), adc_wf_msg.elements.begin(), adc_wf_msg.elements.end());
 
                 if (adc_wf.wf_data.size() >= adc_wf.wf_max_size) {
-                    if (adc_wf.notify) {
-                        adc_wf.notify();
-                    }
+                    adc_wf.notify();
                 }
             }
 
