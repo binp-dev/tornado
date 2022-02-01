@@ -11,6 +11,7 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <semphr.h>
+#include <stream_buffer.h>
 
 #include <ipp.h>
 
@@ -31,6 +32,10 @@
 #define TASK_STACK_SIZE 256
 #define RPMSG_TASK_PRIORITY tskIDLE_PRIORITY + 1
 
+#define MAX_POINTS_IN_RPMSG         63 // TODO: Check size
+#define DAC_WF_BUFF_SIZE            (MAX_POINTS_IN_RPMSG*2)
+#define ADC_WF_BUFF_SIZE            (MAX_POINTS_IN_RPMSG*3)
+
 typedef struct {
     int32_t last;
     int64_t sum;
@@ -48,6 +53,11 @@ static volatile Accum ACCUM = {0, {{0, 0}}, 0, 0, 0};
 
 static hal_rpmsg_channel channel;
 static SemaphoreHandle_t din_sem = NULL;
+
+static volatile StreamBufferHandle_t dac_wf_buff;
+static volatile bool need_adc_wf_req = true;
+static volatile StreamBufferHandle_t adc_wf_buff[SKIFIO_ADC_CHANNEL_COUNT];
+static SemaphoreHandle_t wfs_sem = NULL;
 
 static void din_handler(void *data, SkifioDin value) {
     ACCUM.din = value;
@@ -74,6 +84,40 @@ static void task_rpmsg_send_din(void *param) {
     }
 }
 
+void send_adc_wf_data() {
+    for (int i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
+        size_t elems_in_buff = xStreamBufferBytesAvailable(adc_wf_buff[i]) / sizeof(int32_t);
+        if (elems_in_buff >= MAX_POINTS_IN_RPMSG) {
+            uint8_t *buffer = NULL;
+            size_t len = 0;
+            hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+            IppMcuMsg *adc_wf_msg = (IppMcuMsg *)buffer;
+            adc_wf_msg->type = IPP_MCU_MSG_ADC_WF;
+            adc_wf_msg->adc_wf.index = i;
+
+            size_t sent_data_size = xStreamBufferReceive(
+                adc_wf_buff[i],
+                &(adc_wf_msg->adc_wf.elements.data),
+                MAX_POINTS_IN_RPMSG*sizeof(int32_t),
+                0
+            );
+            hal_assert(sent_data_size/sizeof(int32_t) == MAX_POINTS_IN_RPMSG); // TODO: Delete after debug?
+
+            hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(adc_wf_msg)) == HAL_SUCCESS);
+        }
+    }
+}
+
+static void task_rpmsg_send_waveforms_msg(void *param) {
+    for (;;) {
+        xSemaphoreTake(wfs_sem, portMAX_DELAY);
+
+        send_adc_wf_data();
+
+        vTaskDelay(10);
+    }
+}
+
 static void task_skifio(void *param) {
     TickType_t meas_start = xTaskGetTickCount();
     hal_busy_wait_ns(1000000000ll);
@@ -85,6 +129,9 @@ static void task_skifio(void *param) {
     hal_log_info("Create rpmsg_send_din task");
     xTaskCreate(task_rpmsg_send_din, "rpmsg_send_din task", TASK_STACK_SIZE, NULL, RPMSG_TASK_PRIORITY, NULL);
     hal_assert(skifio_din_subscribe(din_handler, NULL) == HAL_SUCCESS);
+
+    hal_log_info("Create task_rpmsg_send_waveforms_msg task");
+    xTaskCreate(task_rpmsg_send_waveforms_msg, "send_waveforms_msg task", TASK_STACK_SIZE, NULL, RPMSG_TASK_PRIORITY, NULL);
 
     SkifioInput input = {{0}};
     SkifioOutput output = {0};
@@ -135,6 +182,13 @@ static void task_skifio(void *param) {
             }
             stats->last = value;
             stats->sum += value;
+
+            size_t added_data_size = xStreamBufferSend(adc_wf_buff[j], &value, sizeof(int32_t), 0);
+            hal_assert(added_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
+
+            if (added_data_size == 0) {
+                hal_log_error("Not enough space in adc_wf_buff[%d] to save ADC data", i);
+            }
         }
         ACCUM.sample_count += 1;
         STATS.sample_count += 1;
@@ -260,6 +314,22 @@ static void task_stats(void *param) {
     }
 }
 
+void initialize_wf_buffers() {
+    dac_wf_buff = xStreamBufferCreate(DAC_WF_BUFF_SIZE*sizeof(int32_t), 0);
+    if (dac_wf_buff == NULL) {
+        hal_log_error("Can't initialize buffer for output waveform");
+        hal_panic();
+    }
+
+    for (size_t i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
+        adc_wf_buff[i] = xStreamBufferCreate(ADC_WF_BUFF_SIZE*sizeof(int32_t), 0);
+        if (adc_wf_buff[i] == NULL) {
+            hal_log_error("Can't initialize buffer for input waveform");
+            hal_panic();
+        }
+    }
+}
+
 int main(void)
 {
     /* Initialize standard SDK demo application pins */
@@ -289,8 +359,11 @@ int main(void)
     xTaskCreate(sync_generator_task, "Sync generator task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 4, NULL);
 #endif
 
+    initialize_wf_buffers();
     din_sem = xSemaphoreCreateBinary();
     hal_assert(din_sem != NULL);
+    wfs_sem = xSemaphoreCreateCounting(10, 1);
+    hal_assert(wfs_sem != NULL);
 
     hal_log_info("Create SkifIO task");
     xTaskCreate(task_skifio, "SkifIO task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL);
