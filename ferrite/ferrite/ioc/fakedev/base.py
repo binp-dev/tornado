@@ -37,7 +37,7 @@ def _recv_msg(socket: zmq.Socket) -> VariantValue:
 
 
 class FakeDev:
-    _adc_wf_msg_max_elems = 10
+    _adc_wf_msg_max_elems = 63
 
     class Handler:
 
@@ -104,12 +104,12 @@ class FakeDev:
 
         while not self.done:
             evts = poller.poll(100)
-
+            
             for i in range(len(self.handler.read_adc_wfs())):
                 adc_wf = self.handler.read_adc_wfs()[i]
                 if adc_wf_positions[i] == len(adc_wf):
                     continue
-
+                
                 adc_wf_msg_data = []
                 adc_wf_positions[i] += self._fill_adc_wf_msg_buff(adc_wf_msg_data, adc_wf, adc_wf_positions[i])
                 _send_msg(self.socket, McuMsg.AdcWf(i, adc_wf_msg_data))

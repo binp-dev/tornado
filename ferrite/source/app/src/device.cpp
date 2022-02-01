@@ -112,10 +112,6 @@ void Device::send_loop() {
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
             channel->send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
         }
-        //DEL
-        // std::cout << "has_dac_wf_req_ = " << has_dac_wf_req_.load() << std::endl;
-        // std::cout << "dac_wf.wf_is_set = " << dac_wf.wf_is_set.load() << std::endl;
-
         if (has_dac_wf_req_.load() == true && dac_wf.wf_is_set.load() == true) {
             has_dac_wf_req_.store(false);
             ipp::AppMsgDacWf dac_wf_msg;
@@ -124,13 +120,6 @@ void Device::send_loop() {
             buffer.reserve(max_buffer_size);
 
             fill_dac_wf_msg(buffer, max_buffer_size);
-
-            //DEL
-            // std::cout << "SEND DAC WF:";
-            // for (int i = 0; i < dac_wf_msg.elements.size(); ++i) {
-            //     std::cout << dac_wf_msg.elements[i] << " ";
-            // }
-            // std::cout << std::endl;
 
             assert_true(dac_wf_msg.packed_size() < msg_max_len_);
             channel->send(ipp::AppMsg{std::move(dac_wf_msg)}, std::nullopt).unwrap();
@@ -247,18 +236,6 @@ const std::vector<int32_t> Device::read_adc_wf(size_t index) {
 void Device::fill_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size) {
     copy_dac_wf_to_dac_wf_msg(msg_buff, max_buffer_size);
 
-    // while (true) {
-    //     if (msg_buff.size() < max_buffer_size) {
-    //         if (swap_dac_wf_buffers() == true) {
-    //             copy_dac_wf_to_dac_wf_msg(msg_buff, max_buffer_size);
-    //         } else {
-    //             break;
-    //         }
-    //     } else {
-    //         break;
-    //     }
-    // } 
-
     while (msg_buff.size() < max_buffer_size) {
         if (swap_dac_wf_buffers() == true) {
             copy_dac_wf_to_dac_wf_msg(msg_buff, max_buffer_size);
@@ -283,6 +260,7 @@ void Device::copy_dac_wf_to_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t ma
 
 bool Device::swap_dac_wf_buffers() {
     if (dac_wf.buff_position = dac_wf.wf_data[0].size()) {
+        dac_wf.buff_position = 0;
         std::lock_guard<std::mutex> guard(dac_wf.mutex);
         
         if (dac_wf.swap_ready.exchange(false) == true) {
