@@ -55,7 +55,7 @@ static hal_rpmsg_channel channel;
 static SemaphoreHandle_t din_sem = NULL;
 
 static volatile StreamBufferHandle_t dac_wf_buff;
-static volatile bool need_adc_wf_req = true;
+static volatile bool need_dac_wf_req = true;
 static volatile StreamBufferHandle_t adc_wf_buff[SKIFIO_ADC_CHANNEL_COUNT];
 static SemaphoreHandle_t wfs_sem = NULL;
 
@@ -114,6 +114,16 @@ static void task_rpmsg_send_waveforms_msg(void *param) {
 
         send_adc_wf_data();
 
+        if (need_dac_wf_req) {
+            uint8_t *buffer = NULL;
+            size_t len = 0;
+            IppMcuMsg *dac_wf_req_msg = (IppMcuMsg *)buffer;
+            dac_wf_req_msg->type = IPP_MCU_MSG_DAC_WF_REQ;
+
+            hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(dac_wf_req_msg)) == HAL_SUCCESS);
+            need_dac_wf_req = false;
+        }
+
         vTaskDelay(10);
     }
 }
@@ -162,8 +172,28 @@ static void task_skifio(void *param) {
 
         output.dac = (int16_t)ACCUM.dac;
 
+        
+        //DAC wavefrom code:
+
+        // int32_t dac_wf_value = 0;
+        // size_t readed_data_size = xStreamBufferReceive(dac_wf_buff, &dac_wf_value, sizeof(int32_t), 0);
+        // hal_assert(readed_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
+        // if (readed_data_size == 0) {
+        //     hal_log_error("dac_wf_buff is empty, not enough data for DAC");
+        // }
+
+        // size_t elems_in_buff = xStreamBufferBytesAvailable(dac_wf_buff) / sizeof(int32_t);
+        // if (elems_in_buff < MAX_POINTS_IN_RPMSG/2) { // TODO: Fix magic number - MAX_POINTS_IN_RPMSG/2?
+        //     need_dac_wf_req = true;
+        // }
+
+        // output.dac = (int16_t)dac_wf_value;
+        
+
         ret = skifio_transfer(&output, &input);
         hal_assert(ret == HAL_SUCCESS || ret == HAL_INVALID_DATA); // Ignore CRC check error
+
+        bool need_send_adc = false;
 
         for (size_t j = 0; j < SKIFIO_ADC_CHANNEL_COUNT; ++j) {
             volatile AdcAccum *accum = &ACCUM.adcs[j];
@@ -185,11 +215,21 @@ static void task_skifio(void *param) {
 
             size_t added_data_size = xStreamBufferSend(adc_wf_buff[j], &value, sizeof(int32_t), 0);
             hal_assert(added_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
-
             if (added_data_size == 0) {
                 hal_log_error("Not enough space in adc_wf_buff[%d] to save ADC data", i);
             }
+
+            size_t elems_in_buff = xStreamBufferBytesAvailable(adc_wf_buff[j]) / sizeof(int32_t);
+            if (elems_in_buff >= MAX_POINTS_IN_RPMSG) {
+                need_send_adc = true;
+            }
         }
+
+        if (need_send_adc || need_dac_wf_req) {
+            xSemaphoreGive(wfs_sem);
+            need_send_adc = false;
+        }
+
         ACCUM.sample_count += 1;
         STATS.sample_count += 1;
     }
@@ -248,6 +288,7 @@ static void task_rpmsg_recv(void *param) {
         case IPP_APP_MSG_START:
             xSemaphoreGive(din_sem);
             hal_log_info("MCU program is already started");
+            hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
             break;
 
         case IPP_APP_MSG_DAC_SET:
@@ -286,6 +327,19 @@ static void task_rpmsg_recv(void *param) {
             ACCUM.dout = value & mask;
             // hal_log_info("Dout write: 0x%lx", (uint32_t)ACCUM.dout);
             hal_assert(skifio_dout_write(ACCUM.dout) == HAL_SUCCESS);
+            hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
+            break;
+
+        }
+        case IPP_APP_MSG_DAC_WF: {
+            size_t added_data_size = xStreamBufferSend(dac_wf_buff, app_msg->dac_wf.elements.data, app_msg->dac_wf.elements.len * sizeof(int32_t), 0);
+            hal_assert(added_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
+
+            if (added_data_size/sizeof(int32_t) != app_msg->dac_wf.elements.len) {
+                hal_log_error("Not enough space in dac waveform buffer to save new data");
+            }
+
+            hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
             break;
         }
         default:
