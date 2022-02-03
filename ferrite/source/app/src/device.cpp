@@ -71,7 +71,7 @@ void Device::recv_loop() {
             }
 
         } else if (std::holds_alternative<ipp::McuMsgDacWfReq>(incoming.variant)) {
-            has_dac_wf_req_.store(true);
+            ++dac_wf_req_count_;
             send_ready.notify_all();
 
         } else if (std::holds_alternative<ipp::McuMsgDebug>(incoming.variant)) {
@@ -114,8 +114,8 @@ void Device::send_loop() {
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
             channel->send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
         }
-        if (has_dac_wf_req_.load() == true && dac_wf.wf_is_set.load() == true) {
-            has_dac_wf_req_.store(false);
+        if (dac_wf_req_count_.load() > 0 && dac_wf.wf_is_set.load() == true) {
+            --dac_wf_req_count_;
             ipp::AppMsgDacWf dac_wf_msg;
             auto &buffer = dac_wf_msg.elements;
             size_t max_buffer_size = (msg_max_len_ - dac_wf_msg.packed_size()) / sizeof(int32_t);
@@ -239,6 +239,10 @@ void Device::fill_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_s
     copy_dac_wf_to_dac_wf_msg(msg_buff, max_buffer_size);
 
     while (msg_buff.size() < max_buffer_size) {
+        // The message buffer is not fully filled only if the waveform has run out of data,
+        // which means dac_wf.buff_position = dac_wf.wf_data[0].size().
+        // So we can try to swap dac_wf buffers
+
         if (swap_dac_wf_buffers() == true) {
             copy_dac_wf_to_dac_wf_msg(msg_buff, max_buffer_size);
         } else {
@@ -261,16 +265,18 @@ void Device::copy_dac_wf_to_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t ma
 }
 
 bool Device::swap_dac_wf_buffers() {
-    if (dac_wf.buff_position = dac_wf.wf_data[0].size()) {
-        dac_wf.buff_position = 0;
-        std::lock_guard<std::mutex> guard(dac_wf.mutex);
-        
-        if (dac_wf.swap_ready.exchange(false) == true) {
-            dac_wf.wf_data[0].swap(dac_wf.wf_data[1]);
+    dac_wf.buff_position = 0;
+    std::lock_guard<std::mutex> guard(dac_wf.mutex);
+    
+    if (dac_wf.swap_ready.exchange(false) == true) {
+        dac_wf.wf_data[0].swap(dac_wf.wf_data[1]);
+        return true;
+    } else {
+        if (cyclic_dac_wf_output) {
             return true;
-        } else {
-            dac_wf.wf_is_set.store(false);
         }
+
+        dac_wf.wf_is_set.store(false);
     }
 
     return false;
