@@ -35,263 +35,261 @@ mypy:
     - poetry run mypy -p ferrite
   allow_failure: true
 
-host_codegen.generate:
+host.codegen.generate:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host_codegen.generate
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.codegen.generate
   artifacts:
     paths:
-      - target/codegen_test_src
+      - target/codegen_generated
 
-host_ipp.generate:
+host.ipp.generate:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host_ipp.generate
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.ipp.generate
   artifacts:
     paths:
       - target/ipp_generated
 
-host_epics_base.clone:
+host.app_test.build:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host_epics_base.clone
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_test.build
+  artifacts:
+    paths:
+      - target/app_test
+
+host.epics_base.clone:
+  stage: "0"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.epics_base.clone
   artifacts:
     paths:
       - target/epics_base_7.0.4.1_src
   cache:
     - *global_cache
-    - key: "host_epics_base.clone:a1a70a21"
+    - key: "host.epics_base.clone:a1a70a21"
       paths:
         - target/epics_base_7.0.4.1_src
 
-imx8mn_mcu_toolchain.download:
+imx8mn.mcu_toolchain.download:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn_mcu_toolchain.download
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.mcu_toolchain.download
   artifacts:
     paths:
       - target/toolchain_gcc-arm-none-eabi-9-2020-q2-update
   cache:
     - *global_cache
-    - key: "imx8mn_mcu_toolchain.download:ebbf11e3"
+    - key: "imx8mn.mcu_toolchain.download:ebbf11e3"
       paths:
         - target/toolchain_gcc-arm-none-eabi-9-2020-q2-update
 
-imx8mn_freertos.clone:
+imx8mn.freertos.clone:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn_freertos.clone
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.freertos.clone
   artifacts:
     paths:
       - target/mcuxpresso_sdk_2.9.x-var01
   cache:
     - *global_cache
-    - key: "imx8mn_freertos.clone:dcfe0c26"
+    - key: "imx8mn.freertos.clone:dcfe0c26"
       paths:
         - target/mcuxpresso_sdk_2.9.x-var01
 
-imx8mn_app_toolchain.download:
+imx8mn.app_toolchain.download:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn_app_toolchain.download
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.app_toolchain.download
   artifacts:
     paths:
       - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
   cache:
     - *global_cache
-    - key: "imx8mn_app_toolchain.download:f68a15dd"
+    - key: "imx8mn.app_toolchain.download:f68a15dd"
       paths:
         - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
 
-host_codegen.build:
+host.codegen.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host_codegen.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.codegen.build
   needs:
-    - host_codegen.generate
+    - host.codegen.generate
   artifacts:
     paths:
       - target/codegen_host
 
-host_ipp.build:
+host.ipp.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host_ipp.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.ipp.build
   needs:
-    - host_ipp.generate
+    - host.ipp.generate
   artifacts:
     paths:
       - target/ipp_host
 
-host_app.build_unittest:
+host.app_test.test:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host_app.build_unittest
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_test.test
   needs:
-    - host_ipp.generate
-  artifacts:
-    paths:
-      - target/app_host
+    - host.app_test.build
 
-host_epics_base.build:
+host.epics_base.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host_epics_base.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.epics_base.build
   needs:
-    - host_epics_base.clone
+    - host.epics_base.clone
   artifacts:
     paths:
       - target/epics_base_7.0.4.1_build_host
       - target/epics_base_7.0.4.1_install_host
   cache:
     - *global_cache
-    - key: "host_epics_base.build:a91afc"
+    - key: "host.epics_base.build:a91afc"
       paths:
         - target/epics_base_7.0.4.1_build_host
         - target/epics_base_7.0.4.1_install_host
 
-host_app.build_fakedev:
+host.app.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host_app.build_fakedev
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app.build
   needs:
-    - host_ipp.generate
+    - host.ipp.generate
   artifacts:
     paths:
       - target/app_host
 
-imx8mn_mcu.build:
+imx8mn.mcu.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn_mcu.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.mcu.build
   needs:
-    - host_ipp.generate
-    - imx8mn_freertos.clone
-    - imx8mn_mcu_toolchain.download
+    - host.ipp.generate
+    - imx8mn.freertos.clone
+    - imx8mn.mcu_toolchain.download
   artifacts:
     paths:
       - target/mcu_imx8mn
 
-imx8mn_app.build_main:
+imx8mn.app.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn_app.build_main
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.app.build
   needs:
-    - host_ipp.generate
-    - imx8mn_app_toolchain.download
+    - host.ipp.generate
+    - imx8mn.app_toolchain.download
   artifacts:
     paths:
       - target/app_imx8mn
 
-host_codegen.test:
+host.codegen.test:
   stage: "2"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host_codegen.test
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.codegen.test
   needs:
-    - host_codegen.build
+    - host.codegen.build
 
-host_ipp.test:
+host.ipp.test:
   stage: "2"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host_ipp.test
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.ipp.test
   needs:
-    - host_ipp.build
+    - host.ipp.build
 
-host_app.run_unittest:
+host.ioc.build:
   stage: "2"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host_app.run_unittest
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.ioc.build
   needs:
-    - host_app.build_unittest
-
-host_ioc.build:
-  stage: "2"
-  script:
-    - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host_ioc.build
-  needs:
-    - host_app.build_fakedev
-    - host_epics_base.build
+    - host.app.build
+    - host.epics_base.build
   artifacts:
     paths:
       - target/ioc_build_host
       - target/ioc_install_host
 
-imx8mn_epics_base.build:
+imx8mn.epics_base.build:
   stage: "2"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn_epics_base.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.epics_base.build
   needs:
-    - host_epics_base.build
-    - imx8mn_app_toolchain.download
+    - host.epics_base.build
+    - imx8mn.app_toolchain.download
   artifacts:
     paths:
       - target/epics_base_7.0.4.1_build_imx8mn
       - target/epics_base_7.0.4.1_install_imx8mn
   cache:
     - *global_cache
-    - key: "imx8mn_epics_base.build:6c101c42"
+    - key: "imx8mn.epics_base.build:6c101c42"
       paths:
         - target/epics_base_7.0.4.1_build_imx8mn
         - target/epics_base_7.0.4.1_install_imx8mn
 
-host_ioc.test_fakedev:
+host.ioc.test_fakedev:
   stage: "3"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host_ioc.test_fakedev
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.ioc.test_fakedev
   needs:
-    - host_epics_base.build
-    - host_ioc.build
+    - host.epics_base.build
+    - host.ioc.build
 
-imx8mn_ioc.build:
+imx8mn.ioc.build:
   stage: "3"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn_ioc.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.ioc.build
   needs:
-    - imx8mn_app.build_main
-    - imx8mn_app_toolchain.download
-    - imx8mn_epics_base.build
+    - imx8mn.app.build
+    - imx8mn.app_toolchain.download
+    - imx8mn.epics_base.build
   artifacts:
     paths:
       - target/ioc_build_imx8mn
       - target/ioc_install_imx8mn
 
-host_all.test:
+host.all.test:
   stage: "4"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host_all.test
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.all.test
   needs:
-    - host_app.run_unittest
-    - host_codegen.test
-    - host_ioc.test_fakedev
-    - host_ipp.test
+    - host.app_test.test
+    - host.codegen.test
+    - host.ioc.test_fakedev
+    - host.ipp.test
 
-imx8mn_all.build:
+imx8mn.all.build:
   stage: "4"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn_all.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.all.build
   needs:
-    - imx8mn_epics_base.build
-    - imx8mn_ioc.build
-    - imx8mn_mcu.build
+    - imx8mn.epics_base.build
+    - imx8mn.ioc.build
+    - imx8mn.mcu.build

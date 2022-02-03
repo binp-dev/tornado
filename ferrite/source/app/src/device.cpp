@@ -13,13 +13,13 @@ void Device::recv_loop() {
     std::cout << "[app] Channel serve thread started" << std::endl;
     const auto timeout = std::chrono::milliseconds(10);
 
-    channel->send(ipp::AppMsg{ipp::AppMsgStart{}}, std::nullopt).unwrap(); // Wait forever
+    channel.send(ipp::AppMsg{ipp::AppMsgStart{}}, std::nullopt).unwrap(); // Wait forever
     std::cout << "[app] Start signal sent" << std::endl;
 
     send_worker = std::thread([this]() { this->send_loop(); });
 
     while (!this->done.load()) {
-        auto result = channel->receive(timeout);
+        auto result = channel.receive(timeout);
         if (result.is_err()) {
             auto err = result.unwrap_err();
             if (err.kind == Channel::ErrorKind::TimedOut) {
@@ -101,18 +101,18 @@ void Device::send_loop() {
 
         if (status == std::cv_status::timeout) {
             // std::cout << "[app] Request ADC measurements." << std::endl;
-            channel->send(ipp::AppMsg{ipp::AppMsgAdcReq{}}, std::nullopt).unwrap();
+            channel.send(ipp::AppMsg{ipp::AppMsgAdcReq{}}, std::nullopt).unwrap();
             next_wakeup = std::chrono::system_clock::now() + adc_req_period;
         }
         if (dac.update.exchange(false)) {
             int32_t value = dac.value.load();
             std::cout << "[app] Send DAC value: " << value << std::endl;
-            channel->send(ipp::AppMsg{ipp::AppMsgDacSet{value}}, std::nullopt).unwrap();
+            channel.send(ipp::AppMsg{ipp::AppMsgDacSet{value}}, std::nullopt).unwrap();
         }
         if (dout.update.exchange(false)) {
             uint8_t value = dout.value.load();
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
-            channel->send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
+            channel.send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
         }
         if (has_dac_wf_req.load() == true && dac_wf.wf_is_set.load() == true) {
             has_dac_wf_req.store(false);
@@ -124,12 +124,12 @@ void Device::send_loop() {
             fill_dac_wf_msg(buffer, max_buffer_size);
 
             assert_true(dac_wf_msg.packed_size() < msg_max_len_);
-            channel->send(ipp::AppMsg{std::move(dac_wf_msg)}, std::nullopt).unwrap();
+            channel.send(ipp::AppMsg{std::move(dac_wf_msg)}, std::nullopt).unwrap();
         }
     }
 }
 
-Device::Device(std::unique_ptr<Channel> channel, size_t msg_max_len) : 
+Device::Device(DeviceChannel &&channel, size_t msg_max_len) : 
     channel(std::move(channel)),
     msg_max_len_(msg_max_len) 
 {

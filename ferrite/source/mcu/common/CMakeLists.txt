@@ -14,7 +14,7 @@ add_library(${PROJECT_NAME} OBJECT ${SRC})
 include_directories(${PROJECT_NAME} "include")
 
 # Link IPP proto
-add_subdirectory("../../ipp" "ipp")
+add_subdirectory(${IPP_GENERATED} "ipp")
 include_directories("${IPP_GENERATED}/include")
 target_link_libraries(${PROJECT_NAME} PUBLIC "ipp")
 

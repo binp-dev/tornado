@@ -23,12 +23,8 @@ PSC_DBD += devPSC.dbd
 # Add all the support libraries needed by this IOC
 PSC_LIBS += devPSC
 
-# Workaround to link shared library
-ifeq ($(APP_FAKEDEV),)
-	PSC_LDFLAGS += -Wl,-Bdynamic -l:libapp.so
-else
-	PSC_LIBS += app_fakedev
-endif
+# Link app
+include $(TOP)/link_app.mk
 
 # PSC_registerRecordDeviceDriver.cpp derives from PSC.dbd
 PSC_SRCS += PSC_registerRecordDeviceDriver.cpp

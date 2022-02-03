@@ -32,6 +32,9 @@ spaces_before_comment = 1
 continuation_align_style = "space"
 dedent_closing_brackets = true
 coalesce_brackets = true
+allow_split_before_dict_value = false
+indent_dictionary_value = false
+each_dict_entry_on_separate_line = false
 
 [tool.mypy]
 strict = true

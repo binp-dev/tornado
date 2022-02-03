@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 import os
 import zlib
@@ -7,7 +7,7 @@ from pathlib import Path
 from dataclasses import dataclass
 
 from ferrite.components.base import Artifact, Task
-from ferrite.manage.tree import ComponentsDict, make_components
+from ferrite.manage.tree import FerriteComponents, make_components
 from ferrite.utils.strings import quote
 
 
@@ -206,12 +206,11 @@ class Graph:
         return lines
 
 
-def make_graph(components: ComponentsDict, end_tasks: List[str]) -> Graph:
+def make_graph(components: FerriteComponents, end_tasks: List[str]) -> Graph:
     graph = Graph()
 
-    for etn in end_tasks:
-        cn, tn = etn.split(".")
-        task = components[cn].tasks()[tn]
+    for task_name in end_tasks:
+        task = components.tasks()[task_name]
         graph.add_task_with_deps(task)
 
     stage = min(graph.stages()) - 1
@@ -243,9 +242,9 @@ def generate(
 
 if __name__ == "__main__":
     end_tasks = [
-        "host_all.test",
-        #"imx7_all.build",
-        "imx8mn_all.build",
+        "host.all.test",
+        #"imx7.all.build",
+        "imx8mn.all.build",
     ]
     vars = Variables({
         "POETRY_VIRTUALENVS_IN_PROJECT": "true",
