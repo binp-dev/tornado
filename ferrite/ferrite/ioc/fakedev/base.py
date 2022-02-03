@@ -37,7 +37,8 @@ def _recv_msg(socket: zmq.Socket) -> VariantValue:
 
 
 class FakeDev:
-    _adc_wf_msg_max_elems = 63
+    adc_wf_msg_max_elems = 63
+    poll_ms_timeout = 100
 
     class Handler:
 
@@ -103,8 +104,8 @@ class FakeDev:
         _send_msg(self.socket, McuMsg.DacWfReq())
 
         while not self.done:
-            evts = poller.poll(100)
-            
+            evts = poller.poll(self.poll_ms_timeout)
+
             for i in range(len(self.handler.read_adc_wfs())):
                 adc_wf = self.handler.read_adc_wfs()[i]
                 if adc_wf_positions[i] == len(adc_wf):
@@ -113,7 +114,7 @@ class FakeDev:
                 adc_wf_msg_data = []
                 adc_wf_positions[i] += self._fill_adc_wf_msg_buff(adc_wf_msg_data, adc_wf, adc_wf_positions[i])
                 _send_msg(self.socket, McuMsg.AdcWf(i, adc_wf_msg_data))
-            
+                
             if len(evts) == 0:
                 continue
             msg = AppMsg.load(self.socket.recv())
@@ -129,7 +130,7 @@ class FakeDev:
                 raise Exception("Unexpected message type")
 
     def _fill_adc_wf_msg_buff(self, buff, adc_wf, adc_wf_position) -> int:
-        elems_to_send = self._adc_wf_msg_max_elems
+        elems_to_send = self.adc_wf_msg_max_elems
         elems_to_fill = len(adc_wf) - adc_wf_position
         if elems_to_fill < elems_to_send:
             elems_to_send = elems_to_fill
