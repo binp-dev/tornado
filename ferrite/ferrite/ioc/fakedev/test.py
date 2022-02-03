@@ -87,7 +87,7 @@ def run(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
         #=============
 
         for i in range(handler.adc_count):
-            handler.adc_wfs[i] = [x for x in range(handler.adc_wf_size * 1)]
+            handler.adc_wfs[i] = [i for x in range(handler.adc_wf_size * 1)]
 
         adc_wf_numb = 0
 
