@@ -32,9 +32,11 @@
 #define TASK_STACK_SIZE 256
 #define RPMSG_TASK_PRIORITY tskIDLE_PRIORITY + 1
 
-#define MAX_POINTS_IN_RPMSG         63 // TODO: Check size
-#define DAC_WF_BUFF_SIZE            (MAX_POINTS_IN_RPMSG*2)
-#define ADC_WF_BUFF_SIZE            (MAX_POINTS_IN_RPMSG*3)
+#define MAX_POINTS_IN_RPMSG                         63 // TODO: Check size
+#define DAC_WF_PV_SIZE                              10000
+#define DAC_WF_BUFF_SIZE                            (DAC_WF_PV_SIZE)
+#define ADC_WF_BUFF_SIZE                            (MAX_POINTS_IN_RPMSG*10)
+#define FREE_SPACE_IN_BUFF_FOR_DAC_WF_REQUEST       (MAX_POINTS_IN_RPMSG)
 
 typedef struct {
     int32_t last;
@@ -52,37 +54,19 @@ typedef struct {
 static volatile Accum ACCUM = {0, {{0, 0}}, 0, 0, 0};
 
 static hal_rpmsg_channel channel;
-static SemaphoreHandle_t din_sem = NULL;
+static SemaphoreHandle_t rpmsg_send_sem = NULL;
 
 static volatile StreamBufferHandle_t dac_wf_buff;
-static volatile bool need_dac_wf_req = true;
+static volatile bool dac_wf_was_set = false;
 static volatile StreamBufferHandle_t adc_wf_buff[SKIFIO_ADC_CHANNEL_COUNT];
-static SemaphoreHandle_t wfs_sem = NULL;
 
 static void din_handler(void *data, SkifioDin value) {
     ACCUM.din = value;
     BaseType_t hptw = pdFALSE;
-    xSemaphoreGiveFromISR(din_sem, &hptw);
+    xSemaphoreGiveFromISR(rpmsg_send_sem, &hptw);
     portYIELD_FROM_ISR(hptw);
 }
 
-static void task_rpmsg_send_din(void *param) {
-    for (;;) {
-        xSemaphoreTake(din_sem, portMAX_DELAY);
-        ACCUM.din = skifio_din_read();
-        hal_log_info("din changed: %lx", (uint32_t)ACCUM.din);
-
-        uint8_t *buffer = NULL;
-        size_t len = 0;
-        hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
-        IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
-        mcu_msg->type = IPP_MCU_MSG_DIN_VAL;
-        mcu_msg->din_val.value = ACCUM.din;
-        hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
-
-        vTaskDelay(10);
-    }
-}
 
 void send_adc_wf_data() {
     for (int i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
@@ -108,21 +92,38 @@ void send_adc_wf_data() {
     }
 }
 
-static void task_rpmsg_send_waveforms_msg(void *param) {
+void send_adc_wf_request() {
+    size_t free_space_in_buff = xStreamBufferSpacesAvailable(dac_wf_buff) / sizeof(int32_t);
+
+    if (free_space_in_buff >= FREE_SPACE_IN_BUFF_FOR_DAC_WF_REQUEST) {
+        uint8_t *buffer = NULL;
+        size_t len = 0;
+        hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+
+        IppMcuMsg *dac_wf_req_msg = (IppMcuMsg *)buffer;
+        dac_wf_req_msg->type = IPP_MCU_MSG_DAC_WF_REQ;
+
+        hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(dac_wf_req_msg)) == HAL_SUCCESS);
+    }
+}
+
+static void task_rpmsg_send(void *param) {
     for (;;) {
-        xSemaphoreTake(wfs_sem, portMAX_DELAY);
+        xSemaphoreTake(rpmsg_send_sem, portMAX_DELAY);
+        ACCUM.din = skifio_din_read();
+        hal_log_info("din changed: %lx", (uint32_t)ACCUM.din);
+
+        uint8_t *buffer = NULL;
+        size_t len = 0;
+        hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
+        IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
+        mcu_msg->type = IPP_MCU_MSG_DIN_VAL;
+        mcu_msg->din_val.value = ACCUM.din;
+        hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
 
         send_adc_wf_data();
 
-        if (need_dac_wf_req) {
-            uint8_t *buffer = NULL;
-            size_t len = 0;
-            IppMcuMsg *dac_wf_req_msg = (IppMcuMsg *)buffer;
-            dac_wf_req_msg->type = IPP_MCU_MSG_DAC_WF_REQ;
-
-            hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(dac_wf_req_msg)) == HAL_SUCCESS);
-            need_dac_wf_req = false;
-        }
+        send_adc_wf_request();
 
         vTaskDelay(10);
     }
@@ -136,12 +137,9 @@ static void task_skifio(void *param) {
     hal_log_info("SkifIO driver init");
     hal_assert(skifio_init() == HAL_SUCCESS);
 
-    hal_log_info("Create rpmsg_send_din task");
-    xTaskCreate(task_rpmsg_send_din, "rpmsg_send_din task", TASK_STACK_SIZE, NULL, RPMSG_TASK_PRIORITY, NULL);
+    hal_log_info("Create rpmsg_send task");
+    xTaskCreate(task_rpmsg_send, "rpmsg_send task", TASK_STACK_SIZE, NULL, RPMSG_TASK_PRIORITY, NULL);
     hal_assert(skifio_din_subscribe(din_handler, NULL) == HAL_SUCCESS);
-
-    hal_log_info("Create task_rpmsg_send_waveforms_msg task");
-    xTaskCreate(task_rpmsg_send_waveforms_msg, "send_waveforms_msg task", TASK_STACK_SIZE, NULL, RPMSG_TASK_PRIORITY, NULL);
 
     SkifioInput input = {{0}};
     SkifioOutput output = {0};
@@ -159,36 +157,37 @@ static void task_skifio(void *param) {
         hal_assert(ret == HAL_SUCCESS);
 
         SkifioDin din = skifio_din_read();
+        bool need_send_din = false;
         if (din != ACCUM.din) {
             ACCUM.din = din;
-            xSemaphoreGive(din_sem);
+            need_send_din = true;
         }
 
         STATS.max_intrs_per_sample = hal_max(
             STATS.max_intrs_per_sample,
-            (uint32_t)(_SKIFIO_DEBUG_INFO.intr_count - prev_intr_count) //
+            (uint32_t)(_SKIFIO_DEBUG_INFO.intr_count - prev_intr_count)
         );
         prev_intr_count = _SKIFIO_DEBUG_INFO.intr_count;
 
-        output.dac = (int16_t)ACCUM.dac;
+        // output.dac = (int16_t)ACCUM.dac;
 
+        int32_t dac_wf_value = 0;
+        if (dac_wf_was_set) {
+            size_t readed_data_size = xStreamBufferReceive(dac_wf_buff, &dac_wf_value, sizeof(int32_t), 0);
+            hal_assert(readed_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
+            if (readed_data_size == 0) {
+                hal_log_error("dac_wf_buff is empty, not enough data for DAC");
+                ++STATS.dac_wf.buff_was_empty;
+            }
+        }
         
-        //DAC wavefrom code:
+        size_t free_space_in_buff = xStreamBufferSpacesAvailable(dac_wf_buff) / sizeof(int32_t);
+        bool need_dac_wf_req = false;
+        if (free_space_in_buff >= FREE_SPACE_IN_BUFF_FOR_DAC_WF_REQUEST) {
+            need_dac_wf_req = true;
+        }
 
-        // int32_t dac_wf_value = 0;
-        // size_t readed_data_size = xStreamBufferReceive(dac_wf_buff, &dac_wf_value, sizeof(int32_t), 0);
-        // hal_assert(readed_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
-        // if (readed_data_size == 0) {
-        //     hal_log_error("dac_wf_buff is empty, not enough data for DAC");
-        // }
-
-        // size_t elems_in_buff = xStreamBufferBytesAvailable(dac_wf_buff) / sizeof(int32_t);
-        // if (elems_in_buff < MAX_POINTS_IN_RPMSG/2) { // TODO: Fix magic number - MAX_POINTS_IN_RPMSG/2?
-        //     need_dac_wf_req = true;
-        // }
-
-        // output.dac = (int16_t)dac_wf_value;
-        
+        output.dac = (int16_t)dac_wf_value;
 
         ret = skifio_transfer(&output, &input);
         hal_assert(ret == HAL_SUCCESS || ret == HAL_INVALID_DATA); // Ignore CRC check error
@@ -217,6 +216,7 @@ static void task_skifio(void *param) {
             hal_assert(added_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
             if (added_data_size == 0) {
                 hal_log_error("Not enough space in adc_wf_buff[%d] to save ADC data", i);
+                ++STATS.adc_buff_was_full[j];
             }
 
             size_t elems_in_buff = xStreamBufferBytesAvailable(adc_wf_buff[j]) / sizeof(int32_t);
@@ -225,9 +225,8 @@ static void task_skifio(void *param) {
             }
         }
 
-        if (need_send_adc || need_dac_wf_req) {
-            xSemaphoreGive(wfs_sem);
-            need_send_adc = false;
+        if (need_send_din || need_send_adc || need_dac_wf_req) {
+            xSemaphoreGive(rpmsg_send_sem);
         }
 
         ACCUM.sample_count += 1;
@@ -267,7 +266,7 @@ static void task_rpmsg_recv(void *param) {
     app_msg = (const IppAppMsg *)buffer;
     if (app_msg->type == IPP_APP_MSG_START) {
         hal_log_info("Start message received");
-        xSemaphoreGive(din_sem);
+        xSemaphoreGive(rpmsg_send_sem);
     } else {
         hal_log_error("Message error: type mismatch: %d", (int)app_msg->type);
         hal_panic();
@@ -286,7 +285,7 @@ static void task_rpmsg_recv(void *param) {
 
         switch (app_msg->type) {
         case IPP_APP_MSG_START:
-            xSemaphoreGive(din_sem);
+            xSemaphoreGive(rpmsg_send_sem);
             hal_log_info("MCU program is already started");
             hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
             break;
@@ -334,9 +333,11 @@ static void task_rpmsg_recv(void *param) {
         case IPP_APP_MSG_DAC_WF: {
             size_t added_data_size = xStreamBufferSend(dac_wf_buff, app_msg->dac_wf.elements.data, app_msg->dac_wf.elements.len * sizeof(int32_t), 0);
             hal_assert(added_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
+            dac_wf_was_set = true;
 
             if (added_data_size/sizeof(int32_t) != app_msg->dac_wf.elements.len) {
                 hal_log_error("Not enough space in dac waveform buffer to save new data");
+                ++STATS.dac_wf.buff_was_full;
             }
 
             hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
@@ -414,10 +415,8 @@ int main(void)
 #endif
 
     initialize_wf_buffers();
-    din_sem = xSemaphoreCreateBinary();
-    hal_assert(din_sem != NULL);
-    wfs_sem = xSemaphoreCreateCounting(10, 1);
-    hal_assert(wfs_sem != NULL);
+    rpmsg_send_sem = xSemaphoreCreateBinary();
+    hal_assert(rpmsg_send_sem != NULL);
 
     hal_log_info("Create SkifIO task");
     xTaskCreate(task_skifio, "SkifIO task", TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL);

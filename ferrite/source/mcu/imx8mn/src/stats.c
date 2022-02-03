@@ -12,6 +12,8 @@ volatile Statistics STATS = {
     0,
     0,
     {{0, 0, 0, 0}},
+    {0, 0},
+    {0}
 };
 
 
@@ -41,5 +43,16 @@ void stats_print() {
         hal_log_info("    max: (0x%08lx) %ld", adc->max, adc->max);
         int32_t avg = (int32_t)(adc->sum / STATS.sample_count);
         hal_log_info("    avg: (0x%08lx) %ld", avg, avg);
+        
+    }
+
+    hal_log_info("dac waveform:");
+    hal_log_info("    buffer was full: %zu", STATS.dac_wf.buff_was_full);
+    hal_log_info("    buffer was empty: %zu", STATS.dac_wf.buff_was_empty);
+
+    for (size_t j = 0; j < SKIFIO_ADC_CHANNEL_COUNT; ++j) {
+        hal_log_info("adc waveform[%d]:", j);
+        hal_log_info("    buffer was full %zu", STATS.adc_buff_was_full);
+        
     }
 }

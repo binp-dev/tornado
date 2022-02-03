@@ -61,7 +61,7 @@ private:
     std::mutex send_mutex;
 
     const size_t msg_max_len_;
-    std::atomic<size_t> dac_wf_req_count_{0};
+    std::atomic<bool> has_dac_wf_req = false;
     bool cyclic_dac_wf_output = false;
 
     std::array<AdcEntry, ADC_COUNT> adcs;

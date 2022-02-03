@@ -71,7 +71,7 @@ void Device::recv_loop() {
             }
 
         } else if (std::holds_alternative<ipp::McuMsgDacWfReq>(incoming.variant)) {
-            ++dac_wf_req_count_;
+            has_dac_wf_req.store(true);
             send_ready.notify_all();
 
         } else if (std::holds_alternative<ipp::McuMsgDebug>(incoming.variant)) {
@@ -114,8 +114,8 @@ void Device::send_loop() {
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
             channel->send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
         }
-        if (dac_wf_req_count_.load() > 0 && dac_wf.wf_is_set.load() == true) {
-            --dac_wf_req_count_;
+        if (has_dac_wf_req.load() == true && dac_wf.wf_is_set.load() == true) {
+            has_dac_wf_req.store(false);
             ipp::AppMsgDacWf dac_wf_msg;
             auto &buffer = dac_wf_msg.elements;
             size_t max_buffer_size = (msg_max_len_ - dac_wf_msg.packed_size()) / sizeof(int32_t);
