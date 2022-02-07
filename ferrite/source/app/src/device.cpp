@@ -205,11 +205,13 @@ void Device::write_dac_wf(const int32_t *wf_data, const size_t wf_len) {
     std::lock_guard<std::mutex> guard(dac_wf.mutex);
 
     if (!dac_wf.wf_is_set.load()) {
+        dac_wf.wf_data[0].resize(wf_len);
         std::copy(wf_data, wf_data + wf_len, dac_wf.wf_data[0].begin());
         dac_wf.wf_is_set.store(true);
 
         send_ready.notify_all();
     } else {
+        dac_wf.wf_data[1].resize(wf_len);
         std::copy(wf_data, wf_data + wf_len, dac_wf.wf_data[1].begin());
         dac_wf.swap_ready.store(true);
     }

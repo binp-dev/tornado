@@ -66,7 +66,7 @@ private:
 
     const size_t msg_max_len_;
     std::atomic<bool> has_dac_wf_req = false;
-    bool cyclic_dac_wf_output = true;
+    bool cyclic_dac_wf_output = false;
 
     std::array<AdcEntry, ADC_COUNT> adcs;
     DacEntry dac;
