@@ -47,12 +47,12 @@ void stats_print() {
     }
 
     hal_log_info("dac waveform:");
-    hal_log_info("    buffer was full: %zu", STATS.dac_wf.buff_was_full);
-    hal_log_info("    buffer was empty: %zu", STATS.dac_wf.buff_was_empty);
+    hal_log_info("    buffer was full: %ld", STATS.dac_wf.buff_was_full);
+    hal_log_info("    buffer was empty: %ld", STATS.dac_wf.buff_was_empty);
 
     for (size_t j = 0; j < SKIFIO_ADC_CHANNEL_COUNT; ++j) {
         hal_log_info("adc waveform[%d]:", j);
-        hal_log_info("    buffer was full %zu", STATS.adc_buff_was_full);
+        hal_log_info("    buffer was full: %ld", STATS.adc_buff_was_full[j]);
         
     }
 }

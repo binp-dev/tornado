@@ -33,9 +33,9 @@
 #define RPMSG_TASK_PRIORITY tskIDLE_PRIORITY + 1
 
 #define MAX_POINTS_IN_RPMSG                         63 // TODO: Check size
-#define DAC_WF_PV_SIZE                              10000
+#define DAC_WF_PV_SIZE                              1000
 #define DAC_WF_BUFF_SIZE                            (DAC_WF_PV_SIZE)
-#define ADC_WF_BUFF_SIZE                            (MAX_POINTS_IN_RPMSG*10)
+#define ADC_WF_BUFF_SIZE                            (MAX_POINTS_IN_RPMSG*5)
 #define FREE_SPACE_IN_BUFF_FOR_DAC_WF_REQUEST       (MAX_POINTS_IN_RPMSG)
 
 typedef struct {
@@ -215,7 +215,7 @@ static void task_skifio(void *param) {
             size_t added_data_size = xStreamBufferSend(adc_wf_buff[j], &value, sizeof(int32_t), 0);
             hal_assert(added_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
             if (added_data_size == 0) {
-                hal_log_error("Not enough space in adc_wf_buff[%d] to save ADC data", i);
+                hal_log_error("Not enough space in adc_wf_buff[%d] to save ADC data", j);
                 ++STATS.adc_buff_was_full[j];
             }
 

@@ -20,10 +20,10 @@ class Handler(FakeDev.Handler):
         self.channels = [0.0, 1.0, -1.0, 3.1415, -10.0, 10.0]
         
         self.adc_count = 6
-        self.adc_wf_size = 10000
+        self.adc_wf_size = 1000
         self.adc_wfs = [[] for i in range(self.adc_count)]
 
-        self.dac_wf_size = 10000
+        self.dac_wf_size = 1000
         self.dac_wfs = []
 
     def write_dac(self, voltage: float) -> None:
