@@ -20,10 +20,10 @@ class Handler(FakeDev.Handler):
         self.channels = [0.0, 1.0, -1.0, 3.1415, -10.0, 10.0]
         
         self.adc_count = 6
-        self.adc_wf_size = 1000
+        self.adc_wf_size = 0
         self.adc_wfs = [[] for i in range(self.adc_count)]
 
-        self.dac_wf_size = 1000
+        self.dac_wf_size = 0
         self.dac_wfs = []
 
     def write_dac(self, voltage: float) -> None:
@@ -49,6 +49,8 @@ def run(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
         time.sleep(scan_period)
         assert_synchronized(prefix, handler)
 
+        handler.dac_wf_size = int(ca.get(prefix, "aao0.NELM"))
+        print("AAO SIZE = ", handler.dac_wf_size)
         dac_wf = []
         dac_wf.append([i for i in range(handler.dac_wf_size)])
         dac_wf.append([i for i in range(handler.dac_wf_size, 0, -1)])
@@ -92,6 +94,7 @@ def run(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
         assert_eq(ca.get(prefix, f"ai0"), some_val)
 
         #=============
+        handler.adc_wf_size = int(ca.get(prefix, "aai0.NELM"))
         adc_waveform_sleep = FakeDev.poll_ms_timeout/1000 * (handler.adc_wf_size / FakeDev.adc_wf_msg_max_elems)
         adc_waveform_sleep = float(int(ceil(adc_waveform_sleep)))
 

@@ -85,48 +85,48 @@ record(ao, "scan_freq")
 
 record(aao, "aao0") {
     field(DTYP, "devsup")
-    field(NELM, 1000)
+    field(NELM, 10000)
     field(FTVL, "LONG")
 }
 
 record(aai, "aai0") {
     field(DTYP, "devsup")
-    field(NELM, 1000)
+    field(NELM, 10000)
     field(FTVL, "LONG")
     field(SCAN, "I/O Intr")
 }
 
 record(aai, "aai1") {
     field(DTYP, "devsup")
-    field(NELM, 1000)
+    field(NELM, 10000)
     field(FTVL, "LONG")
     field(SCAN, "I/O Intr")
 }
 
 record(aai, "aai2") {
     field(DTYP, "devsup")
-    field(NELM, 1000)
+    field(NELM, 10000)
     field(FTVL, "LONG")
     field(SCAN, "I/O Intr")
 }
 
 record(aai, "aai3") {
     field(DTYP, "devsup")
-    field(NELM, 1000)
+    field(NELM, 10000)
     field(FTVL, "LONG")
     field(SCAN, "I/O Intr")
 }
 
 record(aai, "aai4") {
     field(DTYP, "devsup")
-    field(NELM, 1000)
+    field(NELM, 10000)
     field(FTVL, "LONG")
     field(SCAN, "I/O Intr")
 }
 
 record(aai, "aai5") {
     field(DTYP, "devsup")
-    field(NELM, 1000)
+    field(NELM, 10000)
     field(FTVL, "LONG")
     field(SCAN, "I/O Intr")
 }

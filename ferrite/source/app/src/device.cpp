@@ -48,7 +48,7 @@ void Device::recv_loop() {
 
         } else if (std::holds_alternative<ipp::McuMsgDinVal>(incoming.variant)) {
             const auto din_val = std::get<ipp::McuMsgDinVal>(incoming.variant);
-            std::cout << "Din updated: " << uint32_t(din_val.value) << std::endl;
+            // std::cout << "Din updated: " << uint32_t(din_val.value) << std::endl;
             din.value.store(din_val.value);
             if (din.notify) {
                 din.notify();

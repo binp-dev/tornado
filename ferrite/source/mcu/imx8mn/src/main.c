@@ -32,9 +32,10 @@
 #define TASK_STACK_SIZE 256
 #define RPMSG_TASK_PRIORITY tskIDLE_PRIORITY + 1
 
-#define MAX_POINTS_IN_RPMSG                         63 // TODO: Check size
-#define DAC_WF_PV_SIZE                              1000
-#define DAC_WF_BUFF_SIZE                            (DAC_WF_PV_SIZE)
+// TODO: Check values
+#define MAX_POINTS_IN_RPMSG                         63 
+#define DAC_WF_PV_SIZE                              10000
+#define DAC_WF_BUFF_SIZE                            1000
 #define ADC_WF_BUFF_SIZE                            (MAX_POINTS_IN_RPMSG*5)
 #define FREE_SPACE_IN_BUFF_FOR_DAC_WF_REQUEST       (MAX_POINTS_IN_RPMSG)
 
@@ -56,9 +57,15 @@ static volatile Accum ACCUM = {0, {{0, 0}}, 0, 0, 0};
 static hal_rpmsg_channel channel;
 static SemaphoreHandle_t rpmsg_send_sem = NULL;
 
-static volatile StreamBufferHandle_t dac_wf_buff;
-static volatile bool dac_wf_was_set = false;
+typedef struct {
+    StreamBufferHandle_t buff;
+    bool was_set;
+    bool waiting_for_data;
+} DacWf;
+
+static volatile DacWf dac_wf;
 static volatile StreamBufferHandle_t adc_wf_buff[SKIFIO_ADC_CHANNEL_COUNT];
+static volatile bool ioc_started = false;
 
 static void din_handler(void *data, SkifioDin value) {
     ACCUM.din = value;
@@ -81,10 +88,11 @@ void send_adc_wf_data() {
 
             size_t sent_data_size = xStreamBufferReceive(
                 adc_wf_buff[i],
-                &(adc_wf_msg->adc_wf.elements.data),
+                &(adc_wf_msg->adc_wf.elements.data[0]),
                 MAX_POINTS_IN_RPMSG*sizeof(int32_t),
                 0
             );
+            adc_wf_msg->adc_wf.elements.len = sent_data_size/sizeof(int32_t); 
             hal_assert(sent_data_size/sizeof(int32_t) == MAX_POINTS_IN_RPMSG); // TODO: Delete after debug?
 
             hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(adc_wf_msg)) == HAL_SUCCESS);
@@ -93,9 +101,10 @@ void send_adc_wf_data() {
 }
 
 void send_adc_wf_request() {
-    size_t free_space_in_buff = xStreamBufferSpacesAvailable(dac_wf_buff) / sizeof(int32_t);
+    size_t free_space_in_buff = xStreamBufferSpacesAvailable(dac_wf.buff) / sizeof(int32_t);
 
-    if (free_space_in_buff >= FREE_SPACE_IN_BUFF_FOR_DAC_WF_REQUEST) {
+    if (free_space_in_buff >= FREE_SPACE_IN_BUFF_FOR_DAC_WF_REQUEST && !dac_wf.waiting_for_data) {
+        dac_wf.waiting_for_data = true;
         uint8_t *buffer = NULL;
         size_t len = 0;
         hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
@@ -107,11 +116,13 @@ void send_adc_wf_request() {
     }
 }
 
-static void task_rpmsg_send(void *param) {
-    for (;;) {
-        xSemaphoreTake(rpmsg_send_sem, portMAX_DELAY);
-        ACCUM.din = skifio_din_read();
-        hal_log_info("din changed: %lx", (uint32_t)ACCUM.din);
+void send_din() {
+        SkifioDin din = skifio_din_read();
+        if (din == ACCUM.din) {
+            return;
+        }
+
+        ACCUM.din = din;
 
         uint8_t *buffer = NULL;
         size_t len = 0;
@@ -120,9 +131,17 @@ static void task_rpmsg_send(void *param) {
         mcu_msg->type = IPP_MCU_MSG_DIN_VAL;
         mcu_msg->din_val.value = ACCUM.din;
         hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
+}
 
+static void task_rpmsg_send(void *param) {
+    for (;;) {
+        if (!ioc_started) {
+            continue;
+        }
+        xSemaphoreTake(rpmsg_send_sem, portMAX_DELAY);
+
+        send_din();
         send_adc_wf_data();
-
         send_adc_wf_request();
 
         vTaskDelay(10);
@@ -159,7 +178,6 @@ static void task_skifio(void *param) {
         SkifioDin din = skifio_din_read();
         bool need_send_din = false;
         if (din != ACCUM.din) {
-            ACCUM.din = din;
             need_send_din = true;
         }
 
@@ -169,19 +187,16 @@ static void task_skifio(void *param) {
         );
         prev_intr_count = _SKIFIO_DEBUG_INFO.intr_count;
 
-        // output.dac = (int16_t)ACCUM.dac;
-
-        int32_t dac_wf_value = 0;
-        if (dac_wf_was_set) {
-            size_t readed_data_size = xStreamBufferReceive(dac_wf_buff, &dac_wf_value, sizeof(int32_t), 0);
+        int32_t dac_wf_value = 0;   // TODO: set zero in Volts, not in code
+        if (dac_wf.was_set) {
+            size_t readed_data_size = xStreamBufferReceive(dac_wf.buff, &dac_wf_value, sizeof(int32_t), 0);
             hal_assert(readed_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
             if (readed_data_size == 0) {
-                hal_log_error("dac_wf_buff is empty, not enough data for DAC");
                 ++STATS.dac_wf.buff_was_empty;
             }
         }
         
-        size_t free_space_in_buff = xStreamBufferSpacesAvailable(dac_wf_buff) / sizeof(int32_t);
+        size_t free_space_in_buff = xStreamBufferSpacesAvailable(dac_wf.buff) / sizeof(int32_t);
         bool need_dac_wf_req = false;
         if (free_space_in_buff >= FREE_SPACE_IN_BUFF_FOR_DAC_WF_REQUEST) {
             need_dac_wf_req = true;
@@ -212,16 +227,17 @@ static void task_skifio(void *param) {
             stats->last = value;
             stats->sum += value;
 
-            size_t added_data_size = xStreamBufferSend(adc_wf_buff[j], &value, sizeof(int32_t), 0);
-            hal_assert(added_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
-            if (added_data_size == 0) {
-                hal_log_error("Not enough space in adc_wf_buff[%d] to save ADC data", j);
-                ++STATS.adc_buff_was_full[j];
-            }
+            if (ioc_started) {
+                size_t added_data_size = xStreamBufferSend(adc_wf_buff[j], &value, sizeof(int32_t), 0);
+                hal_assert(added_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
+                if (added_data_size == 0) {
+                    ++STATS.adc_buff_was_full[j];
+                }
 
-            size_t elems_in_buff = xStreamBufferBytesAvailable(adc_wf_buff[j]) / sizeof(int32_t);
-            if (elems_in_buff >= MAX_POINTS_IN_RPMSG) {
-                need_send_adc = true;
+                size_t elems_in_buff = xStreamBufferBytesAvailable(adc_wf_buff[j]) / sizeof(int32_t);
+                if (elems_in_buff >= MAX_POINTS_IN_RPMSG) {
+                    need_send_adc = true;
+                }
             }
         }
 
@@ -266,6 +282,7 @@ static void task_rpmsg_recv(void *param) {
     app_msg = (const IppAppMsg *)buffer;
     if (app_msg->type == IPP_APP_MSG_START) {
         hal_log_info("Start message received");
+        ioc_started = true;
         xSemaphoreGive(rpmsg_send_sem);
     } else {
         hal_log_error("Message error: type mismatch: %d", (int)app_msg->type);
@@ -285,6 +302,7 @@ static void task_rpmsg_recv(void *param) {
 
         switch (app_msg->type) {
         case IPP_APP_MSG_START:
+            ioc_started = true;
             xSemaphoreGive(rpmsg_send_sem);
             hal_log_info("MCU program is already started");
             hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
@@ -331,15 +349,15 @@ static void task_rpmsg_recv(void *param) {
 
         }
         case IPP_APP_MSG_DAC_WF: {
-            size_t added_data_size = xStreamBufferSend(dac_wf_buff, app_msg->dac_wf.elements.data, app_msg->dac_wf.elements.len * sizeof(int32_t), 0);
+            size_t added_data_size = xStreamBufferSend(dac_wf.buff, app_msg->dac_wf.elements.data, app_msg->dac_wf.elements.len * sizeof(int32_t), 0);
             hal_assert(added_data_size % sizeof(int32_t) == 0); // TODO: Delete after debug?
-            dac_wf_was_set = true;
+            dac_wf.was_set = true;
 
             if (added_data_size/sizeof(int32_t) != app_msg->dac_wf.elements.len) {
-                hal_log_error("Not enough space in dac waveform buffer to save new data");
                 ++STATS.dac_wf.buff_was_full;
             }
 
+            dac_wf.waiting_for_data = false;
             hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
             break;
         }
@@ -370,8 +388,10 @@ static void task_stats(void *param) {
 }
 
 void initialize_wf_buffers() {
-    dac_wf_buff = xStreamBufferCreate(DAC_WF_BUFF_SIZE*sizeof(int32_t), 0);
-    if (dac_wf_buff == NULL) {
+    dac_wf.waiting_for_data = false;
+    dac_wf.was_set = false;
+    dac_wf.buff = xStreamBufferCreate(DAC_WF_BUFF_SIZE*sizeof(int32_t), 0);
+    if (dac_wf.buff == NULL) {
         hal_log_error("Can't initialize buffer for output waveform");
         hal_panic();
     }
@@ -399,7 +419,7 @@ int main(void)
     BOARD_InitBootPins();
     BOARD_BootClockRUN();
 
-    hal_io_uart_init(4);
+    hal_io_uart_init(3);
 
     copyResourceTable();
 
