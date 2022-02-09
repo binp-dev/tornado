@@ -19,36 +19,37 @@ def _env() -> Dict[str, str]:
     }
 
 
-def get(prefix: Path, pv: str, array: bool = False) -> Union[float, List[int]]:
+def _get_str(prefix: Path, pv: str) -> str:
     logging.debug(f"caget {pv} ...")
     out = capture([prefix / "caget", "-t", "-f 3", pv], add_env=_env())
     logging.debug(f"  {out}")
-    
-    if array:
-        out = out.split()[1:]
-        out = list(map(int, out))
-        print(out)
-        return out
-    
-    return float(out)
+    return out
 
 
-def put(prefix: Path, pv: str, value: Union[int, float, List[int]], array: bool = False) -> None:
+def get(prefix: Path, pv: str) -> float:
+    return float(_get_str(prefix, pv))
+
+
+def get_array(prefix: Path, pv: str) -> List[float]:
+    spl = _get_str(prefix, pv).strip().split()
+    arr_len, str_arr = int(spl[0]), spl[1:]
+    assert arr_len == len(str_arr)
+    return [float(x) for x in str_arr]
+
+
+def put(prefix: Path, pv: str, value: int | float) -> None:
+    logging.debug(f"caput {pv} {value} ...")
+    run([prefix / "caput", "-t", pv, str(value)], add_env=_env(), quiet=True)
+    logging.debug("  done")
+
+
+def put_array(prefix: Path, pv: str, value: List[int] | List[float]) -> None:
     logging.debug(f"caput {pv} {value} ...")
 
-    args: List[str | Path] = [prefix / "caput", "-t"]
-    if not array:
-        assert isinstance(value, int) or isinstance(value, float)
-        args += [pv, str(value)]
-    else:
-        assert isinstance(value, List)
-        args += ["-a", pv, str(len(value))] + [str(v) for v in value]
+    args: List[str | Path] = [prefix / "caput", "-t", "-a", pv, str(len(value))]
+    args.extend([str(v) for v in value])
 
-    run(
-        args,
-        add_env=_env(),
-        quiet=True,
-    )
+    run(args, add_env=_env(), quiet=True)
     logging.debug("  done")
 
 
