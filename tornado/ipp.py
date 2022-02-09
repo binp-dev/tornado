@@ -9,10 +9,6 @@ AppMsg = make_variant(
     [
         (Name(["start"]), []),
         (Name(["stop"]), []),
-        (Name(["dac", "set"]), [
-            Field("value", Int(32, signed=True)),
-        ]),
-        (Name(["adc", "req"]), []),
         (Name(["dout", "set"]), [
             Field("value", Int(8, signed=False)),
         ]),
@@ -25,9 +21,6 @@ AppMsg = make_variant(
 McuMsg = make_variant(
     Name(["mcu", "msg"]),
     [
-        (Name(["adc", "val"]), [
-            Field("values", Array(Int(32, signed=True), 6)),
-        ]),
         (Name(["din", "val"]), [
             Field("value", Int(8, signed=False)),
         ]),

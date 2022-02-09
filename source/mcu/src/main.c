@@ -40,19 +40,11 @@
 #define FREE_SPACE_IN_BUFF_FOR_DAC_WF_REQUEST       (MAX_POINTS_IN_RPMSG)
 
 typedef struct {
-    int32_t last;
-    int64_t sum;
-} AdcAccum;
-
-typedef struct {
-    int32_t dac;
-    AdcAccum adcs[SKIFIO_ADC_CHANNEL_COUNT];
-    uint32_t sample_count;
     SkifioDin din;
     SkifioDout dout;
-} Accum;
+} LogicalIo;
 
-static volatile Accum ACCUM = {0, {{0, 0}}, 0, 0, 0};
+static volatile LogicalIo ACCUM = {0, 0};
 
 static hal_rpmsg_channel channel;
 static SemaphoreHandle_t rpmsg_send_sem = NULL;
@@ -73,7 +65,6 @@ static void din_handler(void *data, SkifioDin value) {
     xSemaphoreGiveFromISR(rpmsg_send_sem, &hptw);
     portYIELD_FROM_ISR(hptw);
 }
-
 
 void send_adc_wf_data() {
     for (int i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
@@ -209,12 +200,8 @@ static void task_skifio(void *param) {
         bool need_send_adc = false;
 
         for (size_t j = 0; j < SKIFIO_ADC_CHANNEL_COUNT; ++j) {
-            volatile AdcAccum *accum = &ACCUM.adcs[j];
             volatile AdcStats *stats = &STATS.adcs[j];
             int32_t value = input.adcs[j];
-
-            accum->last = value;
-            accum->sum += value;
 
             if (STATS.sample_count == 0) {
                 stats->min = value;
@@ -244,7 +231,6 @@ static void task_skifio(void *param) {
             xSemaphoreGive(rpmsg_send_sem);
         }
 
-        ACCUM.sample_count += 1;
         STATS.sample_count += 1;
     }
 
@@ -305,33 +291,6 @@ static void task_rpmsg_recv(void *param) {
             xSemaphoreGive(rpmsg_send_sem);
             hal_log_info("MCU program is already started");
             hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
-            break;
-
-        case IPP_APP_MSG_DAC_SET:
-            ACCUM.dac = app_msg->dac_set.value;
-            // hal_log_info("Write DAC value: %x", ACCUM.dac);
-            hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
-            break;
-
-        case IPP_APP_MSG_ADC_REQ:
-            //hal_log_info("Read ADC values");
-            hal_assert(hal_rpmsg_free_rx_buffer(&channel, buffer) == HAL_SUCCESS);
-            hal_assert(hal_rpmsg_alloc_tx_buffer(&channel, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
-            IppMcuMsg *mcu_msg = (IppMcuMsg *)buffer;
-            mcu_msg->type = IPP_MCU_MSG_ADC_VAL;
-            for (size_t i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
-                volatile AdcAccum *accum = &ACCUM.adcs[i];
-                int32_t value = 0;
-#ifdef AVERAGE_ADC
-                value = (int32_t)(accum->sum / ACCUM.sample_count);
-#else
-                value = accum->last;
-#endif
-                accum->sum = 0;
-                mcu_msg->adc_val.values.data[i] = value;
-            }
-            ACCUM.sample_count = 0;
-            hal_assert(hal_rpmsg_send_nocopy(&channel, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
             break;
 
         case IPP_APP_MSG_DOUT_SET: {

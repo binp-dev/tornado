@@ -34,19 +34,7 @@ void Device::recv_loop() {
         auto incoming = result.unwrap();
 
         // TODO: Use visit with overloaded lambda
-        if (std::holds_alternative<ipp::McuMsgAdcVal>(incoming.variant)) {
-            const auto adc_val = std::get<ipp::McuMsgAdcVal>(incoming.variant);
-
-            // static_assert(decltype(adcs)::size() == decltype(adc_val.values)::size());
-            for (size_t i = 0; i < ADC_COUNT; ++i) {
-                auto &adc = adcs[i];
-                adc.value.store(adc_val.values[i]);
-                if (adc.notify) {
-                    adc.notify();
-                }
-            }
-
-        } else if (std::holds_alternative<ipp::McuMsgDinVal>(incoming.variant)) {
+        if (std::holds_alternative<ipp::McuMsgDinVal>(incoming.variant)) {
             const auto din_val = std::get<ipp::McuMsgDinVal>(incoming.variant);
             // std::cout << "Din updated: " << uint32_t(din_val.value) << std::endl;
             din.value.store(din_val.value);
@@ -57,6 +45,9 @@ void Device::recv_loop() {
         } else if (std::holds_alternative<ipp::McuMsgAdcWf>(incoming.variant)) {
             const auto adc_wf_msg = std::get<ipp::McuMsgAdcWf>(incoming.variant);
             auto &adc_wf = adc_wfs[adc_wf_msg.index];
+            if (adc_wf_msg.elements.size() > 0) {
+                adc_wf.last_value.store(adc_wf_msg.elements.back());
+            }
             if (!adc_wf.notify) {
                 continue;
             } 
@@ -97,24 +88,18 @@ void Device::send_loop() {
     auto next_wakeup = std::chrono::system_clock::now();
     while (!this->done.load()) {
         std::unique_lock send_lock(send_mutex);
-        auto status = send_ready.wait_until(send_lock, next_wakeup);
-
+        auto status = send_ready.wait_for(send_lock, std::chrono::milliseconds(100));
         if (status == std::cv_status::timeout) {
-            // std::cout << "[app] Request ADC measurements." << std::endl;
-            channel.send(ipp::AppMsg{ipp::AppMsgAdcReq{}}, std::nullopt).unwrap();
-            next_wakeup = std::chrono::system_clock::now() + adc_req_period;
+            continue;
         }
-        if (dac.update.exchange(false)) {
-            int32_t value = dac.value.load();
-            std::cout << "[app] Send DAC value: " << value << std::endl;
-            channel.send(ipp::AppMsg{ipp::AppMsgDacSet{value}}, std::nullopt).unwrap();
-        }
+
         if (dout.update.exchange(false)) {
             uint8_t value = dout.value.load();
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
             channel.send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
         }
         if (has_dac_wf_req.load() == true && dac_wf.wf_is_set.load() == true) {
+            // FIXME: Exchange flags atomically
             has_dac_wf_req.store(false);
             ipp::AppMsgDacWf dac_wf_msg;
             auto &buffer = dac_wf_msg.elements;
@@ -151,26 +136,9 @@ void Device::stop() {
     }
 }
 
-void Device::write_dac(int32_t value) {
-    {
-        std::lock_guard send_guard(send_mutex);
-        dac.value.store(value);
-        dac.update.store(true);
-    }
-    send_ready.notify_all();
-}
-
 int32_t Device::read_adc(size_t index) {
     assert_true(index < ADC_COUNT);
-    return adcs[index].value.load();
-}
-void Device::set_adc_callback(size_t index, std::function<void()> &&callback) {
-    assert_true(index < ADC_COUNT);
-    adcs[index].notify = std::move(callback);
-}
-
-void Device::set_adc_req_period(std::chrono::milliseconds period) {
-    adc_req_period = period;
+    return adc_wfs[index].last_value.load();
 }
 
 void Device::write_dout(uint32_t value) {

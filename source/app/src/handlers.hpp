@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include <record/value.hpp>
 #include <record/array.hpp>
 
@@ -19,7 +21,8 @@ public:
     DacHandler(Device &device) : DeviceHandler(device) {}
 
     virtual void write(OutputValueRecord<int32_t> &record) override {
-        device_.write_dac(record.value());
+        std::array<int32_t, 1> array{record.value()};
+        device_.write_dac_wf(array.data(), array.size());
     }
 
     virtual bool is_async() const override {
@@ -38,8 +41,8 @@ public:
         record.set_value(device_.read_adc(index_));
     }
 
-    virtual void set_read_request(InputValueRecord<int32_t> &, std::function<void()> &&callback) override {
-        device_.set_adc_callback(index_, std::move(callback));
+    virtual void set_read_request(InputValueRecord<int32_t> &, std::function<void()> &&) override {
+        unimplemented();
     }
 
     virtual bool is_async() const override {
@@ -117,20 +120,5 @@ public:
 
     virtual bool is_async() const override {
         return true;
-    }
-};
-
-class ScanFreqHandler final : public DeviceHandler, public OutputValueHandler<int32_t> {
-public:
-    ScanFreqHandler(Device &device) : DeviceHandler(device) {}
-
-    virtual void write(OutputValueRecord<int32_t> &record) override {
-        const auto freq = std::clamp(record.value(), 1, 10);
-        const auto period = std::chrono::milliseconds(1000 / freq);
-        device_.set_adc_req_period(period);
-    }
-
-    virtual bool is_async() const override {
-        return false;
     }
 };

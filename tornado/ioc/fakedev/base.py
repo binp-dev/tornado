@@ -36,47 +36,16 @@ def _recv_msg(socket: zmq.Socket) -> VariantValue:
 
 
 class FakeDev:
-    adc_wf_msg_max_elems = 63
-    poll_ms_timeout = 100
+    adc_wf_msg_max_elems = 63 # FIXME: Remove
+    poll_ms_timeout = 100 # FIXME: Remove
 
     class Handler:
 
-        def write_dac(self, voltage: float) -> None:
+        def write_dac_wf(self, wf: List[int]) -> None:
             raise NotImplementedError()
 
-        def read_adcs(self) -> List[float]:
+        def read_adc_wfs(self) -> List[List[int]]:
             raise NotImplementedError()
-
-        def write_dac_code(self, code: int) -> None:
-            self.write_dac(dac_code_to_volt(code))
-
-        def read_adc_codes(self) -> List[int]:
-            return [adc_volt_to_code(v) for v in self.read_adcs()]
-
-        def read_adc_wfs(self) -> List[int]:
-            return self.adc_wfs
-
-        def _fill_dac_wf_buff(self, dac_wf_buff, dac_wf_data, dac_wf_data_pos) -> int:
-            elems_to_fill = self.dac_wf_size - len(dac_wf_buff)
-            elems_left = len(dac_wf_data) - dac_wf_data_pos
-            if (elems_left < elems_to_fill):
-                elems_to_fill = elems_left
-
-            dac_wf_buff += dac_wf_data[dac_wf_data_pos:dac_wf_data_pos + elems_to_fill]
-            return elems_to_fill
-
-        def write_dac_wf(self, dac_wf_data) -> None:
-            if len(self.dac_wfs) == 0:
-                self.dac_wfs.append([])
-
-            dac_wf_data_pos = 0
-            dac_wf_buff = self.dac_wfs[len(self.dac_wfs) - 1]
-            while dac_wf_data_pos < len(dac_wf_data):
-                if len(dac_wf_buff) == self.dac_wf_size:
-                    self.dac_wfs.append([])
-                    dac_wf_buff = self.dac_wfs[len(self.dac_wfs) - 1]
-
-                dac_wf_data_pos += self._fill_dac_wf_buff(dac_wf_buff, dac_wf_data, dac_wf_data_pos)
 
     def __init__(self, prefix: Path, ioc: Ioc, handler: FakeDev.Handler) -> None:
         self.prefix = prefix
@@ -105,24 +74,18 @@ class FakeDev:
         while not self.done:
             evts = poller.poll(self.poll_ms_timeout)
 
-            for i in range(len(self.handler.read_adc_wfs())):
-                adc_wf = self.handler.read_adc_wfs()[i]
+            for i, adc_wf in enumerate(self.handler.read_adc_wfs()):
                 if adc_wf_positions[i] == len(adc_wf):
                     continue
 
-                adc_wf_msg_data = []
+                adc_wf_msg_data: List[int] = []
                 adc_wf_positions[i] += self._fill_adc_wf_msg_buff(adc_wf_msg_data, adc_wf, adc_wf_positions[i])
                 _send_msg(self.socket, McuMsg.AdcWf(i, adc_wf_msg_data))
 
             if len(evts) == 0:
                 continue
             msg = AppMsg.load(self.socket.recv())
-            if msg.variant.is_instance_of(AppMsg.DacSet):
-                self.handler.write_dac_code(msg.variant.value)
-            elif msg.variant.is_instance_of(AppMsg.AdcReq):
-                adcs = self.handler.read_adc_codes()
-                _send_msg(self.socket, McuMsg.AdcVal(adcs))
-            elif msg.variant.is_instance_of(AppMsg.DacWf):
+            if msg.variant.is_instance_of(AppMsg.DacWf):
                 self.handler.write_dac_wf(msg.variant.elements)
                 _send_msg(self.socket, McuMsg.DacWfReq())
             else:

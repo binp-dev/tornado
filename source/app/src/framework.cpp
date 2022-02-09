@@ -68,13 +68,9 @@ void framework_record_init(Record &record) {
         auto &aai_record = dynamic_cast<InputArrayRecord<int32_t> &>(record);
         aai_record.set_handler(std::make_unique<AdcWfHandler>(*DEVICE, aai_record, index));
 
-    } else if (record.name().rfind("aao", 0) == 0) {
+    } else if (name == "aao0") {
         auto &aao_record = dynamic_cast<OutputArrayRecord<int32_t> &>(record);
         aao_record.set_handler(std::make_unique<DacWfHandler>(*DEVICE, aao_record));
-
-    } else if (name == "scan_freq") {
-        auto &sf_record = dynamic_cast<OutputValueRecord<int32_t> &>(record);
-        sf_record.set_handler(std::make_unique<ScanFreqHandler>(*DEVICE));
 
     } else {
         unimplemented();

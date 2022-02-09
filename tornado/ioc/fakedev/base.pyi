@@ -18,20 +18,17 @@ def adc_volt_to_code(voltage: float) -> int:
 
 
 class FakeDev:
+    adc_wf_msg_max_elems: int
+    poll_ms_timeout: int
 
     class Handler:
 
-        def write_dac(self, voltage: float) -> None:
+        def write_dac_wf(self, wf: List[int]) -> None:
             ...
 
-        def read_adcs(self) -> List[float]:
+        def read_adc_wfs(self) -> List[List[int]]:
             ...
 
-        def write_dac_code(self, code: int) -> None:
-            ...
-
-        def read_adc_codes(self) -> List[int]:
-            ...
 
     def __init__(self, prefix: Path, ioc: Ioc, handler: FakeDev.Handler) -> None:
         ...
