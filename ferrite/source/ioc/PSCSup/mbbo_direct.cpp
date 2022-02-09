@@ -19,11 +19,7 @@ static long record_mbbo_direct_init(mbboDirectRecord *raw) {
     return 0;
 }
 
-static long record_mbbo_direct_get_ioint_info(int cmd, mbboDirectRecord *raw, IOSCANPVT *ppvt) {
-    unimplemented();
-}
-
-static long record_mbbo_direct_read(mbboDirectRecord *raw) {
+static long record_mbbo_direct_write(mbboDirectRecord *raw) {
     EpicsRecord::get_private_data((dbCommon *)raw)->process();
     return 0;
 }
@@ -34,7 +30,7 @@ struct AaiRecordCallbacks {
     DEVSUPFUN init;
     DEVSUPFUN init_record;
     DEVSUPFUN get_ioint_info;
-    DEVSUPFUN read_mbbo_direct;
+    DEVSUPFUN write_mbbo_direct;
 };
 
 struct AaiRecordCallbacks mbbo_direct_record_handler = {
@@ -42,8 +38,8 @@ struct AaiRecordCallbacks mbbo_direct_record_handler = {
     nullptr,
     nullptr,
     reinterpret_cast<DEVSUPFUN>(record_mbbo_direct_init),
-    reinterpret_cast<DEVSUPFUN>(record_mbbo_direct_get_ioint_info),
-    reinterpret_cast<DEVSUPFUN>(record_mbbo_direct_read)
+    nullptr,
+    reinterpret_cast<DEVSUPFUN>(record_mbbo_direct_write)
 };
 
 epicsExportAddress(dset, mbbo_direct_record_handler);
