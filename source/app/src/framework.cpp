@@ -27,7 +27,7 @@ void init_device(MaybeUninit<Device> &mem) {
         std::make_unique<RpmsgChannel>(std::move(RpmsgChannel::create("/dev/ttyRPMSG0").unwrap())),
 #endif // FAKEDEV
         message_max_length);
-    mem.init_in_place(std::move(channel));
+    mem.init_in_place(std::move(channel), message_max_length);
 }
 
 /// We use LazyStatic to initialize global Device without global constructor. 
@@ -61,6 +61,16 @@ void framework_record_init(Record &record) {
     } else if (name == "di0") {
         auto &di_record = dynamic_cast<InputValueRecord<uint32_t> &>(record);
         di_record.set_handler(std::make_unique<DinHandler>(*DEVICE));
+
+    } else if (name.rfind("aai", 0) == 0) { // name.startswith("aai")
+        const auto index_str = name.substr(3);
+        uint8_t index = std::stoi(std::string(index_str));
+        auto &aai_record = dynamic_cast<InputArrayRecord<int32_t> &>(record);
+        aai_record.set_handler(std::make_unique<AdcWfHandler>(*DEVICE, aai_record, index));
+
+    } else if (record.name().rfind("aao", 0) == 0) {
+        auto &aao_record = dynamic_cast<OutputArrayRecord<int32_t> &>(record);
+        aao_record.set_handler(std::make_unique<DacWfHandler>(*DEVICE, aao_record));
 
     } else if (name == "scan_freq") {
         auto &sf_record = dynamic_cast<OutputValueRecord<int32_t> &>(record);
