@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Generic, Iterable, List, TypeVar, Union
+from typing import Any, Generic, List, Optional, TypeVar
 
 from random import Random
 from dataclasses import dataclass
@@ -142,6 +142,12 @@ class Array(Type[List[T]]):
             f"ASSERT_EQ({dst}.size(), {src}.size());", f"for (size_t i = 0; i < {src}.size(); ++i) {{",
             indent_text(self.item.cpp_test(f"{dst}[i]", f"{src}[i]"), "    "), f"}}"
         ])
+
+    def pyi_type(self) -> str:
+        return f"List[{self.item.pyi_type()}]"
+
+    def pyi_source(self) -> Optional[Source]:
+        return Source(Location.INCLUDES, ["from typing import List"])
 
 
 V = TypeVar('V')
@@ -299,6 +305,12 @@ class Vector(Generic[T], _BasicVector[List[T], T]):
     def cpp_object(self, value: List[T]) -> str:
         return f"{self.cpp_type()}{{{', '.join([self.item.cpp_object(v) for v in value])}}}"
 
+    def pyi_type(self) -> str:
+        return f"List[{self.item.pyi_type()}]"
+
+    def pyi_source(self) -> Optional[Source]:
+        return Source(Location.INCLUDES, ["from typing import List"])
+
 
 class String(_BasicVector[str, str]):
 
@@ -367,3 +379,6 @@ class String(_BasicVector[str, str]):
         return "\n".join([
             f"ASSERT_EQ({dst}, {src});",
         ])
+
+    def pyi_type(self) -> str:
+        return f"str"

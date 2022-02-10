@@ -354,3 +354,32 @@ class Variant(Type[VariantValue]):
             f"    break;",
             f"}}",
         ])
+
+    def pyi_type(self) -> str:
+        return self.cpp_type()
+
+    def pyi_source(self) -> Optional[Source]:
+        return Source(
+            Location.DECLARATION,
+            "\n".join([
+                f"@dataclass",
+                f"class {self.pyi_type()}:",
+                f"",
+                *[f"    {f.name.camel()} = {f.type.pyi_type()}" for f in self.variants],
+                f"",
+                f"    Variant = {' | '.join([f.type.pyi_type() for f in self.variants])}",
+                f"",
+                f"    variant: Variant",
+                f"",
+                f"    @staticmethod",
+                f"    def load(data: bytes) -> {self.pyi_type()}:"
+                f"        ...",
+                f"",
+                f"    def store(self) -> bytes:",
+                f"        ...",
+            ]),
+            deps=[
+                Source(Location.INCLUDES, ["from dataclasses import dataclass"]),
+                *[ty.pyi_source() for ty in self.deps()],
+            ],
+        )

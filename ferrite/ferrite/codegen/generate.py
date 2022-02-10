@@ -24,6 +24,7 @@ def generate_and_write(types: List[Type[Any]], base_path: Path, context: Context
     c_source = Source(Location.NONE, deps=[ty.c_source() for ty in types])
     cpp_source = Source(Location.NONE, deps=[ty.cpp_source() for ty in types])
     test_source = Source(Location.NONE, deps=[ty.test_source() for ty in types])
+    pyi_source = Source(Location.NONE, deps=[ty.pyi_source() for ty in types])
 
     files = {
         f"include/{context.prefix}.h": "\n".join([
@@ -85,6 +86,13 @@ def generate_and_write(types: List[Type[Any]], base_path: Path, context: Context
             "    testing::InitGoogleTest(&argc, argv);",
             "    return RUN_ALL_TESTS();",
             "}",
+        ]),
+        f"{context.prefix}.pyi": "\n".join([
+            "from __future__ import annotations",
+            "",
+            pyi_source.make_source(Location.INCLUDES, separator="\n"),
+            "",
+            pyi_source.make_source(Location.DECLARATION),
         ]),
     }
 

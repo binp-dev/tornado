@@ -119,6 +119,9 @@ class Int(Type[int]):
     def cpp_object(self, value: int) -> str:
         return self._int_literal(value, self.bits, self.signed)
 
+    def pyi_type(self) -> str:
+        return "int"
+
 
 @dataclass
 class Float(Type[float]):
@@ -171,6 +174,9 @@ class Float(Type[float]):
     def cpp_object(self, value: float) -> str:
         return f"{value}{'f' if self.bits == 32 else ''}"
 
+    def pyi_type(self) -> str:
+        return "float"
+
 
 class Char(Type[str]):
 
@@ -203,6 +209,9 @@ class Char(Type[str]):
     def cpp_object(self, value: str) -> str:
         assert len(value) == 1
         return f"'{value}'"
+
+    def pyi_type(self) -> str:
+        return "str"
 
 
 @dataclass

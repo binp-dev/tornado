@@ -168,11 +168,17 @@ class Type(Generic[T]):
     def cpp_type(self) -> str:
         return self.c_type()
 
+    def pyi_type(self) -> str:
+        raise NotImplementedError(self._debug_name())
+
     def c_source(self) -> Optional[Source]:
         return None
 
     def cpp_source(self) -> Optional[Source]:
         return self.c_source()
+
+    def pyi_source(self) -> Optional[Source]:
+        return None
 
     def c_size(self, obj: str) -> str:
         return str(self.size())
