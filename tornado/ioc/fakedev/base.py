@@ -1,5 +1,5 @@
-# type: ignore
 from __future__ import annotations
+from dataclasses import dataclass
 from typing import Any, List, Optional
 
 import zmq
@@ -21,17 +21,11 @@ def adc_volt_to_code(voltage: float) -> int:
     return round(voltage / (346.8012 * 1e-6) * 256)
 
 
-def _send_msg(socket: zmq.Socket, msg: bytes) -> None:
-    any_msg = None
-    for i, f in enumerate(McuMsg.variants):
-        if f.type.is_instance(msg):
-            any_msg = McuMsg(i, msg)
-            break
-    assert any_msg is not None
-    socket.send(any_msg.store())
+def _send_msg(socket: zmq.Socket, msg: McuMsg.Variant) -> None:
+    socket.send(McuMsg(msg).store())
 
 
-def _recv_msg(socket: zmq.Socket) -> VariantValue:
+def _recv_msg(socket: zmq.Socket) -> AppMsg:
     return AppMsg.load(socket.recv())
 
 
@@ -39,7 +33,9 @@ class FakeDev:
     adc_wf_msg_max_elems = 63 # FIXME: Remove
     poll_ms_timeout = 100 # FIXME: Remove
 
+    @dataclass
     class Handler:
+        adc_count = 0
 
         def write_dac_wf(self, wf: List[int]) -> None:
             raise NotImplementedError()
@@ -60,7 +56,7 @@ class FakeDev:
         self.thread = Thread(target=lambda: self._dev_loop())
 
     def _dev_loop(self) -> None:
-        assert _recv_msg(self.socket).variant.is_instance_of(AppMsg.Start)
+        assert isinstance(_recv_msg(self.socket).variant, AppMsg.Start)
         print("Received start signal")
         _send_msg(self.socket, McuMsg.Debug("Hello from MCU!"))
 
@@ -85,13 +81,13 @@ class FakeDev:
             if len(evts) == 0:
                 continue
             msg = AppMsg.load(self.socket.recv())
-            if msg.variant.is_instance_of(AppMsg.DacWf):
+            if isinstance(msg.variant, AppMsg.DacWf):
                 self.handler.write_dac_wf(msg.variant.elements)
                 _send_msg(self.socket, McuMsg.DacWfReq())
             else:
                 raise Exception("Unexpected message type")
 
-    def _fill_adc_wf_msg_buff(self, buff, adc_wf, adc_wf_position) -> int:
+    def _fill_adc_wf_msg_buff(self, buff: List[int], adc_wf: List[int], adc_wf_position: int) -> int:
         elems_to_send = self.adc_wf_msg_max_elems
         elems_to_fill = len(adc_wf) - adc_wf_position
         if elems_to_fill < elems_to_send:

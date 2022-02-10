@@ -68,7 +68,7 @@ def run(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
         dac_wf = []
         dac_wf.append([i for i in range(handler.dac_wf_size)])
         dac_wf.append([i for i in range(handler.dac_wf_size, 0, -1)])
-        dac_wf.append([5 for i in range(int(handler.dac_wf_size / 2))])
+        dac_wf.append([5 for i in range(handler.dac_wf_size // 2)])
 
         time.sleep(scan_period)
 
