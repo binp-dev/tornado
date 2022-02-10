@@ -111,14 +111,31 @@ public:
 
     virtual void read(InputArrayRecord<int32_t> &record) override {
         auto adc_wf = device_.read_adc_wf(index_);
-        record.set_data(adc_wf.data(), adc_wf.size());
+        assert_true(record.set_data(adc_wf.data(), adc_wf.size()));
     }
 
-    virtual void set_read_request(InputArrayRecord<int32_t> &record, std::function<void()> &&callback) override {
+    virtual void set_read_request(InputArrayRecord<int32_t> &, std::function<void()> &&callback) override {
         device_.set_adc_wf_callback(index_, std::move(callback));
     }
 
     virtual bool is_async() const override {
         return true;
+    }
+};
+
+class WfReqHandler final : public DeviceHandler, public InputValueHandler<bool> {
+public:
+    WfReqHandler(Device &device) : DeviceHandler(device) {}
+
+    virtual void read(InputValueRecord<bool> &record) override {
+        record.set_value(device_.dac_wf_req_flag());
+    }
+
+    virtual void set_read_request(InputValueRecord<bool> &, std::function<void()> &&callback) override {
+        device_.set_dac_wf_req_callback(std::move(callback));
+    }
+
+    virtual bool is_async() const override {
+        return false;
     }
 };

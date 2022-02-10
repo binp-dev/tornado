@@ -72,6 +72,10 @@ void framework_record_init(Record &record) {
         auto &aao_record = dynamic_cast<OutputArrayRecord<int32_t> &>(record);
         aao_record.set_handler(std::make_unique<DacWfHandler>(*DEVICE, aao_record));
 
+    } else if (name == "aao0_req") {
+        auto &aao_req_record = dynamic_cast<InputValueRecord<bool> &>(record);
+        aao_req_record.set_handler(std::make_unique<WfReqHandler>(*DEVICE));
+
     } else {
         unimplemented();
     }

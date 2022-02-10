@@ -85,7 +85,6 @@ void Device::recv_loop() {
 void Device::send_loop() {
     std::cout << "[app] ADC req thread started" << std::endl;
 
-    auto next_wakeup = std::chrono::system_clock::now();
     while (!this->done.load()) {
         std::unique_lock send_lock(send_mutex);
         auto status = send_ready.wait_for(send_lock, std::chrono::milliseconds(100));
@@ -115,8 +114,8 @@ void Device::send_loop() {
 }
 
 Device::Device(DeviceChannel &&channel, size_t msg_max_len) :
-    channel(std::move(channel)),
-    msg_max_len_(msg_max_len)
+    msg_max_len_(msg_max_len),
+    channel(std::move(channel)) //
 {
     done.store(true);
 }
@@ -182,6 +181,10 @@ void Device::write_dac_wf(const int32_t *wf_data, const size_t wf_len) {
         dac_wf.wf_data[1].resize(wf_len);
         std::copy(wf_data, wf_data + wf_len, dac_wf.wf_data[1].begin());
         dac_wf.swap_ready.store(true);
+
+        if (dac_wf.request_next_wf) {
+            dac_wf.request_next_wf();
+        }
     }
 }
 
@@ -240,6 +243,11 @@ bool Device::swap_dac_wf_buffers() {
     
     if (dac_wf.swap_ready.exchange(false) == true) {
         dac_wf.wf_data[0].swap(dac_wf.wf_data[1]);
+
+        if (dac_wf.request_next_wf) {
+            dac_wf.request_next_wf();
+        }
+
         return true;
     } else {
         if (cyclic_dac_wf_output) {
@@ -250,4 +258,12 @@ bool Device::swap_dac_wf_buffers() {
     }
 
     return false;
+}
+
+bool Device::dac_wf_req_flag() const {
+    return !dac_wf.swap_ready.load();
+}
+
+void Device::set_dac_wf_req_callback(std::function<void()> &&callback) {
+    dac_wf.request_next_wf = std::move(callback);
 }

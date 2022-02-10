@@ -47,6 +47,7 @@ private:
         std::atomic<bool> wf_is_set{false};
         std::atomic<bool> swap_ready{false};
         size_t buff_position = 0;
+        std::function<void()> request_next_wf;
     };
 
 private:
@@ -97,6 +98,9 @@ public:
     void init_adc_wf(uint8_t index, size_t wf_max_size);
     void set_adc_wf_callback(size_t index, std::function<void()> &&callback);
     const std::vector<int32_t> read_adc_wf(size_t index);
+
+    [[nodiscard]] bool dac_wf_req_flag() const;
+    void set_dac_wf_req_callback(std::function<void()> &&callback);
 
 private:
     void fill_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size);
