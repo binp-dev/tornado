@@ -22,9 +22,6 @@ class StructValue:
         for k, v in fields.items():
             setattr(self, k, v)
 
-    def is_instance_of(self, type: Struct) -> bool:
-        return self._type.name() == type.name()
-
     def store(self) -> bytes:
         return self._type.store(self)
 
@@ -95,7 +92,7 @@ class Struct(Type[StructValue]):
         return self.value(*args)
 
     def is_instance(self, value: StructValue) -> bool:
-        return isinstance(value, StructValue) and value.is_instance_of(self)
+        return isinstance(value, StructValue) and value._type == self
 
     def deps(self) -> List[Type[Any]]:
         return [f.type for f in self.fields]

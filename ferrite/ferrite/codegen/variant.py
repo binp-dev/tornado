@@ -88,8 +88,14 @@ class Variant(Type[VariantValue]):
         assert self.variants[id].type.is_instance(value)
         return VariantValue(self, id, value)
 
-    def __call__(self, id: int, value: Any) -> Any:
-        return self.value(id, value)
+    def __call__(self, variant: Any) -> Any:
+        value = None
+        for i, f in enumerate(self.variants):
+            if f.type.is_instance(variant):
+                assert value is None, f"{type(variant).__name__} is ambiguous. Use `value` method instead to provide variant index."
+                value = self.value(i, variant)
+        assert value is not None, f"{type(variant).__name__} is not an instance of any variant."
+        return value
 
     def random(self, rng: Random) -> VariantValue:
         id = rng.randrange(0, len(self.variants))

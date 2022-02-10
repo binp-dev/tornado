@@ -159,6 +159,9 @@ class Type(Generic[T]):
     def is_instance(self, value: T) -> bool:
         raise NotImplementedError(self._debug_name())
 
+    def __instancecheck__(self, value: T) -> bool:
+        return self.is_instance(value)
+
     def c_type(self) -> str:
         raise NotImplementedError(self._debug_name())
 
