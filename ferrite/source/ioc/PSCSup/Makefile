@@ -22,7 +22,9 @@ devPSC_SRCS += \
 	mbbi_direct.cpp \
 	mbbo_direct.cpp \
 	ai.cpp \
-	ao.cpp
+	ao.cpp \
+	bi.cpp \
+	bo.cpp
 
 # Link with the libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)

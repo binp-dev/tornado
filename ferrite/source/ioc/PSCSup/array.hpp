@@ -100,9 +100,12 @@ public:
         }
     }
 
-    virtual void set_data(const T *new_data, size_t length) override {
-        assert(set_length(length));
-        std::memcpy(this->raw_data(), new_data, length*sizeof(T));
+    [[nodiscard]] virtual bool set_data(const T *new_data, size_t length) override {
+        if (!set_length(length)) {
+            return false;
+        }
+        std::copy(new_data, new_data + length, data());
+        return true;
     }
 };
 

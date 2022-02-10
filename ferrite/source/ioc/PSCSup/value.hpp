@@ -58,15 +58,6 @@ public:
     virtual void set_handler(std::unique_ptr<InputValueHandler<T>> &&handler) override {
         EpicsRecord::set_handler(std::move(handler));
     }
-
-public:
-    [[nodiscard]]
-    virtual T value() const {
-        return this->raw()->rval;
-    }
-    virtual void set_value(T value) override {
-        this->raw()->rval = value;
-    }
 };
 
 template <typename T, typename Raw>
@@ -94,11 +85,5 @@ protected:
 public:
     virtual void set_handler(std::unique_ptr<OutputValueHandler<T>> &&handler) override {
         EpicsRecord::set_handler(std::move(handler));
-    }
-
-public:
-    [[nodiscard]]
-    virtual T value() const {
-        return this->raw()->rval;
     }
 };

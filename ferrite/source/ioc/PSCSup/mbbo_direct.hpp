@@ -7,10 +7,12 @@
 #include <record/value.hpp>
 
 // TODO: Fix possible issues: https://epics-base.github.io/epics-base/mbboDirectRecord.html
-class MbboDirectRecord :
+class MbboDirectRecord final :
     public EpicsOutputValueRecord<uint32_t, mbboDirectRecord>,
-    public virtual OutputValueRecord<uint32_t>
+    public virtual OutputValueRecord<uint32_t> //
 {
 public:
-    explicit MbboDirectRecord(mbboDirectRecord *raw) : EpicsOutputValueRecord<uint32_t, mbboDirectRecord>(raw) {}
+    inline explicit MbboDirectRecord(mbboDirectRecord *raw) : EpicsOutputValueRecord<uint32_t, mbboDirectRecord>(raw) {}
+
+    [[nodiscard]] virtual uint32_t value() const override;
 };

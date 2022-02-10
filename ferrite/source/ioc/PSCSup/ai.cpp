@@ -12,6 +12,14 @@
 #include <core/panic.hpp>
 #include <framework.hpp>
 
+int32_t AiRecord::value() const {
+    return this->raw()->rval;
+}
+
+void AiRecord::set_value(int32_t value) {
+    this->raw()->rval = value;
+}
+
 static long record_ai_init(aiRecord *raw) {
     auto record = std::make_unique<AiRecord>(raw);
     EpicsRecord::set_private_data((dbCommon *)raw, std::move(record));
