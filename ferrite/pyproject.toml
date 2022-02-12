@@ -8,6 +8,7 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = "^3.9"
 conan = "^1.44.0"
+caproto = "^0.8.1"
 paramiko = "^2.9.2"
 colorama = "^0.4.4"
 types-paramiko = "^2.8.10"
