@@ -149,6 +149,7 @@ python-versions = "^3.9"
 develop = true
 
 [package.dependencies]
+caproto = "^0.8.1"
 colorama = "^0.4.4"
 conan = "^1.44.0"
 paramiko = "^2.9.2"
@@ -487,7 +488,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "f3d31928c07123ba92f7deee3499f8811af15c94e428e69101305cf39623c303"
+content-hash = "585bd4fd52a54001afb5d11505a547f24bf72f0b54c58eae8c77432840685883"
 
 [metadata.files]
 bcrypt = [

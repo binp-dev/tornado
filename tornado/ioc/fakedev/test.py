@@ -1,13 +1,13 @@
 from __future__ import annotations
-from typing import List
+from typing import Dict, List
 
-import time
-from math import ceil
 from pathlib import Path
 import logging
+from dataclasses import dataclass
+import asyncio
 
 from ferrite.utils.epics.ioc import make_ioc
-import ferrite.utils.epics.ca as ca
+from ferrite.utils.epics.asyncio import Context, Pv, PvType
 
 from tornado.ioc.fakedev.base import FakeDev
 
@@ -17,117 +17,138 @@ def assert_eq(a: float, b: float, eps: float = 1e-3) -> None:
         raise AssertionError(f"abs({a} - {b}) < {eps}")
 
 
+@dataclass
 class Handler(FakeDev.Handler):
+    config: FakeDev.Config
 
-    def __init__(self) -> None:
-        self.adc_count = 6
-        self.adc_wf_size = 0
-        self.adc_wfs: List[List[int]] = [[] for i in range(self.adc_count)]
+    class _Watcher:
 
-        self.dac_wf_size = 0
-        self.dac_wfs: List[List[int]] = []
+        def __init__(self, count: int) -> None:
+            self.count = count
+            self.event = asyncio.Event()
 
-    def _fill_dac_wf_buff(self, dac_wf_buff: List[int], dac_wf_data: List[int], dac_wf_data_pos: int) -> int:
-        elems_to_fill = self.dac_wf_size - len(dac_wf_buff)
-        elems_left = len(dac_wf_data) - dac_wf_data_pos
-        if (elems_left < elems_to_fill):
-            elems_to_fill = elems_left
+    def __post_init__(self) -> None:
+        # Waveform layout in list: [ADC0, ..., ADC{N-1}, DAC]
+        self.wfs: List[List[int]] = [[] for _ in range(self.config.adc_count + 1)]
+        self.watchers: Dict[int, Handler._Watcher] = {}
 
-        dac_wf_buff += dac_wf_data[dac_wf_data_pos:dac_wf_data_pos + elems_to_fill]
-        return elems_to_fill
+    # FIXME: Use volts
+    def transfer_codes(self, dac_code: int) -> List[int]:
+        dac_wf = self.wfs[-1]
+        adc_wfs = self.wfs[:-1]
 
-    def write_dac_wf(self, dac_wf_data: List[int]) -> None:
-        if len(self.dac_wfs) == 0:
-            self.dac_wfs.append([])
+        dac_wf.append(dac_code)
+        adc_codes = [10000 * i + dac_code for i in range(len(adc_wfs))]
+        for x, wf in zip(adc_codes, adc_wfs):
+            wf.append(x)
 
-        dac_wf_data_pos = 0
-        dac_wf_buff = self.dac_wfs[-1]
-        while dac_wf_data_pos < len(dac_wf_data):
-            if len(dac_wf_buff) == self.dac_wf_size:
-                self.dac_wfs.append([])
-                dac_wf_buff = self.dac_wfs[-1]
+        # Notify watchers
+        for idx, watcher in self.watchers.items():
+            if len(self.wfs[idx]) >= watcher.count:
+                watcher.event.set()
 
-            dac_wf_data_pos += self._fill_dac_wf_buff(dac_wf_buff, dac_wf_data, dac_wf_data_pos)
+        return adc_codes
 
-    def read_adc_wfs(self) -> List[List[int]]:
-        return self.adc_wfs
+    @staticmethod
+    def _eq_wfs(a_wf: List[int], b_wf: List[int]) -> bool:
+        assert len(a_wf) == len(b_wf)
+        return all((a == b for a, b in zip(a_wf, b_wf)))
+
+    async def _check_wf(self, idx: int, subwf: List[int]) -> None:
+        size = len(subwf)
+
+        if len(self.wfs[idx]) < size:
+            # Waveform is not ready, waiting
+            assert idx not in self.watchers.keys(), f"Waveform[{idx}] checking is already in progress"
+            watcher = Handler._Watcher(size)
+            self.watchers[idx] = watcher
+            await watcher.event.wait()
+            del self.watchers[idx]
+            assert len(self.wfs[idx]) >= size
+
+        assert Handler._eq_wfs(subwf, self.wfs[idx][:size])
+        self.wfs[idx] = self.wfs[idx][size:]
+
+    async def check_dac(self, dac_subwf: List[int]) -> None:
+        await self._check_wf(-1, dac_subwf)
+
+    async def check_adc(self, index: int, adc_subwf: List[int]) -> None:
+        assert index in range(0, self.config.adc_count)
+        await self._check_wf(index, adc_subwf)
+
+
+async def async_run(config: FakeDev.Config, device: FakeDev, handler: Handler) -> None:
+    dev_task = asyncio.create_task(device.run())
+
+    ctx = Context()
+    aais = [await ctx.pv(f"aai{i}", PvType.ARRAY_INT) for i in range(config.adc_count)]
+    aao = await ctx.pv("aao0", PvType.ARRAY_INT)
+    aao_req = await ctx.pv("aao0_req", PvType.BOOL)
+
+    wf_size = await (await ctx.pv("aao0.NELM", PvType.INT)).read()
+    logging.info(f"Waveform max size: {wf_size}")
+    # Check that `aai*` sizes are the same as `aao0` size
+    assert all([wf_size == await (await ctx.pv(f"aai{i}.NELM", PvType.INT)).read() for i in range(len(aais))])
+
+    async def write_and_check_dac(array: List[int]) -> None:
+        await aao.write(array)
+        await handler.check_dac(array)
+        logging.info(f"DAC of size {len(array)} is correct")
+
+    adcs_samples_count = [0] * config.adc_count
+
+    async def watch_single_adc(index: int, adc_pv: Pv[List[int]]) -> None:
+        async with adc_pv.monitor() as mon:
+            async for array in mon:
+                if len(array) == 0:
+                    continue
+                await handler.check_adc(index, array)
+                adcs_samples_count[index] += len(array)
+                logging.info(f"ADC[{index}] of size {len(array)} is correct")
+
+    async def watch_adcs() -> None:
+        await asyncio.gather(*[watch_single_adc(i, pv) for i, pv in enumerate(aais)])
+
+    async def wait_dac_req() -> None:
+        async with aao_req.monitor() as mon:
+            async for flag in mon:
+                if int(flag) != 0:
+                    break
+
+    watch_task = asyncio.create_task(watch_adcs())
+
+    logging.info("# Phase 0")
+    await wait_dac_req()
+    await write_and_check_dac([])
+
+    logging.info("# Phase 1")
+    await wait_dac_req()
+    await write_and_check_dac(list(range(wf_size)))
+
+    logging.info("# Phase 2")
+    await wait_dac_req()
+    await write_and_check_dac(list(range(0, -wf_size // 2, -1)))
+    await wait_dac_req()
+    await write_and_check_dac(list(range(-wf_size // 2, 0)))
+
+    logging.info("# Phase 3")
+    await wait_dac_req()
+    # Flush FakeDev chunk buffer
+    await write_and_check_dac(list(range(config.chunk_size)))
+    await asyncio.sleep(0.5)
+    # Check total ADCs samples count
+    assert all([sc >= 2 * wf_size for sc in adcs_samples_count])
+
+    watch_task.cancel()
+    dev_task.cancel()
 
 
 def run(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
-
     prefix = epics_base_dir / "bin" / arch
     ioc = make_ioc(ioc_dir, arch)
-    handler = Handler()
 
-    scan_period = 1.0
-    with FakeDev(prefix, ioc, handler):
-        time.sleep(scan_period)
+    config = FakeDev.default_config()
+    handler = Handler(config)
+    device = FakeDev(prefix, ioc, config, handler)
 
-        handler.dac_wf_size = int(ca.get(prefix, "aao0.NELM"))
-        logging.info(f"AAO SIZE = {handler.dac_wf_size}")
-        dac_wf = []
-        dac_wf.append([i for i in range(handler.dac_wf_size)])
-        dac_wf.append([i for i in range(handler.dac_wf_size, 0, -1)])
-        dac_wf.append([5 for i in range(handler.dac_wf_size // 2)])
-
-        time.sleep(scan_period)
-
-        #============
-        dac_waveform_sleep = 1.5
-
-        ca.put_array(prefix, "aao0", dac_wf[0])
-
-        time.sleep(dac_waveform_sleep)
-
-        assert len(handler.dac_wfs) == 1
-        assert handler.dac_wfs[len(handler.dac_wfs) - 1] == dac_wf[0]
-
-        ca.put_array(prefix, "aao0", dac_wf[1])
-        ca.put_array(prefix, "aao0", dac_wf[2])
-
-        time.sleep(dac_waveform_sleep * 2)
-
-        assert len(handler.dac_wfs) == 3
-        assert handler.dac_wfs[len(handler.dac_wfs) - 2] == dac_wf[1]
-        assert handler.dac_wfs[len(handler.dac_wfs) - 1] == dac_wf[2]
-
-        time.sleep(dac_waveform_sleep)
-
-        assert len(handler.dac_wfs) == 3
-
-        #=============
-
-        time.sleep(scan_period)
-
-        #=============
-        handler.adc_wf_size = int(ca.get(prefix, "aai0.NELM"))
-        adc_waveform_sleep = FakeDev.poll_ms_timeout / 1000 * (handler.adc_wf_size / FakeDev.adc_wf_msg_max_elems)
-        adc_waveform_sleep = ceil(adc_waveform_sleep)
-
-        for i in range(handler.adc_count):
-            handler.adc_wfs[i] = [x for x in range(handler.adc_wf_size * 2)]
-
-        adc_wf_numb = 0
-
-        time.sleep(adc_waveform_sleep)
-
-        adc_wf: List[List[int]] = [[] for i in range(handler.adc_count)]
-        for i in range(handler.adc_count):
-            logging.debug("aai%d:" % i)
-            adc_wf[i] = [int(x) for x in ca.get_array(prefix, "aai%d" % i)]
-            begin = adc_wf_numb * handler.adc_wf_size
-            end = (adc_wf_numb + 1) * handler.adc_wf_size
-            assert handler.adc_wfs[i][begin:end] == adc_wf[i]
-
-        adc_wf_numb += 1
-
-        time.sleep(adc_waveform_sleep)
-
-        for i in range(handler.adc_count):
-            logging.debug("aai%d:" % i)
-            adc_wf[i] = [int(x) for x in ca.get_array(prefix, "aai%d" % i)]
-            begin = adc_wf_numb * handler.adc_wf_size
-            end = (adc_wf_numb + 1) * handler.adc_wf_size
-            assert handler.adc_wfs[i][begin:end] == adc_wf[i]
-
-    logging.info("Test passed!")
+    asyncio.run(async_run(config, device, handler))

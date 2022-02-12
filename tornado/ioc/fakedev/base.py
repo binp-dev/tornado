@@ -1,13 +1,17 @@
 from __future__ import annotations
+import chunk
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any, List
 
-import zmq
+import asyncio
 from threading import Thread
 from pathlib import Path
+import logging
+
+import zmq
+import zmq.asyncio as azmq
 
 from ferrite.utils.epics.ioc import Ioc
-from ferrite.codegen.variant import VariantValue
 import ferrite.utils.epics.ca as ca
 
 from tornado.ipp import AppMsg, McuMsg
@@ -21,95 +25,95 @@ def adc_volt_to_code(voltage: float) -> int:
     return round(voltage / (346.8012 * 1e-6) * 256)
 
 
-def _send_msg(socket: zmq.Socket, msg: McuMsg.Variant) -> None:
-    socket.send(McuMsg(msg).store())
+async def _send_msg(socket: azmq.Socket, msg: McuMsg.Variant) -> None:
+    await socket.send(McuMsg(msg).store())
 
 
-def _recv_msg(socket: zmq.Socket) -> AppMsg:
-    return AppMsg.load(socket.recv())
+async def _recv_msg(socket: azmq.Socket) -> AppMsg:
+    data = await socket.recv()
+    assert isinstance(data, bytes)
+    return AppMsg.load(data)
 
 
 class FakeDev:
-    adc_wf_msg_max_elems = 63 # FIXME: Remove
-    poll_ms_timeout = 100 # FIXME: Remove
 
     @dataclass
     class Handler:
         adc_count = 0
 
-        def write_dac_wf(self, wf: List[int]) -> None:
+        # Takes DAC value and returns ADC values
+        def transfer(self, dac: float) -> List[float]:
             raise NotImplementedError()
 
-        def read_adc_wfs(self) -> List[List[int]]:
-            raise NotImplementedError()
+        def transfer_codes(self, dac_code: int) -> List[int]:
+            return [adc_volt_to_code(adc_code) for adc_code in self.transfer(dac_code_to_volt(dac_code))]
 
-    def __init__(self, prefix: Path, ioc: Ioc, handler: FakeDev.Handler) -> None:
+    @dataclass
+    class Config:
+        adc_count: int
+        sample_period: float
+        chunk_size: int
+
+    @staticmethod
+    def default_config() -> Config:
+        return FakeDev.Config(
+            adc_count=6,
+            sample_period=0.0001, # 10 kHz
+            chunk_size=97, # random prime, PV size should be non-multple of it
+        )
+
+    def __init__(self, prefix: Path, ioc: Ioc, config: Config, handler: FakeDev.Handler) -> None:
         self.prefix = prefix
-        self.ca_repeater = ca.Repeater(prefix)
         self.ioc = ioc
 
-        self.context = zmq.Context()
-        self.socket: zmq.Socket = self.context.socket(zmq.PAIR)
+        self.context = azmq.Context()
+        self.socket = self.context.socket(zmq.PAIR)
 
+        self.config = config
         self.handler = handler
-        self.done = True
-        self.thread = Thread(target=lambda: self._dev_loop())
 
-    def _dev_loop(self) -> None:
-        assert isinstance(_recv_msg(self.socket).variant, AppMsg.Start)
-        print("Received start signal")
-        _send_msg(self.socket, McuMsg.Debug("Hello from MCU!"))
+        self.adc_wfs: List[List[int]] = [[] for _ in range(self.config.adc_count)]
 
-        poller = zmq.Poller()
-        poller.register(self.socket, zmq.POLLIN)
+    async def sample(self, dac: int) -> None:
+        adcs = self.handler.transfer_codes(dac)
+        assert len(adcs) == len(self.adc_wfs)
+        for adc, wf in zip(adcs, self.adc_wfs):
+            wf.append(adc)
 
-        adc_wf_positions = [0 for i in range(self.handler.adc_count)]
+        # Send back ADC chunks if they're ready
+        chunk_size = self.config.chunk_size
+        if len(self.adc_wfs[0]) >= chunk_size:
+            for i, wf in enumerate(self.adc_wfs):
+                await _send_msg(self.socket, McuMsg.AdcWf(i, wf[:chunk_size]))
+            self.adc_wfs = [wf[chunk_size:] for wf in self.adc_wfs]
 
-        _send_msg(self.socket, McuMsg.DacWfReq())
+    async def sample_chunk(self, dac_wf: List[int]) -> None:
 
-        while not self.done:
-            evts = poller.poll(self.poll_ms_timeout)
+        async def sample_all() -> None:
+            for dac in dac_wf:
+                await self.sample(dac)
 
-            for i, adc_wf in enumerate(self.handler.read_adc_wfs()):
-                if adc_wf_positions[i] == len(adc_wf):
-                    continue
+        await asyncio.gather(
+            sample_all(),
+            asyncio.sleep(self.config.sample_period * len(dac_wf)),
+        )
 
-                adc_wf_msg_data: List[int] = []
-                adc_wf_positions[i] += self._fill_adc_wf_msg_buff(adc_wf_msg_data, adc_wf, adc_wf_positions[i])
-                _send_msg(self.socket, McuMsg.AdcWf(i, adc_wf_msg_data))
+    async def loop(self) -> None:
+        assert isinstance((await _recv_msg(self.socket)).variant, AppMsg.Start)
+        logging.info("Received start signal")
+        await _send_msg(self.socket, McuMsg.Debug("Hello from MCU!"))
 
-            if len(evts) == 0:
-                continue
-            msg = AppMsg.load(self.socket.recv())
+        await _send_msg(self.socket, McuMsg.DacWfReq())
+        while True:
+            msg = await _recv_msg(self.socket)
             if isinstance(msg.variant, AppMsg.DacWf):
-                self.handler.write_dac_wf(msg.variant.elements)
-                _send_msg(self.socket, McuMsg.DacWfReq())
+                await self.sample_chunk(msg.variant.elements)
+                await _send_msg(self.socket, McuMsg.DacWfReq())
             else:
                 raise Exception("Unexpected message type")
 
-    def _fill_adc_wf_msg_buff(self, buff: List[int], adc_wf: List[int], adc_wf_position: int) -> int:
-        elems_to_send = self.adc_wf_msg_max_elems
-        elems_to_fill = len(adc_wf) - adc_wf_position
-        if elems_to_fill < elems_to_send:
-            elems_to_send = elems_to_fill
-
-        buff += adc_wf[adc_wf_position:adc_wf_position + elems_to_send]
-        return elems_to_send
-
-    def __enter__(self) -> None:
+    async def run(self) -> None:
         self.socket.bind("tcp://127.0.0.1:8321")
-
-        self.ca_repeater.__enter__()
-        self.ioc.__enter__()
-
-        self.done = False
-        self.thread.start()
-
-    def __exit__(self, *args: Any) -> None:
-        self.done = True
-        self.thread.join()
-
-        self.ioc.__exit__(*args)
-        self.ca_repeater.__exit__(*args)
-
-        self.socket.close()
+        with ca.Repeater(self.prefix), self.ioc:
+            logging.debug("Fakedev started")
+            await self.loop()

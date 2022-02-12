@@ -50,7 +50,7 @@ void Device::recv_loop() {
             }
             if (!adc_wf.notify) {
                 continue;
-            } 
+            }
 
             {
                 std::lock_guard<std::mutex> lock(adc_wf.mutex);
@@ -98,7 +98,6 @@ void Device::send_loop() {
             channel.send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
         }
         if (has_dac_wf_req.load() == true && dac_wf.wf_is_set.load() == true) {
-            // FIXME: Exchange flags atomically
             has_dac_wf_req.store(false);
             ipp::AppMsgDacWf dac_wf_msg;
             auto &buffer = dac_wf_msg.elements;
@@ -177,7 +176,7 @@ void Device::write_dac_wf(const int32_t *wf_data, const size_t wf_len) {
         dac_wf.wf_is_set.store(true);
 
         send_ready.notify_all();
-    } else {
+    } else if (wf_len > 0) {
         dac_wf.wf_data[1].resize(wf_len);
         std::copy(wf_data, wf_data + wf_len, dac_wf.wf_data[1].begin());
         dac_wf.swap_ready.store(true);
@@ -189,7 +188,7 @@ void Device::write_dac_wf(const int32_t *wf_data, const size_t wf_len) {
 }
 
 void Device::init_adc_wf(uint8_t index, size_t wf_max_size) {
-     adc_wfs[index].wf_max_size = wf_max_size;
+    adc_wfs[index].wf_max_size = wf_max_size;
 }
 
 void Device::set_adc_wf_callback(size_t index, std::function<void()> &&callback) {
@@ -221,7 +220,7 @@ void Device::fill_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_s
         } else {
             break;
         }
-    } 
+    }
 }
 
 void Device::copy_dac_wf_to_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size) {
@@ -233,14 +232,14 @@ void Device::copy_dac_wf_to_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t ma
 
     auto dac_wf_buff_pos_iter = dac_wf.wf_data[0].begin() + dac_wf.buff_position;
     msg_buff.insert(msg_buff.end(), dac_wf_buff_pos_iter, dac_wf_buff_pos_iter + elements_to_fill);
-    
+
     dac_wf.buff_position += elements_to_fill;
 }
 
 bool Device::swap_dac_wf_buffers() {
     dac_wf.buff_position = 0;
     std::lock_guard<std::mutex> guard(dac_wf.mutex);
-    
+
     if (dac_wf.swap_ready.exchange(false) == true) {
         dac_wf.wf_data[0].swap(dac_wf.wf_data[1]);
 

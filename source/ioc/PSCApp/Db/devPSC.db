@@ -81,6 +81,15 @@ record(aao, "aao0") {
     field(FTVL, "LONG")
 }
 
+# DAC next waveform request
+record(bi, "aao0_req")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "I/O Intr")
+
+    field(PINI, "YES")
+}
+
 # ADC waveform channels
 record(aai, "aai0") {
     field(DTYP, "devsup")
