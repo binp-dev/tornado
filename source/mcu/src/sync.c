@@ -26,7 +26,7 @@
 #define SYN_1_PIN 4, 30
 
 #define GPT_CHANNEL 1
-#define GPT_PERIOD_US 1000 // 100
+#define GPT_PERIOD_US 100
 
 
 static void handle_gpt(void *data) {

@@ -26,10 +26,9 @@
 #define SPI_BAUD_RATE 25000000
 
 #define READY_DELAY_NS 0
-#define READ_RDY_DURATION_NS 1000
 
 #define SPI_DEV_ID 0
-#define XFER_LEN 26
+#define XFER_LEN 28
 
 #define SMP_RDY_MUX IOMUXC_UART1_TXD_GPIO5_IO23
 #define SMP_RDY_PIN 5, 23
@@ -301,11 +300,6 @@ hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in) {
     if (st != HAL_SUCCESS) {
         return st;
     }
-
-    // Notify that data is ready
-    hal_gpio_pin_write(&GS.ctrl_pins.read_rdy, true);
-    hal_busy_wait_ns(READ_RDY_DURATION_NS);
-    hal_gpio_pin_write(&GS.ctrl_pins.read_rdy, false);
 
     for (size_t i = 0; i < XFER_LEN; ++i) {
         rx[i] = (uint8_t)rx4[i];
