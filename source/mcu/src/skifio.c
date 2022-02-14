@@ -80,10 +80,10 @@ static const PinInfo DIN_PINS[SKIFIO_DIN_SIZE] = {
     {{DIN_1_MUX}, DIN_1_PIN, false},
     {{DIN_2_MUX}, DIN_2_PIN, false},
     {{DIN_3_MUX}, DIN_3_PIN, false},
-    {{DIN_4_MUX}, DIN_4_PIN, true},
-    {{DIN_5_MUX}, DIN_5_PIN, true},
-    {{DIN_6_MUX}, DIN_6_PIN, true},
-    {{DIN_7_MUX}, DIN_7_PIN, true},
+    {{DIN_4_MUX}, DIN_4_PIN, false},
+    {{DIN_5_MUX}, DIN_5_PIN, false},
+    {{DIN_6_MUX}, DIN_6_PIN, false},
+    {{DIN_7_MUX}, DIN_7_PIN, false},
 };
 
 static const PinInfo DOUT_PINS[SKIFIO_DOUT_SIZE] = {
