@@ -274,7 +274,7 @@ int main(void)
     BOARD_InitBootPins();
     BOARD_BootClockRUN();
 
-    hal_io_uart_init(4);
+    hal_io_uart_init(3);
 
     copyResourceTable();
 
