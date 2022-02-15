@@ -2,18 +2,21 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 import shutil
-import logging
 from pathlib import Path
 
 from dataclasses import dataclass
 from ferrite.utils.run import run, RunError
 from ferrite.components.base import Artifact, Component, Task, Context
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def clone(path: Path, remote: str, branch: Optional[str] = None, clean: bool = False, quiet: bool = False) -> bool:
     if path.exists():
         # FIXME: Pull if update available
-        logging.info(f"Repo '{remote}' is cloned already")
+        logger.info(f"Repo '{remote}' is cloned already")
         return False
     try:
         run(

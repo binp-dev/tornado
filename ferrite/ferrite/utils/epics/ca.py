@@ -5,11 +5,14 @@ from typing import Any, Dict, List, Optional, Union
 
 import os
 import time
-import logging
 from subprocess import Popen
 from pathlib import Path
 
 from ferrite.utils.run import run, capture
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _env() -> Dict[str, str]:
@@ -20,9 +23,9 @@ def _env() -> Dict[str, str]:
 
 
 def _get_str(prefix: Path, pv: str) -> str:
-    logging.debug(f"caget {pv} ...")
+    logger.debug(f"caget {pv} ...")
     out = capture([prefix / "caget", "-t", "-f 3", pv], add_env=_env())
-    logging.debug(f"  {out}")
+    logger.debug(f"  {out}")
     return out
 
 
@@ -38,19 +41,19 @@ def get_array(prefix: Path, pv: str) -> List[float]:
 
 
 def put(prefix: Path, pv: str, value: int | float) -> None:
-    logging.debug(f"caput {pv} {value} ...")
+    logger.debug(f"caput {pv} {value} ...")
     run([prefix / "caput", "-t", pv, str(value)], add_env=_env(), quiet=True)
-    logging.debug("  done")
+    logger.debug("  done")
 
 
 def put_array(prefix: Path, pv: str, value: List[int] | List[float]) -> None:
-    logging.debug(f"caput {pv} {value} ...")
+    logger.debug(f"caput {pv} {value} ...")
 
     args: List[str | Path] = [prefix / "caput", "-t", "-a", pv, str(len(value))]
     args.extend([str(v) for v in value])
 
     run(args, add_env=_env(), quiet=True)
-    logging.debug("  done")
+    logger.debug("  done")
 
 
 class Repeater:
@@ -60,7 +63,7 @@ class Repeater:
         self.prefix = prefix
 
     def __enter__(self) -> None:
-        logging.debug("starting caRepeater ...")
+        logger.debug("starting caRepeater ...")
         env = dict(os.environ)
         env.update(_env())
         self.proc = Popen(
@@ -68,10 +71,10 @@ class Repeater:
             env=env,
         )
         time.sleep(1)
-        logging.debug("caRepeater started")
+        logger.debug("caRepeater started")
 
     def __exit__(self, *args: Any) -> None:
-        logging.debug("terminating caRepeater ...")
+        logger.debug("terminating caRepeater ...")
         assert self.proc is not None
         self.proc.terminate()
-        logging.debug("caRepeater terminated")
+        logger.debug("caRepeater terminated")

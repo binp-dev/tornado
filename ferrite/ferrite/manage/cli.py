@@ -2,12 +2,13 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 import argparse
-import logging
 from dataclasses import dataclass
 from colorama import init as colorama_init, Fore, Style
 
 from ferrite.components.base import Context, Task, Component
 from ferrite.remote.ssh import SshDevice
+
+import logging
 
 
 def _make_task_tree(tasks: List[str]) -> List[str]:
@@ -132,11 +133,12 @@ def read_run_params(args: argparse.Namespace, comp: Component) -> RunParams:
 def _prepare_for_run(params: RunParams) -> None:
     colorama_init()
 
-    if params.context.capture:
-        log_level = logging.WARNING
-    else:
-        log_level = logging.DEBUG
-    logging.basicConfig(format='[%(levelname)s] %(message)s', level=log_level, force=True)
+
+def setup_logging(params: RunParams, modules: List[str] = ["ferrite"]) -> None:
+    logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.WARNING, force=True)
+    if not params.context.capture:
+        for mod in modules:
+            logging.getLogger(mod).setLevel(logging.DEBUG)
 
 
 def _print_title(text: str, style: Optional[str] = None, end: bool = True) -> None:

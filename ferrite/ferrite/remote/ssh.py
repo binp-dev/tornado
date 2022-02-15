@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import List, Optional, Tuple
 
 import time
-import logging
 from subprocess import Popen
 from pathlib import Path, PurePosixPath
 
@@ -12,6 +11,10 @@ from paramiko.channel import ChannelFile
 from ferrite.utils.run import run, RunError
 from ferrite.utils.strings import quote
 from ferrite.remote.base import Connection, Device
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _split_addr(addr: str) -> Tuple[str, int]:
@@ -63,8 +66,8 @@ class SshDevice(Device):
             run(["rsync", "-rlpt", "--progress", "--rsh", f"ssh -p {self.port}", f"{src}/", f"{self.user}@{self.host}:{dst}"])
 
     def store_mem(self, src_data: str, dst_path: PurePosixPath) -> None:
-        logging.debug(f"Store {len(src_data)} chars to {self.name()}:{dst_path}")
-        logging.debug(src_data)
+        logger.debug(f"Store {len(src_data)} chars to {self.name()}:{dst_path}")
+        logger.debug(src_data)
         run(["bash", "-c", f"echo {quote(src_data)} | ssh -p {self.port} {self.user}@{self.host} 'cat > {dst_path}'"])
 
     def _prefix(self) -> List[str | Path]:
@@ -76,11 +79,11 @@ class SshDevice(Device):
     def run(self, args: List[str], wait: bool = True) -> Optional[SshConnection]:
         argstr = " ".join([quote(a) for a in args])
         if wait:
-            logging.info(f"SSH run {self.name()} {args}")
+            logger.info(f"SSH run {self.name()} {args}")
             run(self._prefix() + [argstr])
             return None
         else:
-            logging.info(f"SSH popen {self.name()} {args}")
+            logger.info(f"SSH popen {self.name()} {args}")
             return SshConnection(Popen(self._prefix() + [argstr]))
 
     def _paramiko_client(self) -> SSHClient:
@@ -92,14 +95,14 @@ class SshDevice(Device):
     def _paramiko_run(self, args: List[str], wait: bool = True) -> Optional[_ParamikoConnection]:
         client = self._paramiko_client()
         argstr = " ".join([quote(a) for a in args])
-        logging.info(f"SSH run {self.name()} {args}")
+        logger.info(f"SSH run {self.name()} {args}")
         _, stdout, stderr = client.exec_command(argstr, timeout=None if wait else 0)
         if wait:
             print(stderr.read())
             print(stdout.read())
             return None
         else:
-            logging.info(f"SSH popen {self.name()} {args}")
+            logger.info(f"SSH popen {self.name()} {args}")
             return _ParamikoConnection(client, [stderr, stdout])
 
     def wait_online(self, attempts: int = 10, timeout: float = 10.0) -> None:
@@ -123,6 +126,6 @@ class SshDevice(Device):
         except:
             pass
 
-        logging.info("Waiting for device to reboot ...")
+        logger.info("Waiting for device to reboot ...")
         self.wait_online()
-        logging.info("Rebooted")
+        logger.info("Rebooted")
