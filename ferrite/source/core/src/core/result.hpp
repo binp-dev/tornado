@@ -1,6 +1,8 @@
 #pragma once
 
 #include <variant>
+#include <sstream>
+
 #include "io.hpp"
 #include "panic.hpp"
 

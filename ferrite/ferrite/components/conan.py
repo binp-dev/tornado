@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from ferrite.utils.run import capture, run
 from ferrite.components.base import Context
-from ferrite.components.cmake import Cmake
+from ferrite.components.cmake import Cmake, CmakeRunnable
 from ferrite.components.toolchain import Toolchain, HostToolchain, CrossToolchain
 
 
@@ -73,20 +73,22 @@ class ConanProfile:
 
 @dataclass
 class CmakeWithConan(Cmake):
-    # FIXME: Remove this option
-    disable_conan: bool = False
 
     def configure(self, ctx: Context) -> None:
-        if not self.disable_conan:
-            self.create_build_dir()
+        self.create_build_dir()
 
-            profile_path = self.build_dir / "profile.conan"
-            ConanProfile(self.toolchain).save(profile_path)
+        profile_path = self.build_dir / "profile.conan"
+        ConanProfile(self.toolchain).save(profile_path)
 
-            run(
-                ["conan", "install", "--build", "missing", self.src_dir, "--profile", profile_path],
-                cwd=self.build_dir,
-                quiet=ctx.capture,
-            )
+        run(
+            ["conan", "install", "--build", "missing", self.src_dir, "--profile", profile_path],
+            cwd=self.build_dir,
+            quiet=ctx.capture,
+        )
 
         super().configure(ctx)
+
+
+@dataclass
+class CmakeRunnableWithConan(CmakeRunnable, CmakeWithConan):
+    pass

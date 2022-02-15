@@ -4,8 +4,9 @@ from typing import Dict
 from pathlib import Path
 
 from ferrite.components.base import Component, ComponentGroup
+from ferrite.components.core import CoreTest
 from ferrite.components.toolchain import HostToolchain
-from ferrite.components.codegen import CodegenTest
+from ferrite.components.codegen import CodegenExample
 from ferrite.components.app import AppTest
 from ferrite.components.all_ import All
 
@@ -18,9 +19,10 @@ class FerriteComponents(ComponentGroup):
         target_dir: Path,
     ) -> None:
         toolchain = HostToolchain()
-        self.codegen = CodegenTest(source_dir, target_dir, toolchain)
+        self.core_test = CoreTest(source_dir, target_dir, toolchain)
+        self.codegen = CodegenExample(source_dir, target_dir, toolchain)
         self.app_test = AppTest(source_dir, target_dir, toolchain)
-        self.all = All(self.codegen, self.app_test)
+        self.all = All(self.core_test, self.codegen, self.app_test)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
         return self.__dict__
