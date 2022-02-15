@@ -153,4 +153,5 @@ def run(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
     handler = Handler(config)
     device = FakeDev(ioc, config, handler)
 
-    asyncio.run(async_run(config, device, handler))
+    # Run with timeout
+    asyncio.run(asyncio.wait_for(async_run(config, device, handler), 60.0))
