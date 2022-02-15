@@ -2,11 +2,6 @@ cmake_minimum_required(VERSION 3.16)
 
 project("codegen_test")
 
-set(CMAKE_C_FLAGS_DEBUG "-g")
-set(CMAKE_C_FLAGS "-Wall -Wextra -Werror=return-type")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -fno-exceptions")
-
 add_subdirectory(".." "codegen")
 
 set(SRC
