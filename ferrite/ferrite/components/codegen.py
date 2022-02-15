@@ -45,20 +45,10 @@ class Codegen(Component):
 
         self.generate = generate
         self.generate_task = self.GenerateTask(self, self.generate)
-        self.cmake = Cmake(
-            self.gen_dir,
-            self.build_dir,
-            toolchain,
-            target=self.prefix,
-            opts=[f"-DCORE_DIR={self.core_dir}"],
-            deps=[self.generate_task],
-        )
-        self.build_task = self.cmake.build_task
 
     def tasks(self) -> Dict[str, Task]:
         return {
             "generate": self.generate_task,
-            "build": self.build_task,
         }
 
 
@@ -82,7 +72,7 @@ class CodegenWithTest(Codegen):
             generate,
         )
 
-        self.test_cmake = CmakeRunnableWithConan(
+        self.cmake = CmakeRunnableWithConan(
             self.gen_dir / "test",
             self.test_dir,
             toolchain,
@@ -90,13 +80,13 @@ class CodegenWithTest(Codegen):
             opts=[f"-DCORE_DIR={self.core_dir}"],
             deps=[self.generate_task],
         )
-        self.build_test_task = self.test_cmake.build_task
-        self.test_task = self.test_cmake.run_task
+        self.build_task = self.cmake.build_task
+        self.test_task = self.cmake.run_task
 
     def tasks(self) -> Dict[str, Task]:
         return {
             **super().tasks(),
-            "build_test": self.build_test_task,
+            "build": self.build_task,
             "test": self.test_task,
         }
 

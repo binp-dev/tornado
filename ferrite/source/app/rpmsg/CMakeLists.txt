@@ -14,4 +14,4 @@ conan_basic_setup(NO_OUTPUT_DIRS)
 
 add_library(${PROJECT_NAME} STATIC ${SRC})
 target_include_directories(${PROJECT_NAME} PUBLIC "src")
-target_link_libraries(${PROJECT_NAME} PUBLIC "app_base" ${CONAN_LIBS})
+target_link_libraries(${PROJECT_NAME} PUBLIC "app_base")

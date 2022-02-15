@@ -7,15 +7,17 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.9"
+toml = "^0.10.2"
+types-toml = "^0.10.4"
 conan = "^1.44.0"
 caproto = "^0.8.1"
 paramiko = "^2.9.2"
-colorama = "^0.4.4"
 types-paramiko = "^2.8.10"
+colorama = "^0.4.4"
 types-colorama = "^0.4.4"
+pydantic = "^1.9.0"
 
 [tool.poetry.dev-dependencies]
-toml = "^0.10.2"
 yapf = "^0.32.0"
 mypy = "^0.931"
 

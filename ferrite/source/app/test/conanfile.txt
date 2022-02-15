@@ -1,6 +1,0 @@
-[requires]
-zeromq/4.3.4
-gtest/cci.20210126
-
-[generators]
-cmake
