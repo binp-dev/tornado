@@ -6,7 +6,6 @@ from typing import Any, List
 import asyncio
 from threading import Thread
 from pathlib import Path
-import logging
 
 import zmq
 import zmq.asyncio as azmq
@@ -15,6 +14,10 @@ from ferrite.utils.epics.ioc import Ioc
 import ferrite.utils.epics.ca as ca
 
 from tornado.ipp import AppMsg, McuMsg
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def dac_code_to_volt(code: int) -> float:
@@ -99,7 +102,7 @@ class FakeDev:
 
     async def loop(self) -> None:
         assert isinstance((await _recv_msg(self.socket)).variant, AppMsg.Start)
-        logging.info("Received start signal")
+        logger.info("Received start signal")
         await _send_msg(self.socket, McuMsg.Debug("Hello from MCU!"))
 
         await _send_msg(self.socket, McuMsg.DacWfReq())
@@ -114,5 +117,5 @@ class FakeDev:
     async def run(self) -> None:
         self.socket.bind("tcp://127.0.0.1:8321")
         with self.ioc:
-            logging.debug("Fakedev started")
+            logger.debug("Fakedev started")
             await self.loop()

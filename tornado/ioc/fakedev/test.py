@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import Dict, List
 
 from pathlib import Path
-import logging
 from dataclasses import dataclass
 import asyncio
 
@@ -10,6 +9,10 @@ from ferrite.utils.epics.ioc import make_ioc
 from ferrite.utils.epics.asyncio import Context, Pv, PvType
 
 from tornado.ioc.fakedev.base import FakeDev
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def assert_eq(a: float, b: float, eps: float = 1e-3) -> None:
@@ -86,14 +89,14 @@ async def async_run(config: FakeDev.Config, device: FakeDev, handler: Handler) -
     aao_req = await ctx.pv("aao0_req", PvType.BOOL)
 
     wf_size = await (await ctx.pv("aao0.NELM", PvType.INT)).read()
-    logging.info(f"Waveform max size: {wf_size}")
+    logger.info(f"Waveform max size: {wf_size}")
     # Check that `aai*` sizes are the same as `aao0` size
     assert all([wf_size == await (await ctx.pv(f"aai{i}.NELM", PvType.INT)).read() for i in range(len(aais))])
 
     async def write_and_check_dac(array: List[int]) -> None:
         await aao.write(array)
         await handler.check_dac(array)
-        logging.info(f"DAC of size {len(array)} is correct")
+        logger.info(f"DAC of size {len(array)} is correct")
 
     adcs_samples_count = [0] * config.adc_count
 
@@ -104,7 +107,7 @@ async def async_run(config: FakeDev.Config, device: FakeDev, handler: Handler) -
                     continue
                 await handler.check_adc(index, array)
                 adcs_samples_count[index] += len(array)
-                logging.info(f"ADC[{index}] of size {len(array)} is correct")
+                logger.info(f"ADC[{index}] of size {len(array)} is correct")
 
     async def watch_adcs() -> None:
         await asyncio.gather(*[watch_single_adc(i, pv) for i, pv in enumerate(aais)])
@@ -117,21 +120,21 @@ async def async_run(config: FakeDev.Config, device: FakeDev, handler: Handler) -
 
     watch_task = asyncio.create_task(watch_adcs())
 
-    logging.info("# Phase 0")
+    logger.info("# Phase 0")
     await wait_dac_req()
     await write_and_check_dac([])
 
-    logging.info("# Phase 1")
+    logger.info("# Phase 1")
     await wait_dac_req()
     await write_and_check_dac(list(range(wf_size)))
 
-    logging.info("# Phase 2")
+    logger.info("# Phase 2")
     await wait_dac_req()
     await write_and_check_dac(list(range(0, -wf_size // 2, -1)))
     await wait_dac_req()
     await write_and_check_dac(list(range(-wf_size // 2, 0)))
 
-    logging.info("# Phase 3")
+    logger.info("# Phase 3")
     await wait_dac_req()
     # Flush FakeDev chunk buffer
     await write_and_check_dac(list(range(config.chunk_size)))

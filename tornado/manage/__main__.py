@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from ferrite.manage.cli import add_parser_args, read_run_params, ReadRunParamsError, run_with_params
+import ferrite.manage.cli as cli
 
 from tornado.manage.tree import make_components
 
@@ -19,14 +19,15 @@ if __name__ == "__main__":
         description="Tornado power supply controller development automation tool",
         usage="python -m tornado.manage <component>.<task> [options...]",
     )
-    add_parser_args(parser, components)
+    cli.add_parser_args(parser, components)
 
     args = parser.parse_args()
 
     try:
-        params = read_run_params(args, components)
-    except ReadRunParamsError as e:
+        params = cli.read_run_params(args, components)
+    except cli.ReadRunParamsError as e:
         print(e)
         exit(1)
 
-    run_with_params(params)
+    cli.setup_logging(params, ["ferrite", "tornado"])
+    cli.run_with_params(params)
