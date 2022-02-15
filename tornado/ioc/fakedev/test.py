@@ -144,11 +144,10 @@ async def async_run(config: FakeDev.Config, device: FakeDev, handler: Handler) -
 
 
 def run(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
-    prefix = epics_base_dir / "bin" / arch
     ioc = make_ioc(ioc_dir, arch)
 
     config = FakeDev.default_config()
     handler = Handler(config)
-    device = FakeDev(prefix, ioc, config, handler)
+    device = FakeDev(ioc, config, handler)
 
     asyncio.run(async_run(config, device, handler))

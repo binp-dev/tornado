@@ -62,8 +62,7 @@ class FakeDev:
             chunk_size=97, # random prime, PV size should be non-multple of it
         )
 
-    def __init__(self, prefix: Path, ioc: Ioc, config: Config, handler: FakeDev.Handler) -> None:
-        self.prefix = prefix
+    def __init__(self, ioc: Ioc, config: Config, handler: FakeDev.Handler) -> None:
         self.ioc = ioc
 
         self.context = azmq.Context()
@@ -114,6 +113,6 @@ class FakeDev:
 
     async def run(self) -> None:
         self.socket.bind("tcp://127.0.0.1:8321")
-        with ca.Repeater(self.prefix), self.ioc:
+        with self.ioc:
             logging.debug("Fakedev started")
             await self.loop()
