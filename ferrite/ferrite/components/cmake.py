@@ -33,7 +33,7 @@ class Cmake(Component):
     src_dir: Path
     build_dir: Path
     toolchain: Toolchain
-    target: str
+    target: str # FIXME: Rename to `cmake_target`
     opts: List[str] = field(default_factory=list)
     envs: Dict[str, str] = field(default_factory=dict)
     deps: List[Task] = field(default_factory=list)
@@ -43,6 +43,12 @@ class Cmake(Component):
 
     def create_build_dir(self) -> None:
         self.build_dir.mkdir(exist_ok=True)
+
+    @property
+    def _defs(self) -> Dict[str, str]:
+        deflist = [opt[2:].split("=") for opt in self.opts if opt.startswith("-D")]
+        assert all((len(ds) == 2 for ds in deflist))
+        return {k: v for k, v in deflist}
 
     def configure(self, ctx: Context) -> None:
         self.create_build_dir()

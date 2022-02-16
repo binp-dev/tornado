@@ -53,7 +53,7 @@ class _ConanfileExt(pydantic.BaseModel):
     class Dependency(pydantic.BaseModel):
         path: str
 
-    requires: Dict[str, str]
+    requires: Dict[str, str] = {}
     dependencies: List[_ConanfileExt.Dependency] = []
 
     def to_collapsed_without_deps(self) -> _ConanfileExtCollapsed:
@@ -70,19 +70,22 @@ def _read_conanfile_ext(base_dir: Path) -> _ConanfileExt:
     return _ConanfileExt.parse_obj(data)
 
 
-def _read_and_collapse_conanfile_ext(base_dir: Path) -> _ConanfileExtCollapsed:
+def _read_and_collapse_conanfile_ext(base_dir: Path, vars: Dict[str, str]) -> _ConanfileExtCollapsed:
     raw = _read_conanfile_ext(base_dir)
     collapsed = raw.to_collapsed_without_deps()
     for dep in raw.dependencies:
-        dep_path = Path(dep.path)
+        tmp = dep.path
+        for k, v in vars.items():
+            tmp = tmp.replace(f"${k}", v)
+        dep_path = Path(tmp)
         if not dep_path.is_absolute():
             dep_path = (base_dir / dep_path).resolve()
-        collapsed.update(_read_and_collapse_conanfile_ext(dep_path))
+        collapsed.update(_read_and_collapse_conanfile_ext(dep_path, vars))
     return collapsed
 
 
-def make_conanfile(base_dir: Path) -> Conanfile:
-    return _read_and_collapse_conanfile_ext(base_dir).to_conanfile()
+def make_conanfile(base_dir: Path, vars: Dict[str, str] = {}) -> Conanfile:
+    return _read_and_collapse_conanfile_ext(base_dir, vars).to_conanfile()
 
 
 class ConanProfile:
@@ -162,7 +165,7 @@ class CmakeWithConan(Cmake):
             shutil.copyfile(self.src_dir / "conanfile.txt", conanfile_path)
         except FileNotFoundError:
             # Generate conanfile
-            make_conanfile(self.src_dir).save(conanfile_path)
+            make_conanfile(self.src_dir, self._defs).save(conanfile_path)
 
         run(
             ["conan", "install", conanfile_path, "--profile", profile_path, "--build", "missing"],

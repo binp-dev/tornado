@@ -11,4 +11,4 @@ set(SRC
 )
 
 add_library(${PROJECT_NAME} SHARED ${SRC})
-target_link_libraries(${PROJECT_NAME} PRIVATE "app_base_rpmsg")
+target_link_libraries(${PROJECT_NAME} PRIVATE "core" "app_base" "app_base_rpmsg")

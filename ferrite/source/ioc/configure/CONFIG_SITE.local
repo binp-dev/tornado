@@ -1,5 +1,6 @@
 # Paths to an application.
-APP_LIB_SRC =
+CORE_SRC =
+APP_BASE_SRC =
 APP_BUILD_DIR =
 
 # The only architecture to build for 

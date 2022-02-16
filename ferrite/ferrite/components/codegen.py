@@ -29,7 +29,6 @@ class Codegen(Component):
     def __init__(
         self,
         assets_dir: Path,
-        ferrite_source_dir: Path,
         target_dir: Path,
         toolchain: Toolchain,
         prefix: str,
@@ -38,7 +37,6 @@ class Codegen(Component):
         self.prefix = prefix
 
         self.assets_dir = assets_dir
-        self.core_dir = ferrite_source_dir / 'core'
         self.gen_dir = target_dir / self.prefix
         self.build_dir = target_dir / f"{self.prefix}_{toolchain.name}"
         self.test_dir = target_dir / f"{self.prefix}_test"
@@ -65,7 +63,6 @@ class CodegenWithTest(Codegen):
     ):
         super().__init__(
             assets_dir,
-            ferrite_source_dir,
             target_dir,
             toolchain,
             prefix,
@@ -77,7 +74,7 @@ class CodegenWithTest(Codegen):
             self.test_dir,
             toolchain,
             target=f"{self.prefix}_test",
-            opts=[f"-DCORE_DIR={self.core_dir}"],
+            opts=[f"-DFERRITE={ferrite_source_dir}"],
             deps=[self.generate_task],
         )
         self.build_task = self.cmake.build_task
