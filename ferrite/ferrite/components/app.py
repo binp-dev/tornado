@@ -1,36 +1,80 @@
 from __future__ import annotations
-from typing import List, Optional
+from typing import Dict, List
 
 from pathlib import Path
 from dataclasses import dataclass
+from copy import copy
 
-from ferrite.components.cmake import CmakeWithTest
+from ferrite.components.base import Task
+from ferrite.components.cmake import Cmake, CmakeRunnable
 from ferrite.components.conan import CmakeWithConan
-from ferrite.components.toolchain import HostToolchain, CrossToolchain
+from ferrite.components.toolchain import HostToolchain, CrossToolchain, Toolchain
 
 
-@dataclass
-class AppBase(CmakeWithConan):
-    cmake_toolchain_path: Optional[Path] = None
-
-    def __post_init__(self) -> None:
-        self.opts.append("-DCMAKE_BUILD_TYPE=Debug")
-
-        if isinstance(self.toolchain, CrossToolchain):
-            self.opts.append(f"-DCMAKE_TOOLCHAIN_FILE={self.cmake_toolchain_path}")
-            self.envs.update({
-                "TOOLCHAIN_DIR": str(self.toolchain.path),
-                "TARGET_TRIPLE": str(self.toolchain.target),
-            })
-
-        super().__post_init__()
+class AppBase(Cmake):
 
     @property
     def lib_src_dir(self) -> Path:
         return self.src_dir
 
 
-class AppTest(CmakeWithConan, CmakeWithTest):
+class AppBaseHost(AppBase, CmakeWithConan):
+
+    def __init__(
+        self,
+        src_dir: Path,
+        build_dir: Path,
+        toolchain: HostToolchain,
+        target: str,
+        opts: List[str] = [],
+        envs: Dict[str, str] = {},
+        deps: List[Task] = [],
+    ):
+        super().__init__(
+            src_dir,
+            build_dir,
+            toolchain,
+            target,
+            opts=copy(opts),
+            envs=copy(envs),
+            deps=copy(deps),
+        )
+
+
+@dataclass
+class AppBaseCross(AppBase):
+
+    def __init__(
+        self,
+        src_dir: Path,
+        build_dir: Path,
+        toolchain: CrossToolchain,
+        target: str,
+        cmake_toolchain_path: Path,
+        opts: List[str] = [],
+        envs: Dict[str, str] = {},
+        deps: List[Task] = [],
+    ):
+        super().__init__(
+            src_dir,
+            build_dir,
+            toolchain,
+            target,
+            opts=[
+                *opts,
+                f"-DCMAKE_TOOLCHAIN_FILE={cmake_toolchain_path}",
+            ],
+            envs={
+                **envs,
+                "TOOLCHAIN_DIR": str(toolchain.path),
+                "TARGET_TRIPLE": str(toolchain.target),
+            },
+            deps=copy(deps),
+        )
+        self.cmake_toolchain_path = cmake_toolchain_path
+
+
+class AppBaseTest(CmakeWithConan, CmakeRunnable):
 
     def __init__(
         self,
@@ -39,9 +83,27 @@ class AppTest(CmakeWithConan, CmakeWithTest):
         toolchain: HostToolchain,
     ):
         super().__init__(
-            source_dir / "app",
+            source_dir / "app" / "base_test",
             target_dir / "app_test",
             toolchain,
-            opts=["-DAPP_TEST=1"],
-            target="app_lib_test",
+            target="app_base_test",
+            opts=["-DCMAKE_BUILD_TYPE=Debug"],
+        )
+
+
+class AppExample(AppBaseCross):
+
+    def __init__(
+        self,
+        source_dir: Path,
+        target_dir: Path,
+        toolchain: CrossToolchain,
+    ):
+        super().__init__(
+            source_dir / "app" / "example",
+            target_dir / "app",
+            toolchain,
+            target="app_example",
+            cmake_toolchain_path=(source_dir / "app" / "armgcc.cmake"),
+            opts=["-DCMAKE_BUILD_TYPE=Debug"],
         )

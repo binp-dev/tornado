@@ -1,17 +1,18 @@
-#include <gtest/gtest.h>
-
-#include <zmq.h>
-#include <core/result.hpp>
-
-#include "zmq.hpp"
+#include <channel/zmq.hpp>
 
 #include <random>
 #include <functional>
 
+#include <zmq.h>
+#include <gtest/gtest.h>
+
+#include <core/result.hpp>
+
+
 inline constexpr auto TIMEOUT = std::chrono::milliseconds(100);
 
 template <typename T>
-std::optional<T> try_random(T low, T high, std::function<bool(T)> fn, size_t num_tries=16, uint32_t seed=0xDEADBEEF) {
+std::optional<T> try_random(T low, T high, std::function<bool(T)> fn, size_t num_tries = 16, uint32_t seed = 0xDEADBEEF) {
     std::minstd_rand rng;
     rng.seed(seed);
     for (size_t i = 0; i < num_tries; ++i) {
@@ -64,7 +65,7 @@ TEST(ZmqTest, sockets) {
     void *one = zmq_socket(ctx, ZMQ_PAIR);
     ASSERT_NE(one, nullptr);
     zmq_helper::SocketGuard one_guard = zmq_helper::guard_socket(one);
-    auto rp = try_random<uint16_t>(5000, 6000, [&one] (uint16_t port) {
+    auto rp = try_random<uint16_t>(5000, 6000, [&one](uint16_t port) {
         std::string addr = "tcp://127.0.0.1:" + std::to_string(port);
         return zmq_bind(one, addr.c_str()) == 0;
     });
@@ -105,7 +106,7 @@ TEST(ZmqTest, channel) {
     void *socket = zmq_socket(ctx, ZMQ_PAIR);
     ASSERT_NE(socket, nullptr);
     zmq_helper::SocketGuard socket_guard = zmq_helper::guard_socket(socket);
-    auto rp = try_random<uint16_t>(5000, 6000, [&socket] (uint16_t port) {
+    auto rp = try_random<uint16_t>(5000, 6000, [&socket](uint16_t port) {
         std::string addr = "tcp://127.0.0.1:" + std::to_string(port);
         return zmq_bind(socket, addr.c_str()) == 0;
     });

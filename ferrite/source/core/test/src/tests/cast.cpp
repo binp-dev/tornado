@@ -1,6 +1,4 @@
-#include "cast.hpp"
-
-#ifdef UNITTEST
+#include <core/cast.hpp>
 
 #include <gtest/gtest.h>
 
@@ -61,6 +59,3 @@ TEST(Cast, i32_to_u8) {
     ASSERT_TRUE(safe_cast<uint8_t>(int32_t(-0x80000000)) == std::nullopt);
     ASSERT_TRUE(safe_cast<uint8_t>(int32_t(-1)) == std::nullopt);
 }
-
-
-#endif // UNITTEST

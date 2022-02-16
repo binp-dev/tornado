@@ -35,56 +35,107 @@ mypy:
     - poetry run mypy -p ferrite
   allow_failure: true
 
-codegen.generate:
+host.core_test.build:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture codegen.generate
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.core_test.build
   artifacts:
     paths:
-      - target/codegen_generated
+      - target/core_test
 
-app_test.build:
+host.codegen.generate:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture app_test.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.codegen.generate
+  artifacts:
+    paths:
+      - target/codegen
+
+host.app_test.build:
+  stage: "0"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_test.build
   artifacts:
     paths:
       - target/app_test
 
-codegen.build:
-  stage: "1"
+imx8mn.app_toolchain.download:
+  stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture codegen.build
-  needs:
-    - codegen.generate
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.app_toolchain.download
   artifacts:
     paths:
-      - target/codegen_host
+      - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
+  cache:
+    - *global_cache
+    - key: "imx8mn.app_toolchain.download:f68a15dd"
+      paths:
+        - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
 
-app_test.test:
+host.core_test.run:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture app_test.test
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.core_test.run
   needs:
-    - app_test.build
+    - host.core_test.build
 
-codegen.test:
+host.codegen.build:
+  stage: "1"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.codegen.build
+  needs:
+    - host.codegen.generate
+  artifacts:
+    paths:
+      - target/codegen_test
+
+host.app_test.run:
+  stage: "1"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_test.run
+  needs:
+    - host.app_test.build
+
+imx8mn.app.build:
+  stage: "1"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.app.build
+  needs:
+    - imx8mn.app_toolchain.download
+  artifacts:
+    paths:
+      - target/app
+
+host.codegen.test:
   stage: "2"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture codegen.test
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.codegen.test
   needs:
-    - codegen.build
+    - host.codegen.build
 
-all.test:
+imx8mn.all.build:
+  stage: "2"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.all.build
+  needs:
+    - imx8mn.app.build
+
+host.all.test:
   stage: "3"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture all.test
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.all.test
   needs:
-    - app_test.test
-    - codegen.test
+    - host.app_test.run
+    - host.codegen.test
+    - host.core_test.run

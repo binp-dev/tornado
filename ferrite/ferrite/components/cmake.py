@@ -18,7 +18,7 @@ class Cmake(Component):
 
         def run(self, ctx: Context) -> None:
             self.owner.configure(ctx)
-            self.owner.build(ctx, self.owner.target)
+            self.owner.build(ctx)
 
         def dependencies(self) -> List[Task]:
             deps: List[Task] = []
@@ -33,16 +33,22 @@ class Cmake(Component):
     src_dir: Path
     build_dir: Path
     toolchain: Toolchain
+    target: str # FIXME: Rename to `cmake_target`
     opts: List[str] = field(default_factory=list)
     envs: Dict[str, str] = field(default_factory=dict)
     deps: List[Task] = field(default_factory=list)
-    target: Optional[str] = None
 
     def __post_init__(self) -> None:
         self.build_task = self.BuildTask(self)
 
     def create_build_dir(self) -> None:
         self.build_dir.mkdir(exist_ok=True)
+
+    @property
+    def _defs(self) -> Dict[str, str]:
+        deflist = [opt[2:].split("=") for opt in self.opts if opt.startswith("-D")]
+        assert all((len(ds) == 2 for ds in deflist))
+        return {k: v for k, v in deflist}
 
     def configure(self, ctx: Context) -> None:
         self.create_build_dir()
@@ -57,15 +63,13 @@ class Cmake(Component):
             quiet=ctx.capture,
         )
 
-    def build(self, ctx: Context, target: Optional[str] = None, verbose: bool = False) -> None:
-        if target is None:
-            target = self.target
+    def build(self, ctx: Context, verbose: bool = False) -> None:
         run(
             [
                 "cmake",
                 "--build",
                 self.build_dir,
-                *(["--target", target] if target else []),
+                *["--target", self.target],
                 "--parallel",
                 *(["--verbose"] if verbose else []),
             ],
@@ -78,30 +82,30 @@ class Cmake(Component):
 
 
 @dataclass
-class CmakeWithTest(Cmake):
+class CmakeRunnable(Cmake):
 
     @dataclass
-    class TestTask(Task):
-        owner: CmakeWithTest
+    class RunTask(Task):
+        owner: CmakeRunnable
 
         def run(self, ctx: Context) -> None:
-            self.owner.test(ctx)
+            self.owner.run(ctx)
 
         def dependencies(self) -> List[Task]:
             return [self.owner.build_task]
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.test_task = self.TestTask(self)
+        self.run_task = self.RunTask(self)
 
-    def test(self, ctx: Context) -> None:
+    def run(self, ctx: Context) -> None:
         run(
-            [f"./{self.target}"] if self.target else ["ctest", "--verbose"],
+            [f"./{self.target}"],
             cwd=self.build_dir,
             quiet=ctx.capture,
         )
 
     def tasks(self) -> Dict[str, Task]:
         tasks = super().tasks()
-        tasks["test"] = self.test_task
+        tasks["run"] = self.run_task
         return tasks

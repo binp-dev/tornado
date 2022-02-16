@@ -125,6 +125,9 @@ class TaskJob(Job):
     level: int
     deps: List[Job]
 
+    def __post_init__(self) -> None:
+        assert self.task._name is not None, f"Task {self.task.name()} is unreachable from CLI"
+
     def name(self) -> str:
         return self.task.name()
 
@@ -291,7 +294,8 @@ if __name__ == "__main__":
     from ferrite.manage.tree import make_components
 
     end_tasks = [
-        "all.test",
+        "host.all.test",
+        "imx8mn.all.build",
     ]
 
     base_dir = Path.cwd()
