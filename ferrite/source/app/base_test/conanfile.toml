@@ -2,4 +2,4 @@
 gtest = "cci.20210126"
 
 [[dependencies]]
-path = "../zmq"
+path = "../base_zmq"

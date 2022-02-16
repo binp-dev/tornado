@@ -30,7 +30,7 @@ class AppBase(CmakeWithConan):
         return self.src_dir
 
 
-class AppTest(CmakeWithConan, CmakeRunnable):
+class AppBaseTest(CmakeWithConan, CmakeRunnable):
 
     def __init__(
         self,
@@ -39,7 +39,7 @@ class AppTest(CmakeWithConan, CmakeRunnable):
         toolchain: HostToolchain,
     ):
         super().__init__(
-            source_dir / "app" / "test",
+            source_dir / "app" / "base_test",
             target_dir / "app_test",
             toolchain,
             target="app_base_test",

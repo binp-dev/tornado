@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 
-project("app")
+project("app_example")
 
-add_subdirectory("../app_rpmsg" "app_rpmsg")
+add_subdirectory("../base_rpmsg" "app_base_rpmsg")
 
 include_directories("src")
 
@@ -11,4 +11,4 @@ set(SRC
 )
 
 add_library(${PROJECT_NAME} SHARED ${SRC})
-target_link_libraries(${PROJECT_NAME} PRIVATE "app_rpmsg")
+target_link_libraries(${PROJECT_NAME} PRIVATE "app_base_rpmsg")
