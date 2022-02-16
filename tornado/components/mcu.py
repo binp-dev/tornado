@@ -21,7 +21,6 @@ class Mcu(McuBase):
         deployer: McuDeployer,
         ipp: Ipp,
     ):
-        lib_src_dir = ferrite_source_dir / "mcu"
         super().__init__(
             "mcu",
             source_dir / f"mcu",
@@ -29,8 +28,9 @@ class Mcu(McuBase):
             toolchain,
             freertos,
             deployer,
-            opts=[f"-DMCU_LIB_DIR={lib_src_dir}", f"-DIPP_GEN_DIR={ipp.gen_dir}"],
+            target="m7image.elf",
+            opts=[f"-DFERRITE={ferrite_source_dir}", f"-DIPP={ipp.gen_dir}"],
             deps=[ipp.generate_task],
         )
-        self.lib_src_dir = lib_src_dir
+        self.ferrite_source_dir = ferrite_source_dir
         self.ipp = ipp
