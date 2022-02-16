@@ -38,7 +38,8 @@ class _CrossComponents(ComponentGroup):
         target_dir: Path,
         platform: Platform,
     ) -> None:
-        self.app = AppExample(source_dir, target_dir, platform.app.toolchain)
+        self.app_toolchain = platform.app.toolchain
+        self.app = AppExample(source_dir, target_dir, self.app_toolchain)
         self.all = AllCross(self.app)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:

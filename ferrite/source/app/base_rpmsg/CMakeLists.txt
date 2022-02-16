@@ -9,6 +9,6 @@ set(SRC
     "src/channel/rpmsg.cpp"
 )
 
-add_library(${PROJECT_NAME} SHARED ${SRC})
+add_library(${PROJECT_NAME} STATIC ${SRC})
 target_include_directories(${PROJECT_NAME} PUBLIC "src")
 target_link_libraries(${PROJECT_NAME} PUBLIC "app_base")

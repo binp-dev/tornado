@@ -62,17 +62,17 @@ host.app_test.build:
     paths:
       - target/app_test
 
-<CrossToolchain.DownloadTask>:
+imx8mn.app_toolchain.download:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture <CrossToolchain.DownloadTask>
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.app_toolchain.download
   artifacts:
     paths:
       - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
   cache:
     - *global_cache
-    - key: "<CrossToolchain.DownloadTask>:f68a15dd"
+    - key: "imx8mn.app_toolchain.download:f68a15dd"
       paths:
         - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
 
@@ -109,7 +109,7 @@ imx8mn.app.build:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.app.build
   needs:
-    - <CrossToolchain.DownloadTask>
+    - imx8mn.app_toolchain.download
   artifacts:
     paths:
       - target/app
