@@ -8,7 +8,7 @@ from ferrite.components.epics.epics_base import EpicsBaseCross, EpicsBaseHost
 from ferrite.remote.tasks import RebootTask
 
 from tornado.components.ipp import Ipp
-from tornado.components.app import App
+from tornado.components.app import AppReal, AppFake
 from tornado.components.epics.app_ioc import AppIocHost, AppIocCross
 from tornado.components.mcu import Mcu
 
@@ -18,7 +18,7 @@ class AllHost(Component):
 
     epics_base: EpicsBaseHost
     ipp: Ipp
-    app: App
+    app: AppFake
     ioc: AppIocHost
 
     def __post_init__(self) -> None:
@@ -33,7 +33,7 @@ class AllHost(Component):
         self.test_task = TaskWrapper(
             deps=[
                 self.ipp.test_task,
-                self.ioc.test_fakedev_task,
+                self.ioc.test_task,
             ],
         )
 
@@ -48,7 +48,7 @@ class AllHost(Component):
 class AllCross(Component):
 
     epics_base: EpicsBaseCross
-    app: App
+    app: AppReal
     ioc: AppIocCross
     mcu: Mcu
 

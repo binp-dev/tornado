@@ -35,16 +35,10 @@ class AppIocHost(AbstractAppIoc, IocHost):
                 self.owner.build_task,
             ]
 
-    def _make_build_task(self) -> AbstractAppIoc.BuildTask:
-        return self.BuildTask(
-            self,
-            deps=self._build_deps(),
-            app_lib_name="libapp_fakedev.so",
-        )
-
     def __init__(
         self,
-        ioc_dirs: List[Path],
+        ioc_dir: Path,
+        ferrite_source_dir: Path,
         target_dir: Path,
         epics_base: AbstractEpicsBase,
         app: AppBase,
@@ -52,21 +46,22 @@ class AppIocHost(AbstractAppIoc, IocHost):
         self.app = app
 
         super().__init__(
-            ioc_dirs,
+            ioc_dir,
+            ferrite_source_dir,
             target_dir,
             epics_base,
             app,
         )
 
         from tornado.ioc.fakedev import dummy, test
-        self.run_fakedev_task = self.RunTask(self, dummy.run)
-        self.test_fakedev_task = self.RunTask(self, test.run)
+        self.run_task = self.RunTask(self, dummy.run)
+        self.test_task = self.RunTask(self, test.run)
 
     def tasks(self) -> Dict[str, Task]:
         tasks = super().tasks()
         tasks.update({
-            "run_fakedev": self.run_fakedev_task,
-            "test_fakedev": self.test_fakedev_task,
+            "run": self.run_task,
+            "test": self.test_task,
         })
         return tasks
 

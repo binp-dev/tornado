@@ -43,7 +43,7 @@ host.ipp.generate:
     - poetry run python -u -m tornado.manage --no-deps --no-capture host.ipp.generate
   artifacts:
     paths:
-      - target/ipp_generated
+      - target/ipp
 
 host.epics_base.clone:
   stage: "0"
@@ -110,7 +110,7 @@ host.ipp.build:
     - host.ipp.generate
   artifacts:
     paths:
-      - target/ipp_host
+      - target/ipp_test
 
 host.epics_base.build:
   stage: "1"
@@ -139,7 +139,7 @@ host.app.build:
     - host.ipp.generate
   artifacts:
     paths:
-      - target/app_host
+      - target/app_fakedev
 
 device.mcu.build:
   stage: "1"
@@ -174,11 +174,11 @@ host.ipp.test:
   needs:
     - host.ipp.build
 
-host.ioc.build:
+host.ioc_fakedev.build:
   stage: "2"
   script:
     - poetry install
-    - poetry run python -u -m tornado.manage --no-deps --no-capture host.ioc.build
+    - poetry run python -u -m tornado.manage --no-deps --no-capture host.ioc_fakedev.build
   needs:
     - host.app.build
     - host.epics_base.build
@@ -206,14 +206,14 @@ device.epics_base.build:
         - target/epics_base_7.0.4.1_build_imx8mn
         - target/epics_base_7.0.4.1_install_imx8mn
 
-host.ioc.test_fakedev:
+host.ioc_fakedev.test:
   stage: "3"
   script:
     - poetry install
-    - poetry run python -u -m tornado.manage --no-deps --no-capture host.ioc.test_fakedev
+    - poetry run python -u -m tornado.manage --no-deps --no-capture host.ioc_fakedev.test
   needs:
     - host.epics_base.build
-    - host.ioc.build
+    - host.ioc_fakedev.build
 
 device.ioc.build:
   stage: "3"
@@ -235,7 +235,7 @@ host.all.test:
     - poetry install
     - poetry run python -u -m tornado.manage --no-deps --no-capture host.all.test
   needs:
-    - host.ioc.test_fakedev
+    - host.ioc_fakedev.test
     - host.ipp.test
 
 device.all.build:

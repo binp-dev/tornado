@@ -1,4 +1,4 @@
-#include "framework.hpp"
+#include <framework.hpp>
 
 #include <iostream>
 #include <string>
@@ -9,28 +9,17 @@
 #include <core/mutex.hpp>
 #include <device.hpp>
 #include <handlers.hpp>
-
-#ifdef FAKEDEV
-#include <channel/zmq.hpp>
-#else // FAKEDEV
-#include <channel/rpmsg.hpp>
-#endif // FAKEDEV
+#include <external.hpp>
 
 void init_device(MaybeUninit<Device> &mem) {
     std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
 
     const size_t message_max_length = 256;
-    DeviceChannel channel = DeviceChannel(
-#ifdef FAKEDEV
-        std::make_unique<ZmqChannel>(std::move(ZmqChannel::create("tcp://127.0.0.1:8321").unwrap())),
-#else // FAKEDEV
-        std::make_unique<RpmsgChannel>(std::move(RpmsgChannel::create("/dev/ttyRPMSG0").unwrap())),
-#endif // FAKEDEV
-        message_max_length);
+    DeviceChannel channel = DeviceChannel(make_device_channel(), message_max_length);
     mem.init_in_place(std::move(channel), message_max_length);
 }
 
-/// We use LazyStatic to initialize global Device without global constructor. 
+/// We use LazyStatic to initialize global Device without global constructor.
 LazyStatic<Device, init_device> DEVICE = {};
 static_assert(std::is_pod_v<decltype(DEVICE)>);
 
