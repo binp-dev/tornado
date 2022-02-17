@@ -38,5 +38,5 @@ def list_join(lists: List[List[T]], sep: List[T] = []) -> List[T]:
     return result
 
 
-def indent(text: List[str], count: int) -> List[str]:
-    return [" " * count + line for line in text]
+def indent(text: List[str], count: int = 1) -> List[str]:
+    return ["    " * count + line for line in text]

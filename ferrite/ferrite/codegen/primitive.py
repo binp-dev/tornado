@@ -69,16 +69,32 @@ class Int(Type[int]):
     def _ceil_type(self) -> str:
         return self._int_type(ceil_to_power_of_2(self.bits), self.signed)
 
-    @staticmethod
-    def _sign_ext(value: str, bits: int) -> List[str]:
-        if is_power_of_2(bits):
+    def _extend_sign(self, value: str) -> List[str]:
+        if is_power_of_2(self.bits):
             return []
-        ceil_bits = ceil_to_power_of_2(bits)
-        mask = ((1 << (ceil_bits - bits)) - 1) << bits
-        literal = Int._int_literal(mask, ceil_bits, False, hex=True)
+        ceil_bits = ceil_to_power_of_2(self.bits)
+        mask = ((1 << (ceil_bits - self.bits)) - 1) << self.bits
+        literal = Int._int_literal(mask, self.bits, False, hex=True)
         return [
-            f"if (({value} >> {bits - 1}) & 1) != 0) {{",
-            f"    {value} |= ({Int._int_type(bits, True)}){literal};",
+            f"if (((({self._int_type(ceil_bits, False)}){value} >> {self.bits - 1}) & 1) != 0) {{",
+            f"    {value} |= ({self.cpp_type()}){literal};",
+            f"}}",
+        ]
+
+    def _check_bounds(self, value: str) -> List[str]:
+        if is_power_of_2(self.bits):
+            return []
+        ceil_bits = ceil_to_power_of_2(self.bits)
+        mask = (1 << (ceil_bits - self.bits + 1)) - 1
+        zero = Int._int_literal(0, self.bits, False)
+        literal = Int._int_literal(mask, self.bits, False, hex=True)
+        err_cond = [
+            f"({value} & {literal}) != 0",
+            f"(auto tmp = ({self._int_type(ceil_bits, False)}){value} >> {self.bits - 1}; tmp != {literal} && tmp != {zero})",
+        ][self.signed]
+        return [
+            f"if ({err_cond}) {{",
+            f"    return Err({io_error(ErrorKind.INVALID_DATA)});",
             f"}}",
         ]
 
@@ -113,7 +129,7 @@ class Int(Type[int]):
                         f"{load_decl} {{",
                         f"    {self._ceil_type()} y = 0;",
                         f"    memcpy((void *)&y, (const void *)&x, {self.size()});",
-                        *indent(self._sign_ext("y", self.bits) if self.signed else [], 4),
+                        *indent(self._extend_sign("y") if self.signed else []),
                         f"    return y;",
                         f"}}",
                     ],
@@ -142,24 +158,21 @@ class Int(Type[int]):
                 [f"{store_decl};"],
             ],
         )
-        read_expr = f"stream.read(reinterpret_cast<uint8_t*>(&value), {self.size()})"
-        write_expr = f"stream.write(reinterpret_cast<const uint8_t*>(&value), {self.size()})"
-        size_op = lambda x: f"size_t rs = {x};"
-        unwrap_size = f"if (rs != {self.size()}) {{ return Err({io_error(ErrorKind.END_OF_STREAM)}); }}"
         return Source(
             Location.DEFINITION,
             [
                 [
                     f"{load_decl} {{",
                     f"    {self.cpp_type()} value = 0;",
-                    *indent(try_unwrap(read_expr, size_op) + [unwrap_size], 4),
-                    *indent(self._sign_ext("y", self.bits) if self.signed else [], 4),
+                    *indent(try_unwrap(f"stream.read_exact(reinterpret_cast<uint8_t*>(&value), {self.size()})")),
+                    *indent(self._extend_sign("value") if self.signed else []),
                     f"    return Ok(value);",
                     f"}}",
                 ],
                 [
                     f"{store_decl} {{",
-                    *indent(try_unwrap(write_expr, size_op) + [unwrap_size], 4),
+                    *indent(self._check_bounds("value")),
+                    *indent(try_unwrap(f"stream.write_exact(reinterpret_cast<const uint8_t*>(&value), {self.size()})")),
                     f"    return Ok(std::monostate);",
                     f"}}",
                 ],
@@ -170,8 +183,8 @@ class Int(Type[int]):
     def cpp_load(self, stream: str) -> str:
         return f"{self._int_name(self.bits, self.signed)}_load({stream})"
 
-    def cpp_store(self, stream: str, src: str) -> str:
-        return f"{self._int_name(self.bits, self.signed)}_store({stream}, {src})"
+    def cpp_store(self, stream: str, value: str) -> str:
+        return f"{self._int_name(self.bits, self.signed)}_store({stream}, {value})"
 
     def cpp_object(self, value: int) -> str:
         return self._int_literal(value, self.bits, self.signed)
@@ -227,6 +240,43 @@ class Float(Type[float]):
             return "double"
         else:
             raise RuntimeError(f"{self.bits}-bit float is not supported")
+
+    def cpp_source(self) -> Optional[Source]:
+        pref = self.cpp_type()
+        load_decl = f"{io_result_type(self.cpp_type())} {pref}_load({io_read_type()} &stream)"
+        store_decl = f"{io_result_type()} {pref}_store({io_write_type()} &stream, {self.cpp_type()} value)"
+        declaraion = Source(
+            Location.DECLARATION,
+            [
+                [f"{load_decl};"],
+                [f"{store_decl};"],
+            ],
+        )
+        return Source(
+            Location.DEFINITION,
+            [
+                [
+                    f"{load_decl} {{",
+                    f"    {self.cpp_type()} value = {self.cpp_object(0.0)};",
+                    *indent(try_unwrap(f"stream.read_exact(reinterpret_cast<uint8_t*>(&value), {self.size()})")),
+                    f"    return Ok(value);",
+                    f"}}",
+                ],
+                [
+                    f"{store_decl} {{",
+                    *indent(try_unwrap(f"stream.write_exact(reinterpret_cast<const uint8_t*>(&value), {self.size()})")),
+                    f"    return Ok(std::monostate);",
+                    f"}}",
+                ],
+            ],
+            deps=[declaraion],
+        )
+
+    def cpp_load(self, stream: str) -> str:
+        return f"{self.cpp_type()}_load({stream})"
+
+    def cpp_store(self, stream: str, value: str) -> str:
+        return f"{self.cpp_type()}_store({stream}, {value})"
 
     def cpp_object(self, value: float) -> str:
         return f"{value}{'f' if self.bits == 32 else ''}"

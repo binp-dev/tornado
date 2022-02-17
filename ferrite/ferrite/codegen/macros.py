@@ -10,11 +10,11 @@ from ferrite.codegen.utils import hash_str, indent, to_ident
 
 
 def io_read_type() -> str:
-    return "io::Read"
+    return "io::ReadExact"
 
 
 def io_write_type() -> str:
-    return "io::Write"
+    return "io::WriteExact"
 
 
 def io_result_type(tys: Type[Any] | str = "std::monostate") -> str:
@@ -33,12 +33,15 @@ def try_unwrap(expr: str, op: Callable[[str], str] | None = None) -> List[str]:
 
 
 class ErrorKind(Enum):
-    END_OF_STREAM = 1,
+    UNEXPECTED_EOF = 1,
+    INVALID_DATA = 2,
 
     def cpp_name(self) -> str:
         pref = "io::ErrorKind::"
-        if self == ErrorKind.END_OF_STREAM:
-            post = "END_OF_STREAM"
+        if self == ErrorKind.UNEXPECTED_EOF:
+            post = "UnexpectedEof"
+        elif self == ErrorKind.INVALID_DATA:
+            post = "InvalidData"
         return f"{pref}{post}"
 
 
@@ -47,4 +50,4 @@ def io_error(kind: ErrorKind, desc: str | None = None) -> str:
         msg_arg = f", \"{quote(desc)}\""
     else:
         msg_arg = ""
-    return f"io::Error({kind.cpp_name()}{msg_arg})"
+    return f"io::Error{{{kind.cpp_name()}{msg_arg}}}"

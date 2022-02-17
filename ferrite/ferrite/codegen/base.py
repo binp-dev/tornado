@@ -184,14 +184,10 @@ class Type(Generic[T]):
     def _cpp_size_extent(self, obj: str) -> str:
         raise NotImplementedError(self._debug_name())
 
-    def cpp_load(self, src: str) -> str:
-        if self.trivial:
-            return f"{src}"
+    def cpp_load(self, stream: str) -> str:
         raise NotImplementedError(self._debug_name())
 
-    def cpp_store(self, src: str, dst: str) -> str:
-        if self.trivial:
-            return f"{dst} = {src}"
+    def cpp_store(self, stream: str, value: str) -> str:
         raise NotImplementedError(self._debug_name())
 
     def cpp_object(self, value: T) -> str:
@@ -238,9 +234,9 @@ class Type(Generic[T]):
                         f"const auto dst = {self.cpp_load('(*obj)')};",
                         f"ASSERT_EQ({self.cpp_size('dst')}, {self.cpp_size('src')});",
                         *self.cpp_test('dst', 'src'),
-                    ], 4),
+                    ]),
                     f"}}",
-                ], 4),
+                ]),
                 f"}}",
             ]],
             deps=[ty.test_source() for ty in self.deps()],
