@@ -73,27 +73,31 @@ class Int(Type[int]):
             load_decl = f"{ceil_name} {prefix}uint{self.bits}_load({name} x)"
             store_decl = f"{name} {prefix}uint{self.bits}_store({ceil_name} y)"
             declaraion = Source(
-                Location.DECLARATION, "\n".join([
-                    f"typedef struct {name} {{", f"    uint8_t bytes[{bytes}];", f"}} {name};", f"", f"{load_decl};"
-                    f"{store_decl};"
-                ])
+                Location.DECLARATION,
+                [
+                    [f"typedef struct {name} {{", f"    uint8_t bytes[{bytes}];", f"}} {name};", f"", f"{load_decl};"],
+                    [f"{store_decl};"],
+                ],
             )
             return Source(
                 Location.DEFINITION,
-                "\n".join([
-                    f"{load_decl} {{",
-                    f"    {ceil_name} y = 0;",
-                    f"    memcpy((void *)&y, (const void *)&x, {self.size()});",
-                    f"    return y;",
-                    f"}}",
-                    f"",
-                    f"{store_decl} {{",
-                    f"    {name} x;",
-                    f"    memcpy((void *)&x, (const void *)&y, {self.size()});",
-                    f"    return x;",
-                    f"}}",
-                ]),
-                deps=[declaraion]
+                [
+                    [
+                        f"{load_decl} {{",
+                        f"    {ceil_name} y = 0;",
+                        f"    memcpy((void *)&y, (const void *)&x, {self.size()});",
+                        f"    return y;",
+                        f"}}",
+                    ],
+                    [
+                        f"{store_decl} {{",
+                        f"    {name} x;",
+                        f"    memcpy((void *)&x, (const void *)&y, {self.size()});",
+                        f"    return x;",
+                        f"}}",
+                    ],
+                ],
+                deps=[declaraion],
             )
 
     def cpp_type(self) -> str:

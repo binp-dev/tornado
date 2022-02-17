@@ -5,7 +5,7 @@ from random import Random
 
 from ferrite.codegen.base import CONTEXT, Include, Location, Name, Type, Source
 from ferrite.codegen.primitive import Int, Pointer
-from ferrite.codegen.utils import ceil_to_power_of_2, indent_text, list_join
+from ferrite.codegen.utils import ceil_to_power_of_2, indent, list_join
 from ferrite.codegen.structure import Field
 
 
@@ -117,28 +117,28 @@ class Variant(Type[VariantValue]):
     def _c_enum_value(self, index: int) -> str:
         return Name(CONTEXT.prefix, self.name(), self.variants[index].name).snake().upper()
 
-    def _c_enum_declaration(self) -> str:
-        return "\n".join([
+    def _c_enum_declaration(self) -> List[str]:
+        return [
             f"typedef enum {self._c_enum_type()} {{",
             *[f"    {self._c_enum_value(i)} = {i}," for i, f in enumerate(self.variants)],
             f"}} {self._c_enum_type()};",
-        ])
+        ]
 
-    def _c_struct_declaration(self) -> str:
-        return "\n".join([
+    def _c_struct_declaration(self) -> List[str]:
+        return [
             f"typedef struct __attribute__((packed, aligned(1))) {{",
             f"    {self._id_type.c_type()} type;",
             f"    union {{",
             *[f"        {f.type.c_type()} {f.name.snake()};" for f in self.variants if not f.type.is_empty()],
             f"    }};",
             f"}} {self.c_type()};",
-        ])
+        ]
 
     def _c_size_decl(self) -> str:
         return f"size_t {self._c_size_func_name()}({Pointer(self, const=True).c_type()} obj)"
 
-    def _c_size_definition(self) -> str:
-        return "\n".join([
+    def _c_size_definition(self) -> List[str]:
+        return [
             f"{self._c_size_decl()} {{",
             f"    size_t size = {self._id_type.size()};",
             f"    switch (({self._c_enum_type()})(obj->type)) {{",
@@ -152,7 +152,7 @@ class Variant(Type[VariantValue]):
             f"    }}",
             f"    return size;",
             f"}}",
-        ])
+        ]
 
     def _cpp_size_method_decl(self) -> str:
         return f"[[nodiscard]] size_t packed_size() const;"
@@ -163,8 +163,8 @@ class Variant(Type[VariantValue]):
     def _cpp_store_method_decl(self) -> str:
         return f"void store({Pointer(self).c_type()} dst) const;"
 
-    def _cpp_size_method_impl(self) -> str:
-        return "\n".join([
+    def _cpp_size_method_impl(self) -> List[str]:
+        return [
             f"size_t {self.cpp_type()}::packed_size() const {{",
             *([
                 f"    size_t size = {self._id_type.size()};",
@@ -183,10 +183,10 @@ class Variant(Type[VariantValue]):
                 f"    return {self.size()};",
             ]),
             f"}}",
-        ])
+        ]
 
-    def _cpp_load_method_impl(self) -> str:
-        return "\n".join([
+    def _cpp_load_method_impl(self) -> List[str]:
+        return [
             f"{self.cpp_type()} {self.cpp_type()}::load({Pointer(self, const=True).c_type()} src) {{",
             f"    switch (({self._c_enum_type()})(src->type)) {{",
             *list_join([[
@@ -200,10 +200,10 @@ class Variant(Type[VariantValue]):
             f"        std::abort();",
             f"    }}",
             f"}}",
-        ])
+        ]
 
-    def _cpp_store_method_impl(self) -> str:
-        return "\n".join([
+    def _cpp_store_method_impl(self) -> List[str]:
+        return [
             f"void {self.cpp_type()}::store({Pointer(self).c_type()} dst) const {{",
             f"    const auto type = static_cast<{self._id_type.c_type()}>(variant.index());",
             f"    dst->type = type;",
@@ -218,7 +218,7 @@ class Variant(Type[VariantValue]):
             f"        std::abort();",
             f"    }}",
             f"}}",
-        ])
+        ]
 
     def _cpp_declaration(self) -> Source:
         sections = []
@@ -237,13 +237,13 @@ class Variant(Type[VariantValue]):
 
         return Source(
             Location.DECLARATION,
-            "\n".join([
+            [[
                 f"class {self.cpp_type()} final {{",
                 f"public:",
                 f"    using Raw = {self.c_type()};",
-                *list_join([["    " + s for s in lines] for lines in sections], [""]),
+                *list_join([indent(lines, 4) for lines in sections], [""]),
                 f"}};",
-            ]),
+            ]],
             deps=[
                 Include("variant"),
                 *[ty.cpp_source() for ty in self.deps()],
@@ -284,7 +284,7 @@ class Variant(Type[VariantValue]):
             [
                 self._c_enum_declaration(),
                 self._c_struct_declaration(),
-                *([f"{self._c_size_decl()};"] if not self.sized else []),
+                *([[f"{self._c_size_decl()};"]] if not self.sized else []),
             ],
             deps=[
                 self._id_type.c_source(),
@@ -317,19 +317,19 @@ class Variant(Type[VariantValue]):
 
     def cpp_object(self, value: VariantValue) -> str:
         assert self.is_instance(value)
-        return "\n".join([
+        return "".join([
             f"{self.cpp_type()}{{",
-            indent_text(self.variants[value._id].type.cpp_object(value.variant), "    "),
+            self.variants[value._id].type.cpp_object(value.variant),
             f"}}",
         ])
 
-    def c_test(self, obj: str, src: str) -> str:
-        return "\n".join([
+    def c_test(self, obj: str, src: str) -> List[str]:
+        return [
             f"ASSERT_EQ(static_cast<size_t>({obj}.type), {src}.variant.index());",
             f"switch ({obj}.type) {{",
             *list_join([[
                 f"case {self._c_enum_value(i)}:",
-                *([indent_text(f.type.c_test(f"{obj}.{f.name.snake()}", f"std::get<{i}>({src}.variant)"), "    ")]
+                *([*indent(f.type.c_test(f"{obj}.{f.name.snake()}", f"std::get<{i}>({src}.variant)"), 4)]
                   if not f.type.is_empty() else []),
                 f"    break;",
             ] for i, f in enumerate(self.variants)]),
@@ -337,15 +337,15 @@ class Variant(Type[VariantValue]):
             f"    ASSERT_TRUE(false);",
             f"    break;",
             f"}}",
-        ])
+        ]
 
-    def cpp_test(self, dst: str, src: str) -> str:
-        return "\n".join([
+    def cpp_test(self, dst: str, src: str) -> List[str]:
+        return [
             f"ASSERT_EQ({dst}.variant.index(), {src}.variant.index());",
             f"switch ({dst}.variant.index()) {{",
             *list_join([[
                 f"case static_cast<size_t>({self._c_enum_value(i)}):",
-                *([indent_text(f.type.cpp_test(f"std::get<{i}>({dst}.variant)", f"std::get<{i}>({src}.variant)"), "    ")]
+                *([*indent(f.type.cpp_test(f"std::get<{i}>({dst}.variant)", f"std::get<{i}>({src}.variant)"), 4)]
                   if not f.type.is_empty() else []),
                 f"    break;",
             ] for i, f in enumerate(self.variants)]),
@@ -353,7 +353,7 @@ class Variant(Type[VariantValue]):
             f"    ASSERT_TRUE(false);",
             f"    break;",
             f"}}",
-        ])
+        ]
 
     def pyi_type(self) -> str:
         return self.cpp_type()
@@ -361,7 +361,7 @@ class Variant(Type[VariantValue]):
     def pyi_source(self) -> Optional[Source]:
         return Source(
             Location.DECLARATION,
-            "\n".join([
+            [[
                 f"@dataclass",
                 f"class {self.pyi_type()}:",
                 f"",
@@ -377,9 +377,9 @@ class Variant(Type[VariantValue]):
                 f"",
                 f"    def store(self) -> bytes:",
                 f"        ...",
-            ]),
+            ]],
             deps=[
-                Source(Location.INCLUDES, ["from dataclasses import dataclass"]),
+                Source(Location.INCLUDES, [["from dataclasses import dataclass"]]),
                 *[ty.pyi_source() for ty in self.deps()],
             ],
         )

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from ferrite.codegen.base import CONTEXT, Include, Location, Name, Type, Source
 from ferrite.codegen.primitive import Char, Int, Pointer, Reference
-from ferrite.codegen.utils import indent_text
+from ferrite.codegen.utils import indent
 
 T = TypeVar("T")
 
@@ -65,12 +65,12 @@ class Array(Type[List[T]]):
         name = self.c_type()
         return Source(
             Location.DECLARATION,
-            "\n".join([
+            [[
                 f"typedef struct __attribute__((packed, aligned(1))) {{",
                 f"    {self.item.c_type()} data[{self.len}];",
                 f"}} {name};",
-            ]),
-            deps=[self.item.c_source()]
+            ]],
+            deps=[self.item.c_source()],
         )
 
     def _cpp_load_decl(self) -> str:
@@ -82,21 +82,21 @@ class Array(Type[List[T]]):
     def _cpp_source_decl(self) -> Source:
         return Source(
             Location.DECLARATION,
-            "\n".join([
-                f"{self._cpp_load_decl()};",
-                f"{self._cpp_store_decl()};",
-            ]),
+            [
+                [f"{self._cpp_load_decl()};"],
+                [f"{self._cpp_store_decl()};"],
+            ],
             deps=[
                 Include("array"),
                 self.item.cpp_source(),
-            ]
+            ],
         )
 
     def cpp_source(self) -> Source:
         if self.len is None:
             raise NotImplementedError()
 
-        load_src = "\n".join([
+        load_src = [
             f"{self._cpp_load_decl()} {{",
             f"    {self.cpp_type()} dst;",
             f"    for (size_t i = 0; i < dst.size(); ++i) {{",
@@ -104,14 +104,14 @@ class Array(Type[List[T]]):
             f"    }}",
             f"    return dst;",
             f"}}",
-        ])
-        store_src = "\n".join([
+        ]
+        store_src = [
             f"{self._cpp_store_decl()} {{",
             f"    for (size_t i = 0; i < src.size(); ++i) {{",
             f"        {self.item.cpp_store('src[i]', 'dst->data[i]')};",
             f"    }}",
             f"}}",
-        ])
+        ]
         return Source(
             Location.DEFINITION, [
                 load_src,
@@ -131,23 +131,27 @@ class Array(Type[List[T]]):
         assert self.len == len(value)
         return f"{self.cpp_type()}{{{', '.join([self.item.cpp_object(v) for v in value])}}}"
 
-    def c_test(self, obj: str, src: str) -> str:
-        return "\n".join([
-            f"ASSERT_EQ(size_t({self.len}), {src}.size());", f"for (size_t i = 0; i < {src}.size(); ++i) {{",
-            indent_text(self.item.c_test(f"{obj}.data[i]", f"{src}[i]"), "    "), f"}}"
-        ])
+    def c_test(self, obj: str, src: str) -> List[str]:
+        return [
+            f"ASSERT_EQ(size_t({self.len}), {src}.size());",
+            f"for (size_t i = 0; i < {src}.size(); ++i) {{",
+            *["    " + s for s in self.item.c_test(f"{obj}.data[i]", f"{src}[i]")],
+            f"}}",
+        ]
 
-    def cpp_test(self, dst: str, src: str) -> str:
-        return "\n".join([
-            f"ASSERT_EQ({dst}.size(), {src}.size());", f"for (size_t i = 0; i < {src}.size(); ++i) {{",
-            indent_text(self.item.cpp_test(f"{dst}[i]", f"{src}[i]"), "    "), f"}}"
-        ])
+    def cpp_test(self, dst: str, src: str) -> List[str]:
+        return [
+            f"ASSERT_EQ({dst}.size(), {src}.size());",
+            f"for (size_t i = 0; i < {src}.size(); ++i) {{",
+            *indent(self.item.cpp_test(f"{dst}[i]", f"{src}[i]"), 4),
+            f"}}",
+        ]
 
     def pyi_type(self) -> str:
         return f"List[{self.item.pyi_type()}]"
 
     def pyi_source(self) -> Optional[Source]:
-        return Source(Location.INCLUDES, ["from typing import List"])
+        return Source(Location.INCLUDES, [["from typing import List"]])
 
 
 V = TypeVar('V')
@@ -178,16 +182,16 @@ class _BasicVector(Generic[V, T], Type[V]):
         name = self.c_type()
         return Source(
             Location.DECLARATION,
-            "\n".join([
+            [[
                 f"typedef struct __attribute__((packed, aligned(1))) {{",
                 f"    {self._size_type.c_type()} len;",
                 f"    {self.item.c_type()} data[];",
                 f"}} {name};",
-            ]),
+            ]],
             deps=[
                 self.item.c_source(),
                 self._size_type.c_source(),
-            ]
+            ],
         )
 
     def c_size(self, obj: str) -> str:
@@ -213,18 +217,18 @@ class _BasicVector(Generic[V, T], Type[V]):
     def _cpp_source_decl(self) -> Source:
         return Source(
             Location.DECLARATION,
-            "\n".join([
-                f"{self._cpp_load_decl()};",
-                f"{self._cpp_store_decl()};",
-            ]),
+            [
+                [f"{self._cpp_load_decl()};"],
+                [f"{self._cpp_store_decl()};"],
+            ],
             deps=[
                 Include("vector"),
                 self.item.cpp_source(),
-            ]
+            ],
         )
 
     def cpp_source(self) -> Source:
-        load_src = "\n".join([
+        load_src = [
             f"{self._cpp_load_decl()} {{",
             f"    {self.cpp_type()} dst(static_cast<size_t>(src->len));",
             f"    for (size_t i = 0; i < dst.size(); ++i) {{",
@@ -232,8 +236,8 @@ class _BasicVector(Generic[V, T], Type[V]):
             f"    }}",
             f"    return dst;",
             f"}}",
-        ])
-        store_src = "\n".join([
+        ]
+        store_src = [
             f"{self._cpp_store_decl()} {{",
             f"    // FIXME: Check for `dst->len` overflow.",
             f"    dst->len = static_cast<{self._size_type.c_type()}>(src.size());",
@@ -241,14 +245,16 @@ class _BasicVector(Generic[V, T], Type[V]):
             f"        {self.item.cpp_store('src[i]', 'dst->data[i]')};",
             f"    }}",
             f"}}",
-        ])
+        ]
         return Source(
-            Location.DEFINITION, [
+            Location.DEFINITION,
+            [
                 load_src,
                 store_src,
-            ], deps=[
+            ],
+            deps=[
                 self._cpp_source_decl(),
-            ]
+            ],
         )
 
     def cpp_size(self, obj: str) -> str:
@@ -260,17 +266,21 @@ class _BasicVector(Generic[V, T], Type[V]):
     def cpp_store(self, src: str, dst: str) -> str:
         return f"{Name(self.name(), 'store').snake()}({src}, &{dst});"
 
-    def c_test(self, obj: str, src: str) -> str:
-        return "\n".join([
-            f"ASSERT_EQ({obj}.len, {src}.size());", f"for (size_t i = 0; i < {src}.size(); ++i) {{",
-            indent_text(self.item.c_test(f"{obj}.data[i]", f"{src}[i]"), "    "), f"}}"
-        ])
+    def c_test(self, obj: str, src: str) -> List[str]:
+        return [
+            f"ASSERT_EQ({obj}.len, {src}.size());",
+            f"for (size_t i = 0; i < {src}.size(); ++i) {{",
+            *indent(self.item.c_test(f"{obj}.data[i]", f"{src}[i]"), 4),
+            f"}}",
+        ]
 
-    def cpp_test(self, dst: str, src: str) -> str:
-        return "\n".join([
-            f"ASSERT_EQ({dst}.size(), {src}.size());", f"for (size_t i = 0; i < {src}.size(); ++i) {{",
-            indent_text(self.item.cpp_test(f"{dst}[i]", f"{src}[i]"), "    "), f"}}"
-        ])
+    def cpp_test(self, dst: str, src: str) -> List[str]:
+        return [
+            f"ASSERT_EQ({dst}.size(), {src}.size());",
+            f"for (size_t i = 0; i < {src}.size(); ++i) {{",
+            *indent(self.item.cpp_test(f"{dst}[i]", f"{src}[i]"), 4),
+            f"}}",
+        ]
 
 
 class Vector(Generic[T], _BasicVector[List[T], T]):
@@ -309,7 +319,7 @@ class Vector(Generic[T], _BasicVector[List[T], T]):
         return f"List[{self.item.pyi_type()}]"
 
     def pyi_source(self) -> Optional[Source]:
-        return Source(Location.INCLUDES, ["from typing import List"])
+        return Source(Location.INCLUDES, [["from typing import List"]])
 
 
 class String(_BasicVector[str, str]):
@@ -345,40 +355,47 @@ class String(_BasicVector[str, str]):
     def cpp_source(self) -> Source:
         load_decl = f"{self.cpp_type()} {Name(self.name(), 'load').snake()}({Pointer(self, const=True).c_type()} src)"
         store_decl = f"void {Name(self.name(), 'store').snake()}({Reference(self, const=True).cpp_type()} src, {Pointer(self).c_type()} dst)"
-        load_src = "\n".join([
+        load_src = [
             f"{load_decl} {{",
             f"    return {self.cpp_type()}(src->data, static_cast<size_t>(src->len));",
             f"}}",
-        ])
-        store_src = "\n".join([
+        ]
+        store_src = [
             f"{store_decl} {{",
             f"    // FIXME: Check for `dst->len` overflow.",
             f"    dst->len = static_cast<{self._size_type.c_type()}>(src.size());",
             f"    memcpy((void *)dst->data, (const void *)src.c_str(), src.length());",
             f"}}",
-        ])
+        ]
         return Source(
-            Location.DEFINITION, [
+            Location.DEFINITION,
+            [
                 load_src,
                 store_src,
             ],
-            deps=[Source(Location.DECLARATION, "\n".join([f"{load_decl};"
-                                                          f"{store_decl};"]), deps=[Include("string")])]
+            deps=[Source(
+                Location.DECLARATION,
+                [
+                    [f"{load_decl};"],
+                    [f"{store_decl};"],
+                ],
+                deps=[Include("string")],
+            )],
         )
 
     def cpp_object(self, value: str) -> str:
         return f"{self.cpp_type()}(\"{value}\")"
 
-    def c_test(self, obj: str, src: str) -> str:
-        return "\n".join([
+    def c_test(self, obj: str, src: str) -> List[str]:
+        return [
             f"ASSERT_EQ({obj}.len, {src}.size());",
             f"EXPECT_EQ(strncmp({obj}.data, {src}.c_str(), {src}.size()), 0);",
-        ])
+        ]
 
-    def cpp_test(self, dst: str, src: str) -> str:
-        return "\n".join([
+    def cpp_test(self, dst: str, src: str) -> List[str]:
+        return [
             f"ASSERT_EQ({dst}, {src});",
-        ])
+        ]
 
     def pyi_type(self) -> str:
         return f"str"
