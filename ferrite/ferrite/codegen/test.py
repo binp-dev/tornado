@@ -38,6 +38,7 @@ all_: List[Type[Any]] = [
             Field("u64", Int(64)),
             Field("i8", Int(8, signed=True)),
             Field("i16", Int(16, signed=True)),
+            Field("i24", Int(24, signed=True)),
             Field("i32", Int(32, signed=True)),
             Field("i64", Int(64, signed=True)),
         ]
