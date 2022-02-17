@@ -19,21 +19,21 @@ size_t MessageChannel<OutMsg, InMsg>::max_length() const {
 }
 
 template <typename OutMsg, typename InMsg>
-Result<std::monostate, Channel::Error> MessageChannel<OutMsg, InMsg>::send(
+Result<std::monostate, io::Error> MessageChannel<OutMsg, InMsg>::send(
     const OutMsg &message,
     std::optional<std::chrono::milliseconds> timeout) {
 
     // TODO: Should we pack multiple messages in one buffer?
     const size_t length = message.packed_size();
     if (length > send_buffer_.size()) {
-        return Err(Channel::Error{Channel::ErrorKind::OutOfBounds, "Message size is greater than buffer length"});
+        return Err(io::Error{io::ErrorKind::UnexpectedEof, "Message size is greater than buffer length"});
     }
     message.store((typename OutMsg::Raw *)send_buffer_.data());
     return raw->send(send_buffer_.data(), length, timeout);
 }
 
 template <typename OutMsg, typename InMsg>
-Result<std::monostate, Channel::Error> MessageChannel<OutMsg, InMsg>::fill_recv_buffer(
+Result<std::monostate, io::Error> MessageChannel<OutMsg, InMsg>::fill_recv_buffer(
     const std::optional<std::chrono::milliseconds> timeout) {
 
     bool trailing = false;
@@ -43,7 +43,7 @@ Result<std::monostate, Channel::Error> MessageChannel<OutMsg, InMsg>::fill_recv_
             recv_buffer_.size() - data_end_,
             trailing ? 0ms : timeout);
         if (recv_res.is_err()) {
-            if (trailing && recv_res.err().kind == Channel::ErrorKind::TimedOut) {
+            if (trailing && recv_res.err().kind == io::ErrorKind::TimedOut) {
                 break;
             } else {
                 return Err(std::move(recv_res.err()));
@@ -57,7 +57,7 @@ Result<std::monostate, Channel::Error> MessageChannel<OutMsg, InMsg>::fill_recv_
 }
 
 template <typename OutMsg, typename InMsg>
-Result<InMsg, Channel::Error> MessageChannel<OutMsg, InMsg>::receive(std::optional<std::chrono::milliseconds> timeout) {
+Result<InMsg, io::Error> MessageChannel<OutMsg, InMsg>::receive(std::optional<std::chrono::milliseconds> timeout) {
 
     if (data_start_ >= data_end_) {
         // Incoming message should fit recv_buffer_

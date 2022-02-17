@@ -22,11 +22,11 @@ public:
 
     size_t max_length() const;
 
-    Result<std::monostate, Channel::Error> send(const OutMsg &message, std::optional<std::chrono::milliseconds> timeout);
-    Result<InMsg, Channel::Error> receive(std::optional<std::chrono::milliseconds> timeout);
+    Result<std::monostate, io::Error> send(const OutMsg &message, std::optional<std::chrono::milliseconds> timeout);
+    Result<InMsg, io::Error> receive(std::optional<std::chrono::milliseconds> timeout);
 
 private:
-    Result<std::monostate, Channel::Error> fill_recv_buffer(std::optional<std::chrono::milliseconds> timeout);
+    Result<std::monostate, io::Error> fill_recv_buffer(std::optional<std::chrono::milliseconds> timeout);
 };
 
 #include "message.hxx"

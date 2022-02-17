@@ -21,8 +21,15 @@ public:
     RpmsgChannel(RpmsgChannel &&other);
     RpmsgChannel &operator=(RpmsgChannel &&other);
 
-    static Result<RpmsgChannel, Error> create(const std::string &dev);
+    static Result<RpmsgChannel, io::Error> create(const std::string &dev);
 
-    virtual Result<std::monostate, Error> send(const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout) override;
-    virtual Result<size_t, Error> receive(uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout) override;
+    virtual Result<std::monostate, io::Error> send(
+        const uint8_t *bytes,
+        size_t length,
+        std::optional<std::chrono::milliseconds> timeout) override;
+
+    virtual Result<size_t, io::Error> receive(
+        uint8_t *bytes,
+        size_t max_length,
+        std::optional<std::chrono::milliseconds> timeout) override;
 };

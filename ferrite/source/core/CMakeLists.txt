@@ -13,6 +13,7 @@ set(SRC
     "src/core/assert.hpp"
     "src/core/cast.hpp"
     "src/core/io.hpp"
+    "src/core/io.cpp"
     "src/core/lazy_static.hpp"
     "src/core/maybe_uninit.hpp"
     "src/core/mutex.hpp"
