@@ -241,7 +241,7 @@ class Variant(Type[VariantValue]):
                 f"class {self.cpp_type()} final {{",
                 f"public:",
                 f"    using Raw = {self.c_type()};",
-                *list_join([indent(lines, 4) for lines in sections], [""]),
+                *list_join([indent(lines) for lines in sections], [""]),
                 f"}};",
             ]],
             deps=[
@@ -329,7 +329,7 @@ class Variant(Type[VariantValue]):
             f"switch ({obj}.type) {{",
             *list_join([[
                 f"case {self._c_enum_value(i)}:",
-                *([*indent(f.type.c_test(f"{obj}.{f.name.snake()}", f"std::get<{i}>({src}.variant)"), 4)]
+                *([*indent(f.type.c_test(f"{obj}.{f.name.snake()}", f"std::get<{i}>({src}.variant)"))]
                   if not f.type.is_empty() else []),
                 f"    break;",
             ] for i, f in enumerate(self.variants)]),
@@ -345,7 +345,7 @@ class Variant(Type[VariantValue]):
             f"switch ({dst}.variant.index()) {{",
             *list_join([[
                 f"case static_cast<size_t>({self._c_enum_value(i)}):",
-                *([*indent(f.type.cpp_test(f"std::get<{i}>({dst}.variant)", f"std::get<{i}>({src}.variant)"), 4)]
+                *([*indent(f.type.cpp_test(f"std::get<{i}>({dst}.variant)", f"std::get<{i}>({src}.variant)"))]
                   if not f.type.is_empty() else []),
                 f"    break;",
             ] for i, f in enumerate(self.variants)]),

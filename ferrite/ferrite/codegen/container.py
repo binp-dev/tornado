@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from ferrite.codegen.base import CONTEXT, Include, Location, Name, Type, Source
 from ferrite.codegen.primitive import Char, Int, Pointer, Reference
 from ferrite.codegen.utils import indent
+from ferrite.codegen.macros import ErrorKind, io_error, monostate, stream_read, stream_write, try_unwrap
 
 T = TypeVar("T")
 
@@ -73,18 +74,12 @@ class Array(Type[List[T]]):
             deps=[self.item.c_source()],
         )
 
-    def _cpp_load_decl(self) -> str:
-        return f"{self.cpp_type()} {Name(self.name(), 'load').snake()}({Pointer(self, const=True).c_type()} src)"
-
-    def _cpp_store_decl(self) -> str:
-        return f"void {Name(self.name(), 'store').snake()}({Reference(self, const=True).cpp_type()} src, {Pointer(self).c_type()} dst)"
-
     def _cpp_source_decl(self) -> Source:
         return Source(
             Location.DECLARATION,
             [
-                [f"{self._cpp_load_decl()};"],
-                [f"{self._cpp_store_decl()};"],
+                [f"{self._cpp_load_func_decl('stream')};"],
+                [f"{self._cpp_store_func_decl('stream', 'src')};"],
             ],
             deps=[
                 Include("array"),
@@ -97,19 +92,38 @@ class Array(Type[List[T]]):
             raise NotImplementedError()
 
         load_src = [
-            f"{self._cpp_load_decl()} {{",
+            f"{self._cpp_load_func_decl('stream')} {{",
             f"    {self.cpp_type()} dst;",
-            f"    for (size_t i = 0; i < dst.size(); ++i) {{",
-            f"        dst[i] = {self.item.cpp_load('src->data[i]')};",
-            f"    }}",
-            f"    return dst;",
+            *indent([
+                [
+                    f"for (size_t i = 0; i < dst.size(); ++i) {{",
+                    *indent(try_unwrap(self.item.cpp_load("stream"), lambda x: f"dst[i] = {x};")),
+                    f"}}",
+                ],
+                try_unwrap(stream_read(
+                    "stream",
+                    "dst.data()",
+                    self.item.size() * self.len,
+                )),
+            ][self.item.trivial]),
+            f"    return Ok(std::move(dst));",
             f"}}",
         ]
         store_src = [
-            f"{self._cpp_store_decl()} {{",
-            f"    for (size_t i = 0; i < src.size(); ++i) {{",
-            f"        {self.item.cpp_store('src[i]', 'dst->data[i]')};",
-            f"    }}",
+            f"{self._cpp_store_func_decl('stream', 'src')} {{",
+            *indent([
+                [
+                    f"for (size_t i = 0; i < src.size(); ++i) {{",
+                    *indent(try_unwrap(self.item.cpp_store("stream", "src[i]"))),
+                    f"}}",
+                ],
+                try_unwrap(stream_write(
+                    "stream",
+                    "src.data()",
+                    self.item.size() * self.len,
+                )),
+            ][self.item.trivial]),
+            f"    return Ok({monostate()});",
             f"}}",
         ]
         return Source(
@@ -121,11 +135,11 @@ class Array(Type[List[T]]):
             ]
         )
 
-    def cpp_load(self, src: str) -> str:
-        return f"{Name(self.name(), 'load').snake()}(&{src})"
+    def cpp_load(self, stream: str) -> str:
+        return self._cpp_load_func(stream)
 
-    def cpp_store(self, src: str, dst: str) -> str:
-        return f"{Name(self.name(), 'store').snake()}({src}, &{dst});"
+    def cpp_store(self, stream: str, dst: str) -> str:
+        return self._cpp_store_func(stream, dst)
 
     def cpp_object(self, value: List[Any]) -> str:
         assert self.len == len(value)
@@ -205,58 +219,6 @@ class _BasicVector(Generic[V, T], Type[V]):
         item_size = self.item.size()
         return f"({obj}.size(){f' * {item_size}' if item_size != 1 else ''})"
 
-    def cpp_type(self) -> str:
-        return f"std::vector<{self.item.cpp_type()}>"
-
-    def _cpp_load_decl(self) -> str:
-        return f"{self.cpp_type()} {Name(self.name(), 'load').snake()}({Pointer(self, const=True).c_type()} src)"
-
-    def _cpp_store_decl(self) -> str:
-        return f"void {Name(self.name(), 'store').snake()}({Reference(self, const=True).cpp_type()} src, {Pointer(self).c_type()} dst)"
-
-    def _cpp_source_decl(self) -> Source:
-        return Source(
-            Location.DECLARATION,
-            [
-                [f"{self._cpp_load_decl()};"],
-                [f"{self._cpp_store_decl()};"],
-            ],
-            deps=[
-                Include("vector"),
-                self.item.cpp_source(),
-            ],
-        )
-
-    def cpp_source(self) -> Source:
-        load_src = [
-            f"{self._cpp_load_decl()} {{",
-            f"    {self.cpp_type()} dst(static_cast<size_t>(src->len));",
-            f"    for (size_t i = 0; i < dst.size(); ++i) {{",
-            f"        dst[i] = {self.item.cpp_load('src->data[i]')};",
-            f"    }}",
-            f"    return dst;",
-            f"}}",
-        ]
-        store_src = [
-            f"{self._cpp_store_decl()} {{",
-            f"    // FIXME: Check for `dst->len` overflow.",
-            f"    dst->len = static_cast<{self._size_type.c_type()}>(src.size());",
-            f"    for (size_t i = 0; i < src.size(); ++i) {{",
-            f"        {self.item.cpp_store('src[i]', 'dst->data[i]')};",
-            f"    }}",
-            f"}}",
-        ]
-        return Source(
-            Location.DEFINITION,
-            [
-                load_src,
-                store_src,
-            ],
-            deps=[
-                self._cpp_source_decl(),
-            ],
-        )
-
     def cpp_size(self, obj: str) -> str:
         return f"({self.min_size()} + {self._cpp_size_extent(obj)})"
 
@@ -312,6 +274,73 @@ class Vector(Generic[T], _BasicVector[List[T], T]):
     def is_instance(self, value: List[T]) -> bool:
         return isinstance(value, list)
 
+    def cpp_type(self) -> str:
+        return f"std::vector<{self.item.cpp_type()}>"
+
+    def _cpp_source_decl(self) -> Source:
+        return Source(
+            Location.DECLARATION,
+            [
+                [f"{self._cpp_load_func_decl('stream')};"],
+                [f"{self._cpp_store_func_decl('stream', 'src')};"],
+            ],
+            deps=[
+                Include("vector"),
+                Include("core/convert.hpp"),
+                self.item.cpp_source(),
+                self._size_type.cpp_source(),
+            ],
+        )
+
+    def cpp_source(self) -> Source:
+        load_src = [
+            f"{self._cpp_load_func_decl('stream')} {{",
+            *indent(try_unwrap(self._size_type.cpp_load("stream"), lambda l: f"{self._size_type.cpp_type()} len = {l};")),
+            f"    auto dst = {self.cpp_type()}(static_cast<size_t>(len));",
+            *indent([
+                [
+                    f"for (size_t i = 0; i < dst.size(); ++i) {{",
+                    *indent(try_unwrap(self.item.cpp_load("stream"), lambda x: f"dst[i] = {x};")),
+                    f"}}",
+                ],
+                try_unwrap(stream_read(
+                    "stream",
+                    "dst.data()",
+                    f"({self.item.size()} * dst.size())",
+                )),
+            ][self.item.trivial]),
+            f"    return Ok(std::move(dst));",
+            f"}}",
+        ]
+        store_src = [
+            f"{self._cpp_store_func_decl('stream', 'src')} {{",
+            f"    auto len_opt = safe_cast<{self._size_type.cpp_type()}>(src.size());",
+            f"    if (!len_opt.has_value()) {{ return Err({io_error(ErrorKind.INVALID_DATA)}); }}",
+            *indent(try_unwrap(self._size_type.cpp_store("stream", "len_opt.value()"))),
+            *indent([
+                [
+                    f"for (size_t i = 0; i < src.size(); ++i) {{",
+                    *indent(try_unwrap(self.item.cpp_store("stream", "src[i]"))),
+                    f"}}",
+                ],
+                try_unwrap(stream_write(
+                    "stream",
+                    "src.data()",
+                    f"({self.item.size()} * src.size())",
+                )),
+            ][self.item.trivial]),
+            f"    return Ok({monostate()});",
+            f"}}",
+        ]
+        return Source(
+            Location.DEFINITION, [
+                load_src,
+                store_src,
+            ], deps=[
+                self._cpp_source_decl(),
+            ]
+        )
+
     def cpp_object(self, value: List[T]) -> str:
         return f"{self.cpp_type()}{{{', '.join([self.item.cpp_object(v) for v in value])}}}"
 
@@ -353,18 +382,23 @@ class String(_BasicVector[str, str]):
         return "std::string"
 
     def cpp_source(self) -> Source:
-        load_decl = f"{self.cpp_type()} {Name(self.name(), 'load').snake()}({Pointer(self, const=True).c_type()} src)"
-        store_decl = f"void {Name(self.name(), 'store').snake()}({Reference(self, const=True).cpp_type()} src, {Pointer(self).c_type()} dst)"
+        load_decl = self._cpp_load_func_decl("stream")
+        store_decl = self._cpp_store_func_decl("stream", "src")
         load_src = [
             f"{load_decl} {{",
-            f"    return {self.cpp_type()}(src->data, static_cast<size_t>(src->len));",
+            *indent(try_unwrap(self._size_type.cpp_load("stream"), lambda l: f"{self._size_type.cpp_type()} len = {l};")),
+            f"    auto dst = {self.cpp_type()}(static_cast<size_t>(len), '\\0');",
+            *indent(try_unwrap(stream_read("stream", "dst.data()", f"dst.length()"))),
+            f"    return Ok(std::move(dst));",
             f"}}",
         ]
         store_src = [
             f"{store_decl} {{",
-            f"    // FIXME: Check for `dst->len` overflow.",
-            f"    dst->len = static_cast<{self._size_type.c_type()}>(src.size());",
-            f"    memcpy((void *)dst->data, (const void *)src.c_str(), src.length());",
+            f"    auto len_opt = safe_cast<{self._size_type.cpp_type()}>(src.size());",
+            f"    if (!len_opt.has_value()) {{ return Err({io_error(ErrorKind.INVALID_DATA)}); }}",
+            *indent(try_unwrap(self._size_type.cpp_store("stream", "len_opt.value()"))),
+            *indent(try_unwrap(stream_write("stream", "src.data()", f"src.length()"))),
+            f"    return Ok({monostate()});",
             f"}}",
         ]
         return Source(
@@ -373,14 +407,19 @@ class String(_BasicVector[str, str]):
                 load_src,
                 store_src,
             ],
-            deps=[Source(
-                Location.DECLARATION,
-                [
-                    [f"{load_decl};"],
-                    [f"{store_decl};"],
-                ],
-                deps=[Include("string")],
-            )],
+            deps=[
+                Source(
+                    Location.DECLARATION,
+                    [
+                        [f"{load_decl};"],
+                        [f"{store_decl};"],
+                    ],
+                    deps=[
+                        Include("string"),
+                        self._size_type.cpp_source(),
+                    ],
+                )
+            ],
         )
 
     def cpp_object(self, value: str) -> str:

@@ -6,7 +6,7 @@ add_subdirectory(".." "core")
 
 set(SRC
     "src/collections/vec_deque.cpp"
-    "src/cast.cpp"
+    "src/convert.cpp"
     "src/fmt.cpp"
     "src/main.cpp"
 )

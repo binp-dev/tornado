@@ -5,7 +5,6 @@ from enum import Enum
 
 from ferrite.utils.strings import quote
 
-from ferrite.codegen.base import Type
 from ferrite.codegen.utils import hash_str, indent, to_ident
 
 
@@ -17,10 +16,12 @@ def io_write_type() -> str:
     return "io::WriteExact"
 
 
-def io_result_type(tys: Type[Any] | str = "std::monostate") -> str:
-    if isinstance(tys, Type):
-        tys = tys.cpp_type()
+def io_result_type(tys: str = "std::monostate") -> str:
     return f"Result<{tys}, io::Error>"
+
+
+def monostate() -> str:
+    return "std::monostate{}"
 
 
 def try_unwrap(expr: str, op: Callable[[str], str] | None = None) -> List[str]:
@@ -30,6 +31,14 @@ def try_unwrap(expr: str, op: Callable[[str], str] | None = None) -> List[str]:
         f"if ({res}.is_err()) {{ return Err({res}.unwrap_err()); }}",
         *([op(f"{res}.unwrap()")] if op is not None else []),
     ]
+
+
+def stream_read(stream: str, dst_ptr: str, size: int | str) -> str:
+    return f"{stream}.read_exact(reinterpret_cast<uint8_t *>({dst_ptr}), {size})"
+
+
+def stream_write(stream: str, src_ptr: str, size: int | str) -> str:
+    return f"{stream}.write_exact(reinterpret_cast<const uint8_t *>({src_ptr}), {size})"
 
 
 class ErrorKind(Enum):

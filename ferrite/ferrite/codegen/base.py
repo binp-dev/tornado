@@ -4,6 +4,7 @@ from typing import Any, Generic, List, Optional, Sequence, Set, TypeVar, Union
 from dataclasses import dataclass
 from enum import Enum
 from random import Random
+from ferrite.codegen.macros import io_read_type, io_result_type, io_write_type, monostate, stream_read, stream_write, try_unwrap
 
 from ferrite.codegen.utils import indent
 
@@ -127,8 +128,11 @@ class Type(Generic[T]):
         except NotImplementedError:
             return type(self).__name__
 
+    def _not_implemented(self) -> RuntimeError:
+        return NotImplementedError(self._debug_name())
+
     def size(self) -> int:
-        raise NotImplementedError(self._debug_name())
+        raise self._not_implemented()
 
     def min_size(self) -> int:
         return self.size()
@@ -140,34 +144,72 @@ class Type(Generic[T]):
         return []
 
     def load(self, data: bytes) -> T:
-        raise NotImplementedError(self._debug_name())
+        raise self._not_implemented()
 
     def store(self, value: T) -> bytes:
-        raise NotImplementedError(self._debug_name())
+        raise self._not_implemented()
+
+    def default(self) -> T:
+        raise self._not_implemented()
 
     def random(self, rng: Random) -> T:
-        raise NotImplementedError(self._debug_name())
+        raise self._not_implemented()
 
     def is_instance(self, value: T) -> bool:
-        raise NotImplementedError(self._debug_name())
+        raise self._not_implemented()
 
     def __instancecheck__(self, value: T) -> bool:
         return self.is_instance(value)
 
     def c_type(self) -> str:
-        raise NotImplementedError(self._debug_name())
+        raise self._not_implemented()
 
     def cpp_type(self) -> str:
         return self.c_type()
 
     def pyi_type(self) -> str:
-        raise NotImplementedError(self._debug_name())
+        raise self._not_implemented()
 
     def c_source(self) -> Optional[Source]:
         return None
 
+    def _cpp_load_func_decl(self, stream: str) -> str:
+        return f"{io_result_type(self.cpp_type())} {Name(self.name(), 'load').snake()}({io_read_type()} &{stream})"
+
+    def _cpp_store_func_decl(self, stream: str, value: str) -> str:
+        return f"{io_result_type()} {Name(self.name(), 'store').snake()}({io_write_type()} &{stream}, const {self.cpp_type()} &{value})"
+
     def cpp_source(self) -> Optional[Source]:
-        return self.c_source()
+        if not self.trivial:
+            raise self._not_implemented()
+
+        load_decl = self._cpp_load_func_decl("stream")
+        store_decl = self._cpp_store_func_decl("stream", "value")
+        return Source(
+            Location.DEFINITION,
+            [
+                [
+                    f"{load_decl} {{",
+                    f"    {self.cpp_type()} value = {self.cpp_object(self.default())};",
+                    *indent(try_unwrap(stream_read("stream", "&value", self.size()))),
+                    f"    return Ok(value);",
+                    f"}}",
+                ],
+                [
+                    f"{store_decl} {{",
+                    *indent(try_unwrap(stream_write("stream", "&value", self.size()))),
+                    f"    return Ok({monostate()});",
+                    f"}}",
+                ],
+            ],
+            deps=[Source(
+                Location.DECLARATION,
+                [
+                    [f"{load_decl};"],
+                    [f"{store_decl};"],
+                ],
+            )],
+        )
 
     def pyi_source(self) -> Optional[Source]:
         return None
@@ -179,19 +221,29 @@ class Type(Generic[T]):
         return self.c_size(obj)
 
     def _c_size_extent(self, obj: str) -> str:
-        raise NotImplementedError(self._debug_name())
+        raise self._not_implemented()
 
     def _cpp_size_extent(self, obj: str) -> str:
-        raise NotImplementedError(self._debug_name())
+        raise self._not_implemented()
+
+    def _cpp_load_func(self, stream: str) -> str:
+        return f"{Name(self.name(), 'load').snake()}({stream})"
+
+    def _cpp_store_func(self, stream: str, value: str) -> str:
+        return f"{Name(self.name(), 'store').snake()}({stream}, {value})"
 
     def cpp_load(self, stream: str) -> str:
-        raise NotImplementedError(self._debug_name())
+        if not self.trivial:
+            raise self._not_implemented()
+        return self._cpp_load_func(stream)
 
     def cpp_store(self, stream: str, value: str) -> str:
-        raise NotImplementedError(self._debug_name())
+        if not self.trivial:
+            raise self._not_implemented()
+        return self._cpp_store_func(stream, value)
 
     def cpp_object(self, value: T) -> str:
-        raise NotImplementedError(self._debug_name())
+        raise self._not_implemented()
 
     def c_test(self, obj: str, src: str) -> List[str]:
         return self.cpp_test(self.cpp_load(obj), src)

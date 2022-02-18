@@ -7,7 +7,7 @@ import string
 import struct
 
 from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source
-from ferrite.codegen.macros import ErrorKind, io_error, io_read_type, io_result_type, io_write_type, try_unwrap
+from ferrite.codegen.macros import ErrorKind, io_error, monostate, stream_read, stream_write, try_unwrap
 from ferrite.codegen.utils import ceil_to_power_of_2, indent, is_power_of_2
 
 
@@ -34,6 +34,9 @@ class Int(Type[int]):
 
     def store(self, value: int) -> bytes:
         return value.to_bytes(self.bits // 8, byteorder="little", signed=self.signed)
+
+    def default(self) -> int:
+        return 0
 
     def random(self, rng: Random) -> int:
         if not self.signed:
@@ -90,7 +93,7 @@ class Int(Type[int]):
         literal = Int._int_literal(mask, self.bits, False, hex=True)
         err_cond = [
             f"({value} & {literal}) != 0",
-            f"(auto tmp = ({self._int_type(ceil_bits, False)}){value} >> {self.bits - 1}; tmp != {literal} && tmp != {zero})",
+            f"auto tmp = ({self._int_type(ceil_bits, False)}){value} >> {self.bits - 1}; tmp != {literal} && tmp != {zero}",
         ][self.signed]
         return [
             f"if ({err_cond}) {{",
@@ -105,52 +108,54 @@ class Int(Type[int]):
 
         if self.trivial:
             return None
-        else:
-            prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
-            int_pref = self._int_name(self.bits, self.signed)
-            load_decl = f"{self._ceil_type()} {prefix}{int_pref}_load({self.c_type()} x)"
-            store_decl = f"{self.c_type()} {prefix}{int_pref}_store({self._ceil_type()} y)"
-            declaraion = Source(
-                Location.DECLARATION,
+
+        prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
+        int_pref = self._int_name(self.bits, self.signed)
+        load_decl = f"{self._ceil_type()} {prefix}{int_pref}_load({self.c_type()} x)"
+        store_decl = f"{self.c_type()} {prefix}{int_pref}_store({self._ceil_type()} y)"
+        declaraion = Source(
+            Location.DECLARATION,
+            [
                 [
-                    [
-                        f"typedef struct {self.c_type()} {{",
-                        f"    uint8_t bytes[{bytes}];",
-                        f"}} {self.c_type()};",
-                    ],
-                    [f"{load_decl};"],
-                    [f"{store_decl};"],
+                    f"typedef struct {self.c_type()} {{",
+                    f"    uint8_t bytes[{bytes}];",
+                    f"}} {self.c_type()};",
                 ],
-            )
-            return Source(
-                Location.DEFINITION,
+                [f"{load_decl};"],
+                [f"{store_decl};"],
+            ],
+        )
+        return Source(
+            Location.DEFINITION,
+            [
                 [
-                    [
-                        f"{load_decl} {{",
-                        f"    {self._ceil_type()} y = 0;",
-                        f"    memcpy((void *)&y, (const void *)&x, {self.size()});",
-                        *indent(self._extend_sign("y") if self.signed else []),
-                        f"    return y;",
-                        f"}}",
-                    ],
-                    [
-                        f"{store_decl} {{",
-                        f"    {self.c_type()} x;",
-                        f"    memcpy((void *)&x, (const void *)&y, {self.size()});",
-                        f"    return x;",
-                        f"}}",
-                    ],
+                    f"{load_decl} {{",
+                    f"    {self._ceil_type()} y = 0;",
+                    f"    memcpy((void *)&y, (const void *)&x, {self.size()});",
+                    *indent(self._extend_sign("y") if self.signed else []),
+                    f"    return y;",
+                    f"}}",
                 ],
-                deps=[declaraion],
-            )
+                [
+                    f"{store_decl} {{",
+                    f"    {self.c_type()} x;",
+                    f"    memcpy((void *)&x, (const void *)&y, {self.size()});",
+                    f"    return x;",
+                    f"}}",
+                ],
+            ],
+            deps=[declaraion],
+        )
 
     def cpp_type(self) -> str:
         return self._ceil_type()
 
     def cpp_source(self) -> Optional[Source]:
-        int_pref = self._int_name(self.bits, self.signed)
-        load_decl = f"{io_result_type(self.cpp_type())} {int_pref}_load({io_read_type()} &stream)"
-        store_decl = f"{io_result_type()} {int_pref}_store({io_write_type()} &stream, {self.cpp_type()} value)"
+        if self.trivial:
+            return super().cpp_source()
+
+        load_decl = self._cpp_load_func_decl("stream")
+        store_decl = self._cpp_store_func_decl("stream", "value")
         declaraion = Source(
             Location.DECLARATION,
             [
@@ -164,7 +169,7 @@ class Int(Type[int]):
                 [
                     f"{load_decl} {{",
                     f"    {self.cpp_type()} value = 0;",
-                    *indent(try_unwrap(f"stream.read_exact(reinterpret_cast<uint8_t*>(&value), {self.size()})")),
+                    *indent(try_unwrap(stream_read("stream", "&value", self.size()))),
                     *indent(self._extend_sign("value") if self.signed else []),
                     f"    return Ok(value);",
                     f"}}",
@@ -172,8 +177,8 @@ class Int(Type[int]):
                 [
                     f"{store_decl} {{",
                     *indent(self._check_bounds("value")),
-                    *indent(try_unwrap(f"stream.write_exact(reinterpret_cast<const uint8_t*>(&value), {self.size()})")),
-                    f"    return Ok(std::monostate);",
+                    *indent(try_unwrap(stream_write("stream", "&value", self.size()))),
+                    f"    return Ok({monostate()});",
                     f"}}",
                 ],
             ],
@@ -181,10 +186,14 @@ class Int(Type[int]):
         )
 
     def cpp_load(self, stream: str) -> str:
-        return f"{self._int_name(self.bits, self.signed)}_load({stream})"
+        if self.trivial:
+            return super().cpp_load(stream)
+        return self._cpp_load_func(stream)
 
     def cpp_store(self, stream: str, value: str) -> str:
-        return f"{self._int_name(self.bits, self.signed)}_store({stream}, {value})"
+        if self.trivial:
+            return super().cpp_store(stream, value)
+        return self._cpp_store_func(stream, value)
 
     def cpp_object(self, value: int) -> str:
         return self._int_literal(value, self.bits, self.signed)
@@ -227,6 +236,9 @@ class Float(Type[float]):
         else:
             raise RuntimeError(f"{self.bits}-bit float is not supported")
 
+    def default(self) -> float:
+        return 0.0
+
     def random(self, rng: Random) -> float:
         return rng.gauss(0.0, 1.0)
 
@@ -240,43 +252,6 @@ class Float(Type[float]):
             return "double"
         else:
             raise RuntimeError(f"{self.bits}-bit float is not supported")
-
-    def cpp_source(self) -> Optional[Source]:
-        pref = self.cpp_type()
-        load_decl = f"{io_result_type(self.cpp_type())} {pref}_load({io_read_type()} &stream)"
-        store_decl = f"{io_result_type()} {pref}_store({io_write_type()} &stream, {self.cpp_type()} value)"
-        declaraion = Source(
-            Location.DECLARATION,
-            [
-                [f"{load_decl};"],
-                [f"{store_decl};"],
-            ],
-        )
-        return Source(
-            Location.DEFINITION,
-            [
-                [
-                    f"{load_decl} {{",
-                    f"    {self.cpp_type()} value = {self.cpp_object(0.0)};",
-                    *indent(try_unwrap(f"stream.read_exact(reinterpret_cast<uint8_t*>(&value), {self.size()})")),
-                    f"    return Ok(value);",
-                    f"}}",
-                ],
-                [
-                    f"{store_decl} {{",
-                    *indent(try_unwrap(f"stream.write_exact(reinterpret_cast<const uint8_t*>(&value), {self.size()})")),
-                    f"    return Ok(std::monostate);",
-                    f"}}",
-                ],
-            ],
-            deps=[declaraion],
-        )
-
-    def cpp_load(self, stream: str) -> str:
-        return f"{self.cpp_type()}_load({stream})"
-
-    def cpp_store(self, stream: str, value: str) -> str:
-        return f"{self.cpp_type()}_store({stream}, {value})"
 
     def cpp_object(self, value: float) -> str:
         return f"{value}{'f' if self.bits == 32 else ''}"

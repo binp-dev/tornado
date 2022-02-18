@@ -47,6 +47,9 @@ all_: List[Type[Any]] = [
         Field("f32", Float(32)),
         Field("f64", Float(64)),
     ]),
+    Struct(Name(["non", "trivial", "vector", "struct"]), [
+        Field("data", Vector(Int(24, signed=True))),
+    ]),
     Struct(
         Name(["nested", "struct"]), [
             Field("u8", Int(8)),
