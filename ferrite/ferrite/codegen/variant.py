@@ -360,11 +360,11 @@ class Variant(Type[VariantValue]):
     def cpp_size(self, obj: str) -> str:
         return f"{obj}.packed_size()"
 
-    def cpp_load(self, src: str) -> str:
-        return f"{self.cpp_type()}::load(&{src})"
+    def cpp_load(self, stream: str) -> str:
+        return f"{self.cpp_type()}::load({stream})"
 
-    def cpp_store(self, src: str, dst: str) -> str:
-        return f"{src}.store(&{dst})"
+    def cpp_store(self, stream: str, src: str) -> str:
+        return f"{src}.store({stream})"
 
     def cpp_object(self, value: VariantValue) -> str:
         assert self.is_instance(value)

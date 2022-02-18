@@ -157,7 +157,7 @@ class Array(Type[List[T]]):
         return [
             f"ASSERT_EQ({dst}.size(), {src}.size());",
             f"for (size_t i = 0; i < {src}.size(); ++i) {{",
-            *indent(self.item.cpp_test(f"{dst}[i]", f"{src}[i]"), 4),
+            *indent(self.item.cpp_test(f"{dst}[i]", f"{src}[i]")),
             f"}}",
         ]
 
@@ -232,7 +232,7 @@ class _BasicVector(Generic[V, T], Type[V]):
         return [
             f"ASSERT_EQ({obj}.len, {src}.size());",
             f"for (size_t i = 0; i < {src}.size(); ++i) {{",
-            *indent(self.item.c_test(f"{obj}.data[i]", f"{src}[i]"), 4),
+            *indent(self.item.c_test(f"{obj}.data[i]", f"{src}[i]")),
             f"}}",
         ]
 
@@ -240,7 +240,7 @@ class _BasicVector(Generic[V, T], Type[V]):
         return [
             f"ASSERT_EQ({dst}.size(), {src}.size());",
             f"for (size_t i = 0; i < {src}.size(); ++i) {{",
-            *indent(self.item.cpp_test(f"{dst}[i]", f"{src}[i]"), 4),
+            *indent(self.item.cpp_test(f"{dst}[i]", f"{src}[i]")),
             f"}}",
         ]
 

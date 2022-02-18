@@ -89,19 +89,33 @@ class Int(Type[int]):
         if is_power_of_2(self.bits):
             return []
         ceil_bits = ceil_to_power_of_2(self.bits)
-        mask = (1 << (ceil_bits - self.bits + 1)) - 1
-        zero = Int._int_literal(0, self.bits, False)
-        literal = Int._int_literal(mask, self.bits, False, hex=True)
-        err_cond = [
-            f"({value} & {literal}) != 0",
-            f"auto tmp = ({self._int_type(ceil_bits, False)}){value} >> {self.bits - 1}; tmp != {literal} && tmp != {zero}",
-        ][self.signed]
+
+        if not self.signed:
+            mask = (1 << (ceil_bits - self.bits)) - 1
+            literal = Int._int_literal(mask, self.bits, False, hex=True)
+            err_cond = f"(({value} >> {self.bits}) & {literal}) != 0"
+        else:
+            mask = (1 << (ceil_bits - self.bits + 1)) - 1
+            zero = Int._int_literal(0, self.bits, False)
+            literal = Int._int_literal(mask, self.bits, False, hex=True)
+            err_cond = f"auto tmp = ({self._int_type(ceil_bits, False)}){value} >> {self.bits - 1}; tmp != {literal} && tmp != {zero}"
         return [
             f"// Check that narrowing conversion is safe",
             f"if ({err_cond}) {{",
             f"    return Err({io_error(ErrorKind.INVALID_DATA)});",
             f"}}",
         ]
+
+    def _c_prefix(self) -> str:
+        prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
+        int_pref = self._int_name(self.bits, self.signed)
+        return f"{prefix}{int_pref}"
+
+    def _c_load(self, obj: str) -> str:
+        if self.trivial:
+            return obj
+        else:
+            return f"{self._c_prefix()}_load({obj})"
 
     def c_source(self) -> Optional[Source]:
         if self.bits % 8 != 0 or self.bits > 64:
@@ -111,10 +125,8 @@ class Int(Type[int]):
         if self.trivial:
             return None
 
-        prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
-        int_pref = self._int_name(self.bits, self.signed)
-        load_decl = f"{self._ceil_type()} {prefix}{int_pref}_load({self.c_type()} x)"
-        store_decl = f"{self.c_type()} {prefix}{int_pref}_store({self._ceil_type()} y)"
+        load_decl = f"{self._ceil_type()} {self._c_prefix()}_load({self.c_type()} x)"
+        store_decl = f"{self.c_type()} {self._c_prefix()}_store({self._ceil_type()} y)"
         declaraion = Source(
             Location.DECLARATION,
             [
@@ -196,6 +208,12 @@ class Int(Type[int]):
         if self.trivial:
             return super().cpp_store(stream, value)
         return self._cpp_store_func(stream, value)
+
+    def c_test(self, obj: str, src: str) -> List[str]:
+        return self.cpp_test(self._c_load(obj), src)
+
+    def cpp_test(self, dst: str, src: str) -> List[str]:
+        return [f"EXPECT_EQ({dst}, {src});"]
 
     def cpp_object(self, value: int) -> str:
         return self._int_literal(value, self.bits, self.signed)

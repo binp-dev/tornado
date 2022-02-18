@@ -246,7 +246,7 @@ class Type(Generic[T]):
         raise self._not_implemented()
 
     def c_test(self, obj: str, src: str) -> List[str]:
-        return self.cpp_test(self.cpp_load(obj), src)
+        return self.cpp_test(obj, src)
 
     def cpp_test(self, dst: str, src: str) -> List[str]:
         return [f"EXPECT_EQ({dst}, {src});"]
@@ -277,13 +277,15 @@ class Type(Generic[T]):
                     *indent([
                         f"const {self.cpp_type()} src = srcs[k];",
                         f"",
-                        f"std::vector<uint8_t> buf({self.cpp_size('src')});",
-                        f"auto *obj = reinterpret_cast<{self.c_type()} *>(buf.data());",
-                        f"{self.cpp_store('src', '(*obj)')};",
+                        f"VecDequeStream stream;",
+                        f"{self.cpp_store('stream', 'src')}.unwrap();",
+                        f"ASSERT_EQ(stream.queue.size(), {self.cpp_size('src')});",
+                        f"",
+                        f"auto *obj = reinterpret_cast<{self.c_type()} *>(stream.queue.as_slices().first.data());",
                         f"ASSERT_EQ({self.c_size('(*obj)')}, {self.cpp_size('src')});",
                         *self.c_test('(*obj)', 'src'),
                         f"",
-                        f"const auto dst = {self.cpp_load('(*obj)')};",
+                        f"const auto dst = {self.cpp_load('stream')}.unwrap();",
                         f"ASSERT_EQ({self.cpp_size('dst')}, {self.cpp_size('src')});",
                         *self.cpp_test('dst', 'src'),
                     ]),

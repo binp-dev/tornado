@@ -81,6 +81,8 @@ def generate_and_write(types: List[Type[Any]], base_path: Path, context: Context
             "",
             "#include <gtest/gtest.h>",
             "",
+            "#include <core/collections/vec_deque.hpp>",
+            "",
             f"using namespace {context.prefix};",
             "",
             test_source.make_source(Location.TESTS),
