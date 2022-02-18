@@ -20,6 +20,9 @@ set(SRC
     "src/core/panic.hpp"
     "src/core/panic.cpp"
     "src/core/result.hpp"
+    "src/core/collections/vec_deque.hpp"
+    "src/core/collections/vec_deque.hxx"
+    "src/core/collections/vec_deque.cpp"
 )
 
 add_library(${PROJECT_NAME} OBJECT ${SRC})

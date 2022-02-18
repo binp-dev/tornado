@@ -2,9 +2,11 @@
 
 #include <vector>
 #include <optional>
+#include <cstring>
 
 #include <core/maybe_uninit.hpp>
-
+#include <core/slice.hpp>
+#include <core/io.hpp>
 
 template <typename T>
 class VecDeque final {
@@ -19,168 +21,81 @@ private:
 
 public:
     VecDeque() = default;
-    explicit VecDeque(size_t cap) : data_(cap + 1) {}
+    explicit VecDeque(size_t cap) :
+        data_(cap + 1) //
+    {}
 
     ~VecDeque() {
         clear();
     }
 
-    VecDeque(const VecDeque &other) : VecDeque(other.size()) {
-        append_copy_unchecked(other);
-    }
-    VecDeque &operator=(const VecDeque &other) {
-        clear();
-        append_copy(other);
-    }
-    VecDeque(VecDeque &&other) : data_(std::move(other.data_)), front_(other.front_), back_(other.back_) {
-        other.front_ = 0;
-        other.back_ = 0;
-    }
-    VecDeque &operator=(VecDeque &&other) {
-        clear();
+    VecDeque(const VecDeque &other);
+    VecDeque &operator=(const VecDeque &other);
 
-        data_ = std::move(other.data_);
-        front_ = other.front_;
-        back_ = other.back_;
-
-        other.front_ = 0;
-        other.back_ = 0;
-    }
+    VecDeque(VecDeque &&other);
+    VecDeque &operator=(VecDeque &&other);
 
 public:
-    [[nodiscard]] size_t capacity() const {
-        if (mod() > 1) {
-            return mod() - 1;
-        } else {
-            return 0;
-        }
-    }
-
-    [[nodiscard]] size_t size() const {
-        if (mod() == 0) {
-            return 0;
-        } else {
-            return ((back_ + mod()) - front_) % mod();
-        }
-    }
-
-    [[nodiscard]] bool empty() const {
-        return size() > 0;
-    }
+    [[nodiscard]] size_t capacity() const;
+    [[nodiscard]] size_t size() const;
+    [[nodiscard]] bool empty() const;
 
 private:
-    [[nodiscard]] T pop_back_unchecked() {
-        size_t new_back = (back_ + mod() - 1) % mod();
-        T &ref = data_[new_back].assume_init();
-        T val(std::move(ref));
-        back_ = new_back;
-        ref.~T();
-        return std::move(val);
-    }
-    [[nodiscard]] T pop_front_unchecked() {
-        size_t new_front = (front_ + 1) % mod();
-        T &ref = data_[front_].assume_init();
-        T val(std::move(ref));
-        front_ = new_front;
-        ref.~T();
-        return std::move(val);
-    }
+    [[nodiscard]] T pop_back_unchecked();
+    [[nodiscard]] T pop_front_unchecked();
 
-    void push_back_unchecked(T &&value) {
-        size_t new_back = (back_ + 1) % mod();
-        data_[back_].init_in_place(std::move(value));
-        back_ = new_back;
-    }
-    void push_front_unchecked(T &&value) {
-        size_t new_front = (front_ + mod() - 1) % mod();
-        data_[new_front].init_in_place(std::move(value));
-        front_ = new_front;
-    }
+    void push_back_unchecked(T &&value);
+    void push_front_unchecked(T &&value);
 
-    void append_unchecked(VecDeque &other) {
-        while (other.front_ != other.back_) {
-            data_[back_].init_in_place(std::move(other.data_[other.front_].assume_init()));
-            other.front_ = (other.front_ + 1) % other.mod();
-            back_ = (back_ + 1) % mod();
-        }
-    }
+    void append_unchecked(VecDeque &other);
+    void append_copy_unchecked(const VecDeque &other);
 
-    void append_copy_unchecked(const VecDeque &other) {
-        size_t front_view = other.front_;
-        while (front_view != other.back_) {
-            data_[back_].init_in_place(other.data_[front_view].assume_init());
-            front_view = (front_view + 1) % other.mod();
-            back_ = (back_ + 1) % mod();
-        }
-    }
-
-    void reserve_mod(size_t new_mod) {
-        if (new_mod > std::max(1, mod)) {
-            VecDeque<T> new_self(new_mod - 1);
-            new_self.append_unchecked(*this);
-            *this = std::move(new_self);
-        }
-    }
-
-    void increase() {
-        size_t mod = data_.size();
-        if (mod > 1) {
-            reserve_mod(2 * mod);
-        } else {
-            reserve_mod(2);
-        }
-    }
+    void reserve_mod(size_t new_mod);
+    void grow();
 
 public:
-    void clear() {
-        // Destructors aren't called automatically because of MaybeUninit.
-        // Call them manually for initialized elements.
-        while (front_ != back_) {
-            data_[front_].assume_init().~T();
-            front_ = (front_ + 1) % mod();
-        }
-        front_ = 0;
-        back_ = 0;
-    }
+    void clear();
 
-    void reserve(size_t new_cap) {
-        reserve_mod(new_cap + 1);
-    }
+    void reserve(size_t new_cap);
 
-    void append(VecDeque &other) {
-        reserve(size() + other.size());
-        append_unchecked(other);
-    }
-    void append_copy(const VecDeque &other) {
-        reserve(size() + other.size());
-        append_copy_unchecked(other);
-    }
+    void append(VecDeque &other);
+    void append_copy(const VecDeque &other);
 
-    [[nodiscard]] std::optional<T> pop_back() {
-        if (!empty()) {
-            return pop_back_unchecked();
-        } else {
-            return std::nullopt;
-        }
-    }
-    [[nodiscard]] std::optional<T> pop_front() {
-        if (!empty()) {
-            return pop_front_unchecked();
-        } else {
-            return std::nullopt;
-        }
-    }
+    [[nodiscard]] std::optional<T> pop_back();
+    [[nodiscard]] std::optional<T> pop_front();
 
-    void push_back(T &&value) {
-        if (size() == capacity()) {
-            increase();
-        }
-        return push_back_unchecked(std::move(value));
-    }
-    void push_front(T &&value) {
-        if (size() == capacity()) {
-            increase();
-        }
-        return push_front_unchecked(std::move(value));
-    }
+    void push_back(T &&value);
+    void push_front(T &&value);
+    void push_back(const T &value);
+    void push_front(const T &value);
+
+    [[nodiscard]] size_t skip_front(size_t count);
+    [[nodiscard]] size_t skip_back(size_t count);
+
+    std::pair<Slice<T>, Slice<T>> as_slices();
+    std::pair<Slice<const T>, Slice<const T>> as_slices() const;
+
+private:
+    std::pair<Slice<MaybeUninit<T>>, Slice<MaybeUninit<T>>> free_space_as_slices();
+
+    // Elements at expanded positions must be initialized.
+    // Count must be less or equal to free space.
+    void expand_front(size_t count);
+    void expand_back(size_t count);
+
+public:
+    friend class VecDequeStream;
 };
+
+
+struct VecDequeStream final : public io::ReadExact, public io::WriteExact {
+    VecDeque<uint8_t> queue;
+
+    Result<size_t, io::Error> read(uint8_t *data, size_t len) override;
+    Result<std::monostate, io::Error> read_exact(uint8_t *data, size_t len) override;
+
+    Result<size_t, io::Error> write(const uint8_t *data, size_t len) override;
+    Result<std::monostate, io::Error> write_exact(const uint8_t *data, size_t len) override;
+};
+
+#include "vec_deque.hxx"
