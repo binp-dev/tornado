@@ -79,6 +79,7 @@ class Int(Type[int]):
         mask = ((1 << (ceil_bits - self.bits)) - 1) << self.bits
         literal = Int._int_literal(mask, self.bits, False, hex=True)
         return [
+            f"// Sign extension",
             f"if (((({self._int_type(ceil_bits, False)}){value} >> {self.bits - 1}) & 1) != 0) {{",
             f"    {value} |= ({self.cpp_type()}){literal};",
             f"}}",
@@ -96,6 +97,7 @@ class Int(Type[int]):
             f"auto tmp = ({self._int_type(ceil_bits, False)}){value} >> {self.bits - 1}; tmp != {literal} && tmp != {zero}",
         ][self.signed]
         return [
+            f"// Check that narrowing conversion is safe",
             f"if ({err_cond}) {{",
             f"    return Err({io_error(ErrorKind.INVALID_DATA)});",
             f"}}",

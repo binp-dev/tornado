@@ -33,12 +33,16 @@ def try_unwrap(expr: str, op: Callable[[str], str] | None = None) -> List[str]:
     ]
 
 
-def stream_read(stream: str, dst_ptr: str, size: int | str) -> str:
-    return f"{stream}.read_exact(reinterpret_cast<uint8_t *>({dst_ptr}), {size})"
+def stream_read(stream: str, dst_ptr: str, size: int | str, cast: bool = True) -> str:
+    if cast:
+        dst_ptr = f"reinterpret_cast<uint8_t *>({dst_ptr})"
+    return f"{stream}.read_exact({dst_ptr}, {size})"
 
 
-def stream_write(stream: str, src_ptr: str, size: int | str) -> str:
-    return f"{stream}.write_exact(reinterpret_cast<const uint8_t *>({src_ptr}), {size})"
+def stream_write(stream: str, src_ptr: str, size: int | str, cast: bool = True) -> str:
+    if cast:
+        src_ptr = f"reinterpret_cast<const uint8_t *>({src_ptr})"
+    return f"{stream}.write_exact({src_ptr}, {size})"
 
 
 class ErrorKind(Enum):

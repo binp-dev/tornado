@@ -1,11 +1,12 @@
 from __future__ import annotations
-from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from random import Random
 
 from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source, declare_variable
 from ferrite.codegen.primitive import Pointer
 from ferrite.codegen.utils import indent, list_join
+from ferrite.codegen.macros import io_read_type, io_result_type, io_write_type, monostate, try_unwrap
 
 
 class Field:
@@ -133,10 +134,10 @@ class Struct(Type[StructValue]):
         return f"[[nodiscard]] size_t packed_size() const;"
 
     def _cpp_load_method_decl(self) -> str:
-        return f"[[nodiscard]] static {self.cpp_type()} load({Pointer(self, const=True).c_type()} src);"
+        return f"static {io_result_type(self.cpp_type())} load({io_read_type()} &stream);"
 
     def _cpp_store_method_decl(self) -> str:
-        return f"void store({Pointer(self).c_type()} dst) const;"
+        return f"{io_result_type()} store({io_write_type()} &stream) const;"
 
     def _cpp_size_method_impl(self) -> List[str]:
         return [
@@ -150,17 +151,25 @@ class Struct(Type[StructValue]):
 
     def _cpp_load_method_impl(self) -> List[str]:
         return [
-            f"{self.cpp_type()} {self.cpp_type()}::load({Pointer(self, const=True).c_type()} src) {{",
-            f"    return {self.cpp_type()}{{",
-            *[f"        {f.type.cpp_load(f'(src->{f.name.snake()})')}," for f in self.fields],
-            f"    }};",
+            f"{io_result_type(self.cpp_type())} {self.cpp_type()}::load({io_read_type()} &stream) {{",
+            *indent(
+                list_join([
+                    try_unwrap(f.type.cpp_load('stream'), lambda x: f'auto field_{i} = {x};')
+                    for i, f in enumerate(self.fields)
+                ], [""])
+            ),
+            f"",
+            f"    return Ok({self.cpp_type()}{{",
+            *indent([f"std::move(field_{i})," for i, f in enumerate(self.fields)], 2),
+            f"    }});",
             f"}}",
         ]
 
     def _cpp_store_method_impl(self) -> List[str]:
         return [
-            f"void {self.cpp_type()}::store({Pointer(self).c_type()} dst) const {{",
-            *[f"    {f.type.cpp_store(f'{f.name.snake()}', f'(dst->{f.name.snake()})')};" for f in self.fields],
+            f"{io_result_type()} {self.cpp_type()}::store({io_write_type()} &stream) const {{",
+            *indent(list_join([try_unwrap(f.type.cpp_store('stream', f.name.snake())) for f in self.fields], [""])),
+            f"    return Ok({monostate()});",
             f"}}",
         ]
 
@@ -186,7 +195,6 @@ class Struct(Type[StructValue]):
             [[
                 f"class {self.cpp_type()} final {{",
                 f"public:",
-                *([f"    using Raw = {self.c_type()};"] if not self.is_empty() else []),
                 *list_join([indent(lines) for lines in sections], [""]),
                 f"}};",
             ]],
@@ -250,11 +258,11 @@ class Struct(Type[StructValue]):
     def cpp_size(self, obj: str) -> str:
         return f"{obj}.packed_size()"
 
-    def cpp_load(self, src: str) -> str:
-        return f"{self.cpp_type()}::load(&{src})"
+    def cpp_load(self, stream: str) -> str:
+        return f"{self.cpp_type()}::load({stream})"
 
-    def cpp_store(self, src: str, dst: str) -> str:
-        return f"{src}.store(&{dst})"
+    def cpp_store(self, stream: str, src: str) -> str:
+        return f"{src}.store({stream})"
 
     def cpp_object(self, value: StructValue) -> str:
         return "".join([

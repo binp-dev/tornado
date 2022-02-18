@@ -222,11 +222,11 @@ class _BasicVector(Generic[V, T], Type[V]):
     def cpp_size(self, obj: str) -> str:
         return f"({self.min_size()} + {self._cpp_size_extent(obj)})"
 
-    def cpp_load(self, src: str) -> str:
-        return f"{Name(self.name(), 'load').snake()}(&{src})"
+    def cpp_load(self, stream: str) -> str:
+        return self._cpp_load_func(stream)
 
-    def cpp_store(self, src: str, dst: str) -> str:
-        return f"{Name(self.name(), 'store').snake()}({src}, &{dst});"
+    def cpp_store(self, stream: str, dst: str) -> str:
+        return self._cpp_store_func(stream, dst)
 
     def c_test(self, obj: str, src: str) -> List[str]:
         return [

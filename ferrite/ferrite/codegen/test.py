@@ -75,6 +75,7 @@ all_: List[Type[Any]] = [
             Field("empty", empty),
             Field("value", Int(32)),
         ],
+        sized=True,
     ),
     Variant(
         Name(["unsized", "variant"]),

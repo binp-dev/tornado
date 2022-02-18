@@ -56,6 +56,7 @@ def generate_and_write(types: List[Type[Any]], base_path: Path, context: Context
             "",
             f"#include <core/result.hpp>",
             f"#include <core/io.hpp>",
+            f"#include <core/panic.hpp>",
             cpp_source.make_source(Location.INCLUDES, separator=""),
             "",
             f"#include <{context.prefix}.h>",
