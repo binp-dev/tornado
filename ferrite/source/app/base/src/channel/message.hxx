@@ -8,14 +8,17 @@
 using namespace std::chrono_literals;
 
 template <typename OutMsg, typename InMsg>
-MessageChannel<OutMsg, InMsg>::MessageChannel(std::unique_ptr<Channel> &&raw, const size_t max_length) :
+MessageChannel<OutMsg, InMsg>::MessageChannel(std::unique_ptr<Channel> &&raw, const size_t max_len) :
     raw(std::move(raw)),
-    send_buffer_(max_length, 0),
-    recv_buffer_(8 * max_length, 0) {}
+    max_len_(max_len) //
+{
+    send_buffer_.vector.reserve(max_len_);
+    recv_buffer_.queue.reserve(max_len_);
+}
 
 template <typename OutMsg, typename InMsg>
-size_t MessageChannel<OutMsg, InMsg>::max_length() const {
-    return send_buffer_.size();
+size_t MessageChannel<OutMsg, InMsg>::max_message_length() const {
+    return max_len_;
 }
 
 template <typename OutMsg, typename InMsg>
@@ -24,50 +27,45 @@ Result<std::monostate, io::Error> MessageChannel<OutMsg, InMsg>::send(
     std::optional<std::chrono::milliseconds> timeout) {
 
     // TODO: Should we pack multiple messages in one buffer?
-    const size_t length = message.packed_size();
-    if (length > send_buffer_.size()) {
-        return Err(io::Error{io::ErrorKind::UnexpectedEof, "Message size is greater than buffer length"});
+    send_buffer_.vector.clear();
+    auto res = message.store(send_buffer_);
+    if (res.is_err()) {
+        return res;
     }
-    message.store((typename OutMsg::Raw *)send_buffer_.data());
+    const size_t length = send_buffer_.vector.size();
+    if (length > max_message_length()) {
+        return Err(io::Error{io::ErrorKind::UnexpectedEof, "Message size is greater than max length"});
+    }
     raw->timeout = timeout;
-    return raw->write(send_buffer_.data(), length);
-}
-
-template <typename OutMsg, typename InMsg>
-Result<std::monostate, io::Error> MessageChannel<OutMsg, InMsg>::fill_recv_buffer(
-    const std::optional<std::chrono::milliseconds> timeout) {
-
-    bool trailing = false;
-    while (data_end_ < recv_buffer_.size()) {
-        raw->timeout = trailing ? 0ms : timeout;
-        auto recv_res = raw->read(recv_buffer_.data() + data_end_, recv_buffer_.size() - data_end_);
-        if (recv_res.is_err()) {
-            if (trailing && recv_res.err().kind == io::ErrorKind::TimedOut) {
-                break;
-            } else {
-                return Err(std::move(recv_res.err()));
-            }
-        }
-        data_end_ += recv_res.ok();
-        assert_true(data_end_ <= recv_buffer_.size());
-        trailing = true;
-    }
-    return Ok(std::monostate{});
+    return raw->write_exact(send_buffer_.vector.data(), length);
 }
 
 template <typename OutMsg, typename InMsg>
 Result<InMsg, io::Error> MessageChannel<OutMsg, InMsg>::receive(std::optional<std::chrono::milliseconds> timeout) {
+    auto begin = std::chrono::steady_clock::now();
+    for (;;) {
+        // Try to read data from buffer
+        auto msg_res = InMsg::load(recv_buffer_);
+        if (msg_res.is_ok() || msg_res.err().kind != io::ErrorKind::UnexpectedEof) {
+            return msg_res;
+        }
 
-    if (data_start_ >= data_end_) {
-        // Incoming message should fit recv_buffer_
-        data_start_ = 0;
-        data_end_ = 0;
-        try_unwrap(fill_recv_buffer(timeout));
+        // Load data from channel
+        if (timeout.has_value()) {
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - begin);
+            auto remains = timeout.value() - elapsed;
+            if (remains.count() <= 0) {
+                break;
+            }
+            raw->timeout = remains;
+        } else {
+            raw->timeout = std::nullopt;
+        }
+        auto read_res = recv_buffer_.read_from(*raw, std::nullopt);
+        if (read_res.is_err()) {
+            return Err(read_res.unwrap_err());
+        }
     }
-    const auto *raw_msg = (typename InMsg::Raw *)(recv_buffer_.data() + data_start_);
-    const size_t msg_len = ipp_mcu_msg_size(raw_msg);
-    assert_true(data_start_ + msg_len <= data_end_);
-    auto msg = InMsg::load(raw_msg);
-    data_start_ += msg_len;
-    return Ok(std::move(msg));
+    return Err(io::Error{io::ErrorKind::TimedOut});
 }
