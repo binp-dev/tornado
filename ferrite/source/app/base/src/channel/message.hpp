@@ -3,6 +3,9 @@
 #include <vector>
 #include <memory>
 
+#include <core/collections/vec.hpp>
+#include <core/collections/vec_deque.hpp>
+
 #include "base.hpp"
 
 
@@ -11,22 +14,18 @@ class MessageChannel final {
 private:
     std::unique_ptr<Channel> raw;
 
-    std::vector<uint8_t> send_buffer_;
+    VecStream send_buffer_;
+    VecDequeStream recv_buffer_;
 
-    std::vector<uint8_t> recv_buffer_;
-    size_t data_start_ = 0;
-    size_t data_end_ = 0;
+    size_t max_len_;
 
 public:
-    explicit MessageChannel(std::unique_ptr<Channel> &&raw, size_t max_length);
+    explicit MessageChannel(std::unique_ptr<Channel> &&raw, size_t max_len);
 
-    size_t max_length() const;
+    size_t max_message_length() const;
 
-    Result<std::monostate, Channel::Error> send(const OutMsg &message, std::optional<std::chrono::milliseconds> timeout);
-    Result<InMsg, Channel::Error> receive(std::optional<std::chrono::milliseconds> timeout);
-
-private:
-    Result<std::monostate, Channel::Error> fill_recv_buffer(std::optional<std::chrono::milliseconds> timeout);
+    Result<std::monostate, io::Error> send(const OutMsg &message, std::optional<std::chrono::milliseconds> timeout);
+    Result<InMsg, io::Error> receive(std::optional<std::chrono::milliseconds> timeout);
 };
 
 #include "message.hxx"

@@ -13,4 +13,4 @@ set(SRC
 
 add_library(${PROJECT_NAME} OBJECT ${SRC})
 target_include_directories(${PROJECT_NAME} PUBLIC "include")
-target_link_libraries(${PROJECT_NAME} "core")
+target_link_libraries(${PROJECT_NAME} PUBLIC "core")

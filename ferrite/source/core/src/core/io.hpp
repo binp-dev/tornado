@@ -1,29 +1,68 @@
 #pragma once
 
-#include <cstdlib>
+#include <cstdint>
+#include <string>
 #include <iostream>
-#include <type_traits>
 
-class ReadStream {
+#include "result.hpp"
+#include "fmt.hpp"
+
+namespace io {
+
+enum class ErrorKind {
+    NotFound,
+    InvalidData,
+    UnexpectedEof,
+    TimedOut,
+    Other,
+};
+
+struct Error final {
+    ErrorKind kind;
+    std::string message;
+
+    inline Error(ErrorKind kind) : kind(kind) {}
+    inline Error(ErrorKind kind, std::string message) : kind(kind), message(message) {}
+};
+
+class Read {
 public:
     //! Try to read at most `len` bytes into `data` buffer.
-    //! @return Number of bytes read.
-    virtual size_t read(uint8_t *data, size_t len) = 0;
+    //! @param exact Read exactly `len` of bytes or return error.
+    //! @return Number of bytes read or error.
+    virtual Result<size_t, Error> read(uint8_t *data, size_t len) = 0;
 };
 
-class WriteStream {
+class Write {
 public:
     //! Try to write at most `len` bytes from `data` buffer.
-    //! @return Number of bytes written.
-    virtual size_t write(const uint8_t *data, size_t len) = 0;
+    //! @param exact Read exactly `len` of bytes or return error.
+    //! @return Number of bytes written or error.
+    virtual Result<size_t, Error> write(const uint8_t *data, size_t len) = 0;
 };
 
-//! TODO: Rename to `Display`?
-template <typename T>
-struct IsWritable : std::false_type {};
+class ReadExact : public virtual Read {
+public:
+    //! Try to read exactly `len` bytes into `data` buffer.
+    virtual Result<std::monostate, Error> read_exact(uint8_t *data, size_t len) = 0;
+
+    Result<size_t, Error> read(uint8_t *data, size_t len) override;
+};
+
+class WriteExact : public virtual Write {
+public:
+    //! Try to write exactly `len` bytes from `data` buffer.
+    virtual Result<std::monostate, Error> write_exact(const uint8_t *data, size_t len) = 0;
+
+    Result<size_t, Error> write(const uint8_t *data, size_t len) override;
+};
+
+} // namespace io
 
 template <>
-struct IsWritable<std::string> : std::true_type {};
+struct Display<io::ErrorKind> : std::true_type {};
+std::ostream &operator<<(std::ostream &o, const io::ErrorKind &ek);
 
-template <typename T>
-constexpr bool is_writable = IsWritable<T>::value;
+template <>
+struct Display<io::Error> : std::true_type {};
+std::ostream &operator<<(std::ostream &o, const io::Error &e);

@@ -3,7 +3,7 @@
 #include <variant>
 #include <sstream>
 
-#include "io.hpp"
+#include "fmt.hpp"
 #include "panic.hpp"
 
 
@@ -55,7 +55,7 @@ struct [[nodiscard]] Result final {
         if (this->is_err()) {
             std::stringstream ss;
             ss << message;
-            if constexpr (is_writable<E>) {
+            if constexpr (Display<E>::value) {
                 ss << ": " << this->err();
             }
             panic(ss.str());
@@ -66,7 +66,7 @@ struct [[nodiscard]] Result final {
         if (this->is_ok()) {
             std::stringstream ss;
             ss << message;
-            if constexpr (is_writable<T>) {
+            if constexpr (Display<T>::value) {
                 ss << ": " << this->ok();
             }
             panic(ss.str());
@@ -94,3 +94,12 @@ struct [[nodiscard]] Result final {
         return Err(std::move(tmp.err())); \
     } \
 }
+
+/*
+template <typename T>
+bool operator<<(std::ostream &os, const Ok<T> &ok);
+template <typename E>
+bool operator<<(std::ostream &os, const Ok<E> &err);
+template <typename T, typename E>
+bool operator<<(std::ostream &os, const Result<T, E> &res);
+*/

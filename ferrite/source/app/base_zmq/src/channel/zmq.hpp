@@ -34,15 +34,13 @@ private:
     zmq_helper::ContextGuard context_;
     zmq_helper::SocketGuard socket_;
 
-    inline ZmqChannel(
-        const std::string &host,
-        zmq_helper::ContextGuard &&context,
-        zmq_helper::SocketGuard &&socket
-    ) :
+    zmq_msg_t last_msg_;
+    size_t msg_read_ = 0;
+
+    inline ZmqChannel(const std::string &host, zmq_helper::ContextGuard &&context, zmq_helper::SocketGuard &&socket) :
         host_(host),
         context_(std::move(context)),
-        socket_(std::move(socket))
-    {}
+        socket_(std::move(socket)) {}
 
 public:
     virtual ~ZmqChannel() override = default;
@@ -50,8 +48,8 @@ public:
     ZmqChannel(ZmqChannel &&) = default;
     ZmqChannel &operator=(ZmqChannel &&) = default;
 
-    static Result<ZmqChannel, Error> create(const std::string &host);
+    static Result<ZmqChannel, io::Error> create(const std::string &host);
 
-    virtual Result<std::monostate, Error> send(const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout) override;
-    virtual Result<size_t, Error> receive(uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout) override;
+    virtual Result<std::monostate, io::Error> write_exact(const uint8_t *data, size_t len) override;
+    virtual Result<size_t, io::Error> read(uint8_t *data, size_t len) override;
 };

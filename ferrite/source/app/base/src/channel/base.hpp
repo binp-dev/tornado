@@ -11,13 +11,9 @@
 #include <core/io.hpp>
 #include <core/result.hpp>
 
-class Channel {
+class Channel : public virtual io::Read, public virtual io::Write, public virtual io::WriteExact {
 public:
-    enum class ErrorKind { IoError, OutOfBounds, ParseError, TimedOut };
-    struct Error final {
-        ErrorKind kind;
-        std::string message;
-    };
+    std::optional<std::chrono::milliseconds> timeout = std::nullopt;
 
 public:
     Channel() = default;
@@ -28,15 +24,4 @@ public:
 
     Channel(const Channel &ch) = delete;
     Channel &operator=(const Channel &ch) = delete;
-
-    virtual Result<std::monostate, Error> send(const uint8_t *bytes, size_t length, std::optional<std::chrono::milliseconds> timeout) = 0;
-    virtual Result<size_t, Error> receive(uint8_t *bytes, size_t max_length, std::optional<std::chrono::milliseconds> timeout) = 0;
 };
-
-template <>
-struct IsWritable<Channel::ErrorKind> : std::true_type {};
-std::ostream &operator<<(std::ostream &o, const Channel::ErrorKind &ek);
-
-template <>
-struct IsWritable<Channel::Error> : std::true_type {};
-std::ostream &operator<<(std::ostream &o, const Channel::Error &e);

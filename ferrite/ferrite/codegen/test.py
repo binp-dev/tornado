@@ -38,6 +38,7 @@ all_: List[Type[Any]] = [
             Field("u64", Int(64)),
             Field("i8", Int(8, signed=True)),
             Field("i16", Int(16, signed=True)),
+            Field("i24", Int(24, signed=True)),
             Field("i32", Int(32, signed=True)),
             Field("i64", Int(64, signed=True)),
         ]
@@ -45,6 +46,9 @@ all_: List[Type[Any]] = [
     Struct(Name(["floats"]), [
         Field("f32", Float(32)),
         Field("f64", Float(64)),
+    ]),
+    Struct(Name(["non", "trivial", "vector", "struct"]), [
+        Field("data", Vector(Int(24, signed=True))),
     ]),
     Struct(
         Name(["nested", "struct"]), [
@@ -71,6 +75,7 @@ all_: List[Type[Any]] = [
             Field("empty", empty),
             Field("value", Int(32)),
         ],
+        sized=True,
     ),
     Variant(
         Name(["unsized", "variant"]),

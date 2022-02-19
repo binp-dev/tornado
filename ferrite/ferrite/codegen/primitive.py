@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Optional
+from typing import Any, Callable, List, Optional
 
 from random import Random
 from dataclasses import dataclass
@@ -7,7 +7,8 @@ import string
 import struct
 
 from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source
-from ferrite.codegen.utils import ceil_to_power_of_2, is_power_of_2
+from ferrite.codegen.macros import ErrorKind, io_error, monostate, stream_read, stream_write, try_unwrap
+from ferrite.codegen.utils import ceil_to_power_of_2, indent, is_power_of_2
 
 
 @dataclass
@@ -34,6 +35,9 @@ class Int(Type[int]):
     def store(self, value: int) -> bytes:
         return value.to_bytes(self.bits // 8, byteorder="little", signed=self.signed)
 
+    def default(self) -> int:
+        return 0
+
     def random(self, rng: Random) -> int:
         if not self.signed:
             return rng.randrange(0, 2**self.bits)
@@ -44,12 +48,20 @@ class Int(Type[int]):
         return isinstance(value, int)
 
     @staticmethod
-    def _int_type(bits: int, signed: bool = False) -> str:
-        return f"{'u' if not signed else ''}int{bits}_t"
+    def _int_name(bits: int, signed: bool = False) -> str:
+        return f"{'u' if not signed else ''}int{bits}"
 
     @staticmethod
-    def _int_literal(value: int, bits: int, signed: bool = False) -> str:
-        return f"{value}{'u' if not signed else ''}{'ll' if bits > 32 else ''}"
+    def _int_type(bits: int, signed: bool = False) -> str:
+        return Int._int_name(bits, signed) + "_t"
+
+    @staticmethod
+    def _int_literal(value: int, bits: int, signed: bool = False, hex: bool = False) -> str:
+        if hex:
+            vstr = f"0x{value:x}"
+        else:
+            vstr = str(value)
+        return f"{vstr}{'u' if not signed else ''}{'ll' if bits > 32 else ''}"
 
     def c_type(self) -> str:
         ident = self._int_type(self.bits, self.signed)
@@ -57,64 +69,151 @@ class Int(Type[int]):
             ident = CONTEXT.prefix + "_" + ident
         return ident
 
+    def _ceil_type(self) -> str:
+        return self._int_type(ceil_to_power_of_2(self.bits), self.signed)
+
+    def _extend_sign(self, value: str) -> List[str]:
+        if is_power_of_2(self.bits):
+            return []
+        ceil_bits = ceil_to_power_of_2(self.bits)
+        mask = ((1 << (ceil_bits - self.bits)) - 1) << self.bits
+        literal = Int._int_literal(mask, self.bits, False, hex=True)
+        return [
+            f"// Sign extension",
+            f"if (((({self._int_type(ceil_bits, False)}){value} >> {self.bits - 1}) & 1) != 0) {{",
+            f"    {value} |= ({self.cpp_type()}){literal};",
+            f"}}",
+        ]
+
+    def _check_bounds(self, value: str) -> List[str]:
+        if is_power_of_2(self.bits):
+            return []
+        ceil_bits = ceil_to_power_of_2(self.bits)
+
+        if not self.signed:
+            mask = (1 << (ceil_bits - self.bits)) - 1
+            literal = Int._int_literal(mask, self.bits, False, hex=True)
+            err_cond = f"(({value} >> {self.bits}) & {literal}) != 0"
+        else:
+            mask = (1 << (ceil_bits - self.bits + 1)) - 1
+            zero = Int._int_literal(0, self.bits, False)
+            literal = Int._int_literal(mask, self.bits, False, hex=True)
+            err_cond = f"auto tmp = ({self._int_type(ceil_bits, False)}){value} >> {self.bits - 1}; tmp != {literal} && tmp != {zero}"
+        return [
+            f"// Check that narrowing conversion is safe",
+            f"if ({err_cond}) {{",
+            f"    return Err({io_error(ErrorKind.INVALID_DATA)});",
+            f"}}",
+        ]
+
+    def _c_prefix(self) -> str:
+        prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
+        int_pref = self._int_name(self.bits, self.signed)
+        return f"{prefix}{int_pref}"
+
+    def _c_load(self, obj: str) -> str:
+        if self.trivial:
+            return obj
+        else:
+            return f"{self._c_prefix()}_load({obj})"
+
     def c_source(self) -> Optional[Source]:
         if self.bits % 8 != 0 or self.bits > 64:
             raise RuntimeError(f"{self.bits}-bit integer is not supported")
-        bytes = self.bits // 8
+        bytes = self.size()
 
         if self.trivial:
             return None
-        else:
-            if self.signed:
-                raise RuntimeError(f"Signed integers are only supported to have power-of-2 size")
-            name = self.c_type()
-            ceil_name = self._int_type(ceil_to_power_of_2(self.bits))
-            prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
-            load_decl = f"{ceil_name} {prefix}uint{self.bits}_load({name} x)"
-            store_decl = f"{name} {prefix}uint{self.bits}_store({ceil_name} y)"
-            declaraion = Source(
-                Location.DECLARATION, "\n".join([
-                    f"typedef struct {name} {{", f"    uint8_t bytes[{bytes}];", f"}} {name};", f"", f"{load_decl};"
-                    f"{store_decl};"
-                ])
-            )
-            return Source(
-                Location.DEFINITION,
-                "\n".join([
+
+        load_decl = f"{self._ceil_type()} {self._c_prefix()}_load({self.c_type()} x)"
+        store_decl = f"{self.c_type()} {self._c_prefix()}_store({self._ceil_type()} y)"
+        declaraion = Source(
+            Location.DECLARATION,
+            [
+                [
+                    f"typedef struct {self.c_type()} {{",
+                    f"    uint8_t bytes[{bytes}];",
+                    f"}} {self.c_type()};",
+                ],
+                [f"{load_decl};"],
+                [f"{store_decl};"],
+            ],
+        )
+        return Source(
+            Location.DEFINITION,
+            [
+                [
                     f"{load_decl} {{",
-                    f"    {ceil_name} y = 0;",
+                    f"    {self._ceil_type()} y = 0;",
                     f"    memcpy((void *)&y, (const void *)&x, {self.size()});",
+                    *indent(self._extend_sign("y") if self.signed else []),
                     f"    return y;",
                     f"}}",
-                    f"",
+                ],
+                [
                     f"{store_decl} {{",
-                    f"    {name} x;",
+                    f"    {self.c_type()} x;",
                     f"    memcpy((void *)&x, (const void *)&y, {self.size()});",
                     f"    return x;",
                     f"}}",
-                ]),
-                deps=[declaraion]
-            )
+                ],
+            ],
+            deps=[declaraion],
+        )
 
     def cpp_type(self) -> str:
-        return self._int_type(ceil_to_power_of_2(self.bits), self.signed)
+        return self._ceil_type()
 
     def cpp_source(self) -> Optional[Source]:
-        return None
-
-    def cpp_load(self, src: str) -> str:
         if self.trivial:
-            return super().cpp_load(src)
-        else:
-            prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
-            return f"{prefix}uint{self.bits}_load({src})"
+            return super().cpp_source()
 
-    def cpp_store(self, src: str, dst: str) -> str:
+        load_decl = self._cpp_load_func_decl("stream")
+        store_decl = self._cpp_store_func_decl("stream", "value")
+        declaraion = Source(
+            Location.DECLARATION,
+            [
+                [f"{load_decl};"],
+                [f"{store_decl};"],
+            ],
+        )
+        return Source(
+            Location.DEFINITION,
+            [
+                [
+                    f"{load_decl} {{",
+                    f"    {self.cpp_type()} value = 0;",
+                    *indent(try_unwrap(stream_read("stream", "&value", self.size()))),
+                    *indent(self._extend_sign("value") if self.signed else []),
+                    f"    return Ok(value);",
+                    f"}}",
+                ],
+                [
+                    f"{store_decl} {{",
+                    *indent(self._check_bounds("value")),
+                    *indent(try_unwrap(stream_write("stream", "&value", self.size()))),
+                    f"    return Ok({monostate()});",
+                    f"}}",
+                ],
+            ],
+            deps=[declaraion],
+        )
+
+    def cpp_load(self, stream: str) -> str:
         if self.trivial:
-            return super().cpp_store(src, dst)
-        else:
-            prefix = f"{CONTEXT.prefix}_" if CONTEXT.prefix is not None else ""
-            return f"{dst} = {prefix}uint{self.bits}_store({src})"
+            return super().cpp_load(stream)
+        return self._cpp_load_func(stream)
+
+    def cpp_store(self, stream: str, value: str) -> str:
+        if self.trivial:
+            return super().cpp_store(stream, value)
+        return self._cpp_store_func(stream, value)
+
+    def c_test(self, obj: str, src: str) -> List[str]:
+        return self.cpp_test(self._c_load(obj), src)
+
+    def cpp_test(self, dst: str, src: str) -> List[str]:
+        return [f"EXPECT_EQ({dst}, {src});"]
 
     def cpp_object(self, value: int) -> str:
         return self._int_literal(value, self.bits, self.signed)
@@ -156,6 +255,9 @@ class Float(Type[float]):
             return struct.pack("<d", value)
         else:
             raise RuntimeError(f"{self.bits}-bit float is not supported")
+
+    def default(self) -> float:
+        return 0.0
 
     def random(self, rng: Random) -> float:
         return rng.gauss(0.0, 1.0)

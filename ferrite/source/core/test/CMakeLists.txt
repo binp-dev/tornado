@@ -5,8 +5,10 @@ project("core_test")
 add_subdirectory(".." "core")
 
 set(SRC
-    "src/tests/cast.cpp"
-    "src/tests/io.cpp"
+    "src/collections/vec_deque.cpp"
+    "src/convert.cpp"
+    "src/numeric.cpp"
+    "src/fmt.cpp"
     "src/main.cpp"
 )
 
