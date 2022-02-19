@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project("app_example")
 
+add_subdirectory("../cmake/config" "config")
 add_subdirectory("../base_rpmsg" "app_base_rpmsg")
 
 include_directories("src")

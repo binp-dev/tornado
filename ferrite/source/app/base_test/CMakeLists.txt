@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project("app_base_test")
 
+add_subdirectory("../cmake/config" "config")
 add_subdirectory("../base_zmq" "app_base_zmq")
 
 set(SRC

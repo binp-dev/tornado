@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project("codegen_test")
 
+add_subdirectory("${FERRITE}/app/cmake/config" "config")
 add_subdirectory(".." "codegen")
 
 set(SRC

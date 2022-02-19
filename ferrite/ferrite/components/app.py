@@ -104,6 +104,6 @@ class AppExample(AppBaseCross):
             target_dir / "app",
             toolchain,
             target="app_example",
-            cmake_toolchain_path=(source_dir / "app" / "armgcc.cmake"),
+            cmake_toolchain_path=(source_dir / "app" / "cmake" / "toolchain.cmake"),
             opts=["-DCMAKE_BUILD_TYPE=Debug"],
         )

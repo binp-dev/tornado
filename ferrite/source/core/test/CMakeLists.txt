@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project("core_test")
 
+add_subdirectory("../../app/cmake/config" "config")
 add_subdirectory(".." "core")
 
 set(SRC
