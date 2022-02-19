@@ -116,19 +116,22 @@ TEST(ZmqTest, channel) {
     auto cr = ZmqChannel::create("tcp://127.0.0.1:" + std::to_string(port));
     ASSERT_TRUE(cr.is_ok()) << cr.err().message;
     ZmqChannel channel = cr.unwrap();
+    channel.timeout = TIMEOUT;
 
     { // Receive
         const char *src = "Hello";
         ASSERT_TRUE(try_send(socket, (const uint8_t *)src, 6).is_ok());
 
         char dst[10];
-        ASSERT_EQ(channel.receive((uint8_t *)dst, 10, TIMEOUT), Ok<size_t>(6));
+        auto rr = channel.read((uint8_t *)dst, 10);
+        ASSERT_TRUE(rr.is_ok()) << rr.err().message;
+        ASSERT_EQ(rr, Ok<size_t>(6)) << rr.ok();
         ASSERT_EQ(strcmp(src, dst), 0);
     }
 
     { // Send
         const char *src = "World";
-        ASSERT_TRUE(channel.send((const uint8_t *)src, 6, TIMEOUT).is_ok());
+        ASSERT_TRUE(channel.write_exact((const uint8_t *)src, 6).is_ok());
 
         char dst[10];
         ASSERT_EQ(try_recv(socket, (uint8_t *)dst, 10), Ok<size_t>(6));

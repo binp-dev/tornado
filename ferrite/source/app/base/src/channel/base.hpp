@@ -11,7 +11,10 @@
 #include <core/io.hpp>
 #include <core/result.hpp>
 
-class Channel {
+class Channel : public virtual io::Read, public virtual io::Write, public virtual io::WriteExact {
+public:
+    std::optional<std::chrono::milliseconds> timeout = std::nullopt;
+
 public:
     Channel() = default;
     virtual ~Channel() = default;
@@ -21,14 +24,4 @@ public:
 
     Channel(const Channel &ch) = delete;
     Channel &operator=(const Channel &ch) = delete;
-
-    virtual Result<std::monostate, io::Error> send(
-        const uint8_t *bytes,
-        size_t length,
-        std::optional<std::chrono::milliseconds> timeout) = 0;
-
-    virtual Result<size_t, io::Error> receive(
-        uint8_t *bytes,
-        size_t max_length,
-        std::optional<std::chrono::milliseconds> timeout) = 0;
 };

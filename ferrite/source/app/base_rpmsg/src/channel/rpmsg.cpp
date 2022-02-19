@@ -39,11 +39,7 @@ RpmsgChannel &RpmsgChannel::operator=(RpmsgChannel &&other) {
     return *this;
 }
 
-Result<std::monostate, io::Error> RpmsgChannel::send(
-    const uint8_t *bytes,
-    size_t length,
-    std::optional<std::chrono::milliseconds> timeout //
-) {
+Result<std::monostate, io::Error> RpmsgChannel::write_exact(const uint8_t *data, size_t len) {
     pollfd pfd = {this->fd_, POLLOUT, 0};
     int pr = poll(&pfd, 1, timeout ? int(timeout->count()) : -1);
     if (pr > 0) {
@@ -56,20 +52,16 @@ Result<std::monostate, io::Error> RpmsgChannel::send(
         return Err(io::Error{io::ErrorKind::Other, "Poll error"});
     }
 
-    int wr = write(this->fd_, bytes, length);
-    if (wr <= 0) {
+    int write_len = ::write(this->fd_, data, len);
+    if (write_len <= 0) {
         return Err(io::Error{io::ErrorKind::Other, "Write error"});
-    } else if (wr != (int)length) {
+    } else if (write_len != (int)len) {
         return Err(io::Error{io::ErrorKind::UnexpectedEof, "Cannot write full message"});
     }
-
     return Ok(std::monostate{});
 }
-Result<size_t, io::Error> RpmsgChannel::receive(
-    uint8_t *bytes,
-    size_t max_length,
-    std::optional<std::chrono::milliseconds> timeout //
-) {
+
+Result<size_t, io::Error> RpmsgChannel::read(uint8_t *data, size_t len) {
     pollfd pfd = {this->fd_, POLLIN, 0};
     int pr = poll(&pfd, 1, timeout.has_value() ? int(timeout->count()) : -1);
     if (pr > 0) {
@@ -82,10 +74,9 @@ Result<size_t, io::Error> RpmsgChannel::receive(
         return Err(io::Error{io::ErrorKind::Other, "Poll error"});
     }
 
-    int rr = read(this->fd_, bytes, max_length);
-    if (rr <= 0) {
+    int read_len = ::read(this->fd_, data, len);
+    if (read_len <= 0) {
         return Err(io::Error{io::ErrorKind::Other, "Read error"});
     }
-
-    return Ok(size_t(rr));
+    return Ok(size_t(read_len));
 }

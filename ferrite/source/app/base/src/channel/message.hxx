@@ -29,7 +29,8 @@ Result<std::monostate, io::Error> MessageChannel<OutMsg, InMsg>::send(
         return Err(io::Error{io::ErrorKind::UnexpectedEof, "Message size is greater than buffer length"});
     }
     message.store((typename OutMsg::Raw *)send_buffer_.data());
-    return raw->send(send_buffer_.data(), length, timeout);
+    raw->timeout = timeout;
+    return raw->write(send_buffer_.data(), length);
 }
 
 template <typename OutMsg, typename InMsg>
@@ -38,10 +39,8 @@ Result<std::monostate, io::Error> MessageChannel<OutMsg, InMsg>::fill_recv_buffe
 
     bool trailing = false;
     while (data_end_ < recv_buffer_.size()) {
-        auto recv_res = raw->receive(
-            recv_buffer_.data() + data_end_,
-            recv_buffer_.size() - data_end_,
-            trailing ? 0ms : timeout);
+        raw->timeout = trailing ? 0ms : timeout;
+        auto recv_res = raw->read(recv_buffer_.data() + data_end_, recv_buffer_.size() - data_end_);
         if (recv_res.is_err()) {
             if (trailing && recv_res.err().kind == io::ErrorKind::TimedOut) {
                 break;

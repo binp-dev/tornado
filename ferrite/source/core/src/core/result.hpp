@@ -94,3 +94,12 @@ struct [[nodiscard]] Result final {
         return Err(std::move(tmp.err())); \
     } \
 }
+
+/*
+template <typename T>
+bool operator<<(std::ostream &os, const Ok<T> &ok);
+template <typename E>
+bool operator<<(std::ostream &os, const Ok<E> &err);
+template <typename T, typename E>
+bool operator<<(std::ostream &os, const Result<T, E> &res);
+*/
