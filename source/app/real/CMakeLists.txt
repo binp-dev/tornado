@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project("app")
 
+add_subdirectory("${FERRITE}/app/cmake/config" "config")
 add_subdirectory("${FERRITE}/app/base_rpmsg" "app_base_rpmsg")
 add_subdirectory(".." "app_common")
 

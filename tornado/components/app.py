@@ -51,7 +51,7 @@ class AppReal(AppCommon, AppBaseCross):
             target_dir / f"app_{toolchain.name}",
             toolchain,
             ipp,
-            cmake_toolchain_path=(ferrite_source_dir / "app" / "armgcc.cmake"),
+            cmake_toolchain_path=(ferrite_source_dir / "app" / "cmake" / "toolchain.cmake"),
         )
 
 

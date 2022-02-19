@@ -5,7 +5,7 @@
 
 #include <core/assert.hpp>
 #include <core/panic.hpp>
-#include <core/cast.hpp>
+#include <core/convert.hpp>
 #include <ipp.hpp>
 
 
@@ -22,7 +22,7 @@ void Device::recv_loop() {
         auto result = channel.receive(timeout);
         if (result.is_err()) {
             auto err = result.unwrap_err();
-            if (err.kind == Channel::ErrorKind::TimedOut) {
+            if (err.kind == io::ErrorKind::TimedOut) {
                 continue;
             } else {
                 // TODO: Use fmt
