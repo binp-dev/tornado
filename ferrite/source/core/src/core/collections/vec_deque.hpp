@@ -38,7 +38,7 @@ public:
 public:
     [[nodiscard]] size_t capacity() const;
     [[nodiscard]] size_t size() const;
-    [[nodiscard]] bool empty() const;
+    [[nodiscard]] bool is_empty() const;
 
 private:
     [[nodiscard]] T pop_back_unchecked();
@@ -52,6 +52,7 @@ private:
 
     void reserve_mod(size_t new_mod);
     void grow();
+    void grow_to_free(size_t count);
 
 public:
     void clear();
@@ -96,6 +97,9 @@ struct VecDequeStream final : public io::ReadExact, public io::WriteExact {
 
     Result<size_t, io::Error> write(const uint8_t *data, size_t len) override;
     Result<std::monostate, io::Error> write_exact(const uint8_t *data, size_t len) override;
+
+    Result<size_t, io::Error> read_from(io::Read &read, std::optional<size_t> len);
+    Result<size_t, io::Error> write_to(io::Write &write, std::optional<size_t> len);
 };
 
 #include "vec_deque.hxx"

@@ -257,3 +257,57 @@ TEST(VecDequeStream, write_grow) {
     ASSERT_EQ(stream.queue.size(), 0u);
     ASSERT_EQ(stream.queue.capacity(), 15u);
 }
+
+TEST(VecDequeStream, read_from) {
+    VecDequeStream a, b;
+
+    std::array<uint8_t, 4> array{1, 2, 3, 4};
+    ASSERT_TRUE(a.write_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(a.queue.size(), 4u);
+    ASSERT_EQ(b.queue.size(), 0u);
+
+    ASSERT_EQ(b.read_from(a, std::nullopt), Ok<size_t>(4));
+    ASSERT_EQ(a.queue.size(), 0u);
+    ASSERT_EQ(b.queue.size(), 4u);
+
+    ASSERT_EQ(a.read_from(b, std::nullopt), Ok<size_t>(4));
+    ASSERT_EQ(a.queue.size(), 4u);
+    ASSERT_EQ(b.queue.size(), 0u);
+
+    ASSERT_EQ(b.read_from(a, std::nullopt), Ok<size_t>(4));
+    ASSERT_EQ(a.queue.size(), 0u);
+    ASSERT_EQ(b.queue.size(), 4u);
+    ASSERT_EQ(b.queue.capacity(), 7u);
+
+    array = std::array<uint8_t, 4>{0};
+    ASSERT_TRUE(b.read_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(array, (std::array<uint8_t, 4>{1, 2, 3, 4}));
+    ASSERT_EQ(b.queue.size(), 0u);
+}
+
+TEST(VecDequeStream, write_to) {
+    VecDequeStream a, b;
+
+    std::array<uint8_t, 4> array{1, 2, 3, 4};
+    ASSERT_TRUE(a.write_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(a.queue.size(), 4u);
+    ASSERT_EQ(b.queue.size(), 0u);
+
+    ASSERT_EQ(a.write_to(b, std::nullopt), Ok<size_t>(4));
+    ASSERT_EQ(a.queue.size(), 0u);
+    ASSERT_EQ(b.queue.size(), 4u);
+
+    ASSERT_EQ(b.write_to(a, std::nullopt), Ok<size_t>(4));
+    ASSERT_EQ(a.queue.size(), 4u);
+    ASSERT_EQ(b.queue.size(), 0u);
+
+    ASSERT_EQ(a.write_to(b, std::nullopt), Ok<size_t>(4));
+    ASSERT_EQ(a.queue.size(), 0u);
+    ASSERT_EQ(b.queue.size(), 4u);
+    ASSERT_EQ(b.queue.capacity(), 7u);
+
+    array = std::array<uint8_t, 4>{0};
+    ASSERT_TRUE(b.read_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(array, (std::array<uint8_t, 4>{1, 2, 3, 4}));
+    ASSERT_EQ(b.queue.size(), 0u);
+}

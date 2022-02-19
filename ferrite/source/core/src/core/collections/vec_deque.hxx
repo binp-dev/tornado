@@ -52,7 +52,7 @@ size_t VecDeque<T>::size() const {
 }
 
 template <typename T>
-bool VecDeque<T>::empty() const {
+bool VecDeque<T>::is_empty() const {
     return size() == 0;
 }
 
@@ -120,21 +120,32 @@ void VecDeque<T>::reserve_mod(size_t new_mod) {
 
 template <typename T>
 void VecDeque<T>::grow() {
-    size_t mod = data_.size();
-    if (mod > 1) {
-        reserve_mod(2 * mod);
+    if (mod() > 1) {
+        reserve_mod(2 * mod());
     } else {
         reserve_mod(2);
     }
 }
 
 template <typename T>
+void VecDeque<T>::grow_to_free(size_t count) {
+    size_t new_mod = std::max(mod(), size_t(2));
+    while (new_mod < size() + count + 1) {
+        new_mod = 2 * new_mod;
+    }
+    reserve_mod(new_mod);
+}
+
+
+template <typename T>
 void VecDeque<T>::clear() {
-    // Destructors aren't called automatically because of MaybeUninit.
-    // Call them manually for initialized elements.
-    while (front_ != back_) {
-        data_[front_].assume_init().~T();
-        front_ = (front_ + 1) % mod();
+    if (!std::is_trivial_v<T>) {
+        // Destructors aren't called automatically because of MaybeUninit.
+        // Call them manually for initialized elements.
+        while (front_ != back_) {
+            data_[front_].assume_init().~T();
+            front_ = (front_ + 1) % mod();
+        }
     }
     front_ = 0;
     back_ = 0;
@@ -159,7 +170,7 @@ void VecDeque<T>::append_copy(const VecDeque &other) {
 
 template <typename T>
 std::optional<T> VecDeque<T>::pop_back() {
-    if (!empty()) {
+    if (!is_empty()) {
         return pop_back_unchecked();
     } else {
         return std::nullopt;
@@ -168,7 +179,7 @@ std::optional<T> VecDeque<T>::pop_back() {
 
 template <typename T>
 std::optional<T> VecDeque<T>::pop_front() {
-    if (!empty()) {
+    if (!is_empty()) {
         return pop_front_unchecked();
     } else {
         return std::nullopt;
@@ -204,10 +215,17 @@ void VecDeque<T>::push_front(const T &value) {
 template <typename T>
 size_t VecDeque<T>::skip_front(size_t count) {
     size_t skip = 0;
-    while (front_ != back_ && skip < count) {
-        data_[front_].assume_init().~T();
-        front_ = (front_ + 1) % mod();
-        skip += 1;
+    if constexpr (std::is_trivial_v<T>) {
+        if (count != 0) {
+            skip = std::min(count, ((back_ + mod()) - front_) % mod());
+            front_ = (front_ + skip) % mod();
+        }
+    } else {
+        while (front_ != back_ && skip < count) {
+            data_[front_].assume_init().~T();
+            front_ = (front_ + 1) % mod();
+            skip += 1;
+        }
     }
     return skip;
 }
@@ -215,10 +233,17 @@ size_t VecDeque<T>::skip_front(size_t count) {
 template <typename T>
 size_t VecDeque<T>::skip_back(size_t count) {
     size_t skip = 0;
-    while (front_ != back_ && skip < count) {
-        back_ = (back_ + mod() - 1) % mod();
-        data_[back_].assume_init().~T();
-        skip += 1;
+    if constexpr (std::is_trivial_v<T>) {
+        if (count != 0) {
+            skip = std::min(count, ((back_ + mod()) - front_) % mod());
+            back_ = (back_ + mod() - skip) % mod();
+        }
+    } else {
+        while (front_ != back_ && skip < count) {
+            back_ = (back_ + mod() - 1) % mod();
+            data_[back_].assume_init().~T();
+            skip += 1;
+        }
     }
     return skip;
 }

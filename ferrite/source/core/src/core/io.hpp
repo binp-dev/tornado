@@ -41,7 +41,7 @@ public:
     virtual Result<size_t, Error> write(const uint8_t *data, size_t len) = 0;
 };
 
-class ReadExact : public Read {
+class ReadExact : public virtual Read {
 public:
     //! Try to read exactly `len` bytes into `data` buffer.
     virtual Result<std::monostate, Error> read_exact(uint8_t *data, size_t len) = 0;
@@ -49,7 +49,7 @@ public:
     Result<size_t, Error> read(uint8_t *data, size_t len) override;
 };
 
-class WriteExact : public Write {
+class WriteExact : public virtual Write {
 public:
     //! Try to write exactly `len` bytes from `data` buffer.
     virtual Result<std::monostate, Error> write_exact(const uint8_t *data, size_t len) = 0;
