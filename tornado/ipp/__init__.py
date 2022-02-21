@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 from ferrite.codegen.base import Context, Name
-from ferrite.codegen.all import Int, Array, Vector, String, Field
+from ferrite.codegen.all import Int, Vector, String, Field
 from ferrite.codegen.generate import make_variant, generate_and_write
 
 AppMsg = make_variant(
@@ -9,10 +11,6 @@ AppMsg = make_variant(
     [
         (Name(["start"]), []),
         (Name(["stop"]), []),
-        (Name(["dac", "set"]), [
-            Field("value", Int(32, signed=True)),
-        ]),
-        (Name(["adc", "req"]), []),
         (Name(["dout", "set"]), [
             Field("value", Int(8, signed=False)),
         ]),
@@ -25,9 +23,6 @@ AppMsg = make_variant(
 McuMsg = make_variant(
     Name(["mcu", "msg"]),
     [
-        (Name(["adc", "val"]), [
-            Field("values", Array(Int(32, signed=True), 6)),
-        ]),
         (Name(["din", "val"]), [
             Field("value", Int(8, signed=False)),
         ]),

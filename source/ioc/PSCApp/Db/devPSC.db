@@ -2,7 +2,7 @@
 record(ai, "ai0")
 {
     field(DTYP, "devsup")
-    field(SCAN, "I/O Intr")
+    field(SCAN, ".1 second")
     field(ASLO, 0.000001354692188)
     field(LINR, "SLOPE")
     field(PREC, 6)
@@ -10,7 +10,7 @@ record(ai, "ai0")
 record(ai, "ai1")
 {
     field(DTYP, "devsup")
-    field(SCAN, "I/O Intr")
+    field(SCAN, ".1 second")
     field(ASLO, 0.000001354692188)
     field(LINR, "SLOPE")
     field(PREC, 6)
@@ -18,7 +18,7 @@ record(ai, "ai1")
 record(ai, "ai2")
 {
     field(DTYP, "devsup")
-    field(SCAN, "I/O Intr")
+    field(SCAN, ".1 second")
     field(ASLO, 0.000001354692188)
     field(LINR, "SLOPE")
     field(PREC, 6)
@@ -26,7 +26,7 @@ record(ai, "ai2")
 record(ai, "ai3")
 {
     field(DTYP, "devsup")
-    field(SCAN, "I/O Intr")
+    field(SCAN, ".1 second")
     field(ASLO, 0.000001354692188)
     field(LINR, "SLOPE")
     field(PREC, 6)
@@ -34,7 +34,7 @@ record(ai, "ai3")
 record(ai, "ai4")
 {
     field(DTYP, "devsup")
-    field(SCAN, "I/O Intr")
+    field(SCAN, ".1 second")
     field(ASLO, 0.000001354692188)
     field(LINR, "SLOPE")
     field(PREC, 6)
@@ -42,13 +42,13 @@ record(ai, "ai4")
 record(ai, "ai5")
 {
     field(DTYP, "devsup")
-    field(SCAN, "I/O Intr")
+    field(SCAN, ".1 second")
     field(ASLO, 0.000001354692188)
     field(LINR, "SLOPE")
     field(PREC, 6)
 }
 
-# DAC channel
+# DAC scalar channel
 record(ao, "ao0")
 {
     field(DTYP, "devsup")
@@ -58,7 +58,7 @@ record(ao, "ao0")
     field(PREC, 6)
 
     field(RVAL, 32767)
-    field(PINI, "YES")
+    #field(PINI, "YES")
 }
 
 # Discrete input
@@ -74,21 +74,23 @@ record(mbboDirect, "do0") {
 	field(NOBT, 4)
 }
 
-# Scan frequency
-record(ao, "scan_freq")
-{
-    field(DTYP, "devsup")
-    field(PREC, 1)
-    field(RVAL, 1)
-    field(PINI, "YES")
-}
-
+# DAC waveform channel
 record(aao, "aao0") {
     field(DTYP, "devsup")
     field(NELM, 10000)
     field(FTVL, "LONG")
 }
 
+# DAC next waveform request
+record(bi, "aao0_req")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "I/O Intr")
+
+    field(PINI, "YES")
+}
+
+# ADC waveform channels
 record(aai, "aai0") {
     field(DTYP, "devsup")
     field(NELM, 10000)

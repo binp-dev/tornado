@@ -22,16 +22,6 @@ public:
     static constexpr size_t DAC_WF_BUFF_COUNT = 2;
 
 private:
-    struct AdcEntry {
-        std::atomic<int32_t> value;
-        std::function<void()> notify;
-    };
-
-    struct DacEntry {
-        std::atomic<int32_t> value;
-        std::atomic<bool> update = false;
-    };
-
     struct DinEntry {
         std::atomic<uint8_t> value;
         std::function<void()> notify;
@@ -39,7 +29,7 @@ private:
 
     struct DoutEntry {
         std::atomic<uint8_t> value;
-        std::atomic<bool> update = false;
+        std::atomic<bool> update{false};
     };
 
     struct AdcWfEntry {
@@ -47,15 +37,17 @@ private:
         size_t wf_max_size;
         std::mutex mutex;
         std::function<void()> notify;
+        std::atomic<int32_t> last_value{0};
     };
 
     struct DacWfEntry {
         std::array<std::vector<int32_t>, DAC_WF_BUFF_COUNT> wf_data;
         size_t wf_max_size;
         std::mutex mutex;
-        std::atomic<bool> wf_is_set = false; 
-        std::atomic<bool> swap_ready = false;
+        std::atomic<bool> wf_is_set{false};
+        std::atomic<bool> swap_ready{false};
         size_t buff_position = 0;
+        std::function<void()> request_next_wf;
     };
 
 private:
@@ -66,18 +58,15 @@ private:
     std::mutex send_mutex;
 
     const size_t msg_max_len_;
-    std::atomic<bool> has_dac_wf_req = false;
+    std::atomic<bool> has_dac_wf_req{false};
     bool cyclic_dac_wf_output = false;
 
-    std::array<AdcEntry, ADC_COUNT> adcs;
-    DacEntry dac;
     DinEntry din;
     DoutEntry dout;
     std::array<AdcWfEntry, ADC_COUNT> adc_wfs;
     DacWfEntry dac_wf;
 
     DeviceChannel channel;
-    std::chrono::milliseconds adc_req_period = std::chrono::milliseconds(1);
 
 private:
     void recv_loop();
@@ -96,11 +85,7 @@ public:
     void stop();
 
 public:
-    void write_dac(int32_t value);
-
     int32_t read_adc(size_t index);
-    void set_adc_callback(size_t index, std::function<void()> &&callback);
-    void set_adc_req_period(std::chrono::milliseconds period);
 
     void write_dout(uint32_t value);
 
@@ -113,6 +98,9 @@ public:
     void init_adc_wf(uint8_t index, size_t wf_max_size);
     void set_adc_wf_callback(size_t index, std::function<void()> &&callback);
     const std::vector<int32_t> read_adc_wf(size_t index);
+
+    [[nodiscard]] bool dac_wf_req_flag() const;
+    void set_dac_wf_req_callback(std::function<void()> &&callback);
 
 private:
     void fill_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size);
