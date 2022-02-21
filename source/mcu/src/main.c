@@ -1,5 +1,4 @@
 #include "board.h"
-#include "pin_mux.h"
 #include "clock_config.h"
 #include "rsc_table.h"
 #include "fsl_common.h"
@@ -375,7 +374,6 @@ int main(void)
     /* Board specific RDC settings */
     BOARD_RdcInit();
 
-    BOARD_InitBootPins();
     BOARD_BootClockRUN();
 
     hal_io_uart_init(3);
