@@ -7,6 +7,7 @@
 #include <core/panic.hpp>
 #include <core/convert.hpp>
 #include <core/match.hpp>
+#include <core/collections/vec.hpp>
 #include <ipp.hpp>
 
 
@@ -47,7 +48,6 @@ void Device::recv_loop() {
                     if (adc_wf_msg.elements.size() > 0) {
                         adc_wf.last_value.store(adc_wf_msg.elements.back());
                     }
-                    /*
                     if (adc_wf.notify) {
                         std::lock_guard<std::mutex> lock(adc_wf.mutex);
                         adc_wf.wf_data.insert(adc_wf.wf_data.end(), adc_wf_msg.elements.begin(), adc_wf_msg.elements.end());
@@ -56,7 +56,6 @@ void Device::recv_loop() {
                             adc_wf.notify();
                         }
                     }
-                    */
                 },
                 [&](ipp::McuMsgDacWfReq &&) {
                     has_dac_wf_req.store(true);
@@ -74,7 +73,6 @@ void Device::recv_loop() {
             std::move(incoming.variant) //
         );
     }
-
     send_ready.notify_all();
     send_worker.join();
 }
@@ -109,9 +107,9 @@ void Device::send_loop() {
     }
 }
 
-Device::Device(DeviceChannel &&channel, size_t msg_max_len) :
+Device::Device(std::unique_ptr<Channel> &&raw_channel, size_t msg_max_len) :
     msg_max_len_(msg_max_len),
-    channel(std::move(channel)) //
+    channel(std::move(raw_channel), msg_max_len) //
 {
     done.store(true);
 }
