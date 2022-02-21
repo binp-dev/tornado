@@ -10,18 +10,21 @@
 
 #include "slice.hpp"
 
+template <typename T>
+struct VecDeque;
+template <typename T>
+struct VecDequeView;
 
 template <typename T>
-class VecDequeView final {
-    // private:
-public:
+class _VecDequeView {
+private:
     Slice<T> first_;
     Slice<T> second_;
 
 public:
     // Empty view.
-    VecDequeView() = default;
-    VecDequeView(Slice<T> first, Slice<T> second) : first_(first), second_(second) {}
+    _VecDequeView() = default;
+    _VecDequeView(Slice<T> first, Slice<T> second) : first_(first), second_(second) {}
 
     [[nodiscard]] size_t size() const;
     [[nodiscard]] bool is_empty() const;
@@ -39,7 +42,7 @@ public:
 };
 
 template <typename T>
-class VecDeque final {
+class _VecDeque {
 private:
     std::vector<MaybeUninit<T>> data_;
     size_t front_ = 0;
@@ -50,18 +53,18 @@ private:
     }
 
 public:
-    VecDeque() = default;
-    explicit VecDeque(size_t cap) : data_(cap + 1) {}
+    _VecDeque() = default;
+    explicit _VecDeque(size_t cap) : data_(cap + 1) {}
 
-    ~VecDeque() {
+    ~_VecDeque() {
         clear();
     }
 
-    VecDeque(const VecDeque &other);
-    VecDeque &operator=(const VecDeque &other);
+    _VecDeque(const _VecDeque &other);
+    _VecDeque &operator=(const _VecDeque &other);
 
-    VecDeque(VecDeque &&other);
-    VecDeque &operator=(VecDeque &&other);
+    _VecDeque(_VecDeque &&other);
+    _VecDeque &operator=(_VecDeque &&other);
 
 public:
     [[nodiscard]] size_t capacity() const;
@@ -75,10 +78,12 @@ private:
     void push_back_unchecked(T &&value);
     void push_front_unchecked(T &&value);
 
-    void append_unchecked(VecDeque &other);
-    void append_copy_unchecked(const VecDeque &other);
+    void append_unchecked(_VecDeque &other);
+    void append_copy_unchecked(const _VecDeque &other);
 
     void reserve_mod(size_t new_mod);
+
+protected:
     void grow();
     void grow_to_free(size_t count);
 
@@ -87,8 +92,8 @@ public:
 
     void reserve(size_t new_cap);
 
-    void append(VecDeque &other);
-    void append_copy(const VecDeque &other);
+    void append(_VecDeque &other);
+    void append_copy(const _VecDeque &other);
 
     [[nodiscard]] std::optional<T> pop_back();
     [[nodiscard]] std::optional<T> pop_front();
@@ -115,13 +120,16 @@ protected:
 public:
     [[nodiscard]] VecDequeView<T> view();
     [[nodiscard]] VecDequeView<const T> view() const;
-
-public:
-    friend class VecDequeStream;
 };
 
-struct VecDequeStream final : public io::ReadExact, public io::WriteExact {
-    VecDeque<uint8_t> queue;
+template <typename T>
+struct VecDeque final : public _VecDeque<T> {
+    using _VecDeque<T>::_VecDeque;
+};
+
+template <>
+struct VecDeque<uint8_t> final : public _VecDeque<uint8_t>, public io::ReadExact, public io::WriteExact {
+    using _VecDeque<uint8_t>::_VecDeque;
 
     Result<size_t, io::Error> read(uint8_t *data, size_t len) override;
     Result<std::monostate, io::Error> read_exact(uint8_t *data, size_t len) override;
@@ -131,6 +139,11 @@ struct VecDequeStream final : public io::ReadExact, public io::WriteExact {
 
     Result<size_t, io::Error> read_from(io::Read &read, std::optional<size_t> len);
     Result<size_t, io::Error> write_to(io::Write &write, std::optional<size_t> len);
+};
+
+template <typename T>
+struct VecDequeView final : public _VecDequeView<T> {
+    using _VecDequeView<T>::_VecDequeView;
 };
 
 #include "vec_deque.hxx"
