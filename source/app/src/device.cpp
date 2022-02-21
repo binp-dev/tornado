@@ -6,6 +6,7 @@
 #include <core/assert.hpp>
 #include <core/panic.hpp>
 #include <core/convert.hpp>
+#include <core/match.hpp>
 #include <ipp.hpp>
 
 
@@ -32,50 +33,44 @@ void Device::recv_loop() {
             }
         }
         auto incoming = result.unwrap();
+        std::visit(
+            overloaded{
+                [&](ipp::McuMsgDinVal &&din_val) {
+                    // std::cout << "Din updated: " << uint32_t(din_val.value) << std::endl;
+                    din.value.store(din_val.value);
+                    if (din.notify) {
+                        din.notify();
+                    }
+                },
+                [&](ipp::McuMsgAdcWf &&adc_wf_msg) {
+                    auto &adc_wf = adc_wfs[adc_wf_msg.index];
+                    if (adc_wf_msg.elements.size() > 0) {
+                        adc_wf.last_value.store(adc_wf_msg.elements.back());
+                    }
+                    if (adc_wf.notify) {
+                        std::lock_guard<std::mutex> lock(adc_wf.mutex);
+                        adc_wf.wf_data.insert(adc_wf.wf_data.end(), adc_wf_msg.elements.begin(), adc_wf_msg.elements.end());
 
-        // TODO: Use visit with overloaded lambda
-        if (std::holds_alternative<ipp::McuMsgDinVal>(incoming.variant)) {
-            const auto din_val = std::get<ipp::McuMsgDinVal>(incoming.variant);
-            // std::cout << "Din updated: " << uint32_t(din_val.value) << std::endl;
-            din.value.store(din_val.value);
-            if (din.notify) {
-                din.notify();
-            }
-
-        } else if (std::holds_alternative<ipp::McuMsgAdcWf>(incoming.variant)) {
-            const auto adc_wf_msg = std::get<ipp::McuMsgAdcWf>(incoming.variant);
-            auto &adc_wf = adc_wfs[adc_wf_msg.index];
-            if (adc_wf_msg.elements.size() > 0) {
-                adc_wf.last_value.store(adc_wf_msg.elements.back());
-            }
-            if (!adc_wf.notify) {
-                continue;
-            }
-
-            {
-                std::lock_guard<std::mutex> lock(adc_wf.mutex);
-                adc_wf.wf_data.insert(adc_wf.wf_data.end(), adc_wf_msg.elements.begin(), adc_wf_msg.elements.end());
-
-                if (adc_wf.wf_data.size() >= adc_wf.wf_max_size) {
-                    adc_wf.notify();
-                }
-            }
-
-        } else if (std::holds_alternative<ipp::McuMsgDacWfReq>(incoming.variant)) {
-            has_dac_wf_req.store(true);
-            send_ready.notify_all();
-
-        } else if (std::holds_alternative<ipp::McuMsgDebug>(incoming.variant)) {
-            std::cout << "Device: " << std::get<ipp::McuMsgDebug>(incoming.variant).message << std::endl;
-
-        } else if (std::holds_alternative<ipp::McuMsgError>(incoming.variant)) {
-            const auto &inc_err = std::get<ipp::McuMsgError>(incoming.variant);
-            std::cout << "Device Error (0x" << std::hex << int(inc_err.code) << std::dec << "): " << inc_err.message
-                      << std::endl;
-
-        } else {
-            unimplemented();
-        }
+                        if (adc_wf.wf_data.size() >= adc_wf.wf_max_size) {
+                            adc_wf.notify();
+                        }
+                    }
+                },
+                [&](ipp::McuMsgDacWfReq &&) {
+                    has_dac_wf_req.store(true);
+                    send_ready.notify_all();
+                },
+                [&](ipp::McuMsgDebug &&debug) { //
+                    std::cout << "Device: " << debug.message << std::endl;
+                },
+                [&](ipp::McuMsgError &&error) {
+                    std::cout << "Device Error (0x" << std::hex << int(error.code) << std::dec << "): " << error.message
+                              << std::endl;
+                },
+                [&](auto &&) { unimplemented(); },
+            },
+            std::move(incoming.variant) //
+        );
     }
 
     send_ready.notify_all();
