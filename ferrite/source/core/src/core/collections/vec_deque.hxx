@@ -306,3 +306,76 @@ void VecDeque<T>::expand_back(size_t count) {
     assert_true(count <= capacity() - size());
     back_ = (back_ + count) % mod();
 }
+
+template <typename T>
+VecDequeView<T> VecDeque<T>::view() {
+    auto [first, second] = as_slices();
+    return VecDequeView<T>(first, second);
+}
+
+template <typename T>
+VecDequeView<const T> VecDeque<T>::view() const {
+    auto [first, second] = as_slices();
+    return VecDequeView<const T>(first, second);
+}
+
+template <typename T>
+size_t VecDequeView<T>::size() const {
+    return first_.size() + second_.size();
+}
+
+template <typename T>
+bool VecDequeView<T>::is_empty() const {
+    return first_.size() == 0 && second_.size() == 0;
+}
+
+template <typename T>
+void VecDequeView<T>::clear() {
+    *this = VecDequeView();
+}
+
+template <typename T>
+std::optional<std::reference_wrapper<T>> VecDequeView<T>::pop_back() {
+    if (!second_.is_empty()) {
+        return second_.pop_back();
+    } else {
+        return first_.pop_back();
+    }
+}
+
+template <typename T>
+std::optional<std::reference_wrapper<T>> VecDequeView<T>::pop_front() {
+    auto ret = first_.pop_front();
+    if (first_.is_empty() && !second_.is_empty()) {
+        std::swap(first_, second_);
+    }
+    return ret;
+}
+
+template <typename T>
+size_t VecDequeView<T>::skip_front(size_t count) {
+    size_t first_skip = first_.skip_front(count);
+    size_t second_skip = 0;
+    if (first_.is_empty()) {
+        std::swap(first_, second_);
+        second_skip = first_.skip_front(count - first_skip);
+    }
+    return first_skip + second_skip;
+}
+
+template <typename T>
+size_t VecDequeView<T>::skip_back(size_t count) {
+    size_t second_skip = second_.skip_back(count);
+    size_t first_skip = first_.skip_back(count - second_skip);
+    return second_skip - first_skip;
+}
+
+template <typename T>
+std::pair<Slice<T>, Slice<T>> VecDequeView<T>::as_slices() {
+    return std::pair(first_, second_);
+}
+
+template <typename T>
+std::pair<Slice<const T>, Slice<const T>> VecDequeView<T>::as_slices() const {
+    return std::pair(first_, second_);
+}

@@ -311,3 +311,109 @@ TEST(VecDequeStream, write_to) {
     ASSERT_EQ(array, (std::array<uint8_t, 4>{1, 2, 3, 4}));
     ASSERT_EQ(b.queue.size(), 0u);
 }
+
+TEST(VecDequeView, pop_front) {
+    VecDeque<int32_t> rb;
+    rb.reserve(4u);
+
+    rb.push_back(0);
+    rb.push_back(1);
+    rb.push_back(2);
+
+    {
+        auto rbv = rb.view();
+        ASSERT_EQ(rbv.size(), 3u);
+        ASSERT_EQ(rbv.pop_front(), 0);
+        ASSERT_EQ(rbv.pop_front(), 1);
+        ASSERT_EQ(rbv.pop_front(), 2);
+        ASSERT_EQ(rbv.pop_front(), std::nullopt);
+        ASSERT_EQ(rbv.size(), 0u);
+    }
+    ASSERT_EQ(rb.pop_front(), 0);
+    ASSERT_EQ(rb.pop_front(), 1);
+
+    rb.push_back(3);
+    rb.push_back(4);
+
+    {
+        auto rbv = rb.view();
+        ASSERT_EQ(rbv.size(), 3u);
+        ASSERT_EQ(rbv.pop_front(), 2);
+        ASSERT_EQ(rbv.pop_front(), 3);
+        ASSERT_EQ(rbv.pop_front(), 4);
+        ASSERT_EQ(rbv.pop_front(), std::nullopt);
+        ASSERT_EQ(rbv.size(), 0u);
+    }
+    ASSERT_EQ(rb.pop_front(), 2);
+    ASSERT_EQ(rb.pop_front(), 3);
+
+    rb.push_back(5);
+    rb.push_back(6);
+
+    {
+        auto rbv = rb.view();
+        ASSERT_EQ(rbv.size(), 3u);
+        ASSERT_EQ(rbv.pop_front(), 4);
+        ASSERT_EQ(rbv.pop_front(), 5);
+        ASSERT_EQ(rbv.pop_front(), 6);
+        ASSERT_EQ(rbv.pop_front(), std::nullopt);
+        ASSERT_EQ(rbv.size(), 0u);
+    }
+    ASSERT_EQ(rb.pop_front(), 4);
+    ASSERT_EQ(rb.pop_front(), 5);
+    ASSERT_EQ(rb.pop_front(), 6);
+
+    ASSERT_EQ(rb.pop_front(), std::nullopt);
+}
+
+TEST(VecDequeView, pop_back) {
+    VecDeque<int32_t> rb;
+    rb.reserve(4u);
+
+    rb.push_front(0);
+    rb.push_front(1);
+    rb.push_front(2);
+
+    {
+        auto rbv = rb.view();
+        ASSERT_EQ(rbv.size(), 3u);
+        ASSERT_EQ(rbv.pop_back(), 0);
+        ASSERT_EQ(rbv.pop_back(), 1);
+        ASSERT_EQ(rbv.pop_back(), 2);
+        ASSERT_EQ(rbv.pop_back(), std::nullopt);
+        ASSERT_EQ(rbv.size(), 0u);
+    }
+    ASSERT_EQ(rb.pop_back(), 0);
+    ASSERT_EQ(rb.pop_back(), 1);
+
+    rb.push_front(3);
+    rb.push_front(4);
+
+    {
+        auto rbv = rb.view();
+        ASSERT_EQ(rbv.size(), 3u);
+        ASSERT_EQ(rbv.pop_back(), 2);
+        ASSERT_EQ(rbv.pop_back(), 3);
+        ASSERT_EQ(rbv.pop_back(), 4);
+        ASSERT_EQ(rbv.pop_back(), std::nullopt);
+        ASSERT_EQ(rbv.size(), 0u);
+    }
+    ASSERT_EQ(rb.pop_back(), 2);
+    ASSERT_EQ(rb.pop_back(), 3);
+
+    rb.push_front(5);
+    rb.push_front(6);
+
+    {
+        auto rbv = rb.view();
+        ASSERT_EQ(rbv.size(), 3u);
+        ASSERT_EQ(rbv.pop_back(), 4);
+        ASSERT_EQ(rbv.pop_back(), 5);
+        ASSERT_EQ(rbv.pop_back(), 6);
+        ASSERT_EQ(rbv.pop_back(), std::nullopt);
+        ASSERT_EQ(rbv.size(), 0u);
+    }
+    ASSERT_EQ(rb.pop_back(), 4);
+    ASSERT_EQ(rb.pop_back(), 5);
+    ASSERT_EQ(rb.pop_back(), 6);
+}

@@ -6,6 +6,7 @@ add_subdirectory("../../app/cmake/config" "config")
 add_subdirectory(".." "core")
 
 set(SRC
+    "src/collections/vec.cpp"
     "src/collections/vec_deque.cpp"
     "src/convert.cpp"
     "src/numeric.cpp"

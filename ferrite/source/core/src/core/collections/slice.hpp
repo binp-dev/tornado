@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include <core/assert.hpp>
 #include <core/io.hpp>
 
@@ -20,9 +22,13 @@ public:
         return ptr_;
     }
 
-    size_t size() const {
+    [[nodiscard]] size_t size() const {
         return size_;
     }
+    [[nodiscard]] bool is_empty() const {
+        return size_ == 0;
+    }
+
     void skip(size_t count) {
         assert_true(count <= size_);
         size_ -= count;
@@ -40,6 +46,53 @@ public:
 
     operator Slice<const T>() const {
         return Slice{ptr_, size_};
+    }
+
+    [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_back() {
+        if (is_empty()) {
+            return std::nullopt;
+        }
+        size_ -= 1;
+        return std::ref(ptr_[size_]);
+    }
+    [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_front() {
+        if (is_empty()) {
+            return std::nullopt;
+        }
+        auto ret = std::ref(*ptr_);
+        ptr_ += 1;
+        size_ -= 1;
+        return ret;
+    }
+
+    size_t skip_back(size_t count) {
+        size_t skip = std::min(count, size_);
+        size_ -= skip;
+        return skip;
+    }
+
+    size_t skip_front(size_t count) {
+        size_t skip = std::min(count, size_);
+        ptr_ += skip;
+        size_ -= skip;
+        return skip;
+    }
+
+public:
+    using iterator = T *;
+    using const_iterator = const T *;
+
+    [[nodiscard]] iterator begin() {
+        return ptr_;
+    }
+    [[nodiscard]] iterator end() {
+        return ptr_;
+    }
+    [[nodiscard]] const_iterator begin() const {
+        return ptr_;
+    }
+    [[nodiscard]] const_iterator end() const {
+        return ptr_;
     }
 };
 

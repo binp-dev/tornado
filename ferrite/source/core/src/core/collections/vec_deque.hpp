@@ -2,11 +2,41 @@
 
 #include <vector>
 #include <optional>
+#include <iterator>
 #include <cstring>
 
 #include <core/maybe_uninit.hpp>
-#include <core/slice.hpp>
 #include <core/io.hpp>
+
+#include "slice.hpp"
+
+
+template <typename T>
+class VecDequeView final {
+    // private:
+public:
+    Slice<T> first_;
+    Slice<T> second_;
+
+public:
+    // Empty view.
+    VecDequeView() = default;
+    VecDequeView(Slice<T> first, Slice<T> second) : first_(first), second_(second) {}
+
+    [[nodiscard]] size_t size() const;
+    [[nodiscard]] bool is_empty() const;
+
+    void clear();
+
+    [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_back();
+    [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_front();
+
+    size_t skip_front(size_t count);
+    size_t skip_back(size_t count);
+
+    [[nodiscard]] std::pair<Slice<T>, Slice<T>> as_slices();
+    [[nodiscard]] std::pair<Slice<const T>, Slice<const T>> as_slices() const;
+};
 
 template <typename T>
 class VecDeque final {
@@ -21,9 +51,7 @@ private:
 
 public:
     VecDeque() = default;
-    explicit VecDeque(size_t cap) :
-        data_(cap + 1) //
-    {}
+    explicit VecDeque(size_t cap) : data_(cap + 1) {}
 
     ~VecDeque() {
         clear();
@@ -70,14 +98,14 @@ public:
     void push_back(const T &value);
     void push_front(const T &value);
 
-    [[nodiscard]] size_t skip_front(size_t count);
-    [[nodiscard]] size_t skip_back(size_t count);
+    size_t skip_front(size_t count);
+    size_t skip_back(size_t count);
 
-    std::pair<Slice<T>, Slice<T>> as_slices();
-    std::pair<Slice<const T>, Slice<const T>> as_slices() const;
+    [[nodiscard]] std::pair<Slice<T>, Slice<T>> as_slices();
+    [[nodiscard]] std::pair<Slice<const T>, Slice<const T>> as_slices() const;
 
-private:
-    std::pair<Slice<MaybeUninit<T>>, Slice<MaybeUninit<T>>> free_space_as_slices();
+protected:
+    [[nodiscard]] std::pair<Slice<MaybeUninit<T>>, Slice<MaybeUninit<T>>> free_space_as_slices();
 
     // Elements at expanded positions must be initialized.
     // Count must be less or equal to free space.
@@ -85,9 +113,12 @@ private:
     void expand_back(size_t count);
 
 public:
+    [[nodiscard]] VecDequeView<T> view();
+    [[nodiscard]] VecDequeView<const T> view() const;
+
+public:
     friend class VecDequeStream;
 };
-
 
 struct VecDequeStream final : public io::ReadExact, public io::WriteExact {
     VecDeque<uint8_t> queue;
