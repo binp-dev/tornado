@@ -47,6 +47,7 @@ void Device::recv_loop() {
                     if (adc_wf_msg.elements.size() > 0) {
                         adc_wf.last_value.store(adc_wf_msg.elements.back());
                     }
+                    /*
                     if (adc_wf.notify) {
                         std::lock_guard<std::mutex> lock(adc_wf.mutex);
                         adc_wf.wf_data.insert(adc_wf.wf_data.end(), adc_wf_msg.elements.begin(), adc_wf_msg.elements.end());
@@ -55,6 +56,7 @@ void Device::recv_loop() {
                             adc_wf.notify();
                         }
                     }
+                    */
                 },
                 [&](ipp::McuMsgDacWfReq &&) {
                     has_dac_wf_req.store(true);
