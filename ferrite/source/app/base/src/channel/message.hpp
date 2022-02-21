@@ -14,8 +14,8 @@ class MessageChannel final {
 private:
     std::unique_ptr<Channel> raw_;
 
-    VecStream send_buffer_;
-    VecDequeStream recv_buffer_;
+    Vec<uint8_t> send_buffer_;
+    VecDeque<uint8_t> recv_buffer_;
 
     size_t max_len_;
 

@@ -15,8 +15,8 @@ MessageChannel<OutMsg, InMsg>::MessageChannel(std::unique_ptr<Channel> &&raw_, c
     raw_(std::move(raw_)),
     max_len_(max_len) //
 {
-    send_buffer_.vector.reserve(max_len_);
-    recv_buffer_.queue.reserve(max_len_);
+    send_buffer_.reserve(max_len_);
+    recv_buffer_.reserve(max_len_);
 }
 
 template <typename OutMsg, typename InMsg>
@@ -25,26 +25,32 @@ Result<std::monostate, io::Error> MessageChannel<OutMsg, InMsg>::send(
     std::optional<std::chrono::milliseconds> timeout) {
 
     // TODO: Should we pack multiple messages in one buffer?
-    send_buffer_.vector.clear();
+    send_buffer_.clear();
     auto res = message.store(send_buffer_);
     if (res.is_err()) {
         return res;
     }
-    const size_t length = send_buffer_.vector.size();
+    const size_t length = send_buffer_.size();
     if (length > max_message_length()) {
         return Err(io::Error{io::ErrorKind::UnexpectedEof, "Message size is greater than max length"});
     }
     raw_->timeout = timeout;
-    return raw_->write_exact(send_buffer_.vector.data(), length);
+    return raw_->write_exact(send_buffer_.data(), length);
 }
 
 template <typename OutMsg, typename InMsg>
 Result<InMsg, io::Error> MessageChannel<OutMsg, InMsg>::receive(std::optional<std::chrono::milliseconds> timeout) {
     auto begin = std::chrono::steady_clock::now();
     for (;;) {
-        // Try to read data from buffer
-        auto msg_res = InMsg::load(recv_buffer_);
-        if (msg_res.is_ok() || msg_res.err().kind != io::ErrorKind::UnexpectedEof) {
+        // Try to read data from buffer.
+        // On success remove data are removed from buffer, on failure data remain in buffer.
+        VecDequeView<uint8_t> view = recv_buffer_.view();
+        size_t view_len = view.size();
+        auto msg_res = InMsg::load(view);
+        if (msg_res.is_ok()) {
+            recv_buffer_.skip_front(view_len - view.size());
+            return msg_res;
+        } else if (msg_res.err().kind != io::ErrorKind::UnexpectedEof) {
             return msg_res;
         }
 
@@ -62,22 +68,7 @@ Result<InMsg, io::Error> MessageChannel<OutMsg, InMsg>::receive(std::optional<st
         }
         auto read_res = recv_buffer_.read_from(*raw_, std::nullopt);
         if (read_res.is_err()) {
-            std::cout << "queue size: " << recv_buffer_.queue.size() << std::endl;
-            auto err = read_res.unwrap_err();
-            std::stringstream ss;
-            ss << err.message << ":\n" << std::setw(2) << std::hex;
-            if (read_res.err().kind != io::ErrorKind::UnexpectedEof) {
-                for (;;) {
-                    auto v = recv_buffer_.queue.pop_front();
-                    if (!v.has_value()) {
-                        break;
-                    }
-                    ss << uint32_t(v.value()) << " ";
-                }
-            }
-            ss.flush();
-            std::cout << ss.str() << std::endl;
-            return Err(io::Error(err.kind, ss.str()));
+            return Err(read_res.unwrap_err());
         }
     }
     return Err(io::Error{io::ErrorKind::TimedOut});
