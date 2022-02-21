@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <iostream>
+#include <optional>
 
 #include "result.hpp"
 #include "fmt.hpp"
@@ -57,12 +58,22 @@ public:
     Result<size_t, Error> write(const uint8_t *data, size_t len) override;
 };
 
+class ReadFrom {
+public:
+    //! Read bytes from given stream into `this`.
+    //! @param len Number of bytes to read. If `nullopt` then read as much as possible.
+    virtual Result<size_t, Error> read_from(io::Read &stream, std::optional<size_t> len) = 0;
+};
+
+class WriteInto {
+public:
+    //! Write bytes from `this` into given stream.
+    //! @param len Number of bytes to write. If `nullopt` then write as much as possible.
+    virtual Result<size_t, Error> write_into(io::Write &stream, std::optional<size_t> len) = 0;
+};
+
 } // namespace io
 
-template <>
-struct Display<io::ErrorKind> : std::true_type {};
 std::ostream &operator<<(std::ostream &o, const io::ErrorKind &ek);
 
-template <>
-struct Display<io::Error> : std::true_type {};
 std::ostream &operator<<(std::ostream &o, const io::Error &e);

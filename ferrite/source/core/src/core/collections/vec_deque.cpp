@@ -3,25 +3,17 @@
 #include <core/numeric.hpp>
 
 Result<size_t, io::Error> VecDeque<uint8_t>::read(uint8_t *data, size_t len) {
-    // Copy data from this->
-    auto [left, right] = this->as_slices();
-    size_t left_len = std::min(left.size(), len);
-    memcpy(data, left.data(), left_len);
-    size_t right_len = std::min(right.size(), len - left_len);
-    memcpy(data + left_len, right.data(), right_len);
-
-    size_t read_len = left_len + right_len;
+    size_t read_len = this->view().read(data, len).unwrap();
     assert_eq(this->skip_front(read_len), read_len);
     return Ok(read_len);
 }
 
 Result<std::monostate, io::Error> VecDeque<uint8_t>::read_exact(uint8_t *data, size_t len) {
-    if (len <= this->size()) {
-        assert_eq(read(data, len).unwrap(), len);
-        return Ok(std::monostate());
-    } else {
-        return Err(io::Error{io::ErrorKind::UnexpectedEof});
+    auto res = this->view().read_exact(data, len);
+    if (res.is_ok()) {
+        assert_eq(this->skip_front(len), len);
     }
+    return res;
 }
 
 Result<size_t, io::Error> VecDeque<uint8_t>::write(const uint8_t *data, size_t len) {
@@ -80,7 +72,11 @@ Result<size_t, io::Error> VecDeque<uint8_t>::read_from(io::Read &stream, std::op
             if (free > 0) {
                 auto res = read_from(stream, free);
                 if (res.is_err()) {
-                    return res;
+                    if (total == 0) {
+                        return res;
+                    } else {
+                        return Ok(total);
+                    }
                 }
                 total += res.ok();
                 if (res.ok() < free) {
@@ -92,7 +88,33 @@ Result<size_t, io::Error> VecDeque<uint8_t>::read_from(io::Read &stream, std::op
     }
 }
 
-Result<size_t, io::Error> VecDeque<uint8_t>::write_to(io::Write &stream, std::optional<size_t> len_opt) {
+Result<size_t, io::Error> VecDeque<uint8_t>::write_into(io::Write &stream, std::optional<size_t> len_opt) {
+    auto res = this->view().write_into(stream, len_opt);
+    if (res.is_ok()) {
+        assert_eq(this->skip_front(res.ok()), res.ok());
+    }
+    return res;
+}
+
+Result<size_t, io::Error> VecDequeView<uint8_t>::read(uint8_t *data, size_t len) {
+    auto [first, second] = this->as_slices();
+    size_t first_len = first.read(data, len).unwrap();
+    size_t second_len = first.read(data, len - first_len).unwrap();
+    size_t read_len = first_len + second_len;
+    assert_eq(this->skip_front(read_len), read_len);
+    return Ok(read_len);
+}
+
+Result<std::monostate, io::Error> VecDequeView<uint8_t>::read_exact(uint8_t *data, size_t len) {
+    if (len <= this->size()) {
+        assert_eq(this->read(data, len), Ok(len));
+        return Ok(std::monostate{});
+    } else {
+        return Err(io::Error{io::ErrorKind::UnexpectedEof});
+    }
+}
+
+Result<size_t, io::Error> VecDequeView<uint8_t>::write_into(io::Write &stream, std::optional<size_t> len_opt) {
     size_t len = len_opt.value_or(this->size());
     auto [left, right] = this->as_slices();
 

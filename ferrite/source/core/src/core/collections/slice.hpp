@@ -6,14 +6,18 @@
 #include <core/io.hpp>
 
 template <typename T>
-class Slice final {
+class Slice;
+
+// Replace with std::span in C++20
+template <typename T>
+class _Slice {
 private:
     T *ptr_ = nullptr;
     size_t size_ = 0;
 
 public:
-    Slice() = default;
-    Slice(T *ptr, size_t size) : ptr_(ptr), size_(size) {}
+    _Slice() = default;
+    _Slice(T *ptr, size_t size) : ptr_(ptr), size_(size) {}
 
     T *data() {
         return ptr_;
@@ -25,7 +29,7 @@ public:
     [[nodiscard]] size_t size() const {
         return size_;
     }
-    [[nodiscard]] bool is_empty() const {
+    [[nodiscard]] bool empty() const {
         return size_ == 0;
     }
 
@@ -49,14 +53,14 @@ public:
     }
 
     [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_back() {
-        if (is_empty()) {
+        if (empty()) {
             return std::nullopt;
         }
         size_ -= 1;
         return std::ref(ptr_[size_]);
     }
     [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_front() {
-        if (is_empty()) {
+        if (empty()) {
             return std::nullopt;
         }
         auto ret = std::ref(*ptr_);
@@ -96,21 +100,38 @@ public:
     }
 };
 
-class SliceStream final : public virtual io::ReadExact {
-    Slice<uint8_t> slice;
+template <typename T>
+class Slice final : public _Slice<T> {
+public:
+    using _Slice<T>::_Slice;
+};
+
+template <>
+class Slice<uint8_t> final : public _Slice<uint8_t>, public virtual io::ReadExact, public virtual io::WriteInto {
+public:
+    using _Slice<uint8_t>::_Slice;
 
     inline Result<std::monostate, io::Error> read_exact(uint8_t *data, size_t len) override {
-        if (len > slice.size()) {
+        if (len > this->size()) {
             return Err(io::Error{io::ErrorKind::UnexpectedEof});
         }
-        memcpy(data, slice.data(), len);
-        slice.skip(len);
+        memcpy(data, this->data(), len);
+        this->skip(len);
         return Ok(std::monostate{});
     }
 
     inline Result<size_t, io::Error> read(uint8_t *data, size_t len) override {
-        size_t read_len = std::min(slice.size(), len);
+        size_t read_len = std::min(this->size(), len);
         assert_true(read_exact(data, read_len).is_ok());
         return Ok(read_len);
+    }
+
+    inline Result<size_t, io::Error> write_into(io::Write &stream, std::optional<size_t> len) override {
+        size_t write_len = len.value_or(this->size());
+        auto res = stream.write(this->data(), write_len);
+        if (res.is_ok()) {
+            this->skip_front(res.ok());
+        }
+        return res;
     }
 };

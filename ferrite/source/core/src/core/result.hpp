@@ -43,20 +43,32 @@ struct [[nodiscard]] Result final {
     Result &operator=(const Result &r) = default;
     Result &operator=(Result &&r) = default;
 
-    bool is_ok() const { return this->variant.index() == 1;}
-    bool is_err() const { return this->variant.index() == 0;}
+    bool is_ok() const {
+        return this->variant.index() == 1;
+    }
+    bool is_err() const {
+        return this->variant.index() == 0;
+    }
 
-    const T &ok() const { return std::get<1>(this->variant); }
-    const E &err() const { return std::get<0>(this->variant); }
-    T &ok() { return std::get<1>(this->variant); }
-    E &err() { return std::get<0>(this->variant); }
+    const T &ok() const {
+        return std::get<1>(this->variant);
+    }
+    const E &err() const {
+        return std::get<0>(this->variant);
+    }
+    T &ok() {
+        return std::get<1>(this->variant);
+    }
+    E &err() {
+        return std::get<0>(this->variant);
+    }
 
     T expect(const std::string message) {
         if (this->is_err()) {
             std::stringstream ss;
             ss << message;
-            if constexpr (Display<E>::value) {
-                ss << ": " << this->err();
+            if constexpr (display_v<E>) {
+                ss << ": Result::Err(" << this->err() << ")";
             }
             panic(ss.str());
         }
@@ -66,8 +78,8 @@ struct [[nodiscard]] Result final {
         if (this->is_ok()) {
             std::stringstream ss;
             ss << message;
-            if constexpr (Display<T>::value) {
-                ss << ": " << this->ok();
+            if constexpr (display_v<T>) {
+                ss << ": Result::Ok(" << this->ok() << ")";
             }
             panic(ss.str());
         }
@@ -80,26 +92,68 @@ struct [[nodiscard]] Result final {
         return this->expect_err("Result is Ok");
     }
 
-    bool operator==(const Result &other) const { return this->variant == other.variant; }
-    bool operator==(const Ok<T> &other) const { return this->is_ok() && this->ok() == other.value; }
-    bool operator==(const Err<E> &other) const { return this->is_err() && this->err() == other.value; }
-    bool operator!=(const Result &other) const { return this->variant != other.variant; }
-    bool operator!=(const Ok<T> &other) const { return !this->is_ok() || this->ok() != other.value; }
-    bool operator!=(const Err<E> &other) const { return !this->is_err() || this->err() != other.value; }
+    bool operator==(const Result &other) const {
+        return this->variant == other.variant;
+    }
+    bool operator==(const Ok<T> &other) const {
+        return this->is_ok() && this->ok() == other.value;
+    }
+    bool operator==(const Err<E> &other) const {
+        return this->is_err() && this->err() == other.value;
+    }
+    bool operator!=(const Result &other) const {
+        return this->variant != other.variant;
+    }
+    bool operator!=(const Ok<T> &other) const {
+        return !this->is_ok() || this->ok() != other.value;
+    }
+    bool operator!=(const Err<E> &other) const {
+        return !this->is_err() || this->err() != other.value;
+    }
 };
 
-#define try_unwrap(res) { \
-    auto tmp = std::move(res); \
-    if (tmp.is_err()) { \
-        return Err(std::move(tmp.err())); \
-    } \
+#define try_unwrap(res) \
+    { \
+        auto tmp = std::move(res); \
+        if (tmp.is_err()) { \
+            return Err(std::move(tmp.err())); \
+        } \
+    }
+
+template <typename T>
+std::ostream &operator<<(std::ostream &os, const Ok<T> &ok) {
+    os << "Ok(";
+    if constexpr (display_v<T>) {
+        os << ok.value;
+    }
+    os << ")";
+    return os;
 }
 
-/*
-template <typename T>
-bool operator<<(std::ostream &os, const Ok<T> &ok);
 template <typename E>
-bool operator<<(std::ostream &os, const Ok<E> &err);
+std::ostream &operator<<(std::ostream &os, const Err<E> &err) {
+    os << "Err(";
+    if constexpr (display_v<E>) {
+        os << err.value;
+    }
+    os << ")";
+    return os;
+}
+
 template <typename T, typename E>
-bool operator<<(std::ostream &os, const Result<T, E> &res);
-*/
+std::ostream &operator<<(std::ostream &os, const Result<T, E> &res) {
+    os << "Result::";
+    if (res.is_ok()) {
+        os << "Ok(";
+        if constexpr (display_v<T>) {
+            os << res.ok();
+        }
+    } else {
+        os << "Err(";
+        if constexpr (display_v<E>) {
+            os << res.err();
+        }
+    }
+    os << ")";
+    return os;
+}

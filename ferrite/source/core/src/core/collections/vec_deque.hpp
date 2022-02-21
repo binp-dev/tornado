@@ -15,31 +15,6 @@ struct VecDeque;
 template <typename T>
 struct VecDequeView;
 
-template <typename T>
-class _VecDequeView {
-private:
-    Slice<T> first_;
-    Slice<T> second_;
-
-public:
-    // Empty view.
-    _VecDequeView() = default;
-    _VecDequeView(Slice<T> first, Slice<T> second) : first_(first), second_(second) {}
-
-    [[nodiscard]] size_t size() const;
-    [[nodiscard]] bool is_empty() const;
-
-    void clear();
-
-    [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_back();
-    [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_front();
-
-    size_t skip_front(size_t count);
-    size_t skip_back(size_t count);
-
-    [[nodiscard]] std::pair<Slice<T>, Slice<T>> as_slices();
-    [[nodiscard]] std::pair<Slice<const T>, Slice<const T>> as_slices() const;
-};
 
 template <typename T>
 class _VecDeque {
@@ -69,7 +44,7 @@ public:
 public:
     [[nodiscard]] size_t capacity() const;
     [[nodiscard]] size_t size() const;
-    [[nodiscard]] bool is_empty() const;
+    [[nodiscard]] bool empty() const;
 
 private:
     [[nodiscard]] T pop_back_unchecked();
@@ -122,13 +97,49 @@ public:
     [[nodiscard]] VecDequeView<const T> view() const;
 };
 
+
 template <typename T>
-struct VecDeque final : public _VecDeque<T> {
+class _VecDequeView {
+private:
+    Slice<T> first_;
+    Slice<T> second_;
+
+public:
+    // Empty view.
+    _VecDequeView() = default;
+    _VecDequeView(Slice<T> first, Slice<T> second) : first_(first), second_(second) {}
+
+    [[nodiscard]] size_t size() const;
+    [[nodiscard]] bool empty() const;
+
+    void clear();
+
+    [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_back();
+    [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_front();
+
+    size_t skip_front(size_t count);
+    size_t skip_back(size_t count);
+
+    [[nodiscard]] std::pair<Slice<T>, Slice<T>> as_slices();
+    [[nodiscard]] std::pair<Slice<const T>, Slice<const T>> as_slices() const;
+};
+
+
+template <typename T>
+class VecDeque final : public _VecDeque<T> {
+public:
     using _VecDeque<T>::_VecDeque;
 };
 
 template <>
-struct VecDeque<uint8_t> final : public _VecDeque<uint8_t>, public io::ReadExact, public io::WriteExact {
+class VecDeque<uint8_t> final :
+    public _VecDeque<uint8_t>,
+    public virtual io::ReadExact,
+    public virtual io::WriteExact,
+    public virtual io::ReadFrom,
+    public virtual io::WriteInto //
+{
+public:
     using _VecDeque<uint8_t>::_VecDeque;
 
     Result<size_t, io::Error> read(uint8_t *data, size_t len) override;
@@ -137,13 +148,25 @@ struct VecDeque<uint8_t> final : public _VecDeque<uint8_t>, public io::ReadExact
     Result<size_t, io::Error> write(const uint8_t *data, size_t len) override;
     Result<std::monostate, io::Error> write_exact(const uint8_t *data, size_t len) override;
 
-    Result<size_t, io::Error> read_from(io::Read &read, std::optional<size_t> len);
-    Result<size_t, io::Error> write_to(io::Write &write, std::optional<size_t> len);
+    Result<size_t, io::Error> read_from(io::Read &stream, std::optional<size_t> len) override;
+    Result<size_t, io::Error> write_into(io::Write &stream, std::optional<size_t> len) override;
 };
 
 template <typename T>
-struct VecDequeView final : public _VecDequeView<T> {
+class VecDequeView final : public _VecDequeView<T> {
+public:
     using _VecDequeView<T>::_VecDequeView;
+};
+
+template <>
+class VecDequeView<uint8_t> final : public _VecDequeView<uint8_t>, public virtual io::ReadExact, public virtual io::WriteInto {
+public:
+    using _VecDequeView<uint8_t>::_VecDequeView;
+
+    Result<size_t, io::Error> read(uint8_t *data, size_t len) override;
+    Result<std::monostate, io::Error> read_exact(uint8_t *data, size_t len) override;
+
+    Result<size_t, io::Error> write_into(io::Write &stream, std::optional<size_t> len) override;
 };
 
 #include "vec_deque.hxx"

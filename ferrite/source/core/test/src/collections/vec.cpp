@@ -23,3 +23,17 @@ TEST(Vec, into_std_vector) {
         ASSERT_EQ(sv[i], int32_t(i));
     }
 }
+
+TEST(Vec, read_from) {
+    Vec<uint8_t> a{0, 1, 2, 3};
+    {
+        Vec<uint8_t> b{4, 5, 6, 7};
+        auto s = b.slice();
+        ASSERT_EQ(a.read_from(s, std::nullopt), Ok<size_t>(4));
+    }
+
+    ASSERT_EQ(a.size(), 8u);
+    for (size_t i = 0; i < a.size(); ++i) {
+        ASSERT_EQ(a[i], uint8_t(i));
+    }
+}

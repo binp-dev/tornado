@@ -285,7 +285,7 @@ TEST(VecDeque, read_from) {
     ASSERT_EQ(b.size(), 0u);
 }
 
-TEST(VecDeque, write_to) {
+TEST(VecDeque, write_into) {
     VecDeque<uint8_t> a, b;
 
     std::array<uint8_t, 4> array{1, 2, 3, 4};
@@ -293,15 +293,15 @@ TEST(VecDeque, write_to) {
     ASSERT_EQ(a.size(), 4u);
     ASSERT_EQ(b.size(), 0u);
 
-    ASSERT_EQ(a.write_to(b, std::nullopt), Ok<size_t>(4));
+    ASSERT_EQ(a.write_into(b, std::nullopt), Ok<size_t>(4));
     ASSERT_EQ(a.size(), 0u);
     ASSERT_EQ(b.size(), 4u);
 
-    ASSERT_EQ(b.write_to(a, std::nullopt), Ok<size_t>(4));
+    ASSERT_EQ(b.write_into(a, std::nullopt), Ok<size_t>(4));
     ASSERT_EQ(a.size(), 4u);
     ASSERT_EQ(b.size(), 0u);
 
-    ASSERT_EQ(a.write_to(b, std::nullopt), Ok<size_t>(4));
+    ASSERT_EQ(a.write_into(b, std::nullopt), Ok<size_t>(4));
     ASSERT_EQ(a.size(), 0u);
     ASSERT_EQ(b.size(), 4u);
     ASSERT_EQ(b.capacity(), 7u);

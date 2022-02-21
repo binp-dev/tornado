@@ -52,7 +52,7 @@ size_t _VecDeque<T>::size() const {
 }
 
 template <typename T>
-bool _VecDeque<T>::is_empty() const {
+bool _VecDeque<T>::empty() const {
     return size() == 0;
 }
 
@@ -170,7 +170,7 @@ void _VecDeque<T>::append_copy(const _VecDeque &other) {
 
 template <typename T>
 std::optional<T> _VecDeque<T>::pop_back() {
-    if (!is_empty()) {
+    if (!empty()) {
         return pop_back_unchecked();
     } else {
         return std::nullopt;
@@ -179,7 +179,7 @@ std::optional<T> _VecDeque<T>::pop_back() {
 
 template <typename T>
 std::optional<T> _VecDeque<T>::pop_front() {
-    if (!is_empty()) {
+    if (!empty()) {
         return pop_front_unchecked();
     } else {
         return std::nullopt;
@@ -253,13 +253,13 @@ std::pair<Slice<T>, Slice<T>> _VecDeque<T>::as_slices() {
     T *data = reinterpret_cast<T *>(data_.data());
     if (front_ <= back_) {
         return std::pair{
-            Slice{data + front_, back_ - front_},
+            Slice<T>{data + front_, back_ - front_},
             Slice<T>{},
         };
     } else {
         return std::pair{
-            Slice{data + front_, mod() - front_},
-            Slice{data, back_},
+            Slice<T>{data + front_, mod() - front_},
+            Slice<T>{data, back_},
         };
     }
 }
@@ -269,13 +269,13 @@ std::pair<Slice<const T>, Slice<const T>> _VecDeque<T>::as_slices() const {
     const T *data = reinterpret_cast<const T *>(data_.data());
     if (front_ <= back_) {
         return std::pair{
-            Slice{data + front_, back_ - front_},
+            Slice<const T>{data + front_, back_ - front_},
             Slice<const T>{},
         };
     } else {
         return std::pair{
-            Slice{data + front_, mod() - front_},
-            Slice{data, back_},
+            Slice<const T>{data + front_, mod() - front_},
+            Slice<const T>{data, back_},
         };
     }
 }
@@ -284,13 +284,13 @@ template <typename T>
 std::pair<Slice<MaybeUninit<T>>, Slice<MaybeUninit<T>>> _VecDeque<T>::free_space_as_slices() {
     if (back_ < front_) {
         return std::pair{
-            Slice{&data_[back_], front_ - back_ - 1},
+            Slice<MaybeUninit<T>>{&data_[back_], front_ - back_ - 1},
             Slice<MaybeUninit<T>>{},
         };
     } else {
         return std::pair{
-            Slice{&data_[back_], mod() - back_ - (front_ == 0)},
-            Slice{&data_[0], front_ == 0 ? 0 : front_ - 1},
+            Slice<MaybeUninit<T>>{&data_[back_], mod() - back_ - (front_ == 0)},
+            Slice<MaybeUninit<T>>{&data_[0], front_ == 0 ? 0 : front_ - 1},
         };
     }
 }
@@ -325,7 +325,7 @@ size_t _VecDequeView<T>::size() const {
 }
 
 template <typename T>
-bool _VecDequeView<T>::is_empty() const {
+bool _VecDequeView<T>::empty() const {
     return first_.size() == 0 && second_.size() == 0;
 }
 
@@ -336,7 +336,7 @@ void _VecDequeView<T>::clear() {
 
 template <typename T>
 std::optional<std::reference_wrapper<T>> _VecDequeView<T>::pop_back() {
-    if (!second_.is_empty()) {
+    if (!second_.empty()) {
         return second_.pop_back();
     } else {
         return first_.pop_back();
@@ -346,7 +346,7 @@ std::optional<std::reference_wrapper<T>> _VecDequeView<T>::pop_back() {
 template <typename T>
 std::optional<std::reference_wrapper<T>> _VecDequeView<T>::pop_front() {
     auto ret = first_.pop_front();
-    if (first_.is_empty() && !second_.is_empty()) {
+    if (first_.empty() && !second_.empty()) {
         std::swap(first_, second_);
     }
     return ret;
@@ -356,7 +356,7 @@ template <typename T>
 size_t _VecDequeView<T>::skip_front(size_t count) {
     size_t first_skip = first_.skip_front(count);
     size_t second_skip = 0;
-    if (first_.is_empty()) {
+    if (first_.empty()) {
         std::swap(first_, second_);
         second_skip = first_.skip_front(count - first_skip);
     }
