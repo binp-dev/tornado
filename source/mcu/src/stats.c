@@ -13,7 +13,7 @@ volatile Statistics STATS = {
     0,
     {{0, 0, 0, 0}},
     {0, 0},
-    {0}
+    {0},
 };
 
 
