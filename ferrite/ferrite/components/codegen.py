@@ -4,14 +4,14 @@ from typing import Callable, Dict, List
 import shutil
 from pathlib import Path
 from dataclasses import dataclass
-from ferrite.components.cmake import CmakeWithTest
+from ferrite.components.cmake import Cmake
 
-from ferrite.components.base import Artifact, Task, Context
-from ferrite.components.conan import CmakeWithConan
-from ferrite.components.toolchain import CrossToolchain, HostToolchain, Toolchain
+from ferrite.components.base import Artifact, Component, Task, Context
+from ferrite.components.conan import CmakeRunnableWithConan
+from ferrite.components.toolchain import HostToolchain, Toolchain
 
 
-class Codegen(CmakeWithConan, CmakeWithTest):
+class Codegen(Component):
 
     @dataclass
     class GenerateTask(Task):
@@ -28,44 +28,67 @@ class Codegen(CmakeWithConan, CmakeWithTest):
 
     def __init__(
         self,
-        source_dir: Path,
+        assets_dir: Path,
         target_dir: Path,
         toolchain: Toolchain,
         prefix: str,
         generate: Callable[[Path], None],
     ):
         self.prefix = prefix
-        self.executable = f"{self.prefix}_test"
 
-        self.assets_dir = source_dir / self.prefix
-        self.gen_dir = target_dir / f"{self.prefix}_generated"
-        build_dir = target_dir / f"{self.prefix}_{toolchain.name}"
+        self.assets_dir = assets_dir
+        self.gen_dir = target_dir / self.prefix
+        self.build_dir = target_dir / f"{self.prefix}_{toolchain.name}"
+        self.test_dir = target_dir / f"{self.prefix}_test"
 
         self.generate = generate
         self.generate_task = self.GenerateTask(self, self.generate)
 
-        super().__init__(
-            self.gen_dir,
-            build_dir,
-            toolchain,
-            opts=[
-                "-DCMAKE_BUILD_TYPE=Debug",
-                f"-D{self.prefix.upper()}_TEST=1",
-            ],
-            deps=[self.generate_task],
-            target=self.executable,
-            disable_conan=isinstance(toolchain, CrossToolchain)
-        )
-
     def tasks(self) -> Dict[str, Task]:
         return {
             "generate": self.generate_task,
+        }
+
+
+class CodegenWithTest(Codegen):
+
+    def __init__(
+        self,
+        assets_dir: Path,
+        ferrite_source_dir: Path,
+        target_dir: Path,
+        toolchain: HostToolchain,
+        prefix: str,
+        generate: Callable[[Path], None],
+    ):
+        super().__init__(
+            assets_dir,
+            target_dir,
+            toolchain,
+            prefix,
+            generate,
+        )
+
+        self.cmake = CmakeRunnableWithConan(
+            self.gen_dir / "test",
+            self.test_dir,
+            toolchain,
+            target=f"{self.prefix}_test",
+            opts=[f"-DFERRITE={ferrite_source_dir}"],
+            deps=[self.generate_task],
+        )
+        self.build_task = self.cmake.build_task
+        self.test_task = self.cmake.run_task
+
+    def tasks(self) -> Dict[str, Task]:
+        return {
+            **super().tasks(),
             "build": self.build_task,
             "test": self.test_task,
         }
 
 
-class CodegenTest(Codegen):
+class CodegenExample(CodegenWithTest):
 
     def __init__(
         self,
@@ -75,4 +98,11 @@ class CodegenTest(Codegen):
     ):
         from ferrite.codegen.test import generate
 
-        super().__init__(source_dir, target_dir, toolchain, "codegen", generate)
+        super().__init__(
+            source_dir / "codegen",
+            source_dir,
+            target_dir,
+            toolchain,
+            "codegen",
+            generate,
+        )

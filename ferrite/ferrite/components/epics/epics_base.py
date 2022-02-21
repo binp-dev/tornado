@@ -3,13 +3,16 @@ from typing import Dict, List
 
 import shutil
 from pathlib import Path, PurePosixPath
-import logging
 
 from ferrite.utils.files import substitute, allow_patterns
 from ferrite.components.base import Task, Context
 from ferrite.components.git import RepoList, RepoSource
 from ferrite.components.toolchain import HostToolchain, CrossToolchain
 from ferrite.components.epics.base import AbstractEpicsProject, epics_host_arch, epics_arch_by_target
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AbstractEpicsBase(AbstractEpicsProject):
@@ -30,7 +33,7 @@ class AbstractEpicsBase(AbstractEpicsProject):
                 ("INSTALL_PERMISSIONS", "644"),
             ]
             rules = [(f"^(\\s*{k}\\s*=).*$", f"\\1 {v}") for k, v in defs]
-            logging.info(rules)
+            logger.info(rules)
             substitute(
                 rules,
                 self.build_dir / "configure/CONFIG_COMMON",
@@ -77,7 +80,7 @@ class AbstractEpicsBase(AbstractEpicsProject):
             if done_path.exists():
                 with open(done_path, "r") as f:
                     if Path(f.read()) == self.build_dir:
-                        logging.info(f"'{self.build_dir}' is already built")
+                        logger.info(f"'{self.build_dir}' is already built")
                         return
 
             super().run(ctx)

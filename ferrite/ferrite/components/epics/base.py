@@ -4,11 +4,14 @@ from typing import List
 import shutil
 from pathlib import Path, PurePosixPath
 from dataclasses import dataclass
-import logging
 
 from ferrite.utils.run import capture, run
 from ferrite.components.base import Artifact, Component, Task, Context
 from ferrite.components.toolchain import Target, Toolchain
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def epics_host_arch(epics_base_dir: Path) -> str:
@@ -70,13 +73,13 @@ class AbstractEpicsProject(Component):
                 ignore=shutil.ignore_patterns(".git"),
             )
 
-            logging.info(f"Configure {self.build_dir}")
+            logger.info(f"Configure {self.build_dir}")
             self._configure()
 
-            logging.info(f"Build {self.build_dir}")
+            logger.info(f"Build {self.build_dir}")
             run(["make", "--jobs"], cwd=self.build_dir, quiet=ctx.capture)
 
-            logging.info(f"Install {self.build_dir} to {self.install_dir}")
+            logger.info(f"Install {self.build_dir} to {self.install_dir}")
             self.install_dir.mkdir(exist_ok=True)
             self._install()
 
@@ -111,7 +114,7 @@ class AbstractEpicsProject(Component):
         def run(self, ctx: Context) -> None:
             assert ctx.device is not None
             self._pre(ctx)
-            logging.info(f"Deploy {self.install_dir} to {ctx.device.name()}:{self.deploy_dir}")
+            logger.info(f"Deploy {self.install_dir} to {ctx.device.name()}:{self.deploy_dir}")
             ctx.device.store(
                 self.install_dir,
                 self.deploy_dir,

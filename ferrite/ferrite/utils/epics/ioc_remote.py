@@ -3,9 +3,12 @@ from typing import Any, Optional
 
 import time
 from pathlib import PurePosixPath
-import logging
 
 from ferrite.remote.base import Device, Connection
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class IocRemoteRunner:
@@ -41,10 +44,10 @@ class IocRemoteRunner:
         )
         assert self.proc is not None
         time.sleep(1)
-        logging.info("IOC started")
+        logger.info("IOC started")
 
     def __exit__(self, *args: Any) -> None:
-        logging.info("terminating IOC ...")
+        logger.info("terminating IOC ...")
         assert self.proc is not None
         self.proc.close()
-        logging.info("IOC terminated")
+        logger.info("IOC terminated")

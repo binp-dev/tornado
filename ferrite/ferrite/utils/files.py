@@ -2,9 +2,12 @@ from __future__ import annotations
 from typing import Callable, List, Optional, Set, Tuple
 
 import re
-import logging
 import shutil
 from pathlib import Path
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def substitute(
@@ -16,7 +19,7 @@ def substitute(
     if dst is None:
         dst = src
 
-    logging.debug(f"substituting '{src}' -> '{dst}':")
+    logger.debug(f"substituting '{src}' -> '{dst}':")
 
     with open(src, 'r') as file:
         data = file.read()
@@ -26,11 +29,11 @@ def substitute(
         new_data = re.sub(s, d, new_data, flags=re.M)
 
     if force or new_data != data:
-        logging.debug(f"writing file '{dst}'")
+        logger.debug(f"writing file '{dst}'")
         with open(dst, 'w') as file:
             file.write(new_data)
     else:
-        logging.debug(f"file unchanged '{dst}'")
+        logger.debug(f"file unchanged '{dst}'")
 
 
 def _inverse_ignore_patterns(ignore_patterns: Callable[[str, List[str]], Set[str]]) -> Callable[[str, List[str]], Set[str]]:

@@ -12,6 +12,10 @@
 #include <core/panic.hpp>
 #include <framework.hpp>
 
+uint32_t MbboDirectRecord::value() const {
+    return this->raw()->rval;
+}
+
 static long record_mbbo_direct_init(mbboDirectRecord *raw) {
     auto record = std::make_unique<MbboDirectRecord>(raw);
     EpicsRecord::set_private_data((dbCommon *)raw, std::move(record));

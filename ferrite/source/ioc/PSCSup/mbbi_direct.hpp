@@ -6,10 +6,13 @@
 
 #include <record/value.hpp>
 
-class MbbiDirectRecord :
+class MbbiDirectRecord final :
     public EpicsInputValueRecord<uint32_t, mbbiDirectRecord>,
-    public virtual InputValueRecord<uint32_t>
+    public virtual InputValueRecord<uint32_t> //
 {
 public:
-    explicit MbbiDirectRecord(mbbiDirectRecord *raw) : EpicsInputValueRecord<uint32_t, mbbiDirectRecord>(raw) {}
+    inline explicit MbbiDirectRecord(mbbiDirectRecord *raw) : EpicsInputValueRecord<uint32_t, mbbiDirectRecord>(raw) {}
+
+    [[nodiscard]] virtual uint32_t value() const override;
+    virtual void set_value(uint32_t value) override;
 };

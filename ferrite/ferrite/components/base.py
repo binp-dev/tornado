@@ -19,13 +19,14 @@ class Artifact:
     cached: bool = False
 
 
+@dataclass
 class Task:
 
-    def __init__(self) -> None:
+    def __post_init__(self) -> None:
         self._name: Optional[str] = None
 
     def name(self) -> str:
-        return self._name or str(self)
+        return self._name or f"<{type(self).__qualname__}>"
 
     def run(self, ctx: Context) -> None:
         raise NotImplementedError()

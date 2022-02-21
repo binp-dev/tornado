@@ -12,6 +12,10 @@
 #include <core/panic.hpp>
 #include <framework.hpp>
 
+int32_t AoRecord::value() const {
+    return this->raw()->rval;
+}
+
 static long record_ao_init(aoRecord *raw) {
     auto record = std::make_unique<AoRecord>(raw);
     EpicsRecord::set_private_data((dbCommon *)raw, std::move(record));

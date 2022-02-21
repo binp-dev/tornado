@@ -48,6 +48,7 @@ class McuBase(Cmake):
         toolchain: CrossToolchain,
         freertos: Freertos,
         deployer: McuDeployer,
+        target: str,
         opts: List[str] = [],
         envs: Dict[str, str] = {},
         deps: List[Task] = [],
@@ -58,6 +59,7 @@ class McuBase(Cmake):
             src_dir,
             target_dir / name,
             toolchain,
+            target=target,
             opts=[
                 "-DCMAKE_TOOLCHAIN_FILE={}".format(freertos.path / "tools/cmake_toolchain_files/armgcc.cmake"),
                 "-DCMAKE_BUILD_TYPE=Release",

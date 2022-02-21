@@ -1,11 +1,12 @@
 from __future__ import annotations
-from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from random import Random
 
 from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source, declare_variable
 from ferrite.codegen.primitive import Pointer
-from ferrite.codegen.utils import indent_text, list_join
+from ferrite.codegen.utils import indent, list_join
+from ferrite.codegen.macros import io_read_type, io_result_type, io_write_type, monostate, try_unwrap
 
 
 class Field:
@@ -21,9 +22,6 @@ class StructValue:
         self._type = type
         for k, v in fields.items():
             setattr(self, k, v)
-
-    def is_instance_of(self, type: Struct) -> bool:
-        return self._type.name() == type.name()
 
     def store(self) -> bytes:
         return self._type.store(self)
@@ -95,7 +93,7 @@ class Struct(Type[StructValue]):
         return self.value(*args)
 
     def is_instance(self, value: StructValue) -> bool:
-        return isinstance(value, StructValue) and value.is_instance_of(self)
+        return isinstance(value, StructValue) and value._type == self
 
     def deps(self) -> List[Type[Any]]:
         return [f.type for f in self.fields]
@@ -115,57 +113,65 @@ class Struct(Type[StructValue]):
     def _cpp_size_extent(self, obj: str) -> str:
         return self.fields[-1].type._cpp_size_extent(f"({obj}.{self.fields[-1].name.snake()})")
 
-    def _c_struct_declaraion(self) -> str:
-        return "\n".join([
+    def _c_struct_declaraion(self) -> List[str]:
+        return [
             f"typedef struct __attribute__((packed, aligned(1))) {{",
             *[f"    {declare_variable(f.type.c_type(), f.name.snake())};" for f in self.fields if not f.type.is_empty()],
             f"}} {self.c_type()};",
-        ])
+        ]
 
     def _c_size_decl(self) -> str:
         return f"size_t {self._c_size_func_name()}({Pointer(self, const=True).c_type()} obj)"
 
-    def _c_size_definition(self) -> str:
-        return "\n".join([
+    def _c_size_definition(self) -> List[str]:
+        return [
             f"{self._c_size_decl()} {{",
             f"    return {self.min_size()} + {self._c_size_extent('(*obj)')};",
             f"}}",
-        ])
+        ]
 
     def _cpp_size_method_decl(self) -> str:
         return f"[[nodiscard]] size_t packed_size() const;"
 
     def _cpp_load_method_decl(self) -> str:
-        return f"[[nodiscard]] static {self.cpp_type()} load({Pointer(self, const=True).c_type()} src);"
+        return f"static {io_result_type(self.cpp_type())} load({io_read_type()} &stream);"
 
     def _cpp_store_method_decl(self) -> str:
-        return f"void store({Pointer(self).c_type()} dst) const;"
+        return f"{io_result_type()} store({io_write_type()} &stream) const;"
 
-    def _cpp_size_method_impl(self) -> str:
-        return "\n".join([
+    def _cpp_size_method_impl(self) -> List[str]:
+        return [
             f"size_t {self.cpp_type()}::packed_size() const {{",
             (
                 f"    return {self.min_size()} + {self._cpp_size_extent('(*this)')};"
                 if not self.sized else f"    return {self.size()};"
             ),
             f"}}",
-        ])
+        ]
 
-    def _cpp_load_method_impl(self) -> str:
-        return "\n".join([
-            f"{self.cpp_type()} {self.cpp_type()}::load({Pointer(self, const=True).c_type()} src) {{",
-            f"    return {self.cpp_type()}{{",
-            *[f"        {f.type.cpp_load(f'(src->{f.name.snake()})')}," for f in self.fields],
-            f"    }};",
+    def _cpp_load_method_impl(self) -> List[str]:
+        return [
+            f"{io_result_type(self.cpp_type())} {self.cpp_type()}::load({io_read_type()} &stream) {{",
+            *indent(
+                list_join([
+                    try_unwrap(f.type.cpp_load('stream'), lambda x: f'auto field_{i} = {x};')
+                    for i, f in enumerate(self.fields)
+                ], [""])
+            ),
+            f"",
+            f"    return Ok({self.cpp_type()}{{",
+            *indent([f"std::move(field_{i})," for i, f in enumerate(self.fields)], 2),
+            f"    }});",
             f"}}",
-        ])
+        ]
 
-    def _cpp_store_method_impl(self) -> str:
-        return "\n".join([
-            f"void {self.cpp_type()}::store({Pointer(self).c_type()} dst) const {{",
-            *[f"    {f.type.cpp_store(f'{f.name.snake()}', f'(dst->{f.name.snake()})')};" for f in self.fields],
+    def _cpp_store_method_impl(self) -> List[str]:
+        return [
+            f"{io_result_type()} {self.cpp_type()}::store({io_write_type()} &stream) const {{",
+            *indent(list_join([try_unwrap(f.type.cpp_store('stream', f.name.snake())) for f in self.fields], [""])),
+            f"    return Ok({monostate()});",
             f"}}",
-        ])
+        ]
 
     def _cpp_declaration(self) -> Source:
         sections = []
@@ -186,13 +192,12 @@ class Struct(Type[StructValue]):
 
         return Source(
             Location.DECLARATION,
-            "\n".join([
+            [[
                 f"class {self.cpp_type()} final {{",
                 f"public:",
-                *([f"    using Raw = {self.c_type()};"] if not self.is_empty() else []),
-                *list_join([["    " + s for s in lines] for lines in sections], [""]),
+                *list_join([indent(lines) for lines in sections], [""]),
                 f"}};",
-            ]),
+            ]],
             deps=[ty.cpp_source() for ty in self.deps()],
         )
 
@@ -228,15 +233,15 @@ class Struct(Type[StructValue]):
         decl_source = Source(
             Location.DECLARATION,
             [
-                self._c_struct_declaraion() if not self.is_empty() else None,
-                f"{self._c_size_decl()};" if not self.sized else None,
+                *([self._c_struct_declaraion()] if not self.is_empty() else []),
+                *([[f"{self._c_size_decl()};"]] if not self.sized else []),
             ],
             deps=[ty.c_source() for ty in self.deps()],
         )
         return Source(
             Location.DEFINITION,
             [
-                self._c_size_definition() if not self.sized else None,
+                *([self._c_size_definition()] if not self.sized else []),
             ],
             deps=[decl_source],
         )
@@ -253,36 +258,61 @@ class Struct(Type[StructValue]):
     def cpp_size(self, obj: str) -> str:
         return f"{obj}.packed_size()"
 
-    def cpp_load(self, src: str) -> str:
-        return f"{self.cpp_type()}::load(&{src})"
+    def cpp_load(self, stream: str) -> str:
+        return f"{self.cpp_type()}::load({stream})"
 
-    def cpp_store(self, src: str, dst: str) -> str:
-        return f"{src}.store(&{dst})"
+    def cpp_store(self, stream: str, src: str) -> str:
+        return f"{src}.store({stream})"
 
     def cpp_object(self, value: StructValue) -> str:
-        return "\n".join([
+        return "".join([
             f"{self.cpp_type()}{{",
-            *[indent_text(f"{f.type.cpp_object(getattr(value, f.name.snake()))},", "    ") for f in self.fields],
+            ", ".join([f"{f.type.cpp_object(getattr(value, f.name.snake()))}" for f in self.fields]),
             f"}}",
         ])
 
-    def c_test(self, obj: str, src: str) -> str:
+    def c_test(self, obj: str, src: str) -> List[str]:
         lines = []
         for f in self.fields:
             fname = f.name.snake()
             if not f.type.is_empty():
-                lines.append(f.type.c_test(f"{obj}.{fname}", f"{src}.{fname}"))
-        return "\n".join(lines)
+                lines.extend(f.type.c_test(f"{obj}.{fname}", f"{src}.{fname}"))
+        return lines
 
-    def cpp_test(self, dst: str, src: str) -> str:
+    def cpp_test(self, dst: str, src: str) -> List[str]:
         lines = []
         for f in self.fields:
             fname = f.name.snake()
-            lines.append(f.type.cpp_test(f"{dst}.{fname}", f"{src}.{fname}"))
-        return "\n".join(lines)
+            lines.extend(f.type.cpp_test(f"{dst}.{fname}", f"{src}.{fname}"))
+        return lines
 
     def test_source(self) -> Optional[Source]:
         if not self.is_empty():
             return super().test_source()
         else:
             return None
+
+    def pyi_type(self) -> str:
+        return self.cpp_type()
+
+    def pyi_source(self) -> Optional[Source]:
+        return Source(
+            Location.DECLARATION,
+            [[
+                f"@dataclass",
+                f"class {self.pyi_type()}:",
+                f"",
+                *[f"    {f.name.snake()}: {f.type.pyi_type()}" for f in self.fields],
+                f"",
+                f"    @staticmethod",
+                f"    def load(data: bytes) -> {self.pyi_type()}:",
+                f"        ...",
+                f"",
+                f"    def store(self) -> bytes:",
+                f"        ...",
+            ]],
+            deps=[
+                Source(Location.INCLUDES, [["from dataclasses import dataclass"]]),
+                *[ty.pyi_source() for ty in self.deps()],
+            ],
+        )

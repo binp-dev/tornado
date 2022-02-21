@@ -12,6 +12,14 @@
 #include <core/panic.hpp>
 #include <framework.hpp>
 
+uint32_t MbbiDirectRecord::value() const {
+    return this->raw()->rval;
+}
+
+void MbbiDirectRecord::set_value(uint32_t value) {
+    this->raw()->rval = value;
+}
+
 static long record_mbbi_direct_init(mbbiDirectRecord *raw) {
     auto record = std::make_unique<MbbiDirectRecord>(raw);
     EpicsRecord::set_private_data((dbCommon *)raw, std::move(record));

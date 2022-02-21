@@ -8,7 +8,8 @@ LIBRARY = $(LIBRARY_$(T_A))
 
 # Library includes
 INCLUDES += \
-	-I$(APP_LIB_SRC)/src \
+	-I$(CORE_SRC)/src \
+	-I$(APP_BASE_SRC)/src \
 	-DUSE_TYPED_RSET
 
 # Library Source files
@@ -22,7 +23,9 @@ devPSC_SRCS += \
 	mbbi_direct.cpp \
 	mbbo_direct.cpp \
 	ai.cpp \
-	ao.cpp
+	ao.cpp \
+	bi.cpp \
+	bo.cpp
 
 # Link with the libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)

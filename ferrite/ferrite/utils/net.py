@@ -1,11 +1,13 @@
 from __future__ import annotations
 from typing import List
 
-import os
 from pathlib import Path
 from urllib.request import urlretrieve
 from urllib.error import HTTPError, URLError
+
 import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DownloadHook:
@@ -55,17 +57,17 @@ class DownloadHook:
 
 
 def download(src_url: str, dst_path: Path) -> None:
-    logging.debug(f"downloading from '{src_url}' ...")
+    logger.debug(f"downloading from '{src_url}' ...")
     try:
         urlretrieve(src_url, dst_path, DownloadHook())
     except:
         print(flush=True)
         dst_path.unlink(missing_ok=True)
-        logging.warning(f"download failed")
+        logger.warning(f"download failed")
         raise
     else:
         print(flush=True)
-        logging.debug(f"downloaded to '{dst_path}'")
+        logger.debug(f"downloaded to '{dst_path}'")
 
 
 def download_alt(src_urls: List[str], dst_path: Path) -> None:
@@ -76,7 +78,7 @@ def download_alt(src_urls: List[str], dst_path: Path) -> None:
             break
         except (HTTPError, URLError) as e:
             last_error = e
-            logging.warning(str(e))
+            logger.warning(str(e))
             continue
     if last_error is not None:
         raise last_error

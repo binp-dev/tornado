@@ -2,13 +2,16 @@ from __future__ import annotations
 from typing import Dict, List
 
 import shutil
-import logging
 from pathlib import Path
 from dataclasses import dataclass
 
 from ferrite.utils.run import capture
 from ferrite.utils.net import download_alt
 from ferrite.components.base import Artifact, Component, Task, Context
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -70,7 +73,7 @@ class CrossToolchain(Toolchain):
 
     def download(self) -> bool:
         if self.path.exists():
-            logging.info(f"Toolchain {self.archive} is already downloaded")
+            logger.info(f"Toolchain {self.archive} is already downloaded")
             return False
 
         tmp_dir = self.target_dir / "download"
@@ -78,12 +81,12 @@ class CrossToolchain(Toolchain):
 
         archive_path = tmp_dir / self.archive
         if not archive_path.exists():
-            logging.info(f"Loading toolchain {self.archive} ...")
+            logger.info(f"Loading toolchain {self.archive} ...")
             download_alt(self.urls, archive_path)
         else:
-            logging.info(f"Toolchain archive {self.archive} already exists")
+            logger.info(f"Toolchain archive {self.archive} already exists")
 
-        logging.info(f"Extracting toolchain {self.archive} ...")
+        logger.info(f"Extracting toolchain {self.archive} ...")
         dir_path = tmp_dir / self.dir_name
         try:
             shutil.unpack_archive(archive_path, tmp_dir)

@@ -4,7 +4,10 @@ from typing import Any, Optional
 import time
 from subprocess import Popen
 from pathlib import Path
+
 import logging
+
+logger = logging.getLogger(__name__)
 
 
 def make_ioc(ioc_dir: Path, arch: str) -> Ioc:
@@ -24,10 +27,10 @@ class Ioc:
     def __enter__(self) -> None:
         self.proc = Popen([self.binary, self.script.name], cwd=self.script.parent, text=True)
         time.sleep(1)
-        logging.debug("ioc '%s' started")
+        logger.debug("ioc '%s' started")
 
     def __exit__(self, *args: Any) -> None:
-        logging.debug("terminating '%s' ...")
+        logger.debug("terminating '%s' ...")
         assert self.proc is not None
         self.proc.terminate()
-        logging.debug("ioc '%s' terminated")
+        logger.debug("ioc '%s' terminated")

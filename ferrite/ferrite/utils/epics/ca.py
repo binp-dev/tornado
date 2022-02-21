@@ -5,11 +5,14 @@ from typing import Any, Dict, List, Optional, Union
 
 import os
 import time
-import logging
 from subprocess import Popen
 from pathlib import Path
 
 from ferrite.utils.run import run, capture
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _env() -> Dict[str, str]:
@@ -19,37 +22,38 @@ def _env() -> Dict[str, str]:
     }
 
 
-def get(prefix: Path, pv: str, array: bool = False) -> Union[float, List[int]]:
-    logging.debug(f"caget {pv} ...")
+def _get_str(prefix: Path, pv: str) -> str:
+    logger.debug(f"caget {pv} ...")
     out = capture([prefix / "caget", "-t", "-f 3", pv], add_env=_env())
-    logging.debug(f"  {out}")
-    
-    if array:
-        out = out.split()[1:]
-        out = list(map(int, out))
-        print(out)
-        return out
-    
-    return float(out)
+    logger.debug(f"  {out}")
+    return out
 
 
-def put(prefix: Path, pv: str, value: Union[int, float, List[int]], array: bool = False) -> None:
-    logging.debug(f"caput {pv} {value} ...")
+def get(prefix: Path, pv: str) -> float:
+    return float(_get_str(prefix, pv))
 
-    args: List[str | Path] = [prefix / "caput", "-t"]
-    if not array:
-        assert isinstance(value, int) or isinstance(value, float)
-        args += [pv, str(value)]
-    else:
-        assert isinstance(value, List)
-        args += ["-a", pv, str(len(value))] + [str(v) for v in value]
 
-    run(
-        args,
-        add_env=_env(),
-        quiet=True,
-    )
-    logging.debug("  done")
+def get_array(prefix: Path, pv: str) -> List[float]:
+    spl = _get_str(prefix, pv).strip().split()
+    arr_len, str_arr = int(spl[0]), spl[1:]
+    assert arr_len == len(str_arr)
+    return [float(x) for x in str_arr]
+
+
+def put(prefix: Path, pv: str, value: int | float) -> None:
+    logger.debug(f"caput {pv} {value} ...")
+    run([prefix / "caput", "-t", pv, str(value)], add_env=_env(), quiet=True)
+    logger.debug("  done")
+
+
+def put_array(prefix: Path, pv: str, value: List[int] | List[float]) -> None:
+    logger.debug(f"caput {pv} {value} ...")
+
+    args: List[str | Path] = [prefix / "caput", "-t", "-a", pv, str(len(value))]
+    args.extend([str(v) for v in value])
+
+    run(args, add_env=_env(), quiet=True)
+    logger.debug("  done")
 
 
 class Repeater:
@@ -59,7 +63,7 @@ class Repeater:
         self.prefix = prefix
 
     def __enter__(self) -> None:
-        logging.debug("starting caRepeater ...")
+        logger.debug("starting caRepeater ...")
         env = dict(os.environ)
         env.update(_env())
         self.proc = Popen(
@@ -67,10 +71,10 @@ class Repeater:
             env=env,
         )
         time.sleep(1)
-        logging.debug("caRepeater started")
+        logger.debug("caRepeater started")
 
     def __exit__(self, *args: Any) -> None:
-        logging.debug("terminating caRepeater ...")
+        logger.debug("terminating caRepeater ...")
         assert self.proc is not None
         self.proc.terminate()
-        logging.debug("caRepeater terminated")
+        logger.debug("caRepeater terminated")
