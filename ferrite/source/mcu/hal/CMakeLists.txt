@@ -19,7 +19,6 @@ set(COMMON_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/gpio.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/panic.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/log.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/time.c"
 )
 set(IMX7_SRC
