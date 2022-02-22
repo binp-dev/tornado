@@ -417,3 +417,75 @@ TEST(VecDequeView, pop_back) {
     ASSERT_EQ(rb.pop_back(), 5);
     ASSERT_EQ(rb.pop_back(), 6);
 }
+
+
+TEST(VecDequeView, skip) {
+    VecDeque<int32_t> rb;
+
+    rb.push_back(0);
+    rb.push_back(1);
+    rb.push_back(2);
+    rb.push_back(3);
+
+    VecDequeView<int32_t> rbv = rb.view();
+
+    ASSERT_EQ(rbv.skip_front(1u), 1u);
+    ASSERT_EQ(rbv.pop_front(), 1);
+
+    ASSERT_EQ(rbv.skip_back(1u), 1u);
+    ASSERT_EQ(rbv.pop_back(), 2);
+
+    ASSERT_TRUE(!rbv.pop_front().has_value());
+    ASSERT_EQ(rbv.skip_front(1u), 0u);
+    ASSERT_TRUE(!rbv.pop_back().has_value());
+    ASSERT_EQ(rbv.skip_back(1u), 0u);
+
+    ASSERT_EQ(rb.size(), 4u);
+}
+
+TEST(VecDequeView, read) {
+    VecDeque<uint8_t> rb;
+    rb.reserve(5);
+
+    std::array<uint8_t, 4> array{0};
+    ASSERT_EQ(rb.view().read(array.data(), 1), Ok<size_t>(0));
+
+    rb.push_back(1);
+    rb.push_back(2);
+    rb.push_back(3);
+    rb.push_back(4);
+    ASSERT_EQ(rb.size(), 4u);
+
+    VecDequeView<uint8_t> rbv = rb.view();
+    ASSERT_EQ(rbv.size(), 4u);
+    ASSERT_TRUE(rbv.read_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(rbv.size(), 0u);
+    ASSERT_EQ(array, (std::array<uint8_t, 4>{1, 2, 3, 4}));
+
+    array = std::array<uint8_t, 4>{5, 6, 7, 8};
+    ASSERT_EQ(rb.skip_front(4u), 4u);
+    ASSERT_TRUE(rb.write_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(rb.size(), 4u);
+
+    rbv = rb.view();
+    ASSERT_EQ(rbv.size(), 4u);
+    ASSERT_EQ(rbv.pop_front(), 5u);
+    ASSERT_EQ(rbv.pop_front(), 6u);
+    ASSERT_EQ(rbv.pop_front(), 7u);
+    ASSERT_EQ(rbv.pop_front(), 8u);
+    ASSERT_EQ(rbv.pop_front(), std::nullopt);
+    ASSERT_EQ(rbv.size(), 0u);
+
+    array = std::array<uint8_t, 4>{9, 10, 11, 12};
+    ASSERT_EQ(rb.skip_front(4u), 4u);
+    ASSERT_TRUE(rb.write_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(rb.size(), 4u);
+
+    rbv = rb.view();
+    ASSERT_EQ(rbv.size(), 4u);
+    array = std::array<uint8_t, 4>{0};
+    ASSERT_TRUE(rbv.read_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(array, (std::array<uint8_t, 4>{9, 10, 11, 12}));
+    ASSERT_EQ(rbv.size(), 0u);
+    ASSERT_EQ(rb.size(), 4u);
+}

@@ -99,7 +99,7 @@ Result<size_t, io::Error> VecDeque<uint8_t>::write_into(io::Write &stream, std::
 Result<size_t, io::Error> VecDequeView<uint8_t>::read(uint8_t *data, size_t len) {
     auto [first, second] = this->as_slices();
     size_t first_len = first.read(data, len).unwrap();
-    size_t second_len = second.read(data, len - first_len).unwrap();
+    size_t second_len = second.read(data + first_len, len - first_len).unwrap();
     size_t read_len = first_len + second_len;
     assert_eq(this->skip_front(read_len), read_len);
     return Ok(read_len);

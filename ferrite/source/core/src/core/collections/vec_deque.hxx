@@ -326,7 +326,7 @@ size_t _VecDequeView<T>::size() const {
 
 template <typename T>
 bool _VecDequeView<T>::empty() const {
-    return first_.size() == 0 && second_.size() == 0;
+    return first_.size() == 0;
 }
 
 template <typename T>
@@ -367,7 +367,7 @@ template <typename T>
 size_t _VecDequeView<T>::skip_back(size_t count) {
     size_t second_skip = second_.skip_back(count);
     size_t first_skip = first_.skip_back(count - second_skip);
-    return second_skip - first_skip;
+    return second_skip + first_skip;
 }
 
 template <typename T>

@@ -33,12 +33,6 @@ public:
         return size_ == 0;
     }
 
-    void skip(size_t count) {
-        assert_true(count <= size_);
-        size_ -= count;
-        ptr_ += count;
-    }
-
     T &operator[](size_t i) {
         assert_true(i < size_);
         return ptr_[i];
@@ -90,13 +84,13 @@ public:
         return ptr_;
     }
     [[nodiscard]] iterator end() {
-        return ptr_;
+        return ptr_ + size_;
     }
     [[nodiscard]] const_iterator begin() const {
         return ptr_;
     }
     [[nodiscard]] const_iterator end() const {
-        return ptr_;
+        return ptr_ + size_;
     }
 };
 
@@ -116,7 +110,7 @@ public:
             return Err(io::Error{io::ErrorKind::UnexpectedEof});
         }
         memcpy(data, this->data(), len);
-        this->skip(len);
+        assert_eq(this->skip_front(len), len);
         return Ok(std::monostate{});
     }
 
