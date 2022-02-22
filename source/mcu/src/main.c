@@ -294,7 +294,6 @@ static void task_rpmsg_recv(void *param) {
         // Receive message
         hal_assert(hal_rpmsg_recv_nocopy(&RPMSG_CHANNEL, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
         app_msg = (const IppAppMsg *)buffer;
-        hal_log_info("Received message: 0x%02x", (int)app_msg->type);
 
         switch (app_msg->type) {
         case IPP_APP_MSG_START:
@@ -323,7 +322,6 @@ static void task_rpmsg_recv(void *param) {
                 app_msg->dac_wf.elements.len * sizeof(int32_t),
                 0);
             hal_assert(added_data_size % sizeof(int32_t) == 0);
-            hal_log_debug("Received waveform of size: %d", added_data_size / sizeof(int32_t));
             DAC.was_set = true;
 
             if (added_data_size / sizeof(int32_t) != app_msg->dac_wf.elements.len) {

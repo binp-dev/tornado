@@ -28,7 +28,7 @@
 #define READY_DELAY_NS 0
 
 #define SPI_DEV_ID 0
-#define XFER_LEN 28
+#define XFER_LEN 26
 
 #define SMP_RDY_MUX IOMUXC_UART1_TXD_GPIO5_IO23
 #define SMP_RDY_PIN 5, 23
