@@ -7,6 +7,8 @@
 
 #include <core/lazy_static.hpp>
 #include <core/mutex.hpp>
+
+#include <config.h>
 #include <device.hpp>
 #include <handlers.hpp>
 #include <external.hpp>
@@ -14,8 +16,7 @@
 void init_device(MaybeUninit<Device> &mem) {
     std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
 
-    const size_t message_max_length = 256;
-    mem.init_in_place(make_device_channel(), message_max_length);
+    mem.init_in_place(make_device_channel(), RPMSG_MAX_MSG_LEN);
 }
 
 /// We use LazyStatic to initialize global Device without global constructor.

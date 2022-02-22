@@ -12,6 +12,7 @@
 #include <semphr.h>
 #include <stream_buffer.h>
 
+#include <config.h>
 #include <ipp.h>
 
 #include <hal/assert.h>
@@ -39,8 +40,7 @@
 
 typedef int32_t point_t;
 
-#define RPMSG_MAX_BUF_SIZE 256 // 512
-#define DAC_MAX_MSG_POINTS ((RPMSG_MAX_BUF_SIZE - sizeof(((IppMcuMsg *)NULL)->type) - sizeof(IppAppMsgDacWf)) / sizeof(point_t))
+#define DAC_MAX_MSG_POINTS ((RPMSG_MAX_MSG_LEN - sizeof(((IppMcuMsg *)NULL)->type) - sizeof(IppAppMsgDacWf)) / sizeof(point_t))
 
 // TODO: Check values
 #define MAX_POINTS_IN_RPMSG 63

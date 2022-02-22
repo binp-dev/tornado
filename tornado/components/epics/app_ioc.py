@@ -24,7 +24,7 @@ class AppIocHost(AbstractAppIoc, IocHost):
 
         def run(self, ctx: Context) -> None:
             self.run_fn(
-                self.owner.epics_base.install_path,
+                self.owner.source_dir,
                 self.owner.install_path,
                 self.owner.arch,
             )
@@ -37,7 +37,7 @@ class AppIocHost(AbstractAppIoc, IocHost):
 
     def __init__(
         self,
-        ioc_dir: Path,
+        source_dir: Path,
         ferrite_source_dir: Path,
         target_dir: Path,
         epics_base: AbstractEpicsBase,
@@ -46,12 +46,13 @@ class AppIocHost(AbstractAppIoc, IocHost):
         self.app = app
 
         super().__init__(
-            ioc_dir,
+            source_dir / "ioc",
             ferrite_source_dir,
             target_dir,
             epics_base,
             app,
         )
+        self.source_dir = source_dir
 
         from tornado.ioc.fakedev import dummy, test
         self.run_task = self.RunTask(self, dummy.run)

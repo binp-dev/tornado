@@ -12,13 +12,13 @@
 
 #include <channel/message.hpp>
 
+#include <config.h>
 #include <ipp.hpp>
 
 using DeviceChannel = MessageChannel<ipp::AppMsg, ipp::McuMsg>;
 
 class Device final {
 public:
-    static constexpr size_t ADC_COUNT = 6;
     static constexpr size_t DAC_WF_BUFF_COUNT = 2;
 
 private:

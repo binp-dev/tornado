@@ -47,6 +47,8 @@ set(SRC
     "${ProjDirPath}/src/skifio.h"
     "${ProjDirPath}/src/stats.c"
     "${ProjDirPath}/src/stats.h"
+    "${ProjDirPath}/src/crc.c"
+    "${ProjDirPath}/src/crc.h"
 )
 
 if(${INTERNAL_SYNC})
@@ -127,8 +129,8 @@ if(NOT DEFINED IPP)
 endif()
 
 # Link common code
-add_subdirectory("${FERRITE}/mcu/common" "common" EXCLUDE_FROM_ALL)
-include_directories("${FERRITE}/mcu/common/include")
+add_subdirectory("../common" "common" EXCLUDE_FROM_ALL)
+include_directories("../common/include")
 target_link_libraries(${MCUX_SDK_PROJECT_NAME} PRIVATE "common")
 
 # Link HAL
