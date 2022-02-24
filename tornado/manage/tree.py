@@ -31,7 +31,7 @@ class _HostComponents(ComponentGroup):
         self.ipp = Ipp(source_dir, ferrite_source_dir, target_dir, toolchain)
         self.app = AppFake(source_dir, ferrite_source_dir, target_dir, toolchain, self.ipp)
         self.ioc_fakedev = AppIocHost(
-            source_dir / "ioc",
+            source_dir,
             ferrite_source_dir,
             target_dir,
             self.epics_base,
@@ -69,7 +69,7 @@ class _CrossComponents(ComponentGroup):
             host_components.ipp,
         )
         self.ioc = AppIocCross(
-            source_dir / "ioc",
+            source_dir,
             ferrite_source_dir,
             target_dir,
             self.epics_base,

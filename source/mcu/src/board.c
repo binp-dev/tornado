@@ -9,7 +9,6 @@
 #include "fsl_debug_console.h"
 #include "fsl_rdc.h"
 #include "fsl_iomuxc.h"
-#include "pin_mux.h"
 #include "board.h"
 #include "fsl_clock.h"
 
@@ -21,23 +20,19 @@
  * Code
  ******************************************************************************/
 /* Initialize debug console. */
-void BOARD_InitDebugConsole(void)
-{
+void BOARD_InitDebugConsole(void) {
     uint32_t uartClkSrcFreq = BOARD_DEBUG_UART_CLK_FREQ;
     CLOCK_EnableClock(kCLOCK_Uart3);
     DbgConsole_Init(BOARD_DEBUG_UART_INSTANCE, BOARD_DEBUG_UART_BAUDRATE, BOARD_DEBUG_UART_TYPE, uartClkSrcFreq);
 }
 
 /* Initialize MPU, configure memory attributes for each region */
-void BOARD_InitMemory(void)
-{
+void BOARD_InitMemory(void) {
     /* Disable I cache and D cache */
-    if (SCB_CCR_IC_Msk == (SCB_CCR_IC_Msk & SCB->CCR))
-    {
+    if (SCB_CCR_IC_Msk == (SCB_CCR_IC_Msk & SCB->CCR)) {
         SCB_DisableICache();
     }
-    if (SCB_CCR_DC_Msk == (SCB_CCR_DC_Msk & SCB->CCR))
-    {
+    if (SCB_CCR_DC_Msk == (SCB_CCR_DC_Msk & SCB->CCR)) {
         SCB_DisableDCache();
     }
 
@@ -118,12 +113,10 @@ void BOARD_InitMemory(void)
     /* Configure the force_incr programmable bit in GPV_5 of PL301_display, which fixes partial write issue.
      * The AXI2AHB bridge is used for masters that access the TCM through system bus.
      * Please refer to errata ERR050362 for more information */
-    *(uint32_t *)(GPV5_BASE_ADDR + FORCE_INCR_OFFSET) =
-        *(uint32_t *)(GPV5_BASE_ADDR + FORCE_INCR_OFFSET) | FORCE_INCR_BIT_MASK;
+    *(uint32_t *)(GPV5_BASE_ADDR + FORCE_INCR_OFFSET) = *(uint32_t *)(GPV5_BASE_ADDR + FORCE_INCR_OFFSET) | FORCE_INCR_BIT_MASK;
 }
 
-void BOARD_RdcInit(void)
-{
+void BOARD_RdcInit(void) {
     /* Move M7 core to specific RDC domain 1 */
     rdc_domain_assignment_t assignment = {0};
 
@@ -146,9 +139,9 @@ void BOARD_RdcInit(void)
     CLOCK_EnableClock(kCLOCK_Qspi);
 #endif
 
-    CLOCK_ControlGate(kCLOCK_SysPll1Gate, kCLOCK_ClockNeededAll);   /* Enable the CCGR gate for SysPLL1 in Domain 1 */
-    CLOCK_ControlGate(kCLOCK_SysPll2Gate, kCLOCK_ClockNeededAll);   /* Enable the CCGR gate for SysPLL2 in Domain 1 */
-    CLOCK_ControlGate(kCLOCK_SysPll3Gate, kCLOCK_ClockNeededAll);   /* Enable the CCGR gate for SysPLL3 in Domain 1 */
+    CLOCK_ControlGate(kCLOCK_SysPll1Gate, kCLOCK_ClockNeededAll); /* Enable the CCGR gate for SysPLL1 in Domain 1 */
+    CLOCK_ControlGate(kCLOCK_SysPll2Gate, kCLOCK_ClockNeededAll); /* Enable the CCGR gate for SysPLL2 in Domain 1 */
+    CLOCK_ControlGate(kCLOCK_SysPll3Gate, kCLOCK_ClockNeededAll); /* Enable the CCGR gate for SysPLL3 in Domain 1 */
     CLOCK_ControlGate(kCLOCK_AudioPll1Gate, kCLOCK_ClockNeededAll); /* Enable the CCGR gate for AudioPLL1 in Domain 1 */
     CLOCK_ControlGate(kCLOCK_AudioPll2Gate, kCLOCK_ClockNeededAll); /* Enable the CCGR gate for AudioPLL2 in Domain 1 */
     CLOCK_ControlGate(kCLOCK_VideoPll1Gate, kCLOCK_ClockNeededAll); /* Enable the CCGR gate for VideoPLL1 in Domain 1 */

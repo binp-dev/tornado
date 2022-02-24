@@ -12,13 +12,13 @@
 
 #include <channel/message.hpp>
 
+#include <config.h>
 #include <ipp.hpp>
 
 using DeviceChannel = MessageChannel<ipp::AppMsg, ipp::McuMsg>;
 
 class Device final {
 public:
-    static constexpr size_t ADC_COUNT = 6;
     static constexpr size_t DAC_WF_BUFF_COUNT = 2;
 
 private:
@@ -59,7 +59,7 @@ private:
 
     const size_t msg_max_len_;
     std::atomic<bool> has_dac_wf_req{false};
-    bool cyclic_dac_wf_output = false;
+    bool cyclic_dac_wf_output{false};
 
     DinEntry din;
     DoutEntry dout;
@@ -78,7 +78,7 @@ public:
     Device(Device &&dev) = delete;
     Device &operator=(Device &&dev) = delete;
 
-    Device(DeviceChannel &&channel, size_t msg_max_len);
+    Device(std::unique_ptr<Channel> &&channel, size_t msg_max_len);
     ~Device();
 
     void start();

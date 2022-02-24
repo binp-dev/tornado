@@ -146,10 +146,10 @@ async def async_run(config: FakeDev.Config, device: FakeDev, handler: Handler) -
     dev_task.cancel()
 
 
-def run(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
+def run(source_dir: Path, ioc_dir: Path, arch: str) -> None:
     ioc = make_ioc(ioc_dir, arch)
 
-    config = FakeDev.default_config()
+    config = FakeDev.read_config(source_dir)
     handler = Handler(config)
     device = FakeDev(ioc, config, handler)
 

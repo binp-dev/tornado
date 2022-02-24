@@ -11,7 +11,7 @@ import zmq
 import zmq.asyncio as azmq
 
 from ferrite.utils.epics.ioc import Ioc
-import ferrite.utils.epics.ca as ca
+from ferrite.utils.interop import read_defs
 
 from tornado.ipp import AppMsg, McuMsg
 
@@ -58,11 +58,17 @@ class FakeDev:
         chunk_size: int
 
     @staticmethod
-    def default_config() -> Config:
+    def read_config(source: Path) -> Config:
+        defs = read_defs(source / "common" / "include" / "config.h")
+
+        adc_count = defs["ADC_COUNT"]
+        rpmsg_max_msg_len = defs["RPMSG_MAX_MSG_LEN"]
+        assert isinstance(adc_count, int) and isinstance(rpmsg_max_msg_len, int)
+
         return FakeDev.Config(
-            adc_count=6,
+            adc_count=adc_count,
             sample_period=0.0001, # 10 kHz
-            chunk_size=97, # random prime, PV size should be non-multple of it
+            chunk_size=(rpmsg_max_msg_len - 3) // 4
         )
 
     def __init__(self, ioc: Ioc, config: Config, handler: FakeDev.Handler) -> None:

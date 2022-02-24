@@ -25,7 +25,6 @@ SET(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 project(m7image)
 
 option(INTERNAL_SYNC "Whether sync signal should be generated internally" ON)
-option(AVERAGE_ADC "Enable averaging of ADC measurements" OFF)
 
 set(MCUX_SDK_PROJECT_NAME m7image.elf)
 
@@ -35,23 +34,21 @@ include(${ProjDirPath}/config.cmake)
 
 set(SRC
     "${ProjDirPath}/src/main.c"
-    #"${ProjDirPath}/src/main_remote.c"
     "${ProjDirPath}/src/FreeRTOSConfig.h"
-    "${ProjDirPath}/src/pin_mux.c"
-    "${ProjDirPath}/src/pin_mux.h"
-    #"${ProjDirPath}/src/rpmsg_config.h"
+    "${ProjDirPath}/src/rpmsg_config.h"
     "${ProjDirPath}/src/rsc_table.c"
     "${ProjDirPath}/src/rsc_table.h"
-    #"${ProjDirPath}/src/remoteproc.h"
+    "${ProjDirPath}/src/remoteproc.h"
     "${ProjDirPath}/src/board.c"
     "${ProjDirPath}/src/board.h"
     "${ProjDirPath}/src/clock_config.c"
     "${ProjDirPath}/src/clock_config.h"
-    #"${ProjDirPath}/src/fsl_iomuxc.h"
     "${ProjDirPath}/src/skifio.c"
     "${ProjDirPath}/src/skifio.h"
     "${ProjDirPath}/src/stats.c"
     "${ProjDirPath}/src/stats.h"
+    "${ProjDirPath}/src/crc.c"
+    "${ProjDirPath}/src/crc.h"
 )
 
 if(${INTERNAL_SYNC})
@@ -61,10 +58,6 @@ set(SRC
     "${ProjDirPath}/src/sync.h"
 )
 add_definitions("-DGENERATE_SYNC")
-endif()
-
-if(${AVERAGE_ADC})
-add_definitions("-DAVERAGE_ADC")
 endif()
 
 add_executable(${MCUX_SDK_PROJECT_NAME} ${SRC})
@@ -136,8 +129,8 @@ if(NOT DEFINED IPP)
 endif()
 
 # Link common code
-add_subdirectory("${FERRITE}/mcu/common" "common" EXCLUDE_FROM_ALL)
-include_directories("${FERRITE}/mcu/common/include")
+add_subdirectory("../common" "common" EXCLUDE_FROM_ALL)
+include_directories("../common/include")
 target_link_libraries(${MCUX_SDK_PROJECT_NAME} PRIVATE "common")
 
 # Link HAL

@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 
 project("app_common")
 
+add_subdirectory("../common" "common")
+
 if(NOT DEFINED FERRITE)
     message(FATAL_ERROR "Variable 'FERRITE' is not defined")
 endif()
@@ -24,4 +26,4 @@ set(SRC
 
 add_library(${PROJECT_NAME} OBJECT ${SRC})
 target_include_directories(${PROJECT_NAME} PUBLIC "src")
-target_link_libraries(${PROJECT_NAME} PUBLIC "app_base" "ipp_cpp")
+target_link_libraries(${PROJECT_NAME} PUBLIC "common" "app_base" "ipp_cpp")
