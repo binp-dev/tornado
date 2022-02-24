@@ -9,8 +9,10 @@ from ferrite.codegen.generate import make_variant, generate_and_write
 AppMsg = make_variant(
     Name(["app", "msg"]),
     [
-        (Name(["start"]), []),
-        (Name(["stop"]), []),
+        (Name(["connect"]), []),
+        (Name(["start", "dac"]), []),
+        (Name(["stop", "dac"]), []),
+        (Name(["keep", "alive"]), []),
         (Name(["dout", "set"]), [
             Field("value", Int(8, signed=False)),
         ]),
@@ -26,17 +28,19 @@ McuMsg = make_variant(
         (Name(["din", "val"]), [
             Field("value", Int(8, signed=False)),
         ]),
+        (Name(["dac", "wf", "req"]), [
+            Field("count", Int(32, signed=False)),
+        ]),
+        (Name(["adc", "wf"]), [
+            Field("index", Int(8, signed=False)),
+            Field("elements", Vector(Int(32, signed=True))),
+        ]),
         (Name(["error"]), [
-            Field("code", Int(8)),
+            Field("code", Int(8, signed=False)),
             Field("message", String()),
         ]),
         (Name(["debug"]), [
             Field("message", String()),
-        ]),
-        (Name(["dac", "wf", "req"]), []),
-        (Name(["adc", "wf"]), [
-            Field("index", Int(8, signed=False)),
-            Field("elements", Vector(Int(32, signed=True))),
         ]),
     ],
 )

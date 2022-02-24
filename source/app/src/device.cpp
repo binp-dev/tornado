@@ -12,13 +12,12 @@
 
 
 void Device::recv_loop() {
-    std::cout << "[app] Channel serve thread started" << std::endl;
-    const auto timeout = std::chrono::milliseconds(10);
+    std::cout << "[app] Channel recv thread started" << std::endl;
+    const auto timeout = std::chrono::milliseconds(100);
 
-    channel.send(ipp::AppMsg{ipp::AppMsgStart{}}, std::nullopt).unwrap(); // Wait forever
-    std::cout << "[app] Start signal sent" << std::endl;
-
-    send_worker = std::thread([this]() { this->send_loop(); });
+    channel.send(ipp::AppMsg{ipp::AppMsgConnect{}}, std::nullopt).unwrap(); // Wait forever
+    std::cout << "[app] Connect signal sent" << std::endl;
+    send_ready.notify_all();
 
     while (!this->done.load()) {
         auto result = channel.receive(timeout);
@@ -74,11 +73,10 @@ void Device::recv_loop() {
         );
     }
     send_ready.notify_all();
-    send_worker.join();
 }
 
 void Device::send_loop() {
-    std::cout << "[app] ADC req thread started" << std::endl;
+    std::cout << "[app] Channel send thread started" << std::endl;
 
     while (!this->done.load()) {
         std::unique_lock send_lock(send_mutex);
@@ -119,12 +117,14 @@ Device::~Device() {
 
 void Device::start() {
     done.store(false);
+    send_worker = std::thread([this]() { this->send_loop(); });
     recv_worker = std::thread([this]() { this->recv_loop(); });
 }
 
 void Device::stop() {
     if (!done.load()) {
         done.store(true);
+        send_worker.join();
         recv_worker.join();
     }
 }

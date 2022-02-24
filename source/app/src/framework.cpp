@@ -8,7 +8,7 @@
 #include <core/lazy_static.hpp>
 #include <core/mutex.hpp>
 
-#include <config.h>
+#include <common/config.h>
 #include <device.hpp>
 #include <handlers.hpp>
 #include <external.hpp>

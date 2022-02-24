@@ -59,7 +59,7 @@ class FakeDev:
 
     @staticmethod
     def read_config(source: Path) -> Config:
-        defs = read_defs(source / "common" / "include" / "config.h")
+        defs = read_defs(source / "common" / "include" / "common" / "config.h")
 
         adc_count = defs["ADC_COUNT"]
         rpmsg_max_msg_len = defs["RPMSG_MAX_MSG_LEN"]
@@ -107,16 +107,16 @@ class FakeDev:
         )
 
     async def loop(self) -> None:
-        assert isinstance((await _recv_msg(self.socket)).variant, AppMsg.Start)
+        assert isinstance((await _recv_msg(self.socket)).variant, AppMsg.Connect)
         logger.info("Received start signal")
         await _send_msg(self.socket, McuMsg.Debug("Hello from MCU!"))
 
-        await _send_msg(self.socket, McuMsg.DacWfReq())
+        await _send_msg(self.socket, McuMsg.DacWfReq(self.config.chunk_size))
         while True:
             msg = await _recv_msg(self.socket)
             if isinstance(msg.variant, AppMsg.DacWf):
                 await self.sample_chunk(msg.variant.elements)
-                await _send_msg(self.socket, McuMsg.DacWfReq())
+                await _send_msg(self.socket, McuMsg.DacWfReq(self.config.chunk_size))
             else:
                 raise Exception("Unexpected message type")
 

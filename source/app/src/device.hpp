@@ -9,11 +9,9 @@
 #include <thread>
 #include <functional>
 
-
-#include <channel/message.hpp>
-
-#include <config.h>
+#include <common/config.h>
 #include <ipp.hpp>
+#include <channel/message.hpp>
 
 using DeviceChannel = MessageChannel<ipp::AppMsg, ipp::McuMsg>;
 

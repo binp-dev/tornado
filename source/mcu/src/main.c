@@ -12,7 +12,7 @@
 #include <semphr.h>
 #include <stream_buffer.h>
 
-#include <config.h>
+#include <common/config.h>
 #include <ipp.h>
 
 #include <hal/assert.h>
@@ -40,14 +40,11 @@
 
 typedef int32_t point_t;
 
-#define DAC_MAX_MSG_POINTS ((RPMSG_MAX_MSG_LEN - sizeof(((IppMcuMsg *)NULL)->type) - sizeof(IppAppMsgDacWf)) / sizeof(point_t))
+#define ADC_WF_MAX_POINTS ((RPMSG_MAX_MSG_LEN - sizeof(((IppMcuMsg *)NULL)->type) - sizeof(IppMcuMsgAdcWf)) / sizeof(point_t))
 
-// TODO: Check values
-#define MAX_POINTS_IN_RPMSG 63
-#define DAC_WF_PV_SIZE 10000
 #define DAC_WF_BUFF_SIZE 1000
-#define ADC_WF_BUFF_SIZE (MAX_POINTS_IN_RPMSG * 5)
-#define FREE_SPACE_IN_BUFF_FOR_DAC_WF_REQUEST (MAX_POINTS_IN_RPMSG)
+#define ADC_WF_BUFF_SIZE (ADC_WF_MAX_POINTS * 5)
+#define FREE_SPACE_IN_BUFF_FOR_DAC_WF_REQUEST (ADC_WF_MAX_POINTS)
 
 typedef struct {
     StreamBufferHandle_t queue;
@@ -62,9 +59,9 @@ typedef struct {
 typedef struct {
     SkifioDin in;
     SkifioDout out;
-} LogicalIo;
+} DiscreteIo;
 
-static volatile LogicalIo DIO = {0, 0};
+static volatile DiscreteIo DIO = {0, 0};
 
 static volatile DacWf DAC = {NULL, 0};
 static volatile AdcWf ADCS[SKIFIO_ADC_CHANNEL_COUNT] = {{NULL}};
@@ -86,7 +83,7 @@ static void din_handler(void *data, SkifioDin value) {
 void send_adc_wf_data() {
     for (int i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
         size_t elems_in_buff = xStreamBufferBytesAvailable(ADCS[i].queue) / sizeof(int32_t);
-        if (elems_in_buff >= MAX_POINTS_IN_RPMSG) {
+        if (elems_in_buff >= ADC_WF_MAX_POINTS) {
             uint8_t *buffer = NULL;
             size_t len = 0;
             hal_assert(hal_rpmsg_alloc_tx_buffer(&RPMSG_CHANNEL, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
@@ -97,11 +94,11 @@ void send_adc_wf_data() {
             size_t sent_data_size = xStreamBufferReceive(
                 ADCS[i].queue,
                 &(adc_wf_msg->adc_wf.elements.data[0]),
-                MAX_POINTS_IN_RPMSG * sizeof(int32_t),
+                ADC_WF_MAX_POINTS * sizeof(int32_t),
                 0);
             adc_wf_msg->adc_wf.elements.len = sent_data_size / sizeof(int32_t);
             // hal_log_debug("Sent waveform of size: %d", sent_data_size / sizeof(int32_t));
-            hal_assert(sent_data_size / sizeof(int32_t) == MAX_POINTS_IN_RPMSG); // TODO: Delete after debug?
+            hal_assert(sent_data_size / sizeof(int32_t) == ADC_WF_MAX_POINTS); // TODO: Delete after debug?
 
             hal_assert(hal_rpmsg_send_nocopy(&RPMSG_CHANNEL, buffer, ipp_mcu_msg_size(adc_wf_msg)) == HAL_SUCCESS);
         }
@@ -117,10 +114,11 @@ void send_adc_wf_request() {
         size_t len = 0;
         hal_assert(hal_rpmsg_alloc_tx_buffer(&RPMSG_CHANNEL, &buffer, &len, HAL_WAIT_FOREVER) == HAL_SUCCESS);
 
-        IppMcuMsg *dac_wf_req_msg = (IppMcuMsg *)buffer;
-        dac_wf_req_msg->type = IPP_MCU_MSG_DAC_WF_REQ;
+        IppMcuMsg *msg = (IppMcuMsg *)buffer;
+        msg->type = IPP_MCU_MSG_DAC_WF_REQ;
+        msg->dac_wf_req.count = 0; // TODO: Send requested points count
 
-        hal_assert(hal_rpmsg_send_nocopy(&RPMSG_CHANNEL, buffer, ipp_mcu_msg_size(dac_wf_req_msg)) == HAL_SUCCESS);
+        hal_assert(hal_rpmsg_send_nocopy(&RPMSG_CHANNEL, buffer, ipp_mcu_msg_size(msg)) == HAL_SUCCESS);
     }
 }
 
@@ -232,7 +230,7 @@ static void task_skifio(void *param) {
                 }
 
                 size_t elems_in_buff = xStreamBufferBytesAvailable(ADCS[j].queue) / sizeof(int32_t);
-                if (elems_in_buff >= MAX_POINTS_IN_RPMSG) {
+                if (elems_in_buff >= ADC_WF_MAX_POINTS) {
                     need_send_adc = true;
                 }
             }
@@ -276,7 +274,7 @@ static void task_rpmsg_recv(void *param) {
     const IppAppMsg *app_msg = NULL;
     hal_rpmsg_recv_nocopy(&RPMSG_CHANNEL, &buffer, &len, HAL_WAIT_FOREVER);
     app_msg = (const IppAppMsg *)buffer;
-    if (app_msg->type == IPP_APP_MSG_START) {
+    if (app_msg->type == IPP_APP_MSG_CONNECT) {
         hal_log_info("Start message received");
         IOC_STARTED = true;
         xSemaphoreGive(RPMSG_SEND_SEM);
@@ -296,7 +294,7 @@ static void task_rpmsg_recv(void *param) {
         app_msg = (const IppAppMsg *)buffer;
 
         switch (app_msg->type) {
-        case IPP_APP_MSG_START:
+        case IPP_APP_MSG_CONNECT:
             IOC_STARTED = true;
             xSemaphoreGive(RPMSG_SEND_SEM);
             hal_log_info("MCU program is already started");
