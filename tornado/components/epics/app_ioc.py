@@ -4,8 +4,8 @@ from typing import Callable, Dict, List
 from pathlib import Path
 
 from ferrite.components.base import Task, Context
-from ferrite.components.app import AppBase
-from ferrite.components.epics.epics_base import AbstractEpicsBase
+from ferrite.components.app import AppBase, AppBaseCross, AppBaseHost
+from ferrite.components.epics.epics_base import EpicsBaseCross, EpicsBaseHost
 from ferrite.components.epics.ioc import IocCross, IocHost
 from ferrite.components.epics.app_ioc import AbstractAppIoc
 
@@ -40,8 +40,8 @@ class AppIocHost(AbstractAppIoc, IocHost):
         source_dir: Path,
         ferrite_source_dir: Path,
         target_dir: Path,
-        epics_base: AbstractEpicsBase,
-        app: AppBase,
+        epics_base: EpicsBaseHost,
+        app: AppBaseHost,
     ):
         self.app = app
 
@@ -71,3 +71,22 @@ class AppIocCross(AbstractAppIoc, IocCross):
 
     class BuildTask(AbstractAppIoc.BuildTask, IocCross.BuildTask):
         pass
+
+    def __init__(
+        self,
+        source_dir: Path,
+        ferrite_source_dir: Path,
+        target_dir: Path,
+        epics_base: EpicsBaseCross,
+        app: AppBaseCross,
+    ):
+        self.app = app
+
+        super().__init__(
+            source_dir / "ioc",
+            ferrite_source_dir,
+            target_dir,
+            epics_base,
+            app,
+        )
+        self.source_dir = source_dir
