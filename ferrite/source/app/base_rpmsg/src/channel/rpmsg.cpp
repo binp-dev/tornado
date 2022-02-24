@@ -39,6 +39,15 @@ RpmsgChannel &RpmsgChannel::operator=(RpmsgChannel &&other) {
     return *this;
 }
 
+Result<size_t, io::Error> ZmqChannel::write(const uint8_t *data, size_t len) {
+    auto res = write_exact(data, len);
+    if (res.is_ok()) {
+        return Ok(len);
+    } else {
+        return Err(res.unwrap_err());
+    }
+}
+
 Result<std::monostate, io::Error> RpmsgChannel::write_exact(const uint8_t *data, size_t len) {
     pollfd pfd = {this->fd_, POLLOUT, 0};
     int pr = poll(&pfd, 1, timeout ? int(timeout->count()) : -1);

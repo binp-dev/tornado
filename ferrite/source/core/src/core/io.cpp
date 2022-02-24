@@ -2,20 +2,24 @@
 
 namespace io {
 
-Result<size_t, Error> ReadExact::read(uint8_t *data, size_t len) {
-    auto res = read_exact(data, len);
-    if (res.is_err()) {
-        return Err(res.unwrap_err());
+[[nodiscard]] size_t StreamReadWrapper::stream_read(uint8_t *data, size_t len) {
+    auto res = read.read(data, len);
+    if (res.is_ok()) {
+        return res.ok();
+    } else {
+        error = res.unwrap_err();
+        return 0;
     }
-    return Ok(len);
 }
 
-Result<size_t, Error> WriteExact::write(const uint8_t *data, size_t len) {
-    auto res = write_exact(data, len);
-    if (res.is_err()) {
-        return Err(res.unwrap_err());
+[[nodiscard]] size_t StreamWriteWrapper::stream_write(const uint8_t *data, size_t len) {
+    auto res = write.write(data, len);
+    if (res.is_ok()) {
+        return res.ok();
+    } else {
+        error = res.unwrap_err();
+        return 0;
     }
-    return Ok(len);
 }
 
 } // namespace io

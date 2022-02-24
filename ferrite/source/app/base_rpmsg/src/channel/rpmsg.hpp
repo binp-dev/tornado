@@ -23,6 +23,7 @@ public:
 
     static Result<RpmsgChannel, io::Error> create(const std::string &dev);
 
+    virtual Result<size_t, io::Error> write(const uint8_t *data, size_t len) override;
     virtual Result<std::monostate, io::Error> write_exact(const uint8_t *data, size_t len) override;
     virtual Result<size_t, io::Error> read(uint8_t *data, size_t len) override;
 };

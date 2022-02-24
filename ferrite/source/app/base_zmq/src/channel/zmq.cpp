@@ -47,6 +47,14 @@ Result<ZmqChannel, io::Error> ZmqChannel::create(const std::string &host) {
     return Ok(ZmqChannel(host, std::move(context), std::move(socket)));
 }
 
+Result<size_t, io::Error> ZmqChannel::write(const uint8_t *data, size_t len) {
+    auto res = write_exact(data, len);
+    if (res.is_ok()) {
+        return Ok(len);
+    } else {
+        return Err(res.unwrap_err());
+    }
+}
 Result<std::monostate, io::Error> ZmqChannel::write_exact(const uint8_t *data, size_t len) {
     zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLOUT, 0};
     int count = zmq_poll(&pollitem, 1, timeout.has_value() ? zmq_helper::duration_to_microseconds(timeout.value()) : -1);

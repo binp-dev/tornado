@@ -1,113 +1,55 @@
 #include "vec_deque.hpp"
 
-#include <core/numeric.hpp>
-
 Result<size_t, io::Error> VecDeque<uint8_t>::read(uint8_t *data, size_t len) {
-    size_t read_len = this->view().read(data, len).unwrap();
-    assert_eq(this->skip_front(read_len), read_len);
-    return Ok(read_len);
+    return Ok(this->stream_read(data, len));
 }
 
 Result<std::monostate, io::Error> VecDeque<uint8_t>::read_exact(uint8_t *data, size_t len) {
-    auto res = this->view().read_exact(data, len);
-    if (res.is_ok()) {
-        assert_eq(this->skip_front(len), len);
+    if (this->stream_read_exact(data, len)) {
+        return Ok(std::monostate{});
+    } else {
+        return Err(io::Error{io::ErrorKind::UnexpectedEof});
     }
-    return res;
 }
 
 Result<size_t, io::Error> VecDeque<uint8_t>::write(const uint8_t *data, size_t len) {
-    // Reserve enough space for new elements.
-    this->grow_to_free(len);
-
-    // Copy data to queue.
-    auto [left, right] = this->free_space_as_slices();
-    size_t left_len = std::min(left.size(), len);
-    memcpy(left.data(), data, left_len);
-    size_t right_len = std::min(right.size(), len - left_len);
-    memcpy(right.data(), data + left_len, right_len);
-
-    assert_eq(left_len + right_len, len);
-    this->expand_back(len);
-    return Ok(len);
+    return Ok(this->stream_write(data, len));
 }
 
 Result<std::monostate, io::Error> VecDeque<uint8_t>::write_exact(const uint8_t *data, size_t len) {
-    assert_eq(write(data, len).unwrap(), len);
-    return Ok(std::monostate{});
+    if (this->stream_write_exact(data, len)) {
+        return Ok(std::monostate{});
+    } else {
+        return Err(io::Error{io::ErrorKind::UnexpectedEof});
+    }
 }
 
 Result<size_t, io::Error> VecDeque<uint8_t>::read_from(io::Read &stream, std::optional<size_t> len_opt) {
-    if (len_opt.has_value()) {
-        size_t len = len_opt.value();
-
-        // Reserve enough space for new elements.
-        this->grow_to_free(len);
-
-        // Read first slice.
-        auto [left, right] = this->free_space_as_slices();
-        size_t left_len = std::min(left.size(), len);
-        auto left_res = stream.read(reinterpret_cast<uint8_t *>(left.data()), left_len);
-        if (left_res.is_ok()) {
-            this->expand_back(left_res.ok());
-        }
-        if (left_res.is_err() || left_res.ok() < left_len) {
-            return left_res;
-        }
-
-        // Read second slice.
-        size_t right_len = std::min(right.size(), len - left_len);
-        auto right_res = stream.read(reinterpret_cast<uint8_t *>(right.data()), right_len);
-        if (right_res.is_err()) {
-            return Ok(left_len);
-        } else {
-            this->expand_back(right_res.ok());
-            return Ok(left_len + right_res.ok());
-        }
+    io::StreamReadWrapper wrapper{stream};
+    size_t read_len = this->stream_read_from(wrapper, len_opt);
+    if (wrapper.error.has_value()) {
+        return Err(std::move(wrapper.error.value()));
     } else {
-        // Read infinitely until stream ends.
-        size_t total = 0;
-        for (;;) {
-            size_t free = this->capacity() - this->size();
-            if (free > 0) {
-                auto res = read_from(stream, free);
-                if (res.is_err()) {
-                    if (total == 0) {
-                        return res;
-                    } else {
-                        return Ok(total);
-                    }
-                }
-                total += res.ok();
-                if (res.ok() < free) {
-                    return Ok(total);
-                }
-            }
-            this->grow();
-        }
+        return Ok(read_len);
     }
 }
 
 Result<size_t, io::Error> VecDeque<uint8_t>::write_into(io::Write &stream, std::optional<size_t> len_opt) {
-    auto res = this->view().write_into(stream, len_opt);
-    if (res.is_ok()) {
-        assert_eq(this->skip_front(res.ok()), res.ok());
+    io::StreamWriteWrapper wrapper{stream};
+    size_t write_len = this->stream_write_into(wrapper, len_opt);
+    if (wrapper.error.has_value()) {
+        return Err(std::move(wrapper.error.value()));
+    } else {
+        return Ok(write_len);
     }
-    return res;
 }
 
 Result<size_t, io::Error> VecDequeView<uint8_t>::read(uint8_t *data, size_t len) {
-    auto [first, second] = this->as_slices();
-    size_t first_len = first.read(data, len).unwrap();
-    size_t second_len = second.read(data + first_len, len - first_len).unwrap();
-    size_t read_len = first_len + second_len;
-    assert_eq(this->skip_front(read_len), read_len);
-    return Ok(read_len);
+    return Ok(this->stream_read(data, len));
 }
 
 Result<std::monostate, io::Error> VecDequeView<uint8_t>::read_exact(uint8_t *data, size_t len) {
-    if (len <= this->size()) {
-        assert_eq(this->read(data, len), Ok(len));
+    if (this->stream_read_exact(data, len)) {
         return Ok(std::monostate{});
     } else {
         return Err(io::Error{io::ErrorKind::UnexpectedEof});
@@ -115,26 +57,11 @@ Result<std::monostate, io::Error> VecDequeView<uint8_t>::read_exact(uint8_t *dat
 }
 
 Result<size_t, io::Error> VecDequeView<uint8_t>::write_into(io::Write &stream, std::optional<size_t> len_opt) {
-    size_t len = len_opt.value_or(this->size());
-    auto [left, right] = this->as_slices();
-
-    // Write first slice.
-    size_t left_len = std::min(left.size(), len);
-    auto left_res = stream.write(left.data(), left_len);
-    if (left_res.is_ok()) {
-        assert_eq(this->skip_front(left_res.ok()), left_res.ok());
-    }
-    if (left_res.is_err() || left_res.ok() < left_len) {
-        return left_res;
-    }
-
-    // Write second slice.
-    size_t right_len = std::min(right.size(), len - left_len);
-    auto right_res = stream.write(right.data(), right_len);
-    if (right_res.is_err()) {
-        return Ok(left_len);
+    io::StreamWriteWrapper wrapper{stream};
+    size_t write_len = this->stream_write_into(wrapper, len_opt);
+    if (wrapper.error.has_value()) {
+        return Err(std::move(wrapper.error.value()));
     } else {
-        assert_eq(this->skip_front(right_res.ok()), right_res.ok());
-        return Ok(left_len + right_res.ok());
+        return Ok(write_len);
     }
 }

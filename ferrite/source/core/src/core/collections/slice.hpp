@@ -10,14 +10,14 @@ class Slice;
 
 // Replace with std::span in C++20
 template <typename T>
-class _Slice {
+class __Slice {
 private:
     T *ptr_ = nullptr;
     size_t size_ = 0;
 
 public:
-    _Slice() = default;
-    _Slice(T *ptr, size_t size) : ptr_(ptr), size_(size) {}
+    __Slice() = default;
+    __Slice(T *ptr, size_t size) : ptr_(ptr), size_(size) {}
 
     T *data() {
         return ptr_;
@@ -94,6 +94,43 @@ public:
     }
 };
 
+template <typename T, bool = std::is_trivial_v<T>>
+class _Slice : public __Slice<T> {
+public:
+    using __Slice<T>::__Slice;
+};
+
+template <typename T>
+class _Slice<T, true> :
+    public __Slice<T>,
+    public virtual StreamReadExact<T>,
+    public virtual StreamWriteInto<T> //
+{
+public:
+    using __Slice<T>::__Slice;
+
+    [[nodiscard]] bool stream_read_exact(T *data, size_t len) override {
+        if (len > this->size()) {
+            return false;
+        }
+        memcpy(data, this->data(), sizeof(T) * len);
+        assert_eq(this->skip_front(len), len);
+        return true;
+    }
+
+    size_t stream_read(T *data, size_t len) override {
+        size_t read_len = std::min(this->size(), len);
+        assert_true(stream_read_exact(data, read_len));
+        return read_len;
+    }
+
+    size_t stream_write_into(StreamWrite<T> &stream, std::optional<size_t> len) override {
+        size_t write_len = stream.stream_write(this->data(), len.value_or(this->size()));
+        assert_eq(this->skip_front(write_len), write_len);
+        return write_len;
+    }
+};
+
 template <typename T>
 class Slice final : public _Slice<T> {
 public:
@@ -106,26 +143,24 @@ public:
     using _Slice<uint8_t>::_Slice;
 
     inline Result<std::monostate, io::Error> read_exact(uint8_t *data, size_t len) override {
-        if (len > this->size()) {
+        if (this->stream_read_exact(data, len)) {
+            return Ok(std::monostate{});
+        } else {
             return Err(io::Error{io::ErrorKind::UnexpectedEof});
         }
-        memcpy(data, this->data(), len);
-        assert_eq(this->skip_front(len), len);
-        return Ok(std::monostate{});
     }
 
     inline Result<size_t, io::Error> read(uint8_t *data, size_t len) override {
-        size_t read_len = std::min(this->size(), len);
-        assert_true(read_exact(data, read_len).is_ok());
-        return Ok(read_len);
+        return Ok(this->stream_read(data, len));
     }
 
     inline Result<size_t, io::Error> write_into(io::Write &stream, std::optional<size_t> len) override {
-        size_t write_len = len.value_or(this->size());
-        auto res = stream.write(this->data(), write_len);
-        if (res.is_ok()) {
-            this->skip_front(res.ok());
+        io::StreamWriteWrapper wrapper{stream};
+        size_t write_len = this->stream_write_into(wrapper, len);
+        if (wrapper.error.has_value()) {
+            return Err(std::move(wrapper.error.value()));
+        } else {
+            return Ok(write_len);
         }
-        return res;
     }
 };
