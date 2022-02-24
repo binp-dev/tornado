@@ -4,9 +4,9 @@
 
 #include <stdbool.h>
 
+#include "board.h"
 #include "fsl_debug_console.h"
 #include "fsl_iomuxc.h"
-#include "pin_mux.h"
 
 static void init_mux(
     uint32_t ta,

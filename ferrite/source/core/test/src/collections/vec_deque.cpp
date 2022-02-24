@@ -204,110 +204,288 @@ TEST(VecDeque, skip) {
     ASSERT_EQ(rc.use_count(), 1);
 }
 
-TEST(VecDequeStream, read_write) {
-    VecDequeStream stream;
-    stream.queue.reserve(5);
+TEST(VecDeque, read_write) {
+    VecDeque<uint8_t> rb;
+    rb.reserve(5);
 
     std::array<uint8_t, 4> array{0};
     ASSERT_EQ(array, (std::array<uint8_t, 4>{0, 0, 0, 0}));
-    ASSERT_EQ(stream.read(array.data(), 1), Ok<size_t>(0));
+    ASSERT_EQ(rb.read(array.data(), 1), Ok<size_t>(0));
 
-    stream.queue.push_back(1);
-    stream.queue.push_back(2);
-    stream.queue.push_back(3);
-    stream.queue.push_back(4);
-    ASSERT_EQ(stream.queue.size(), 4u);
-    ASSERT_TRUE(stream.read_exact(array.data(), 4).is_ok());
-    ASSERT_EQ(stream.queue.size(), 0u);
+    rb.push_back(1);
+    rb.push_back(2);
+    rb.push_back(3);
+    rb.push_back(4);
+    ASSERT_EQ(rb.size(), 4u);
+    ASSERT_TRUE(rb.read_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(rb.size(), 0u);
     ASSERT_EQ(array, (std::array<uint8_t, 4>{1, 2, 3, 4}));
 
     array = std::array<uint8_t, 4>{5, 6, 7, 8};
-    ASSERT_TRUE(stream.write_exact(array.data(), 4).is_ok());
-    ASSERT_EQ(stream.queue.size(), 4u);
-    ASSERT_EQ(stream.queue.pop_front(), 5u);
-    ASSERT_EQ(stream.queue.pop_front(), 6u);
-    ASSERT_EQ(stream.queue.pop_front(), 7u);
-    ASSERT_EQ(stream.queue.pop_front(), 8u);
-    ASSERT_EQ(stream.queue.pop_front(), std::nullopt);
-    ASSERT_EQ(stream.queue.size(), 0u);
+    ASSERT_TRUE(rb.write_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(rb.size(), 4u);
+    ASSERT_EQ(rb.pop_front(), 5u);
+    ASSERT_EQ(rb.pop_front(), 6u);
+    ASSERT_EQ(rb.pop_front(), 7u);
+    ASSERT_EQ(rb.pop_front(), 8u);
+    ASSERT_EQ(rb.pop_front(), std::nullopt);
+    ASSERT_EQ(rb.size(), 0u);
 
     array = std::array<uint8_t, 4>{9, 10, 11, 12};
-    ASSERT_TRUE(stream.write_exact(array.data(), 4).is_ok());
-    ASSERT_EQ(stream.queue.size(), 4u);
+    ASSERT_TRUE(rb.write_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(rb.size(), 4u);
 
     array = std::array<uint8_t, 4>{0};
-    ASSERT_TRUE(stream.read_exact(array.data(), 4).is_ok());
+    ASSERT_TRUE(rb.read_exact(array.data(), 4).is_ok());
     ASSERT_EQ(array, (std::array<uint8_t, 4>{9, 10, 11, 12}));
-    ASSERT_EQ(stream.queue.size(), 0u);
+    ASSERT_EQ(rb.size(), 0u);
 }
 
-TEST(VecDequeStream, write_grow) {
-    VecDequeStream stream;
+TEST(VecDeque, write_grow) {
+    VecDeque<uint8_t> rb;
 
     std::array<uint8_t, 8> array{1, 2, 3, 4, 5, 6, 7, 8};
-    ASSERT_EQ(stream.read(array.data(), 1), Ok<size_t>(0));
+    ASSERT_EQ(rb.read(array.data(), 1), Ok<size_t>(0));
 
-    ASSERT_TRUE(stream.write_exact(array.data(), 8).is_ok());
-    ASSERT_EQ(stream.queue.size(), 8u);
-    ASSERT_EQ(stream.queue.capacity(), 15u);
+    ASSERT_TRUE(rb.write_exact(array.data(), 8).is_ok());
+    ASSERT_EQ(rb.size(), 8u);
+    ASSERT_EQ(rb.capacity(), 15u);
     for (uint8_t i = 0; i < 8u; ++i) {
-        ASSERT_EQ(stream.queue.pop_front(), i + 1);
+        ASSERT_EQ(rb.pop_front(), i + 1);
     }
-    ASSERT_EQ(stream.queue.pop_front(), std::nullopt);
-    ASSERT_EQ(stream.queue.size(), 0u);
-    ASSERT_EQ(stream.queue.capacity(), 15u);
+    ASSERT_EQ(rb.pop_front(), std::nullopt);
+    ASSERT_EQ(rb.size(), 0u);
+    ASSERT_EQ(rb.capacity(), 15u);
 }
 
-TEST(VecDequeStream, read_from) {
-    VecDequeStream a, b;
+TEST(VecDeque, read_from) {
+    VecDeque<uint8_t> a, b;
 
     std::array<uint8_t, 4> array{1, 2, 3, 4};
     ASSERT_TRUE(a.write_exact(array.data(), 4).is_ok());
-    ASSERT_EQ(a.queue.size(), 4u);
-    ASSERT_EQ(b.queue.size(), 0u);
+    ASSERT_EQ(a.size(), 4u);
+    ASSERT_EQ(b.size(), 0u);
 
     ASSERT_EQ(b.read_from(a, std::nullopt), Ok<size_t>(4));
-    ASSERT_EQ(a.queue.size(), 0u);
-    ASSERT_EQ(b.queue.size(), 4u);
+    ASSERT_EQ(a.size(), 0u);
+    ASSERT_EQ(b.size(), 4u);
 
     ASSERT_EQ(a.read_from(b, std::nullopt), Ok<size_t>(4));
-    ASSERT_EQ(a.queue.size(), 4u);
-    ASSERT_EQ(b.queue.size(), 0u);
+    ASSERT_EQ(a.size(), 4u);
+    ASSERT_EQ(b.size(), 0u);
 
     ASSERT_EQ(b.read_from(a, std::nullopt), Ok<size_t>(4));
-    ASSERT_EQ(a.queue.size(), 0u);
-    ASSERT_EQ(b.queue.size(), 4u);
-    ASSERT_EQ(b.queue.capacity(), 7u);
+    ASSERT_EQ(a.size(), 0u);
+    ASSERT_EQ(b.size(), 4u);
+    ASSERT_EQ(b.capacity(), 7u);
 
     array = std::array<uint8_t, 4>{0};
     ASSERT_TRUE(b.read_exact(array.data(), 4).is_ok());
     ASSERT_EQ(array, (std::array<uint8_t, 4>{1, 2, 3, 4}));
-    ASSERT_EQ(b.queue.size(), 0u);
+    ASSERT_EQ(b.size(), 0u);
 }
 
-TEST(VecDequeStream, write_to) {
-    VecDequeStream a, b;
+TEST(VecDeque, write_into) {
+    VecDeque<uint8_t> a, b;
 
     std::array<uint8_t, 4> array{1, 2, 3, 4};
     ASSERT_TRUE(a.write_exact(array.data(), 4).is_ok());
-    ASSERT_EQ(a.queue.size(), 4u);
-    ASSERT_EQ(b.queue.size(), 0u);
+    ASSERT_EQ(a.size(), 4u);
+    ASSERT_EQ(b.size(), 0u);
 
-    ASSERT_EQ(a.write_to(b, std::nullopt), Ok<size_t>(4));
-    ASSERT_EQ(a.queue.size(), 0u);
-    ASSERT_EQ(b.queue.size(), 4u);
+    ASSERT_EQ(a.write_into(b, std::nullopt), Ok<size_t>(4));
+    ASSERT_EQ(a.size(), 0u);
+    ASSERT_EQ(b.size(), 4u);
 
-    ASSERT_EQ(b.write_to(a, std::nullopt), Ok<size_t>(4));
-    ASSERT_EQ(a.queue.size(), 4u);
-    ASSERT_EQ(b.queue.size(), 0u);
+    ASSERT_EQ(b.write_into(a, std::nullopt), Ok<size_t>(4));
+    ASSERT_EQ(a.size(), 4u);
+    ASSERT_EQ(b.size(), 0u);
 
-    ASSERT_EQ(a.write_to(b, std::nullopt), Ok<size_t>(4));
-    ASSERT_EQ(a.queue.size(), 0u);
-    ASSERT_EQ(b.queue.size(), 4u);
-    ASSERT_EQ(b.queue.capacity(), 7u);
+    ASSERT_EQ(a.write_into(b, std::nullopt), Ok<size_t>(4));
+    ASSERT_EQ(a.size(), 0u);
+    ASSERT_EQ(b.size(), 4u);
+    ASSERT_EQ(b.capacity(), 7u);
 
     array = std::array<uint8_t, 4>{0};
     ASSERT_TRUE(b.read_exact(array.data(), 4).is_ok());
     ASSERT_EQ(array, (std::array<uint8_t, 4>{1, 2, 3, 4}));
-    ASSERT_EQ(b.queue.size(), 0u);
+    ASSERT_EQ(b.size(), 0u);
+}
+
+TEST(VecDequeView, pop_front) {
+    VecDeque<int32_t> rb;
+    rb.reserve(4u);
+
+    rb.push_back(0);
+    rb.push_back(1);
+    rb.push_back(2);
+
+    {
+        auto rbv = rb.view();
+        ASSERT_EQ(rbv.size(), 3u);
+        ASSERT_EQ(rbv.pop_front(), 0);
+        ASSERT_EQ(rbv.pop_front(), 1);
+        ASSERT_EQ(rbv.pop_front(), 2);
+        ASSERT_EQ(rbv.pop_front(), std::nullopt);
+        ASSERT_EQ(rbv.size(), 0u);
+    }
+    ASSERT_EQ(rb.pop_front(), 0);
+    ASSERT_EQ(rb.pop_front(), 1);
+
+    rb.push_back(3);
+    rb.push_back(4);
+
+    {
+        auto rbv = rb.view();
+        ASSERT_EQ(rbv.size(), 3u);
+        ASSERT_EQ(rbv.pop_front(), 2);
+        ASSERT_EQ(rbv.pop_front(), 3);
+        ASSERT_EQ(rbv.pop_front(), 4);
+        ASSERT_EQ(rbv.pop_front(), std::nullopt);
+        ASSERT_EQ(rbv.size(), 0u);
+    }
+    ASSERT_EQ(rb.pop_front(), 2);
+    ASSERT_EQ(rb.pop_front(), 3);
+
+    rb.push_back(5);
+    rb.push_back(6);
+
+    {
+        auto rbv = rb.view();
+        ASSERT_EQ(rbv.size(), 3u);
+        ASSERT_EQ(rbv.pop_front(), 4);
+        ASSERT_EQ(rbv.pop_front(), 5);
+        ASSERT_EQ(rbv.pop_front(), 6);
+        ASSERT_EQ(rbv.pop_front(), std::nullopt);
+        ASSERT_EQ(rbv.size(), 0u);
+    }
+    ASSERT_EQ(rb.pop_front(), 4);
+    ASSERT_EQ(rb.pop_front(), 5);
+    ASSERT_EQ(rb.pop_front(), 6);
+
+    ASSERT_EQ(rb.pop_front(), std::nullopt);
+}
+
+TEST(VecDequeView, pop_back) {
+    VecDeque<int32_t> rb;
+    rb.reserve(4u);
+
+    rb.push_front(0);
+    rb.push_front(1);
+    rb.push_front(2);
+
+    {
+        auto rbv = rb.view();
+        ASSERT_EQ(rbv.size(), 3u);
+        ASSERT_EQ(rbv.pop_back(), 0);
+        ASSERT_EQ(rbv.pop_back(), 1);
+        ASSERT_EQ(rbv.pop_back(), 2);
+        ASSERT_EQ(rbv.pop_back(), std::nullopt);
+        ASSERT_EQ(rbv.size(), 0u);
+    }
+    ASSERT_EQ(rb.pop_back(), 0);
+    ASSERT_EQ(rb.pop_back(), 1);
+
+    rb.push_front(3);
+    rb.push_front(4);
+
+    {
+        auto rbv = rb.view();
+        ASSERT_EQ(rbv.size(), 3u);
+        ASSERT_EQ(rbv.pop_back(), 2);
+        ASSERT_EQ(rbv.pop_back(), 3);
+        ASSERT_EQ(rbv.pop_back(), 4);
+        ASSERT_EQ(rbv.pop_back(), std::nullopt);
+        ASSERT_EQ(rbv.size(), 0u);
+    }
+    ASSERT_EQ(rb.pop_back(), 2);
+    ASSERT_EQ(rb.pop_back(), 3);
+
+    rb.push_front(5);
+    rb.push_front(6);
+
+    {
+        auto rbv = rb.view();
+        ASSERT_EQ(rbv.size(), 3u);
+        ASSERT_EQ(rbv.pop_back(), 4);
+        ASSERT_EQ(rbv.pop_back(), 5);
+        ASSERT_EQ(rbv.pop_back(), 6);
+        ASSERT_EQ(rbv.pop_back(), std::nullopt);
+        ASSERT_EQ(rbv.size(), 0u);
+    }
+    ASSERT_EQ(rb.pop_back(), 4);
+    ASSERT_EQ(rb.pop_back(), 5);
+    ASSERT_EQ(rb.pop_back(), 6);
+}
+
+
+TEST(VecDequeView, skip) {
+    VecDeque<int32_t> rb;
+
+    rb.push_back(0);
+    rb.push_back(1);
+    rb.push_back(2);
+    rb.push_back(3);
+
+    VecDequeView<int32_t> rbv = rb.view();
+
+    ASSERT_EQ(rbv.skip_front(1u), 1u);
+    ASSERT_EQ(rbv.pop_front(), 1);
+
+    ASSERT_EQ(rbv.skip_back(1u), 1u);
+    ASSERT_EQ(rbv.pop_back(), 2);
+
+    ASSERT_TRUE(!rbv.pop_front().has_value());
+    ASSERT_EQ(rbv.skip_front(1u), 0u);
+    ASSERT_TRUE(!rbv.pop_back().has_value());
+    ASSERT_EQ(rbv.skip_back(1u), 0u);
+
+    ASSERT_EQ(rb.size(), 4u);
+}
+
+TEST(VecDequeView, read) {
+    VecDeque<uint8_t> rb;
+    rb.reserve(5);
+
+    std::array<uint8_t, 4> array{0};
+    ASSERT_EQ(rb.view().read(array.data(), 1), Ok<size_t>(0));
+
+    rb.push_back(1);
+    rb.push_back(2);
+    rb.push_back(3);
+    rb.push_back(4);
+    ASSERT_EQ(rb.size(), 4u);
+
+    VecDequeView<uint8_t> rbv = rb.view();
+    ASSERT_EQ(rbv.size(), 4u);
+    ASSERT_TRUE(rbv.read_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(rbv.size(), 0u);
+    ASSERT_EQ(array, (std::array<uint8_t, 4>{1, 2, 3, 4}));
+
+    array = std::array<uint8_t, 4>{5, 6, 7, 8};
+    ASSERT_EQ(rb.skip_front(4u), 4u);
+    ASSERT_TRUE(rb.write_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(rb.size(), 4u);
+
+    rbv = rb.view();
+    ASSERT_EQ(rbv.size(), 4u);
+    ASSERT_EQ(rbv.pop_front(), 5u);
+    ASSERT_EQ(rbv.pop_front(), 6u);
+    ASSERT_EQ(rbv.pop_front(), 7u);
+    ASSERT_EQ(rbv.pop_front(), 8u);
+    ASSERT_EQ(rbv.pop_front(), std::nullopt);
+    ASSERT_EQ(rbv.size(), 0u);
+
+    array = std::array<uint8_t, 4>{9, 10, 11, 12};
+    ASSERT_EQ(rb.skip_front(4u), 4u);
+    ASSERT_TRUE(rb.write_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(rb.size(), 4u);
+
+    rbv = rb.view();
+    ASSERT_EQ(rbv.size(), 4u);
+    array = std::array<uint8_t, 4>{0};
+    ASSERT_TRUE(rbv.read_exact(array.data(), 4).is_ok());
+    ASSERT_EQ(array, (std::array<uint8_t, 4>{9, 10, 11, 12}));
+    ASSERT_EQ(rbv.size(), 0u);
+    ASSERT_EQ(rb.size(), 4u);
 }

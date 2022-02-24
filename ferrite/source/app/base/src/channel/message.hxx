@@ -1,6 +1,9 @@
 #include "message.hpp"
 
 #include <chrono>
+#include <sstream>
+#include <iostream>
+#include <iomanip>
 
 #include <core/assert.hpp>
 
@@ -8,17 +11,12 @@
 using namespace std::chrono_literals;
 
 template <typename OutMsg, typename InMsg>
-MessageChannel<OutMsg, InMsg>::MessageChannel(std::unique_ptr<Channel> &&raw, const size_t max_len) :
-    raw(std::move(raw)),
+MessageChannel<OutMsg, InMsg>::MessageChannel(std::unique_ptr<Channel> &&raw_, const size_t max_len) :
+    raw_(std::move(raw_)),
     max_len_(max_len) //
 {
-    send_buffer_.vector.reserve(max_len_);
-    recv_buffer_.queue.reserve(max_len_);
-}
-
-template <typename OutMsg, typename InMsg>
-size_t MessageChannel<OutMsg, InMsg>::max_message_length() const {
-    return max_len_;
+    send_buffer_.reserve(max_len_);
+    recv_buffer_.reserve(max_len_);
 }
 
 template <typename OutMsg, typename InMsg>
@@ -27,26 +25,32 @@ Result<std::monostate, io::Error> MessageChannel<OutMsg, InMsg>::send(
     std::optional<std::chrono::milliseconds> timeout) {
 
     // TODO: Should we pack multiple messages in one buffer?
-    send_buffer_.vector.clear();
+    send_buffer_.clear();
     auto res = message.store(send_buffer_);
     if (res.is_err()) {
         return res;
     }
-    const size_t length = send_buffer_.vector.size();
+    const size_t length = send_buffer_.size();
     if (length > max_message_length()) {
         return Err(io::Error{io::ErrorKind::UnexpectedEof, "Message size is greater than max length"});
     }
-    raw->timeout = timeout;
-    return raw->write_exact(send_buffer_.vector.data(), length);
+    raw_->timeout = timeout;
+    return raw_->write_exact(send_buffer_.data(), length);
 }
 
 template <typename OutMsg, typename InMsg>
 Result<InMsg, io::Error> MessageChannel<OutMsg, InMsg>::receive(std::optional<std::chrono::milliseconds> timeout) {
     auto begin = std::chrono::steady_clock::now();
     for (;;) {
-        // Try to read data from buffer
-        auto msg_res = InMsg::load(recv_buffer_);
-        if (msg_res.is_ok() || msg_res.err().kind != io::ErrorKind::UnexpectedEof) {
+        // Try to read data from buffer.
+        // On success remove data are removed from buffer, on failure data remain in buffer.
+        VecDequeView<uint8_t> view = recv_buffer_.view();
+        size_t view_len = view.size();
+        auto msg_res = InMsg::load(view);
+        if (msg_res.is_ok()) {
+            recv_buffer_.skip_front(view_len - view.size());
+            return msg_res;
+        } else if (msg_res.err().kind != io::ErrorKind::UnexpectedEof) {
             return msg_res;
         }
 
@@ -58,11 +62,11 @@ Result<InMsg, io::Error> MessageChannel<OutMsg, InMsg>::receive(std::optional<st
             if (remains.count() <= 0) {
                 break;
             }
-            raw->timeout = remains;
+            raw_->timeout = remains;
         } else {
-            raw->timeout = std::nullopt;
+            raw_->timeout = std::nullopt;
         }
-        auto read_res = recv_buffer_.read_from(*raw, std::nullopt);
+        auto read_res = recv_buffer_.read_from(*raw_, std::nullopt);
         if (read_res.is_err()) {
             return Err(read_res.unwrap_err());
         }
