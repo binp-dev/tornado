@@ -1,19 +1,17 @@
 from __future__ import annotations
-import chunk
-from dataclasses import dataclass
-from typing import Any, List
+from typing import List
 
 import asyncio
-from threading import Thread
 from pathlib import Path
+from dataclasses import dataclass
 
 import zmq
 import zmq.asyncio as azmq
 
 from ferrite.utils.epics.ioc import Ioc
-from ferrite.utils.interop import read_defs
 
 from tornado.ipp import AppMsg, McuMsg
+from tornado.common.config import read_common_config
 
 import logging
 
@@ -59,16 +57,11 @@ class FakeDev:
 
     @staticmethod
     def read_config(source: Path) -> Config:
-        defs = read_defs(source / "common" / "include" / "common" / "config.h")
-
-        adc_count = defs["ADC_COUNT"]
-        rpmsg_max_msg_len = defs["RPMSG_MAX_MSG_LEN"]
-        assert isinstance(adc_count, int) and isinstance(rpmsg_max_msg_len, int)
-
+        cc = read_common_config(source)
         return FakeDev.Config(
-            adc_count=adc_count,
+            adc_count=cc.adc_count,
             sample_period=0.0001, # 10 kHz
-            chunk_size=(rpmsg_max_msg_len - 3) // 4
+            chunk_size=(cc.rpmsg_max_msg_len - 3) // 4
         )
 
     def __init__(self, ioc: Ioc, config: Config, handler: FakeDev.Handler) -> None:
