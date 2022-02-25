@@ -5,51 +5,53 @@
 #include <type_traits>
 
 #include <core/stream.hpp>
-#include <core/io.hpp>
 
 #include "slice.hpp"
 
+namespace vec_impl {
+
 template <typename T>
-class __Vec : public std::vector<T> {
+class BasicVec : public std::vector<T> {
 public:
+    using std::vector<T>::vector;
+
     [[nodiscard]] Slice<T> slice() {
         return Slice<T>(this->data(), this->size());
     }
     [[nodiscard]] Slice<const T> slice() const {
         return Slice<T>(this->data(), this->size());
     }
-
-    using std::vector<T>::vector;
 };
 
+
 template <typename T, bool = std::is_trivial_v<T>>
-class _Vec : public __Vec<T> {
+class StreamVec : public BasicVec<T> {
 public:
-    using __Vec<T>::__Vec;
+    using BasicVec<T>::BasicVec;
 };
 
 template <typename T>
-class _Vec<T, true> :
-    public __Vec<T>,
-    public virtual StreamWriteExact<T>,
-    public virtual StreamReadFrom<T> //
+class StreamVec<T, true> :
+    public BasicVec<T>,
+    public virtual WriteArrayExact<T>,
+    public virtual ReadArrayFrom<T> //
 {
 public:
-    using __Vec<T>::__Vec;
+    using BasicVec<T>::BasicVec;
 
-    [[nodiscard]] size_t stream_write(const T *data, size_t len) override {
+    [[nodiscard]] size_t write_array(const T *data, size_t len) override {
         size_t size = this->size();
         this->resize(size + len);
         memcpy(this->data() + size, data, sizeof(T) * len);
         return len;
     }
 
-    [[nodiscard]] bool stream_write_exact(const T *data, size_t len) override {
-        assert_eq(this->stream_write(data, len), len);
+    [[nodiscard]] bool write_array_exact(const T *data, size_t len) override {
+        assert_eq(this->write_array(data, len), len);
         return true;
     }
 
-    [[nodiscard]] size_t stream_read_from(StreamRead<T> &stream, std::optional<size_t> len_opt) override {
+    [[nodiscard]] size_t read_array_from(ReadArray<T> &stream, std::optional<size_t> len_opt) override {
         if (len_opt.has_value()) {
             size_t len = len_opt.value();
             size_t size = this->size();
@@ -62,7 +64,7 @@ public:
             this->resize(new_cap);
 
             // Read from stream.
-            size_t read_len = stream.stream_read(this->data() + size, len);
+            size_t read_len = stream.read_array(this->data() + size, len);
             this->resize(size + read_len);
             return read_len;
         } else {
@@ -71,7 +73,7 @@ public:
             for (;;) {
                 size_t free = this->capacity() - this->size();
                 if (free > 0) {
-                    size_t res_len = stream_read_from(stream, free);
+                    size_t res_len = read_array_from(stream, free);
                     total += res_len;
                     if (res_len < free) {
                         return total;
@@ -83,37 +85,10 @@ public:
     }
 };
 
+} // namespace vec_impl
 
 template <typename T>
-class Vec final : public _Vec<T> {
+class Vec final : public vec_impl::StreamVec<T> {
 public:
-    using _Vec<T>::_Vec;
-};
-
-template <>
-class Vec<uint8_t> final : public _Vec<uint8_t>, public virtual io::WriteExact, public virtual io::ReadFrom {
-public:
-    using _Vec<uint8_t>::_Vec;
-
-    inline Result<size_t, io::Error> write(const uint8_t *data, size_t len) override {
-        return Ok(this->stream_write(data, len));
-    }
-
-    inline Result<std::monostate, io::Error> write_exact(const uint8_t *data, size_t len) override {
-        if (this->stream_write_exact(data, len)) {
-            return Ok(std::monostate{});
-        } else {
-            return Err(io::Error{io::ErrorKind::UnexpectedEof});
-        }
-    }
-
-    inline Result<size_t, io::Error> read_from(io::Read &stream, std::optional<size_t> len_opt) override {
-        io::StreamReadWrapper wrapper{stream};
-        size_t read_len = this->stream_read_from(wrapper, len_opt);
-        if (wrapper.error.has_value()) {
-            return Err(std::move(wrapper.error.value()));
-        } else {
-            return Ok(read_len);
-        }
-    }
+    using vec_impl::StreamVec<T>::StreamVec;
 };

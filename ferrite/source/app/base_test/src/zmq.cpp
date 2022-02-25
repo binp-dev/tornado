@@ -123,7 +123,7 @@ TEST(ZmqTest, channel) {
         ASSERT_TRUE(try_send(socket, (const uint8_t *)src, 6).is_ok());
 
         char dst[10];
-        auto rr = channel.read((uint8_t *)dst, 10);
+        auto rr = channel.stream_read((uint8_t *)dst, 10);
         ASSERT_TRUE(rr.is_ok()) << rr.err().message;
         ASSERT_EQ(rr, Ok<size_t>(6)) << rr.ok();
         ASSERT_EQ(strcmp(src, dst), 0);
@@ -131,7 +131,7 @@ TEST(ZmqTest, channel) {
 
     { // Send
         const char *src = "World";
-        ASSERT_TRUE(channel.write_exact((const uint8_t *)src, 6).is_ok());
+        ASSERT_TRUE(channel.stream_write_exact((const uint8_t *)src, 6).is_ok());
 
         char dst[10];
         ASSERT_EQ(try_recv(socket, (uint8_t *)dst, 10), Ok<size_t>(6));

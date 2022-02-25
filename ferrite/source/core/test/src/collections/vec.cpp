@@ -25,15 +25,15 @@ TEST(Vec, into_std_vector) {
 }
 
 TEST(Vec, read_from) {
-    Vec<uint8_t> a{0, 1, 2, 3};
+    Vec<int32_t> a{0, 1, 2, 3};
     {
-        Vec<uint8_t> b{4, 5, 6, 7};
+        Vec<int32_t> b{4, 5, 6, 7};
         auto s = b.slice();
-        ASSERT_EQ(a.read_from(s, std::nullopt), Ok<size_t>(4));
+        ASSERT_EQ(a.read_array_from(s, std::nullopt), 4);
     }
 
     ASSERT_EQ(a.size(), 8u);
     for (size_t i = 0; i < a.size(); ++i) {
-        ASSERT_EQ(a[i], uint8_t(i));
+        ASSERT_EQ(a[i], int32_t(i));
     }
 }

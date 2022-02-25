@@ -9,11 +9,11 @@ from ferrite.codegen.utils import hash_str, indent, to_ident
 
 
 def io_read_type() -> str:
-    return "io::ReadExact"
+    return "io::StreamReadExact"
 
 
 def io_write_type() -> str:
-    return "io::WriteExact"
+    return "io::StreamWriteExact"
 
 
 def io_result_type(tys: str = "std::monostate") -> str:
@@ -36,13 +36,13 @@ def try_unwrap(expr: str, op: Callable[[str], str] | None = None) -> List[str]:
 def stream_read(stream: str, dst_ptr: str, size: int | str, cast: bool = True) -> str:
     if cast:
         dst_ptr = f"reinterpret_cast<uint8_t *>({dst_ptr})"
-    return f"{stream}.read_exact({dst_ptr}, {size})"
+    return f"{stream}.stream_read_exact({dst_ptr}, {size})"
 
 
 def stream_write(stream: str, src_ptr: str, size: int | str, cast: bool = True) -> str:
     if cast:
         src_ptr = f"reinterpret_cast<const uint8_t *>({src_ptr})"
-    return f"{stream}.write_exact({src_ptr}, {size})"
+    return f"{stream}.stream_write_exact({src_ptr}, {size})"
 
 
 class ErrorKind(Enum):

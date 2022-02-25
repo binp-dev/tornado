@@ -47,15 +47,17 @@ Result<ZmqChannel, io::Error> ZmqChannel::create(const std::string &host) {
     return Ok(ZmqChannel(host, std::move(context), std::move(socket)));
 }
 
-Result<size_t, io::Error> ZmqChannel::write(const uint8_t *data, size_t len) {
-    auto res = write_exact(data, len);
+
+Result<size_t, io::Error> ZmqChannel::stream_write(const uint8_t *data, size_t len) {
+    auto res = stream_write_exact(data, len);
     if (res.is_ok()) {
         return Ok(len);
     } else {
         return Err(res.unwrap_err());
     }
 }
-Result<std::monostate, io::Error> ZmqChannel::write_exact(const uint8_t *data, size_t len) {
+
+Result<std::monostate, io::Error> ZmqChannel::stream_write_exact(const uint8_t *data, size_t len) {
     zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLOUT, 0};
     int count = zmq_poll(&pollitem, 1, timeout.has_value() ? zmq_helper::duration_to_microseconds(timeout.value()) : -1);
     if (count > 0) {
@@ -73,7 +75,7 @@ Result<std::monostate, io::Error> ZmqChannel::write_exact(const uint8_t *data, s
     }
     return Ok(std::monostate{});
 }
-Result<size_t, io::Error> ZmqChannel::read(uint8_t *data, size_t len) {
+Result<size_t, io::Error> ZmqChannel::stream_read(uint8_t *data, size_t len) {
     if (len == 0) {
         return Ok<size_t>(0);
     }

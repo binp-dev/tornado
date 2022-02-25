@@ -7,7 +7,8 @@ set(SRC
     "src/core/convert.hpp"
     "src/core/numeric.hpp"
     "src/core/io.hpp"
-    "src/core/io.cpp"
+    "src/core/stream.hpp"
+    "src/core/stream.cpp"
     "src/core/lazy_static.hpp"
     "src/core/maybe_uninit.hpp"
     "src/core/match.hpp"
@@ -19,7 +20,6 @@ set(SRC
     "src/core/collections/vec.hpp"
     "src/core/collections/vec_deque.hpp"
     "src/core/collections/vec_deque.hxx"
-    "src/core/collections/vec_deque.cpp"
 )
 
 add_library(${PROJECT_NAME} OBJECT ${SRC})

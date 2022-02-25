@@ -7,10 +7,8 @@
 /// MaybeUninit<T> is POD for any `T`.
 template <typename T>
 struct MaybeUninit {
-private:
     uint8_t payload[sizeof(T)];
 
-public:
     MaybeUninit() = default;
 
     const T &assume_init() const {
