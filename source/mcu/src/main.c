@@ -109,7 +109,7 @@ void send_adc_wf_data() {
     }
 }
 
-void send_adc_wf_request() {
+void send_dac_wf_request() {
     size_t free_space_in_buff = xStreamBufferSpacesAvailable(DAC.queue) / sizeof(int32_t);
 
     if (free_space_in_buff >= FREE_SPACE_IN_BUFF_FOR_DAC_WF_REQUEST && !DAC.waiting_for_data) {
@@ -152,7 +152,7 @@ static void task_rpmsg_send(void *param) {
 
         send_din();
         send_adc_wf_data();
-        send_adc_wf_request();
+        send_dac_wf_request();
     }
 }
 

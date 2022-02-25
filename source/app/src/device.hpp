@@ -46,6 +46,8 @@ private:
         std::mutex mutex;
         std::atomic<bool> wf_is_set{false};
         std::atomic<bool> swap_ready{false};
+        std::atomic<bool> cyclic_out{false};
+        std::atomic<bool> has_req{false};
         size_t buff_position = 0;
         std::function<void()> request_next_wf;
     };
@@ -58,8 +60,6 @@ private:
     std::mutex send_mutex;
 
     const size_t msg_max_len_;
-    std::atomic<bool> has_dac_wf_req{false};
-    bool cyclic_dac_wf_output{false};
 
     DinEntry din;
     DoutEntry dout;
@@ -101,6 +101,8 @@ public:
 
     [[nodiscard]] bool dac_wf_req_flag() const;
     void set_dac_wf_req_callback(std::function<void()> &&callback);
+
+    void set_dac_wf_out_mode(bool mode);
 
 private:
     void fill_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size);

@@ -139,3 +139,16 @@ public:
         return false;
     }
 };
+
+class DacWfOutputModeHandler final : public DeviceHandler, public OutputValueHandler<bool> {
+public:
+    DacWfOutputModeHandler(Device &device) : DeviceHandler(device) {}
+
+    virtual void write(OutputValueRecord<bool> &record) override {
+        device_.set_dac_wf_out_mode(record.value());
+    }
+
+    virtual bool is_async() const override {
+        return false;
+    }
+};

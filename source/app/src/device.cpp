@@ -58,7 +58,7 @@ void Device::recv_loop() {
                     }
                 },
                 [&](ipp::McuMsgDacWfReq &&) {
-                    has_dac_wf_req.store(true);
+                    dac_wf.has_req.store(true);
                     send_ready.notify_all();
                 },
                 [&](ipp::McuMsgDebug &&debug) { //
@@ -92,8 +92,8 @@ void Device::send_loop() {
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
             channel.send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
         }
-        if (has_dac_wf_req.load() == true && dac_wf.wf_is_set.load() == true) {
-            has_dac_wf_req.store(false);
+        if (dac_wf.has_req.load() == true && dac_wf.wf_is_set.load() == true) {
+            dac_wf.has_req.store(false);
             ipp::AppMsgDacWf dac_wf_msg;
             auto &buffer = dac_wf_msg.elements;
             size_t max_buffer_size = (msg_max_len_ - dac_wf_msg.packed_size()) / sizeof(int32_t);
@@ -244,7 +244,7 @@ bool Device::swap_dac_wf_buffers() {
 
         return true;
     } else {
-        if (cyclic_dac_wf_output) {
+        if (dac_wf.cyclic_out.load()) {
             return true;
         }
 
@@ -260,4 +260,8 @@ bool Device::dac_wf_req_flag() const {
 
 void Device::set_dac_wf_req_callback(std::function<void()> &&callback) {
     dac_wf.request_next_wf = std::move(callback);
+}
+
+void Device::set_dac_wf_out_mode(bool mode) {
+    dac_wf.cyclic_out.store(mode);
 }
