@@ -52,18 +52,18 @@ public:
     virtual Result<std::monostate, Error> stream_write_exact(const uint8_t *data, size_t len) = 0;
 };
 
-class ReadFromStream {
+class WriteFromStream {
 public:
     //! Read bytes from given stream into `this`.
     //! @param len Number of bytes to read. If `nullopt` then read as much as possible.
-    virtual Result<size_t, Error> read_from_stream(StreamRead &stream, std::optional<size_t> len = std::nullopt) = 0;
+    virtual Result<size_t, Error> write_from_stream(StreamRead &stream, std::optional<size_t> len = std::nullopt) = 0;
 };
 
-class WriteIntoStream {
+class ReadIntoStream {
 public:
     //! Write bytes from `this` into given stream.
     //! @param len Number of bytes to write. If `nullopt` then write as much as possible.
-    virtual Result<size_t, Error> write_into_stream(StreamWrite &stream, std::optional<size_t> len = std::nullopt) = 0;
+    virtual Result<size_t, Error> read_into_stream(StreamWrite &stream, std::optional<size_t> len = std::nullopt) = 0;
 };
 
 } // namespace io

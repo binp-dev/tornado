@@ -66,7 +66,7 @@ Result<InMsg, io::Error> MessageChannel<OutMsg, InMsg>::receive(std::optional<st
         } else {
             raw_->timeout = std::nullopt;
         }
-        auto read_res = recv_buffer_.stream_read_from(*raw_, std::nullopt);
+        auto read_res = recv_buffer_.write_from_stream(*raw_, std::nullopt);
         if (read_res.is_err()) {
             return Err(read_res.unwrap_err());
         }

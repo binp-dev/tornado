@@ -68,19 +68,19 @@ public:
 };
 
 template <typename T>
-class ReadArrayFrom {
+class WriteArrayFrom {
 public:
     //! Read items from given stream into `this`.
     //! @param len Number of items to read. If `nullopt` then read as much as possible.
-    [[nodiscard]] virtual size_t read_array_from(::ReadArray<T> &stream, std::optional<size_t> len) = 0;
+    virtual size_t write_array_from(::ReadArray<T> &stream, std::optional<size_t> len) = 0;
 };
 
 template <typename T>
-class WriteArrayInto {
+class ReadArrayInto {
 public:
     //! Write items from `this` into given stream.
     //! @param len Number of items to write. If `nullopt` then write as much as possible.
-    [[nodiscard]] virtual size_t write_array_into(::WriteArray<T> &stream, std::optional<size_t> len) = 0;
+    virtual size_t read_array_into(::WriteArray<T> &stream, std::optional<size_t> len) = 0;
 };
 
 } // namespace stream_impl
@@ -99,10 +99,10 @@ template <typename T>
 class WriteArrayExact : public virtual WriteArray<T>, public virtual stream_impl::WriteArrayExact<T> {};
 
 template <typename T>
-class ReadArrayFrom : public virtual stream_impl::ReadArrayFrom<T> {};
+class WriteArrayFrom : public virtual stream_impl::WriteArrayFrom<T> {};
 
 template <typename T>
-class WriteArrayInto : public virtual stream_impl::WriteArrayInto<T> {};
+class ReadArrayInto : public virtual stream_impl::ReadArrayInto<T> {};
 
 
 template <>
@@ -144,19 +144,19 @@ public:
 };
 
 template <>
-class ReadArrayFrom<uint8_t> :
-    public virtual stream_impl::ReadArrayFrom<uint8_t>,
-    public virtual io::ReadFromStream //
+class WriteArrayFrom<uint8_t> :
+    public virtual stream_impl::WriteArrayFrom<uint8_t>,
+    public virtual io::WriteFromStream //
 {
 public:
-    Result<size_t, io::Error> read_from_stream(io::StreamRead &stream, std::optional<size_t> len) override;
+    Result<size_t, io::Error> write_from_stream(io::StreamRead &stream, std::optional<size_t> len) override;
 };
 
 template <>
-class WriteArrayInto<uint8_t> :
-    public virtual stream_impl::WriteArrayInto<uint8_t>,
-    public virtual io::WriteIntoStream //
+class ReadArrayInto<uint8_t> :
+    public virtual stream_impl::ReadArrayInto<uint8_t>,
+    public virtual io::ReadIntoStream //
 {
 public:
-    Result<size_t, io::Error> write_into_stream(io::StreamWrite &stream, std::optional<size_t> len) override;
+    Result<size_t, io::Error> read_into_stream(io::StreamWrite &stream, std::optional<size_t> len) override;
 };

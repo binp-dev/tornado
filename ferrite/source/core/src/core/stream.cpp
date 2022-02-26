@@ -64,9 +64,9 @@ Result<std::monostate, io::Error> WriteArrayExact<uint8_t>::stream_write_exact(c
     }
 }
 
-Result<size_t, io::Error> ReadArrayFrom<uint8_t>::read_from_stream(io::StreamRead &stream, std::optional<size_t> len_opt) {
+Result<size_t, io::Error> WriteArrayFrom<uint8_t>::write_from_stream(io::StreamRead &stream, std::optional<size_t> len_opt) {
     StreamReadArrayWrapper wrapper{stream};
-    size_t read_len = this->read_array_from(wrapper, len_opt);
+    size_t read_len = this->write_array_from(wrapper, len_opt);
     if (wrapper.error.has_value()) {
         return Err(std::move(wrapper.error.value()));
     } else {
@@ -74,9 +74,9 @@ Result<size_t, io::Error> ReadArrayFrom<uint8_t>::read_from_stream(io::StreamRea
     }
 }
 
-Result<size_t, io::Error> WriteArrayInto<uint8_t>::write_into_stream(io::StreamWrite &stream, std::optional<size_t> len_opt) {
+Result<size_t, io::Error> ReadArrayInto<uint8_t>::read_into_stream(io::StreamWrite &stream, std::optional<size_t> len_opt) {
     StreamWriteArrayWrapper wrapper{stream};
-    size_t write_len = this->write_array_into(wrapper, len_opt);
+    size_t write_len = this->read_array_into(wrapper, len_opt);
     if (wrapper.error.has_value()) {
         return Err(std::move(wrapper.error.value()));
     } else {

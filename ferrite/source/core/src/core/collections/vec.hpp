@@ -34,7 +34,7 @@ template <typename T>
 class StreamVec<T, true> :
     public BasicVec<T>,
     public virtual WriteArrayExact<T>,
-    public virtual ReadArrayFrom<T> //
+    public virtual WriteArrayFrom<T> //
 {
 public:
     using BasicVec<T>::BasicVec;
@@ -51,7 +51,7 @@ public:
         return true;
     }
 
-    [[nodiscard]] size_t read_array_from(ReadArray<T> &stream, std::optional<size_t> len_opt) override {
+    size_t write_array_from(ReadArray<T> &stream, std::optional<size_t> len_opt) override {
         if (len_opt.has_value()) {
             size_t len = len_opt.value();
             size_t size = this->size();
@@ -73,7 +73,7 @@ public:
             for (;;) {
                 size_t free = this->capacity() - this->size();
                 if (free > 0) {
-                    size_t res_len = read_array_from(stream, free);
+                    size_t res_len = write_array_from(stream, free);
                     total += res_len;
                     if (res_len < free) {
                         return total;

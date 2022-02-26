@@ -29,7 +29,7 @@ TEST(Vec, read_from) {
     {
         Vec<int32_t> b{4, 5, 6, 7};
         auto s = b.slice();
-        ASSERT_EQ(a.read_array_from(s, std::nullopt), 4);
+        ASSERT_EQ(a.write_array_from(s, std::nullopt), 4);
     }
 
     ASSERT_EQ(a.size(), 8u);

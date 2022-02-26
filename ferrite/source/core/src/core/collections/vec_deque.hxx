@@ -426,7 +426,7 @@ bool StreamVecDeque<T, true>::write_array_exact(const T *data, size_t len) {
 }
 
 template <typename T>
-size_t StreamVecDeque<T, true>::read_array_from(ReadArray<T> &stream, std::optional<size_t> len_opt) {
+size_t StreamVecDeque<T, true>::write_array_from(ReadArray<T> &stream, std::optional<size_t> len_opt) {
     if (len_opt.has_value()) {
         size_t len = len_opt.value();
 
@@ -453,7 +453,7 @@ size_t StreamVecDeque<T, true>::read_array_from(ReadArray<T> &stream, std::optio
         for (;;) {
             size_t free = this->capacity() - this->size();
             if (free > 0) {
-                size_t res_len = read_array_from(stream, free);
+                size_t res_len = write_array_from(stream, free);
                 total += res_len;
                 if (res_len < free) {
                     return total;
@@ -465,8 +465,8 @@ size_t StreamVecDeque<T, true>::read_array_from(ReadArray<T> &stream, std::optio
 }
 
 template <typename T>
-size_t StreamVecDeque<T, true>::write_array_into(WriteArray<T> &stream, std::optional<size_t> len_opt) {
-    size_t res_len = this->view().write_array_into(stream, len_opt);
+size_t StreamVecDeque<T, true>::read_array_into(WriteArray<T> &stream, std::optional<size_t> len_opt) {
+    size_t res_len = this->view().read_array_into(stream, len_opt);
     assert_eq(this->skip_front(res_len), res_len);
     return res_len;
 }
@@ -492,7 +492,7 @@ bool StreamVecDequeView<T, true>::read_array_exact(T *data, size_t len) {
 }
 
 template <typename T>
-size_t StreamVecDequeView<T, true>::write_array_into(WriteArray<T> &stream, std::optional<size_t> len_opt) {
+size_t StreamVecDequeView<T, true>::read_array_into(WriteArray<T> &stream, std::optional<size_t> len_opt) {
     size_t len = len_opt.value_or(this->size());
     auto [left, right] = this->as_slices();
 

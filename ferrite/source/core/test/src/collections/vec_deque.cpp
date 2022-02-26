@@ -258,7 +258,7 @@ TEST(VecDeque, write_grow) {
     ASSERT_EQ(rb.capacity(), 15u);
 }
 
-TEST(VecDeque, read_array_from) {
+TEST(VecDeque, write_array_from) {
     VecDeque<int32_t> a, b;
 
     std::array<int32_t, 4> array{1, 2, 3, 4};
@@ -266,15 +266,15 @@ TEST(VecDeque, read_array_from) {
     ASSERT_EQ(a.size(), 4u);
     ASSERT_EQ(b.size(), 0u);
 
-    ASSERT_EQ(b.read_array_from(a, std::nullopt), 4);
+    ASSERT_EQ(b.write_array_from(a, std::nullopt), 4);
     ASSERT_EQ(a.size(), 0u);
     ASSERT_EQ(b.size(), 4u);
 
-    ASSERT_EQ(a.read_array_from(b, std::nullopt), 4);
+    ASSERT_EQ(a.write_array_from(b, std::nullopt), 4);
     ASSERT_EQ(a.size(), 4u);
     ASSERT_EQ(b.size(), 0u);
 
-    ASSERT_EQ(b.read_array_from(a, std::nullopt), 4);
+    ASSERT_EQ(b.write_array_from(a, std::nullopt), 4);
     ASSERT_EQ(a.size(), 0u);
     ASSERT_EQ(b.size(), 4u);
     ASSERT_EQ(b.capacity(), 7u);
@@ -285,7 +285,7 @@ TEST(VecDeque, read_array_from) {
     ASSERT_EQ(b.size(), 0u);
 }
 
-TEST(VecDeque, write_array_into) {
+TEST(VecDeque, read_array_into) {
     VecDeque<int32_t> a, b;
 
     std::array<int32_t, 4> array{1, 2, 3, 4};
@@ -293,15 +293,15 @@ TEST(VecDeque, write_array_into) {
     ASSERT_EQ(a.size(), 4u);
     ASSERT_EQ(b.size(), 0u);
 
-    ASSERT_EQ(a.write_array_into(b, std::nullopt), 4);
+    ASSERT_EQ(a.read_array_into(b, std::nullopt), 4);
     ASSERT_EQ(a.size(), 0u);
     ASSERT_EQ(b.size(), 4u);
 
-    ASSERT_EQ(b.write_array_into(a, std::nullopt), 4);
+    ASSERT_EQ(b.read_array_into(a, std::nullopt), 4);
     ASSERT_EQ(a.size(), 4u);
     ASSERT_EQ(b.size(), 0u);
 
-    ASSERT_EQ(a.write_array_into(b, std::nullopt), 4);
+    ASSERT_EQ(a.read_array_into(b, std::nullopt), 4);
     ASSERT_EQ(a.size(), 0u);
     ASSERT_EQ(b.size(), 4u);
     ASSERT_EQ(b.capacity(), 7u);

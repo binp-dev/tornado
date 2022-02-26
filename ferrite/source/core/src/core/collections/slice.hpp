@@ -108,7 +108,7 @@ template <typename T>
 class StreamSlice<T, true> :
     public BasicSlice<T>,
     public virtual ReadArrayExact<T>,
-    public virtual WriteArrayInto<T> //
+    public virtual ReadArrayInto<T> //
 {
 public:
     using BasicSlice<T>::BasicSlice;
@@ -128,7 +128,7 @@ public:
         return read_len;
     }
 
-    size_t write_array_into(WriteArray<T> &stream, std::optional<size_t> len) override {
+    size_t read_array_into(WriteArray<T> &stream, std::optional<size_t> len) override {
         size_t write_len = stream.write_array(this->data(), len.value_or(this->size()));
         assert_eq(this->skip_front(write_len), write_len);
         return write_len;

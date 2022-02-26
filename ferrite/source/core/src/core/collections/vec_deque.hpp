@@ -138,8 +138,8 @@ class StreamVecDeque<T, true> :
     public BasicVecDeque<T>,
     public virtual ReadArrayExact<T>,
     public virtual WriteArrayExact<T>,
-    public virtual ReadArrayFrom<T>,
-    public virtual WriteArrayInto<T> //
+    public virtual WriteArrayFrom<T>,
+    public virtual ReadArrayInto<T> //
 {
 public:
     using BasicVecDeque<T>::BasicVecDeque;
@@ -150,8 +150,8 @@ public:
     [[nodiscard]] size_t write_array(const T *data, size_t len) override;
     [[nodiscard]] bool write_array_exact(const T *data, size_t len) override;
 
-    [[nodiscard]] size_t read_array_from(ReadArray<T> &stream, std::optional<size_t> len) override;
-    [[nodiscard]] size_t write_array_into(WriteArray<T> &stream, std::optional<size_t> len) override;
+    size_t write_array_from(ReadArray<T> &stream, std::optional<size_t> len) override;
+    size_t read_array_into(WriteArray<T> &stream, std::optional<size_t> len) override;
 };
 
 template <typename T, bool = std::is_trivial_v<T>>
@@ -164,7 +164,7 @@ template <typename T>
 class StreamVecDequeView<T, true> :
     public BasicVecDequeView<T>,
     public virtual ReadArrayExact<T>,
-    public virtual WriteArrayInto<T> //
+    public virtual ReadArrayInto<T> //
 {
 public:
     using vec_deque_impl::BasicVecDequeView<T>::BasicVecDequeView;
@@ -172,7 +172,7 @@ public:
     [[nodiscard]] size_t read_array(T *data, size_t len) override;
     [[nodiscard]] bool read_array_exact(T *data, size_t len) override;
 
-    [[nodiscard]] size_t write_array_into(WriteArray<T> &stream, std::optional<size_t> len) override;
+    size_t read_array_into(WriteArray<T> &stream, std::optional<size_t> len) override;
 };
 
 

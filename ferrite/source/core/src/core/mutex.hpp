@@ -40,9 +40,10 @@ private:
 
 public:
     Mutex() = default;
+    ~Mutex() = default;
+
     Mutex(T &&value) : value_(std::move(value)) {}
     Mutex(const T &value) : value_(value) {}
-    ~Mutex() = default;
 
     Mutex(Mutex &&other) {
         value_ = std::move(other.value_);
