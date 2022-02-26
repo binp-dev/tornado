@@ -9,16 +9,17 @@
 #include <thread>
 #include <functional>
 
+#include <core/collections/vec_deque.hpp>
+
 #include <common/config.h>
 #include <ipp.hpp>
 #include <channel/message.hpp>
 
+#include "double_buffer.hpp"
+
 using DeviceChannel = MessageChannel<ipp::AppMsg, ipp::McuMsg>;
 
 class Device final {
-public:
-    static constexpr size_t DAC_WF_BUFF_COUNT = 2;
-
 private:
     struct DinEntry {
         std::atomic<uint8_t> value;
@@ -31,6 +32,7 @@ private:
     };
 
     struct AdcWfEntry {
+        // VecDeque<int32_t> wf_data;
         std::deque<int32_t> wf_data;
         size_t wf_max_size;
         std::mutex mutex;
@@ -39,12 +41,8 @@ private:
     };
 
     struct DacWfEntry {
-        std::array<std::vector<int32_t>, DAC_WF_BUFF_COUNT> wf_data;
-        size_t wf_max_size;
-        std::mutex mutex;
-        std::atomic<bool> wf_is_set{false};
-        std::atomic<bool> swap_ready{false};
-        size_t buff_position = 0;
+        DoubleBuffer<int32_t> wf_data;
+        Vec<int32_t> tmp_buf;
         std::function<void()> request_next_wf;
     };
 
@@ -90,14 +88,13 @@ public:
     uint32_t read_din();
     void set_din_callback(std::function<void()> &&callback);
 
-    void init_dac_wf(size_t wf_max_size);
     void write_dac_wf(const int32_t *wf_data, const size_t wf_len);
 
     void init_adc_wf(uint8_t index, size_t wf_max_size);
     void set_adc_wf_callback(size_t index, std::function<void()> &&callback);
     const std::vector<int32_t> read_adc_wf(size_t index);
 
-    [[nodiscard]] bool dac_wf_req_flag() const;
+    [[nodiscard]] bool dac_wf_req_flag();
     void set_dac_wf_req_callback(std::function<void()> &&callback);
 
 private:

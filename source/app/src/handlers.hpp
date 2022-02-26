@@ -82,10 +82,8 @@ public:
 
 class DacWfHandler final : public DeviceHandler, public OutputArrayHandler<int32_t> {
 public:
-    DacWfHandler(Device &device, OutputArrayRecord<int32_t> &record) :
-        DeviceHandler(device)
-    {
-        device_.init_dac_wf(record.max_length());
+    DacWfHandler(Device &device, OutputArrayRecord<int32_t> &record) : DeviceHandler(device) {
+        // device_.init_dac_wf(record.max_length());
     }
 
     virtual void write(OutputArrayRecord<int32_t> &record) override {
@@ -102,10 +100,7 @@ private:
     uint8_t index_;
 
 public:
-    AdcWfHandler(Device &device, InputArrayRecord<int32_t> &record, uint8_t index) :
-        DeviceHandler(device),
-        index_(index)
-    {
+    AdcWfHandler(Device &device, InputArrayRecord<int32_t> &record, uint8_t index) : DeviceHandler(device), index_(index) {
         device_.init_adc_wf(index_, record.max_length());
     }
 
