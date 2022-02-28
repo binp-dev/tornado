@@ -44,16 +44,16 @@ void Device::recv_loop() {
                 },
                 [&](ipp::McuMsgAdcWf &&adc_wf_msg) {
                     auto &adc_wf = adc_wfs[adc_wf_msg.index];
-                    if (adc_wf_msg.elements.size() > 0) {
-                        adc_wf.last_value.store(adc_wf_msg.elements.back());
+                    auto elems = adc_wf_msg.elements;
+                    if (elems.size() > 0) {
+                        adc_wf.last_value.store(elems.back());
                     }
-                    if (adc_wf.notify) {
-                        std::lock_guard<std::mutex> lock(adc_wf.mutex);
-                        adc_wf.wf_data.insert(adc_wf.wf_data.end(), adc_wf_msg.elements.begin(), adc_wf_msg.elements.end());
 
-                        if (adc_wf.wf_data.size() >= adc_wf.wf_max_size) {
-                            adc_wf.notify();
-                        }
+                    auto wf_data_guard = adc_wf.wf_data.lock();
+                    assert_true(wf_data_guard->write_array_exact(elems.data(), elems.size()));
+                    if (wf_data_guard->size() >= adc_wf.wf_max_size) {
+                        assert_true(adc_wf.notify);
+                        adc_wf.notify();
                     }
                 },
                 [&](ipp::McuMsgDacWfReq &&) {
@@ -107,8 +107,7 @@ void Device::send_loop() {
                 has_dac_wf_req.store(true);
             }
 
-            if (dac_wf.wf_data.empty()) {
-                assert_true(dac_wf.request_next_wf);
+            if (dac_wf.wf_data.empty() && dac_wf.request_next_wf) {
                 dac_wf.request_next_wf();
             }
         }
@@ -185,10 +184,9 @@ void Device::set_adc_wf_callback(size_t index, std::function<void()> &&callback)
 const std::vector<int32_t> Device::read_adc_wf(size_t index) {
     auto &adc_wf = adc_wfs[index];
 
-    std::lock_guard<std::mutex> lock(adc_wf.mutex);
-
-    std::vector<int32_t> wf_data(adc_wf.wf_data.begin(), adc_wf.wf_data.begin() + adc_wf.wf_max_size);
-    adc_wf.wf_data.erase(adc_wf.wf_data.begin(), adc_wf.wf_data.begin() + adc_wf.wf_max_size);
+    Vec<int32_t> wf_data;
+    wf_data.reserve(adc_wf.wf_max_size);
+    assert_eq(wf_data.write_array_from(*(adc_wf.wf_data.lock()), adc_wf.wf_max_size), adc_wf.wf_max_size);
 
     return wf_data;
 }

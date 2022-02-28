@@ -4,11 +4,11 @@
 #include <deque>
 #include <memory>
 #include <atomic>
-#include <mutex>
 #include <condition_variable>
 #include <thread>
 #include <functional>
 
+#include <core/mutex.hpp>
 #include <core/collections/vec_deque.hpp>
 
 #include <common/config.h>
@@ -32,10 +32,8 @@ private:
     };
 
     struct AdcWfEntry {
-        // VecDeque<int32_t> wf_data;
-        std::deque<int32_t> wf_data;
+        Mutex<VecDeque<int32_t>> wf_data;
         size_t wf_max_size;
-        std::mutex mutex;
         std::function<void()> notify;
         std::atomic<int32_t> last_value{0};
     };
