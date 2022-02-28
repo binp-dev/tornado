@@ -90,7 +90,7 @@ void Device::send_loop() {
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
             channel.send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
         }
-        if (has_dac_wf_req.load() == true) {
+        if (has_dac_wf_req.exchange(false)) {
             auto tmp = dac_wf.tmp_buf;
             ipp::AppMsgDacWf dac_wf_msg;
             size_t max_count = (msg_max_len_ - dac_wf_msg.packed_size() - 1) / sizeof(int32_t);
@@ -98,12 +98,18 @@ void Device::send_loop() {
             dac_wf.wf_data.read_array_into(tmp, max_count);
 
             if (!tmp.empty()) {
-                has_dac_wf_req.store(false);
                 dac_wf_msg.elements = std::move(tmp);
 
                 assert_true(dac_wf_msg.packed_size() <= msg_max_len_ - 1);
                 channel.send(ipp::AppMsg{std::move(dac_wf_msg)}, std::nullopt).unwrap();
                 dac_wf.tmp_buf = std::move(tmp);
+            } else {
+                has_dac_wf_req.store(true);
+            }
+
+            if (dac_wf.wf_data.empty()) {
+                assert_true(dac_wf.request_next_wf);
+                dac_wf.request_next_wf();
             }
         }
     }
