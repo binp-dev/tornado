@@ -288,27 +288,30 @@ TEST(VecDeque, write_array_from) {
 TEST(VecDeque, read_array_into) {
     VecDeque<int32_t> a, b;
 
-    std::array<int32_t, 4> array{1, 2, 3, 4};
-    ASSERT_TRUE(a.write_array_exact(array.data(), 4));
-    ASSERT_EQ(a.size(), 4u);
+    std::array<int32_t, 8> array{1, 2, 3, 4, 5, 6, 7, 8};
+    ASSERT_TRUE(a.write_array_exact(array.data(), 8));
+    ASSERT_EQ(a.size(), 8u);
     ASSERT_EQ(b.size(), 0u);
 
-    ASSERT_EQ(a.read_array_into(b, std::nullopt), 4);
+    ASSERT_EQ(a.read_array_into(b, std::nullopt), 8);
     ASSERT_EQ(a.size(), 0u);
-    ASSERT_EQ(b.size(), 4u);
+    ASSERT_EQ(b.size(), 8u);
+    ASSERT_EQ(b.capacity(), 15u);
 
-    ASSERT_EQ(b.read_array_into(a, std::nullopt), 4);
-    ASSERT_EQ(a.size(), 4u);
+    ASSERT_EQ(b.read_array_into(a, 8), 8);
+    ASSERT_EQ(a.size(), 8u);
     ASSERT_EQ(b.size(), 0u);
 
-    ASSERT_EQ(a.read_array_into(b, std::nullopt), 4);
-    ASSERT_EQ(a.size(), 0u);
+    ASSERT_EQ(a.read_array_into(b, 4), 4);
+    ASSERT_EQ(a.size(), 4u);
     ASSERT_EQ(b.size(), 4u);
-    ASSERT_EQ(b.capacity(), 7u);
+    ASSERT_EQ(a.read_array_into(b, 4), 4);
+    ASSERT_EQ(a.size(), 0u);
+    ASSERT_EQ(b.size(), 8u);
 
-    array = std::array<int32_t, 4>{0};
-    ASSERT_TRUE(b.read_array_exact(array.data(), 4));
-    ASSERT_EQ(array, (std::array<int32_t, 4>{1, 2, 3, 4}));
+    array = std::array<int32_t, 8>{0};
+    ASSERT_TRUE(b.read_array_exact(array.data(), 8));
+    ASSERT_EQ(array, (std::array<int32_t, 8>{1, 2, 3, 4, 5, 6, 7, 8}));
     ASSERT_EQ(b.size(), 0u);
 }
 

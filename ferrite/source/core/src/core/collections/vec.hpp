@@ -3,8 +3,10 @@
 #include <vector>
 #include <cstring>
 #include <type_traits>
+#include <iostream>
 
 #include <core/stream.hpp>
+#include <core/fmt.hpp>
 
 #include "slice.hpp"
 
@@ -19,7 +21,7 @@ public:
         return Slice<T>(this->data(), this->size());
     }
     [[nodiscard]] Slice<const T> slice() const {
-        return Slice<T>(this->data(), this->size());
+        return Slice<const T>(this->data(), this->size());
     }
 };
 
@@ -92,3 +94,11 @@ class Vec final : public vec_impl::StreamVec<T> {
 public:
     using vec_impl::StreamVec<T>::StreamVec;
 };
+
+template <typename T>
+struct Display<Vec<T>, void> : public std::integral_constant<bool, is_display_v<T>> {};
+
+template <typename T, typename = std::enable_if_t<is_display_v<Vec<T>>, void>>
+std::ostream &operator<<(std::ostream &os, const Vec<T> &value) {
+    return os << value.slice();
+}

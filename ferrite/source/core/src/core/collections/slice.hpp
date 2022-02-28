@@ -4,7 +4,7 @@
 #include <type_traits>
 
 #include <core/assert.hpp>
-#include <core/io.hpp>
+#include <core/fmt.hpp>
 
 template <typename T>
 class Slice;
@@ -98,7 +98,7 @@ public:
 };
 
 
-template <typename T, bool = std::is_trivial_v<T>>
+template <typename T, bool = std::is_trivial_v<T> && !std::is_const_v<T>>
 class StreamSlice : public BasicSlice<T> {
 public:
     using BasicSlice<T>::BasicSlice;
@@ -135,7 +135,6 @@ public:
     }
 };
 
-
 } // namespace slice_impl
 
 template <typename T>
@@ -143,3 +142,21 @@ class Slice final : public slice_impl::StreamSlice<T> {
 public:
     using slice_impl::StreamSlice<T>::StreamSlice;
 };
+
+template <typename T>
+struct Display<Slice<T>, void> : public std::integral_constant<bool, is_display_v<T>> {};
+
+template <typename T, typename = std::enable_if_t<is_display_v<Slice<T>>, void>>
+std::ostream &operator<<(std::ostream &os, const Slice<T> &value) {
+    auto it = value.begin();
+    os << "[";
+    if (it != value.end()) {
+        os << *it;
+        ++it;
+    }
+    for (; it != value.end(); ++it) {
+        os << ", " << *it;
+    }
+    os << "]";
+    return os;
+}

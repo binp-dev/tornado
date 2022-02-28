@@ -221,7 +221,7 @@ size_t BasicVecDeque<T>::skip_front(size_t count) {
     size_t skip = 0;
     if constexpr (std::is_trivial_v<T>) {
         if (count != 0) {
-            skip = std::min(count, ((back_ + mod()) - front_) % mod());
+            skip = std::min(count, this->size());
             front_ = (front_ + skip) % mod();
         }
     } else {
@@ -239,7 +239,7 @@ size_t BasicVecDeque<T>::skip_back(size_t count) {
     size_t skip = 0;
     if constexpr (std::is_trivial_v<T>) {
         if (count != 0) {
-            skip = std::min(count, ((back_ + mod()) - front_) % mod());
+            skip = std::min(count, this->size());
             back_ = (back_ + mod() - skip) % mod();
         }
     } else {
