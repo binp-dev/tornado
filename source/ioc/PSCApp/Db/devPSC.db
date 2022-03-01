@@ -90,6 +90,28 @@ record(bi, "aao0_req")
     field(PINI, "YES")
 }
 
+# DAC operation state
+# 0 - stopped
+# 1 - running
+record(bo, "aao0_running")
+{
+    field(DTYP, "devsup")
+
+    field(RVAL, 0)
+    field(PINI, "YES")
+}
+
+# DAC playback mode
+# 0 - one-shot
+# 1 - cyclic
+record(bo, "aao0_cyclic")
+{
+    field(DTYP, "devsup")
+
+    field(RVAL, 0)
+    field(PINI, "YES")
+}
+
 # ADC waveform channels
 record(aai, "aai0") {
     field(DTYP, "devsup")

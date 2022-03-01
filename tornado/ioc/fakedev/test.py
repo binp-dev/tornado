@@ -87,16 +87,17 @@ async def async_run(config: FakeDev.Config, device: FakeDev, handler: Handler) -
     aais = [await ctx.pv(f"aai{i}", PvType.ARRAY_INT) for i in range(config.adc_count)]
     aao = await ctx.pv("aao0", PvType.ARRAY_INT)
     aao_req = await ctx.pv("aao0_req", PvType.BOOL)
+    aao_cyclic = await ctx.pv("aao0_cyclic", PvType.BOOL)
 
     wf_size = await (await ctx.pv("aao0.NELM", PvType.INT)).read()
-    logger.info(f"Waveform max size: {wf_size}")
+    logger.debug(f"Waveform max size: {wf_size}")
     # Check that `aai*` sizes are the same as `aao0` size
     assert all([wf_size == await (await ctx.pv(f"aai{i}.NELM", PvType.INT)).read() for i in range(len(aais))])
 
     async def write_and_check_dac(array: List[int]) -> None:
         await aao.write(array)
         await handler.check_dac(array)
-        logger.info(f"DAC of size {len(array)} is correct")
+        logger.debug(f"DAC of size {len(array)} is correct")
 
     adcs_samples_count = [0] * config.adc_count
 
@@ -107,7 +108,7 @@ async def async_run(config: FakeDev.Config, device: FakeDev, handler: Handler) -
                     continue
                 await handler.check_adc(index, array)
                 adcs_samples_count[index] += len(array)
-                logger.info(f"ADC[{index}] of size {len(array)} is correct")
+                logger.debug(f"ADC[{index}] of size {len(array)} is correct")
 
     async def watch_adcs() -> None:
         await asyncio.gather(*[watch_single_adc(i, pv) for i, pv in enumerate(aais)])
@@ -120,21 +121,24 @@ async def async_run(config: FakeDev.Config, device: FakeDev, handler: Handler) -
 
     watch_task = asyncio.create_task(watch_adcs())
 
-    logger.info("# Phase 0")
+    logger.info("Set one-shot DAC playback mode")
+    await aao_cyclic.write(False)
+
+    logger.info("Check empty DAC waveform")
     await wait_dac_req()
     await write_and_check_dac([])
 
-    logger.info("# Phase 1")
+    logger.info("Check full-size DAC waveform")
     await wait_dac_req()
     await write_and_check_dac(list(range(wf_size)))
 
-    logger.info("# Phase 2")
+    logger.info("Check two half-size DAC waveforms")
     await wait_dac_req()
     await write_and_check_dac(list(range(0, -wf_size // 2, -1)))
     await wait_dac_req()
     await write_and_check_dac(list(range(-wf_size // 2, 0)))
 
-    logger.info("# Phase 3")
+    logger.info("Flush DAC and check all ADCs")
     await wait_dac_req()
     # Flush FakeDev chunk buffer
     await write_and_check_dac(list(range(config.chunk_size)))

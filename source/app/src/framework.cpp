@@ -65,6 +65,14 @@ void framework_record_init(Record &record) {
         auto &aao_req_record = dynamic_cast<InputValueRecord<bool> &>(record);
         aao_req_record.set_handler(std::make_unique<WfReqHandler>(*DEVICE));
 
+    } else if (name == "aao0_cyclic") {
+        auto &specific_record = dynamic_cast<OutputValueRecord<bool> &>(record);
+        specific_record.set_handler(std::make_unique<DacPlaybackModeHandler>(*DEVICE));
+
+    } else if (name == "aao0_running") {
+        auto &specific_record = dynamic_cast<OutputValueRecord<bool> &>(record);
+        specific_record.set_handler(std::make_unique<DacOpStateHandler>(*DEVICE));
+
     } else {
         unimplemented();
     }

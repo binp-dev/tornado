@@ -83,7 +83,7 @@ public:
 class DacWfHandler final : public DeviceHandler, public OutputArrayHandler<int32_t> {
 public:
     DacWfHandler(Device &device, OutputArrayRecord<int32_t> &record) : DeviceHandler(device) {
-        // device_.init_dac_wf(record.max_length());
+        device_.init_dac_wf(record.max_length());
     }
 
     virtual void write(OutputArrayRecord<int32_t> &record) override {
@@ -128,6 +128,40 @@ public:
 
     virtual void set_read_request(InputValueRecord<bool> &, std::function<void()> &&callback) override {
         device_.set_dac_wf_req_callback(std::move(callback));
+    }
+
+    virtual bool is_async() const override {
+        return false;
+    }
+};
+
+class DacPlaybackModeHandler final : public DeviceHandler, public OutputValueHandler<bool> {
+public:
+    DacPlaybackModeHandler(Device &device) : DeviceHandler(device) {}
+
+    virtual void write(OutputValueRecord<bool> &record) override {
+        auto mode = record.value() ? //
+            Device::DacPlaybackMode::Cyclic :
+            Device::DacPlaybackMode::OneShot;
+
+        device_.set_dac_playback_mode(mode);
+    }
+
+    virtual bool is_async() const override {
+        return false;
+    }
+};
+
+class DacOpStateHandler final : public DeviceHandler, public OutputValueHandler<bool> {
+public:
+    DacOpStateHandler(Device &device) : DeviceHandler(device) {}
+
+    virtual void write(OutputValueRecord<bool> &record) override {
+        auto state = record.value() ? //
+            Device::DacOperationState::Running :
+            Device::DacOperationState::Stopped;
+
+        device_.set_dac_operation_state(state);
     }
 
     virtual bool is_async() const override {

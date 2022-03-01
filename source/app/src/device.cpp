@@ -107,8 +107,9 @@ void Device::send_loop() {
                 has_dac_wf_req.store(true);
             }
 
-            if (dac_wf.wf_data.empty() && dac_wf.request_next_wf) {
-                dac_wf.request_next_wf();
+            if (dac_wf.wf_data.write_ready() && !dac_wf.requested.load() && dac_wf.sync_request_flag) {
+                dac_wf.sync_request_flag();
+                dac_wf.requested.store(true);
             }
         }
     }
@@ -163,12 +164,16 @@ void Device::set_din_callback(std::function<void()> &&callback) {
     din.notify = std::move(callback);
 }
 
+void Device::init_dac_wf(const size_t wf_max_size) {
+    dac_wf.wf_data.reserve(wf_max_size);
+}
+
 void Device::write_dac_wf(const int32_t *wf_data, const size_t wf_len) {
-    auto buf = dac_wf.wf_data.write_buffer();
-    assert_true(buf->write_array_exact(wf_data, wf_len));
+    assert_true(dac_wf.wf_data.write_array_exact(wf_data, wf_len));
     send_ready.notify_all();
-    if (dac_wf.request_next_wf) {
-        dac_wf.request_next_wf();
+    if (dac_wf.sync_request_flag) {
+        dac_wf.requested.store(false);
+        dac_wf.sync_request_flag();
     }
 }
 
@@ -192,9 +197,28 @@ const std::vector<int32_t> Device::read_adc_wf(size_t index) {
 }
 
 bool Device::dac_wf_req_flag() {
-    return dac_wf.wf_data.write_buffer()->empty();
+    return dac_wf.wf_data.write_ready();
 }
 
 void Device::set_dac_wf_req_callback(std::function<void()> &&callback) {
-    dac_wf.request_next_wf = std::move(callback);
+    dac_wf.sync_request_flag = std::move(callback);
+}
+
+void Device::set_dac_playback_mode(DacPlaybackMode mode) {
+    switch (mode) {
+    case DacPlaybackMode::OneShot:
+        std::cout << "One-shot DAC mode set" << std::endl;
+        dac_wf.wf_data.set_cyclic(false);
+        break;
+    case DacPlaybackMode::Cyclic:
+        std::cout << "Cyclic DAC mode set" << std::endl;
+        dac_wf.wf_data.set_cyclic(true);
+        break;
+    default:
+        unreachable();
+    }
+}
+
+void Device::set_dac_operation_state(DacOperationState) {
+    std::cout << "DAC operation state changing is not supported yet" << std::endl;
 }

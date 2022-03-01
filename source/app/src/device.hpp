@@ -20,6 +20,17 @@
 using DeviceChannel = MessageChannel<ipp::AppMsg, ipp::McuMsg>;
 
 class Device final {
+public:
+    enum class DacOperationState {
+        Stopped = 0,
+        Running,
+    };
+
+    enum class DacPlaybackMode {
+        OneShot = 0,
+        Cyclic,
+    };
+
 private:
     struct DinEntry {
         std::atomic<uint8_t> value;
@@ -41,7 +52,9 @@ private:
     struct DacWfEntry {
         DoubleBuffer<int32_t> wf_data;
         Vec<int32_t> tmp_buf;
-        std::function<void()> request_next_wf;
+
+        std::function<void()> sync_request_flag;
+        std::atomic<bool> requested{false};
     };
 
 private:
@@ -86,7 +99,8 @@ public:
     uint32_t read_din();
     void set_din_callback(std::function<void()> &&callback);
 
-    void write_dac_wf(const int32_t *wf_data, const size_t wf_len);
+    void init_dac_wf(size_t max_wf_len);
+    void write_dac_wf(const int32_t *wf_data, size_t wf_len);
 
     void init_adc_wf(uint8_t index, size_t wf_max_size);
     void set_adc_wf_callback(size_t index, std::function<void()> &&callback);
@@ -94,6 +108,9 @@ public:
 
     [[nodiscard]] bool dac_wf_req_flag();
     void set_dac_wf_req_callback(std::function<void()> &&callback);
+
+    void set_dac_playback_mode(DacPlaybackMode mode);
+    void set_dac_operation_state(DacOperationState state);
 
 private:
     void fill_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size);
