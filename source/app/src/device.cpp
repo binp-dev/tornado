@@ -57,7 +57,7 @@ void Device::recv_loop() {
                     }
                 },
                 [&](ipp::McuMsgDacWfReq &&) {
-                    has_dac_wf_req.store(true);
+                    dac_wf.has_mcu_req.store(true);
                     send_ready.notify_all();
                 },
                 [&](ipp::McuMsgDebug &&debug) { //
@@ -90,7 +90,7 @@ void Device::send_loop() {
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
             channel.send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
         }
-        if (has_dac_wf_req.exchange(false)) {
+        if (dac_wf.has_mcu_req.exchange(false)) {
             auto tmp = dac_wf.tmp_buf;
             ipp::AppMsgDacWf dac_wf_msg;
             size_t max_count = (msg_max_len_ - dac_wf_msg.packed_size() - 1) / sizeof(int32_t);
@@ -104,12 +104,12 @@ void Device::send_loop() {
                 channel.send(ipp::AppMsg{std::move(dac_wf_msg)}, std::nullopt).unwrap();
                 dac_wf.tmp_buf = std::move(tmp);
             } else {
-                has_dac_wf_req.store(true);
+                dac_wf.has_mcu_req.store(true);
             }
 
-            if (dac_wf.wf_data.write_ready() && !dac_wf.requested.load() && dac_wf.sync_request_flag) {
-                dac_wf.sync_request_flag();
-                dac_wf.requested.store(true);
+            if (dac_wf.wf_data.write_ready() && !dac_wf.ioc_requested.load() && dac_wf.sync_ioc_request_flag) {
+                dac_wf.sync_ioc_request_flag();
+                dac_wf.ioc_requested.store(true);
             }
         }
     }
@@ -171,9 +171,9 @@ void Device::init_dac_wf(const size_t wf_max_size) {
 void Device::write_dac_wf(const int32_t *wf_data, const size_t wf_len) {
     assert_true(dac_wf.wf_data.write_array_exact(wf_data, wf_len));
     send_ready.notify_all();
-    if (dac_wf.sync_request_flag) {
-        dac_wf.requested.store(false);
-        dac_wf.sync_request_flag();
+    if (dac_wf.sync_ioc_request_flag) {
+        dac_wf.ioc_requested.store(false);
+        dac_wf.sync_ioc_request_flag();
     }
 }
 
@@ -201,7 +201,7 @@ bool Device::dac_wf_req_flag() {
 }
 
 void Device::set_dac_wf_req_callback(std::function<void()> &&callback) {
-    dac_wf.sync_request_flag = std::move(callback);
+    dac_wf.sync_ioc_request_flag = std::move(callback);
 }
 
 void Device::set_dac_playback_mode(DacPlaybackMode mode) {

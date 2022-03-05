@@ -53,8 +53,10 @@ private:
         DoubleBuffer<int32_t> wf_data;
         Vec<int32_t> tmp_buf;
 
-        std::function<void()> sync_request_flag;
-        std::atomic<bool> requested{false};
+        std::atomic<bool> has_mcu_req{false};
+
+        std::function<void()> sync_ioc_request_flag;
+        std::atomic<bool> ioc_requested{false};
     };
 
 private:
@@ -65,8 +67,6 @@ private:
     std::mutex send_mutex;
 
     const size_t msg_max_len_;
-    std::atomic<bool> has_dac_wf_req{false};
-    bool cyclic_dac_wf_output{false};
 
     DinEntry din;
     DoutEntry dout;

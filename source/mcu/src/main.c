@@ -32,10 +32,11 @@
 #define TASK_STACK_SIZE 256
 
 #ifdef GENERATE_SYNC
-#define SYNC_TASK_PRIORITY tskIDLE_PRIORITY + 4
+#define SYNC_TASK_PRIORITY tskIDLE_PRIORITY + 5
 #endif
-#define SKIFIO_TASK_PRIORITY tskIDLE_PRIORITY + 3
-#define RPMSG_TASK_PRIORITY tskIDLE_PRIORITY + 2
+#define SKIFIO_TASK_PRIORITY tskIDLE_PRIORITY + 4
+#define RPMSG_SEND_TASK_PRIORITY tskIDLE_PRIORITY + 3
+#define RPMSG_RECV_TASK_PRIORITY tskIDLE_PRIORITY + 2
 #define STATS_TASK_PRIORITY tskIDLE_PRIORITY + 1
 
 typedef int32_t point_t;
@@ -105,7 +106,7 @@ void send_adc_wf_data() {
     }
 }
 
-void send_adc_wf_request() {
+void send_dac_wf_request() {
     size_t free_space_in_buff = xStreamBufferSpacesAvailable(DAC.queue) / sizeof(int32_t);
 
     if (free_space_in_buff >= FREE_SPACE_IN_BUFF_FOR_DAC_WF_REQUEST && !DAC.waiting_for_data) {
@@ -142,14 +143,14 @@ static void task_rpmsg_send(void *param) {
     for (;;) {
         if (!IOC_STARTED) {
             // FIXME:
-            vTaskDelay(1000);
+            vTaskDelay(10);
             continue;
         }
         xSemaphoreTake(RPMSG_SEND_SEM, portMAX_DELAY);
 
         send_din();
         send_adc_wf_data();
-        send_adc_wf_request();
+        send_dac_wf_request();
     }
 }
 
@@ -413,8 +414,8 @@ int main(void) {
     xTaskCreate(task_stats, "Statistics task", TASK_STACK_SIZE, NULL, STATS_TASK_PRIORITY, NULL);
 
     hal_log_info("Create RPMsg tasks");
-    xTaskCreate(task_rpmsg_send, "RPMsg send task", TASK_STACK_SIZE, NULL, RPMSG_TASK_PRIORITY, NULL);
-    xTaskCreate(task_rpmsg_recv, "RPMsg receive task", TASK_STACK_SIZE, NULL, RPMSG_TASK_PRIORITY, NULL);
+    xTaskCreate(task_rpmsg_send, "RPMsg send task", TASK_STACK_SIZE, NULL, RPMSG_SEND_TASK_PRIORITY, NULL);
+    xTaskCreate(task_rpmsg_recv, "RPMsg receive task", TASK_STACK_SIZE, NULL, RPMSG_RECV_TASK_PRIORITY, NULL);
 
     hal_log_info("Create SkifIO task");
     xTaskCreate(task_skifio, "SkifIO task", TASK_STACK_SIZE, NULL, SKIFIO_TASK_PRIORITY, NULL);
