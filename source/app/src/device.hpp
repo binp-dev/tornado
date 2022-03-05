@@ -42,15 +42,15 @@ private:
         std::atomic<bool> update{false};
     };
 
-    struct AdcWfEntry {
-        Mutex<VecDeque<int32_t>> wf_data;
-        size_t wf_max_size;
+    struct AdcEntry {
+        Mutex<VecDeque<int32_t>> data;
+        size_t max_size;
         std::function<void()> notify;
         std::atomic<int32_t> last_value{0};
     };
 
-    struct DacWfEntry {
-        DoubleBuffer<int32_t> wf_data;
+    struct DacEntry {
+        DoubleBuffer<int32_t> data;
         Vec<int32_t> tmp_buf;
 
         std::atomic<bool> has_mcu_req{false};
@@ -70,8 +70,8 @@ private:
 
     DinEntry din;
     DoutEntry dout;
-    std::array<AdcWfEntry, ADC_COUNT> adc_wfs;
-    DacWfEntry dac_wf;
+    std::array<AdcEntry, ADC_COUNT> adcs;
+    DacEntry dac;
 
     DeviceChannel channel;
 
@@ -92,28 +92,22 @@ public:
     void stop();
 
 public:
-    int32_t read_adc(size_t index);
-
     void write_dout(uint32_t value);
 
     uint32_t read_din();
     void set_din_callback(std::function<void()> &&callback);
 
-    void init_dac_wf(size_t max_wf_len);
-    void write_dac_wf(const int32_t *wf_data, size_t wf_len);
+    void init_dac(size_t max_len);
+    void write_dac(const int32_t *data, size_t len);
 
-    void init_adc_wf(uint8_t index, size_t wf_max_size);
-    void set_adc_wf_callback(size_t index, std::function<void()> &&callback);
-    const std::vector<int32_t> read_adc_wf(size_t index);
+    void init_adc(uint8_t index, size_t max_size);
+    void set_adc_callback(size_t index, std::function<void()> &&callback);
+    std::vector<int32_t> read_adc(size_t index);
+    int32_t read_adc_last_value(size_t index);
 
-    [[nodiscard]] bool dac_wf_req_flag();
-    void set_dac_wf_req_callback(std::function<void()> &&callback);
+    [[nodiscard]] bool dac_req_flag();
+    void set_dac_req_callback(std::function<void()> &&callback);
 
     void set_dac_playback_mode(DacPlaybackMode mode);
     void set_dac_operation_state(DacOperationState state);
-
-private:
-    void fill_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size);
-    void copy_dac_wf_to_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size);
-    bool swap_dac_wf_buffers();
 };

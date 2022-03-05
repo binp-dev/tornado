@@ -42,22 +42,22 @@ void Device::recv_loop() {
                         din.notify();
                     }
                 },
-                [&](ipp::McuMsgAdcWf &&adc_wf_msg) {
-                    auto &adc_wf = adc_wfs[adc_wf_msg.index];
-                    auto elems = adc_wf_msg.elements;
+                [&](ipp::McuMsgAdcWf &&adc_msg) {
+                    auto &adc = adcs[adc_msg.index];
+                    auto elems = adc_msg.elements;
                     if (elems.size() > 0) {
-                        adc_wf.last_value.store(elems.back());
+                        adc.last_value.store(elems.back());
                     }
 
-                    auto wf_data_guard = adc_wf.wf_data.lock();
-                    assert_true(wf_data_guard->write_array_exact(elems.data(), elems.size()));
-                    if (wf_data_guard->size() >= adc_wf.wf_max_size) {
-                        assert_true(adc_wf.notify);
-                        adc_wf.notify();
+                    auto data_guard = adc.data.lock();
+                    assert_true(data_guard->write_array_exact(elems.data(), elems.size()));
+                    if (data_guard->size() >= adc.max_size) {
+                        assert_true(adc.notify);
+                        adc.notify();
                     }
                 },
                 [&](ipp::McuMsgDacWfReq &&) {
-                    dac_wf.has_mcu_req.store(true);
+                    dac.has_mcu_req.store(true);
                     send_ready.notify_all();
                 },
                 [&](ipp::McuMsgDebug &&debug) { //
@@ -90,26 +90,26 @@ void Device::send_loop() {
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
             channel.send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
         }
-        if (dac_wf.has_mcu_req.exchange(false)) {
-            auto tmp = dac_wf.tmp_buf;
-            ipp::AppMsgDacWf dac_wf_msg;
-            size_t max_count = (msg_max_len_ - dac_wf_msg.packed_size() - 1) / sizeof(int32_t);
+        if (dac.has_mcu_req.exchange(false)) {
+            auto tmp = dac.tmp_buf;
+            ipp::AppMsgDacWf dac_msg;
+            size_t max_count = (msg_max_len_ - dac_msg.packed_size() - 1) / sizeof(int32_t);
 
-            dac_wf.wf_data.read_array_into(tmp, max_count);
+            dac.data.read_array_into(tmp, max_count);
 
             if (!tmp.empty()) {
-                dac_wf_msg.elements = std::move(tmp);
+                dac_msg.elements = std::move(tmp);
 
-                assert_true(dac_wf_msg.packed_size() <= msg_max_len_ - 1);
-                channel.send(ipp::AppMsg{std::move(dac_wf_msg)}, std::nullopt).unwrap();
-                dac_wf.tmp_buf = std::move(tmp);
+                assert_true(dac_msg.packed_size() <= msg_max_len_ - 1);
+                channel.send(ipp::AppMsg{std::move(dac_msg)}, std::nullopt).unwrap();
+                dac.tmp_buf = std::move(tmp);
             } else {
-                dac_wf.has_mcu_req.store(true);
+                dac.has_mcu_req.store(true);
             }
 
-            if (dac_wf.wf_data.write_ready() && !dac_wf.ioc_requested.load() && dac_wf.sync_ioc_request_flag) {
-                dac_wf.sync_ioc_request_flag();
-                dac_wf.ioc_requested.store(true);
+            if (dac.data.write_ready() && !dac.ioc_requested.load() && dac.sync_ioc_request_flag) {
+                dac.sync_ioc_request_flag();
+                dac.ioc_requested.store(true);
             }
         }
     }
@@ -139,11 +139,6 @@ void Device::stop() {
     }
 }
 
-int32_t Device::read_adc(size_t index) {
-    assert_true(index < ADC_COUNT);
-    return adc_wfs[index].last_value.load();
-}
-
 void Device::write_dout(uint32_t value) {
     {
         constexpr uint32_t mask = 0xfu;
@@ -164,55 +159,60 @@ void Device::set_din_callback(std::function<void()> &&callback) {
     din.notify = std::move(callback);
 }
 
-void Device::init_dac_wf(const size_t wf_max_size) {
-    dac_wf.wf_data.reserve(wf_max_size);
+void Device::init_dac(const size_t max_size) {
+    dac.data.reserve(max_size);
 }
 
-void Device::write_dac_wf(const int32_t *wf_data, const size_t wf_len) {
-    assert_true(dac_wf.wf_data.write_array_exact(wf_data, wf_len));
+void Device::write_dac(const int32_t *data, const size_t len) {
+    assert_true(dac.data.write_array_exact(data, len));
     send_ready.notify_all();
-    if (dac_wf.sync_ioc_request_flag) {
-        dac_wf.ioc_requested.store(false);
-        dac_wf.sync_ioc_request_flag();
+    if (dac.sync_ioc_request_flag) {
+        dac.ioc_requested.store(false);
+        dac.sync_ioc_request_flag();
     }
 }
 
-void Device::init_adc_wf(uint8_t index, size_t wf_max_size) {
-    adc_wfs[index].wf_max_size = wf_max_size;
+void Device::init_adc(uint8_t index, size_t max_size) {
+    adcs[index].max_size = max_size;
 }
 
-void Device::set_adc_wf_callback(size_t index, std::function<void()> &&callback) {
+void Device::set_adc_callback(size_t index, std::function<void()> &&callback) {
     assert_true(index < ADC_COUNT);
-    adc_wfs[index].notify = std::move(callback);
+    adcs[index].notify = std::move(callback);
 }
 
-const std::vector<int32_t> Device::read_adc_wf(size_t index) {
-    auto &adc_wf = adc_wfs[index];
+std::vector<int32_t> Device::read_adc(size_t index) {
+    auto &adc = adcs[index];
 
-    Vec<int32_t> wf_data;
-    wf_data.reserve(adc_wf.wf_max_size);
-    assert_eq(wf_data.write_array_from(*(adc_wf.wf_data.lock()), adc_wf.wf_max_size), adc_wf.wf_max_size);
+    Vec<int32_t> data;
+    data.reserve(adc.max_size);
+    assert_eq(data.write_array_from(*(adc.data.lock()), adc.max_size), adc.max_size);
 
-    return wf_data;
+    return data;
 }
 
-bool Device::dac_wf_req_flag() {
-    return dac_wf.wf_data.write_ready();
+int32_t Device::read_adc_last_value(size_t index) {
+    assert_true(index < ADC_COUNT);
+    return adcs[index].last_value.load();
 }
 
-void Device::set_dac_wf_req_callback(std::function<void()> &&callback) {
-    dac_wf.sync_ioc_request_flag = std::move(callback);
+bool Device::dac_req_flag() {
+    return dac.data.write_ready();
+}
+
+void Device::set_dac_req_callback(std::function<void()> &&callback) {
+    dac.sync_ioc_request_flag = std::move(callback);
 }
 
 void Device::set_dac_playback_mode(DacPlaybackMode mode) {
     switch (mode) {
     case DacPlaybackMode::OneShot:
         std::cout << "One-shot DAC mode set" << std::endl;
-        dac_wf.wf_data.set_cyclic(false);
+        dac.data.set_cyclic(false);
         break;
     case DacPlaybackMode::Cyclic:
         std::cout << "Cyclic DAC mode set" << std::endl;
-        dac_wf.wf_data.set_cyclic(true);
+        dac.data.set_cyclic(true);
         break;
     default:
         unreachable();
