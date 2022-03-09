@@ -55,6 +55,9 @@ class Name:
             raise NotImplementedError()
         return not (self == other)
 
+    def __repr__(self) -> str:
+        return f"[" + ", ".join(self.words) + "]"
+
 
 class Location(Enum):
     NONE = 0
