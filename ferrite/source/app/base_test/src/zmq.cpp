@@ -26,7 +26,7 @@ std::optional<T> try_random(T low, T high, std::function<bool(T)> fn, size_t num
 
 Result<std::monostate, std::string> try_send(void *socket, const uint8_t *data, size_t length) {
     zmq_pollitem_t pollitem = {socket, 0, ZMQ_POLLOUT, 0};
-    int ready = zmq_poll(&pollitem, 1, zmq_helper::duration_to_microseconds(TIMEOUT));
+    int ready = zmq_poll(&pollitem, 1, TIMEOUT.count());
     if (ready > 0) {
         if (zmq_send(socket, data, length, ZMQ_DONTWAIT) <= 0) {
             return Err<std::string>("Zmq send error");
@@ -41,7 +41,7 @@ Result<std::monostate, std::string> try_send(void *socket, const uint8_t *data, 
 
 Result<size_t, std::string> try_recv(void *socket, void *data, size_t max_length) {
     zmq_pollitem_t pollitem = {socket, 0, ZMQ_POLLIN, 0};
-    int ready = zmq_poll(&pollitem, 1, zmq_helper::duration_to_microseconds(TIMEOUT));
+    int ready = zmq_poll(&pollitem, 1, TIMEOUT.count());
     if (ready > 0) {
         int ret = zmq_recv(socket, data, max_length, ZMQ_NOBLOCK);
         if (ret <= 0) {
