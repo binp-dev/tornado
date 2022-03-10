@@ -67,6 +67,7 @@ private:
     std::mutex send_mutex;
 
     const size_t msg_max_len_;
+    const std::chrono::milliseconds keep_alive_period_{KEEP_ALIVE_PERIOD_MS};
 
     DinEntry din;
     DoutEntry dout;

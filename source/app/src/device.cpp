@@ -17,7 +17,7 @@ void Device::recv_loop() {
 
     channel.send(ipp::AppMsg{ipp::AppMsgConnect{}}, std::nullopt).unwrap(); // Wait forever
     std::cout << "[app] Connect signal sent" << std::endl;
-    send_ready.notify_all();
+    send_worker = std::thread([this]() { this->send_loop(); });
 
     while (!this->done.load()) {
         auto result = channel.receive(timeout);
@@ -57,7 +57,11 @@ void Device::recv_loop() {
                     }
                 },
                 [&](ipp::McuMsgDacWfReq &&) {
-                    dac.has_mcu_req.store(true);
+                    {
+                        // Note: `send_mutex` must be locked even if atomic is used. See `std::condition_variable` reference.
+                        std::lock_guard send_guard(send_mutex);
+                        dac.has_mcu_req.store(true);
+                    }
                     send_ready.notify_all();
                 },
                 [&](ipp::McuMsgDebug &&debug) { //
@@ -72,23 +76,28 @@ void Device::recv_loop() {
             std::move(incoming.variant) //
         );
     }
+
     send_ready.notify_all();
+    send_worker.join();
 }
 
 void Device::send_loop() {
     std::cout << "[app] Channel send thread started" << std::endl;
-
+    const auto timeout = keep_alive_period_;
+    auto next_wakeup = std::chrono::steady_clock::now();
     while (!this->done.load()) {
         std::unique_lock send_lock(send_mutex);
-        auto status = send_ready.wait_for(send_lock, std::chrono::milliseconds(100));
+        auto status = send_ready.wait_until(send_lock, next_wakeup);
         if (status == std::cv_status::timeout) {
-            continue;
+            channel.send(ipp::AppMsg{ipp::AppMsgKeepAlive{}}, timeout).unwrap();
+            next_wakeup = std::chrono::steady_clock::now() + keep_alive_period_;
+            // continue;
         }
 
         if (dout.update.exchange(false)) {
             uint8_t value = dout.value.load();
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
-            channel.send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, std::nullopt).unwrap();
+            channel.send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, timeout).unwrap();
         }
         if (dac.has_mcu_req.exchange(false)) {
             auto tmp = dac.tmp_buf;
@@ -99,9 +108,8 @@ void Device::send_loop() {
 
             if (!tmp.empty()) {
                 dac_msg.elements = std::move(tmp);
-
                 assert_true(dac_msg.packed_size() <= msg_max_len_ - 1);
-                channel.send(ipp::AppMsg{std::move(dac_msg)}, std::nullopt).unwrap();
+                channel.send(ipp::AppMsg{std::move(dac_msg)}, timeout).unwrap();
                 dac.tmp_buf = std::move(tmp);
             } else {
                 dac.has_mcu_req.store(true);
@@ -127,14 +135,12 @@ Device::~Device() {
 
 void Device::start() {
     done.store(false);
-    send_worker = std::thread([this]() { this->send_loop(); });
     recv_worker = std::thread([this]() { this->recv_loop(); });
 }
 
 void Device::stop() {
     if (!done.load()) {
         done.store(true);
-        send_worker.join();
         recv_worker.join();
     }
 }
@@ -142,12 +148,15 @@ void Device::stop() {
 void Device::write_dout(uint32_t value) {
     {
         constexpr uint32_t mask = 0xfu;
-        std::lock_guard send_guard(send_mutex);
         if ((value & ~mask) != 0) {
             std::cout << "[app:warning] Ignoring extra bits in dout 4-bit mask: " << value << std::endl;
         }
-        dout.value.store(uint8_t(value & mask));
-        dout.update.store(true);
+        {
+            // Note: `send_mutex` must be locked even if atomic is used. See `std::condition_variable` reference.
+            std::lock_guard send_guard(send_mutex);
+            dout.value.store(uint8_t(value & mask));
+            dout.update.store(true);
+        }
     }
     send_ready.notify_all();
 }

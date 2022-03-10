@@ -54,6 +54,7 @@ class FakeDev:
         adc_count: int
         sample_period: float
         chunk_size: int
+        keepalive_timeout: float
 
     @staticmethod
     def read_config(source: Path) -> Config:
@@ -61,7 +62,8 @@ class FakeDev:
         return FakeDev.Config(
             adc_count=cc.adc_count,
             sample_period=0.0001, # 10 kHz
-            chunk_size=(cc.rpmsg_max_msg_len - 3) // 4
+            chunk_size=(cc.rpmsg_max_msg_len - 3) // 4,
+            keepalive_timeout=(cc.keep_alive_max_delay_ms / 1000),
         )
 
     def __init__(self, ioc: Ioc, config: Config, handler: FakeDev.Handler) -> None:
@@ -75,7 +77,7 @@ class FakeDev:
 
         self.adc_wfs: List[List[int]] = [[] for _ in range(self.config.adc_count)]
 
-    async def sample(self, dac: int) -> None:
+    async def _sample(self, dac: int) -> None:
         adcs = self.handler.transfer_codes(dac)
         assert len(adcs) == len(self.adc_wfs)
         for adc, wf in zip(adcs, self.adc_wfs):
@@ -88,16 +90,28 @@ class FakeDev:
                 await _send_msg(self.socket, McuMsg.AdcWf(i, wf[:chunk_size]))
             self.adc_wfs = [wf[chunk_size:] for wf in self.adc_wfs]
 
-    async def sample_chunk(self, dac_wf: List[int]) -> None:
+    async def _sample_chunk(self, dac_wf: List[int]) -> None:
 
         async def sample_all() -> None:
             for dac in dac_wf:
-                await self.sample(dac)
+                await self._sample(dac)
 
         await asyncio.gather(
             sample_all(),
             asyncio.sleep(self.config.sample_period * len(dac_wf)),
         )
+
+    async def _recv_msg(self) -> None:
+        msg = await _recv_msg(self.socket)
+        if isinstance(msg.variant, AppMsg.DacWf):
+            await self._sample_chunk(msg.variant.elements)
+            await _send_msg(self.socket, McuMsg.DacWfReq(self.config.chunk_size))
+        elif isinstance(msg.variant, AppMsg.StartDac):
+            logger.debug("StartDac")
+        elif isinstance(msg.variant, AppMsg.KeepAlive):
+            pass
+        else:
+            raise RuntimeError(f"Unexpected message type")
 
     async def loop(self) -> None:
         assert isinstance((await _recv_msg(self.socket)).variant, AppMsg.Connect)
@@ -106,12 +120,11 @@ class FakeDev:
 
         await _send_msg(self.socket, McuMsg.DacWfReq(self.config.chunk_size))
         while True:
-            msg = await _recv_msg(self.socket)
-            if isinstance(msg.variant, AppMsg.DacWf):
-                await self.sample_chunk(msg.variant.elements)
-                await _send_msg(self.socket, McuMsg.DacWfReq(self.config.chunk_size))
-            else:
-                raise Exception("Unexpected message type")
+            try:
+                await asyncio.wait_for(self._recv_msg(), self.config.keepalive_timeout)
+            except asyncio.TimeoutError:
+                logger.error("Keep-alive timeout reached")
+                raise
 
     async def run(self) -> None:
         self.socket.bind("tcp://127.0.0.1:8321")

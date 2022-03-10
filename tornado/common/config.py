@@ -9,6 +9,8 @@ from ferrite.utils.interop import read_defs
 class Config(pydantic.BaseModel):
     adc_count: int
     rpmsg_max_msg_len: int
+    keep_alive_period_ms: int
+    keep_alive_max_delay_ms: int
 
 
 def read_common_config(source_dir: Path) -> Config:

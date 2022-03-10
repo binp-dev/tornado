@@ -5,6 +5,7 @@ from pathlib import Path
 from dataclasses import dataclass
 import asyncio
 
+from ferrite.utils.asyncio import with_background
 from ferrite.utils.epics.ioc import make_ioc
 from ferrite.utils.epics.asyncio import Context, Pv, PvType
 
@@ -80,9 +81,7 @@ class Handler(FakeDev.Handler):
         await self._check_wf(index, adc_subwf)
 
 
-async def async_run(config: FakeDev.Config, device: FakeDev, handler: Handler) -> None:
-    dev_task = asyncio.create_task(device.run())
-
+async def async_run(config: FakeDev.Config, handler: Handler) -> None:
     ctx = Context()
     aais = [await ctx.pv(f"aai{i}", PvType.ARRAY_INT) for i in range(config.adc_count)]
     aao = await ctx.pv("aao0", PvType.ARRAY_INT)
@@ -119,35 +118,33 @@ async def async_run(config: FakeDev.Config, device: FakeDev, handler: Handler) -
                 if int(flag) != 0:
                     break
 
-    watch_task = asyncio.create_task(watch_adcs())
+    async def run_check() -> None:
+        logger.info("Set one-shot DAC playback mode")
+        await aao_cyclic.write(False)
 
-    logger.info("Set one-shot DAC playback mode")
-    await aao_cyclic.write(False)
+        logger.info("Check empty DAC waveform")
+        await wait_dac_req()
+        await write_and_check_dac([])
 
-    logger.info("Check empty DAC waveform")
-    await wait_dac_req()
-    await write_and_check_dac([])
+        logger.info("Check full-size DAC waveform")
+        await wait_dac_req()
+        await write_and_check_dac(list(range(wf_size)))
 
-    logger.info("Check full-size DAC waveform")
-    await wait_dac_req()
-    await write_and_check_dac(list(range(wf_size)))
+        logger.info("Check two half-size DAC waveforms")
+        await wait_dac_req()
+        await write_and_check_dac(list(range(0, -wf_size // 2, -1)))
+        await wait_dac_req()
+        await write_and_check_dac(list(range(-wf_size // 2, 0)))
 
-    logger.info("Check two half-size DAC waveforms")
-    await wait_dac_req()
-    await write_and_check_dac(list(range(0, -wf_size // 2, -1)))
-    await wait_dac_req()
-    await write_and_check_dac(list(range(-wf_size // 2, 0)))
+        logger.info("Flush DAC and check all ADCs")
+        await wait_dac_req()
+        # Flush FakeDev chunk buffer
+        await write_and_check_dac(list(range(config.chunk_size)))
+        await asyncio.sleep(0.5)
+        # Check total ADCs samples count
+        assert all([sc >= 2 * wf_size for sc in adcs_samples_count])
 
-    logger.info("Flush DAC and check all ADCs")
-    await wait_dac_req()
-    # Flush FakeDev chunk buffer
-    await write_and_check_dac(list(range(config.chunk_size)))
-    await asyncio.sleep(0.5)
-    # Check total ADCs samples count
-    assert all([sc >= 2 * wf_size for sc in adcs_samples_count])
-
-    watch_task.cancel()
-    dev_task.cancel()
+    await with_background(run_check(), watch_adcs())
 
 
 def run(source_dir: Path, ioc_dir: Path, arch: str) -> None:
@@ -157,5 +154,7 @@ def run(source_dir: Path, ioc_dir: Path, arch: str) -> None:
     handler = Handler(config)
     device = FakeDev(ioc, config, handler)
 
-    # Run with timeout
-    asyncio.run(asyncio.wait_for(async_run(config, device, handler), 60.0))
+    asyncio.run(with_background(
+        async_run(config, handler),
+        device.run(),
+    ))

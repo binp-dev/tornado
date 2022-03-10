@@ -31,13 +31,15 @@
 
 #define TASK_STACK_SIZE 256
 
+// clang-format off
 #ifdef GENERATE_SYNC
-#define SYNC_TASK_PRIORITY tskIDLE_PRIORITY + 5
+#define SYNC_TASK_PRIORITY         tskIDLE_PRIORITY + 5
 #endif
-#define SKIFIO_TASK_PRIORITY tskIDLE_PRIORITY + 4
-#define RPMSG_SEND_TASK_PRIORITY tskIDLE_PRIORITY + 3
-#define RPMSG_RECV_TASK_PRIORITY tskIDLE_PRIORITY + 2
-#define STATS_TASK_PRIORITY tskIDLE_PRIORITY + 1
+#define SKIFIO_TASK_PRIORITY       tskIDLE_PRIORITY + 4
+#define RPMSG_SEND_TASK_PRIORITY   tskIDLE_PRIORITY + 3
+#define RPMSG_RECV_TASK_PRIORITY   tskIDLE_PRIORITY + 2
+#define STATS_TASK_PRIORITY        tskIDLE_PRIORITY + 1
+// clang-format on
 
 typedef int32_t point_t;
 
@@ -149,8 +151,8 @@ static void task_rpmsg_send(void *param) {
         xSemaphoreTake(RPMSG_SEND_SEM, portMAX_DELAY);
 
         send_din();
-        send_adc_wf_data();
-        send_dac_wf_request();
+        // send_adc_wf_data();
+        // send_dac_wf_request();
     }
 }
 
