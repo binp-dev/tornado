@@ -6,9 +6,11 @@
 
 #include <hal/defs.h>
 
+#include <common/config.h>
+
 #define _SKIFIO_DEBUG
 
-#define SKIFIO_ADC_CHANNEL_COUNT 6
+#define SKIFIO_ADC_CHANNEL_COUNT ADC_COUNT
 
 #define SKIFIO_DIN_SIZE 8
 #define SKIFIO_DOUT_SIZE 4

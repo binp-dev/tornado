@@ -1,0 +1,15 @@
+#pragma once
+
+#include <FreeRTOS.h>
+
+#define TASK_STACK_SIZE 256
+
+// clang-format off
+#ifdef GENERATE_SYNC
+#define SYNC_TASK_PRIORITY         tskIDLE_PRIORITY + 5
+#endif
+#define CONTROL_TASK_PRIORITY      tskIDLE_PRIORITY + 4
+#define RPMSG_SEND_TASK_PRIORITY   tskIDLE_PRIORITY + 3
+#define RPMSG_RECV_TASK_PRIORITY   tskIDLE_PRIORITY + 2
+#define STATISTICS_TASK_PRIORITY   tskIDLE_PRIORITY + 1
+// clang-format on

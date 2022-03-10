@@ -47,6 +47,8 @@ set(SRC
     "${ProjDirPath}/src/skifio.h"
     "${ProjDirPath}/src/stats.c"
     "${ProjDirPath}/src/stats.h"
+    "${ProjDirPath}/src/ringbuf.c"
+    "${ProjDirPath}/src/ringbuf.h"
     "${ProjDirPath}/src/crc.c"
     "${ProjDirPath}/src/crc.h"
 )

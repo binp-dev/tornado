@@ -41,6 +41,8 @@ static void handle_gpt(void *data) {
 }
 
 void sync_generator_task(void *param) {
+    Statistics *stats = (Statistics *)param;
+
     hal_log_info("GPT init");
 
     HalGpt gpt;
@@ -72,13 +74,18 @@ void sync_generator_task(void *param) {
         hal_gpio_pin_write(&gpt_pins[0], pin_state);
 
         if (pin_state) {
-            STATS.clock_count += 1;
+            stats->clock_count += 1;
         }
     }
-
-    hal_log_error("End of task_gpt()");
     hal_panic();
 
     hal_assert(hal_gpt_stop(&gpt) == HAL_SUCCESS);
     hal_assert(hal_gpt_deinit(&gpt) == HAL_SUCCESS);
+}
+
+void sync_generator_run(Statistics *stats) {
+    hal_log_info("Starting sync generator task");
+    hal_assert(
+        xTaskCreate(sync_generator_task, "Sync generator task", TASK_STACK_SIZE, (void *)stats, STATISTICS_TASK_PRIORITY, NULL)
+        == pdPASS);
 }

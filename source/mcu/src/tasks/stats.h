@@ -1,0 +1,47 @@
+#pragma once
+
+#include <stdlib.h>
+#include <stdint.h>
+
+#include <common/config.h>
+
+#include "config.h"
+
+#define STATS_REPORT_PERIOD_MS 10000
+
+typedef struct {
+    size_t count;
+    int64_t sum;
+    point_t last;
+    point_t min;
+    point_t max;
+} ValueStats;
+
+typedef struct {
+    size_t lost_empty;
+    size_t lost_full;
+} DacStats;
+
+typedef struct {
+    ValueStats value;
+    size_t lost_full;
+} AdcStats;
+
+typedef struct {
+#ifdef GENERATE_SYNC
+    size_t clock_count;
+#endif
+    size_t sample_count;
+    size_t max_intrs_per_sample;
+
+    size_t crc_error_count;
+    DacStats dac;
+    AdcStats adcs[ADC_COUNT];
+} Statistics;
+
+void _stats_value_reset(ValueStats *value);
+
+void stats_reset(Statistics *stats);
+void stats_print(Statistics *stats);
+
+void stats_report_run(Statistics *stats);
