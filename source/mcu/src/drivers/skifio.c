@@ -265,7 +265,6 @@ hal_retcode skifio_init() {
 #ifdef _SKIFIO_DEBUG
     _SKIFIO_DEBUG_INFO.intr_count = 0;
 #endif
-    switch_dac_keys(true);
     ret = hal_gpio_group_set_intr(&GS.ctrl_pins.group, smp_rdy_handler, NULL);
     if (ret != HAL_SUCCESS) {
         return ret;
@@ -284,6 +283,14 @@ hal_retcode skifio_deinit() {
     }
     hal_spi_deinit();
     return HAL_SUCCESS;
+}
+
+hal_retcode skifio_dac_enable() {
+    switch_dac_keys(true);
+}
+
+hal_retcode skifio_dac_disable() {
+    switch_dac_keys(false);
 }
 
 hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in) {

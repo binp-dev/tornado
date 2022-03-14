@@ -2,6 +2,10 @@
 
 #include <FreeRTOS.h>
 
+#include <common/config.h>
+#include <ipp.h>
+
+
 #define TASK_STACK_SIZE 256
 
 // clang-format off

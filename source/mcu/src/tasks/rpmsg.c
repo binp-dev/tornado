@@ -1,5 +1,21 @@
 #include "rpmsg.h"
 
+size_t dac_buffer_vacant(DacBuffer *self) {
+    size_t vacant = rb_vacant(&self->queue);
+    hal_assert(self->requested_count <= vacant);
+    return vacant - self->requested_count;
+    if (req_count >= DAC_MIN_REQ_COUNT) {
+        self->sync->dac_request_count += req_count;
+        self->requested_count += req_count;
+    }
+}
+
+void dac_buffer_write(DacBuffer *self, const point_t *data, size_t len) {
+    hal_assert(rb_write(&self->queue, data, len) == len);
+    hal_assert(self->requested_count >= len);
+    self->requested_count -= len;
+}
+
 
 void send_adc_wf_data() {
     for (int i = 0; i < SKIFIO_ADC_CHANNEL_COUNT; ++i) {
@@ -59,7 +75,7 @@ void send_din() {
     hal_assert(hal_rpmsg_send_nocopy(&RPMSG_CHANNEL, buffer, ipp_mcu_msg_size(mcu_msg)) == HAL_SUCCESS);
 }
 
-static void task_rpmsg_send(void *param) {
+static void rpmsg_send_task(void *param) {
     for (;;) {
         if (!IOC_STARTED) {
             // FIXME:
@@ -74,7 +90,7 @@ static void task_rpmsg_send(void *param) {
     }
 }
 
-static void task_rpmsg_recv(void *param) {
+static void rpmsg_recv_task(void *param) {
     hal_rpmsg_init();
 
     hal_assert(hal_rpmsg_create_channel(&RPMSG_CHANNEL, 0) == HAL_SUCCESS);
@@ -173,20 +189,28 @@ static void task_rpmsg_recv(void *param) {
     hal_rpmsg_deinit();
 }
 
-void rpmsg_init(Rpmsg *rpmsg, Control *control, Statistics *stats) {
-    rpmsg->send_sem = xSemaphoreCreateBinary();
-    hal_assert(rpmsg->send_sem != NULL);
-    control_set_ready_sem(control, &rpmsg->send_sem);
+void rpmsg_init(Rpmsg *self, Control *control, Statistics *stats) {
+    self->send_sem = xSemaphoreCreateBinary();
+    hal_assert(self->send_sem != NULL);
 
-    rpmsg->alive = false;
+    self->alive = false;
 
-    rpmsg->control = control;
-    rpmsg->stats = stats;
+    control_sync_init(&self->control_sync, &self->send_sem);
+
+    self->control = control;
+    self->stats = stats;
 }
 
-void rpmsg_deinit(Rpmsg *rpmsg) {
-    xSemaphoreDelete(rpmsg->send_sem);
+void rpmsg_deinit(Rpmsg *self) {
+    xSemaphoreDelete(self->send_sem);
 }
 
-/// Start rpmsg tasks.
-void rpmsg_run(Rpmsg *rpmsg);
+void rpmsg_run(Rpmsg *self) {
+    hal_assert(
+        xTaskCreate(rpmsg_send_task, "RPMSG send task", TASK_STACK_SIZE, (void *)self, RPMSG_SEND_TASK_PRIORITY, NULL)
+        == pdPASS);
+
+    hal_assert(
+        xTaskCreate(rpmsg_recv_task, "RPMSG recv task", TASK_STACK_SIZE, (void *)self, RPMSG_RECV_TASK_PRIORITY, NULL)
+        == pdPASS);
+}

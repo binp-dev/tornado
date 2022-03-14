@@ -33,6 +33,9 @@ typedef void (*SkifioDinCallback)(void *, SkifioDin);
 hal_retcode skifio_init();
 hal_retcode skifio_deinit();
 
+hal_retcode skifio_dac_enable();
+hal_retcode skifio_dac_disable();
+
 hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in);
 hal_retcode skifio_wait_ready(uint32_t delay_ms);
 

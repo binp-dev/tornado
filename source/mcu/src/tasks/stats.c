@@ -4,13 +4,26 @@
 #include <task.h>
 
 #include <hal/log.h>
+#include <hal/math.h>
 
-void _stats_value_reset(ValueStats *value) {
-    value->count = 0;
-    value->sum = 0;
-    value->max = 0;
-    value->min = 0;
-    value->last = 0;
+void value_stats_reset(ValueStats *self) {
+    self->count = 0;
+    self->sum = 0;
+    self->max = 0;
+    self->min = 0;
+    self->last = 0;
+}
+
+void value_stats_update(ValueStats *self, point_t value) {
+    if (self->count == 0) {
+        self->min = value;
+        self->max = value;
+    } else {
+        self->min = hal_min(self->min, value);
+        self->max = hal_max(self->max, value);
+    }
+    self->last = value;
+    self->sum += value;
 }
 
 void stats_reset(Statistics *stats) {

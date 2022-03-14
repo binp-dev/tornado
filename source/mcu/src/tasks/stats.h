@@ -39,9 +39,10 @@ typedef struct {
     AdcStats adcs[ADC_COUNT];
 } Statistics;
 
-void _stats_value_reset(ValueStats *value);
+void value_stats_reset(ValueStats *self);
+void value_stats_update(ValueStats *self, point_t value);
 
-void stats_reset(Statistics *stats);
-void stats_print(Statistics *stats);
+void stats_reset(Statistics *self);
+void stats_print(Statistics *self);
 
-void stats_report_run(Statistics *stats);
+void stats_report_run(Statistics *self);

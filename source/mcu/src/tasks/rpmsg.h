@@ -15,13 +15,13 @@
 
 #define DAC_MSG_MAX_POINTS ((RPMSG_MAX_MSG_LEN - sizeof(((IppAppMsg *)NULL)->type) - sizeof(IppAppMsgDacWf)) / sizeof(point_t))
 #define ADC_MSG_MAX_POINTS ((RPMSG_MAX_MSG_LEN - sizeof(((IppMcuMsg *)NULL)->type) - sizeof(IppMcuMsgAdcWf)) / sizeof(point_t))
-#define DAC_REQUEST_STEP DAC_MSG_MAX_POINTS
 
 typedef struct {
     hal_rpmsg_channel channel;
     SemaphoreHandle_t send_sem;
     volatile bool alive;
 
+    ControlSync control_sync;
     Control *control;
     Statistics *stats;
 } Rpmsg;
