@@ -64,3 +64,18 @@ size_t rb_overwrite(RingBuffer *self, const point_t *data, size_t len) {
     hal_assert(rb_write(self, data, len) == len);
     return extra;
 }
+
+/// Read and discard at most `max_len` points from the ring buffer.
+/// @return Number of actually skipped points.
+size_t rb_skip(RingBuffer *self, size_t max_len) {
+    size_t len = hal_min(max_len, rb_occupied(self));
+
+    point_t tmp_buf[TMP_BUF_LEN];
+    for (size_t i = 0; i < len / TMP_BUF_LEN; ++i) {
+        hal_assert(rb_read(self, tmp_buf, TMP_BUF_LEN) == TMP_BUF_LEN);
+    }
+    size_t rem = len % TMP_BUF_LEN;
+    hal_assert(rb_read(self, tmp_buf, rem) == rem);
+
+    return len;
+}

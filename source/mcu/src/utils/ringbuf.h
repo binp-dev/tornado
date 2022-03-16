@@ -35,13 +35,19 @@ size_t rb_vacant(const RingBuffer *self);
 
 
 /// Read at most `max_len` points from the ring buffer into `data`.
-/// @return Number of actially read points.
+/// @return Number of actually read points.
 size_t rb_read(RingBuffer *self, point_t *data, size_t max_len);
 
 /// Write at most `max_len` points into the ring buffer from `data`.
-/// @return Number of actially written points.
+/// @return Number of actually written points.
 size_t rb_write(RingBuffer *self, const point_t *data, size_t max_len);
 
 /// Write `len` points into the ring buffer from `data` overwriting oldest points if there is unsufficient free space.
+/// NOTE: This function is both reader and writer at once.
+///       You must put it into critical section of there are concurring reading or writing.
 /// @return Number of overwritten oldest points.
 size_t rb_overwrite(RingBuffer *self, const point_t *data, size_t len);
+
+/// Read and discard at most `max_len` points from the ring buffer.
+/// @return Number of actually skipped points.
+size_t rb_skip(RingBuffer *self, size_t max_len);

@@ -2,53 +2,58 @@
 
 #include <hal/assert.h>
 
-void control_init(Control *self, ControlSync *sync, Statistics *stats) {
-    self->enabled = false;
-
+void control_init(Control *self, Statistics *stats) {
     self->dio.in = 0;
     self->dio.out = 0;
 
-    hal_assert_retcode(rb_init(&self->dac.queue, DAC_BUFFER_SIZE));
+    self->dac.running = false;
+    hal_assert_retcode(rb_init(&self->dac.buffer, DAC_BUFFER_SIZE));
     self->dac.last_point = 0;
+    self->dac.counter = 0;
 
     for (size_t i = 0; i < ADC_COUNT; ++i) {
-        hal_assert_retcode(rb_init(&self->adcs[i].queue, ADC_BUFFER_SIZE));
+        hal_assert_retcode(rb_init(&self->adc.buffers[i], ADC_BUFFER_SIZE));
     }
+    self->adc.counter = 0;
 
-    hal_assert(sync != NULL);
-    hal_assert(sync->ready_sem != NULL);
-    self->sync = sync;
+    self->sync = NULL;
 
     hal_assert(stats != NULL);
     self->stats = stats;
 }
 
 void control_deinit(Control *self) {
-    hal_assert_retcode(rb_deinit(&self->dac.queue));
+    hal_assert_retcode(rb_deinit(&self->dac.buffer));
 
     for (size_t i = 0; i < ADC_COUNT; ++i) {
-        hal_assert_retcode(rb_deinit(&self->adcs[i].queue));
+        hal_assert_retcode(rb_deinit(&self->adc.buffers[i]));
     }
 }
 
-void control_enable(Control *self) {
-    skifio_dac_enable();
-    self->enabled = true;
+void control_set_sync(Control *self, ControlSync *sync) {
+    hal_assert(sync != NULL);
+    hal_assert(sync->ready_sem != NULL);
+    self->sync = sync;
 }
 
-void control_disable(Control *self) {
-    self->enabled = false;
+void control_dac_start(Control *self) {
+    skifio_dac_enable();
+    self->dac.running = true;
+}
+
+void control_dac_stop(Control *self) {
+    self->dac.running = false;
     skifio_dac_disable();
 }
 
-void control_sync_init(ControlSync *self, SemaphoreHandle_t *ready_sem) {
+void control_sync_init(ControlSync *self, SemaphoreHandle_t *ready_sem, size_t dac_chunk_size, size_t adc_chunk_size) {
     self->ready_sem = ready_sem;
+
+    self->dac_notify_every = dac_chunk_size;
+    self->adc_notify_every = adc_chunk_size;
 
     self->din_changed = false;
     self->dout_changed = false;
-
-    self->dac_remaining = 0;
-    self->adc_remaining = 0;
 }
 
 static bool update_din(Control *self) {
@@ -72,18 +77,11 @@ static void intr_din_handler(void *data, SkifioDin value) {
     portYIELD_FROM_ISR(hptw);
 }
 
-static bool decrement_remaining(volatile size_t *counter) {
-    if (*counter > 0) {
-        *counter -= 1;
-        if (*counter == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
 static void control_task(void *param) {
     Control *self = (Control *)param;
+
+    // Check that sync is set.
+    hal_assert(self->sync != NULL);
 
     hal_log_info("SkifIO driver init");
     hal_assert_retcode(skifio_init());
@@ -122,11 +120,19 @@ static void control_task(void *param) {
 
         // Fetch next DAC value from buffer
         int32_t dac_value = self->dac.last_point;
-        if (rb_read(&self->dac.queue, &dac_value, 1) == 1) {
-            self->dac.last_point = dac_value;
-            ready |= decrement_remaining(&self->sync->dac_remaining);
-        } else {
-            self->stats->dac.lost_empty += 1;
+        if (self->dac.running) {
+            if (rb_read(&self->dac.buffer, &dac_value, 1) == 1) {
+                self->dac.last_point = dac_value;
+                // Decrement DAC notification counter.
+                if (self->dac.counter > 0) {
+                    self->dac.counter -= 1;
+                } else {
+                    self->dac.counter = self->sync->dac_notify_every - 1;
+                    ready = true;
+                }
+            } else {
+                self->stats->dac.lost_empty += 1;
+            }
         }
 
         // Transfer DAC/ADC values to/from SkifIO board.
@@ -143,6 +149,7 @@ static void control_task(void *param) {
             }
             hal_assert_retcode(ret);
 
+            // Handle ADCs
             for (size_t j = 0; j < ADC_COUNT; ++j) {
                 point_t value = input.adcs[j];
                 volatile AdcStats *adc_stats = &self->stats->adcs[j];
@@ -150,13 +157,22 @@ static void control_task(void *param) {
                 // Update ADC value statistics
                 value_stats_update(&adc_stats->value, value);
 
-                // Push ADC point to buffer
-                self->stats->adcs[j].lost_full += rb_overwrite(&self->adcs[j].queue, &value, 1);
+                // Push ADC point to buffer.
+                if (rb_write(&self->adc.buffers[j], &value, 1) != 1) {
+                    self->stats->adcs[j].lost_full += 1;
+                }
             }
-            ready |= decrement_remaining(&self->sync->adc_remaining);
+            // Decrement ADC notification counter.
+            if (self->adc.counter > 0) {
+                self->adc.counter -= 1;
+            } else {
+                self->adc.counter = self->sync->adc_notify_every - 1;
+                ready = true;
+            }
         }
 
         if (ready) {
+            // Notify
             xSemaphoreGive(*self->sync->ready_sem);
         }
 

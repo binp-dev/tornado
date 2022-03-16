@@ -18,48 +18,54 @@
 
 
 typedef struct {
-    RingBuffer queue;
+    bool running;
+    RingBuffer buffer;
     point_t last_point;
-} DacBuffer;
+    size_t counter;
+} ControlDac;
 
 typedef struct {
-    RingBuffer queue;
-} AdcBuffer;
+    RingBuffer buffers[ADC_COUNT];
+    size_t counter;
+} ControlAdc;
 
 typedef struct {
     SkifioDin in;
     SkifioDout out;
-} DiscreteIo;
+} ControlDio;
 
 typedef struct {
     /// Semaphore to notify that something is ready.
     SemaphoreHandle_t *ready_sem;
+
+    /// Number of DAC points to write until notified.
+    volatile size_t dac_notify_every;
+    /// Number of ADC points to read until notified.
+    volatile size_t adc_notify_every;
+
     /// Discrete input has changed.
     volatile bool din_changed;
     /// Discrete output has changed.
     volatile bool dout_changed;
-    /// Remaining DAC points to handle until notification.
-    volatile size_t dac_remaining;
-    /// Remaining ADC points to handle until notification.
-    volatile size_t adc_remaining;
 } ControlSync;
 
 typedef struct {
-    bool enabled;
-    DiscreteIo dio;
-    DacBuffer dac;
-    AdcBuffer adcs[ADC_COUNT];
+    ControlDio dio;
+    ControlDac dac;
+    ControlAdc adc;
     ControlSync *sync;
     Statistics *stats;
 } Control;
 
-void control_sync_init(ControlSync *self, SemaphoreHandle_t *ready_sem);
+void control_sync_init(ControlSync *self, SemaphoreHandle_t *ready_sem, size_t dac_chunk_size, size_t adc_chunk_size);
 
-void control_init(Control *self, ControlSync *sync, Statistics *stats);
+void control_init(Control *self, Statistics *stats);
 void control_deinit(Control *self);
 
-void control_enable(Control *self);
-void control_disable(Control *self);
+void control_set_sync(Control *self, ControlSync *sync);
+
+void control_dac_start(Control *self);
+void control_dac_stop(Control *self);
 
 /// Start control tasks.
 void control_run(Control *self);
