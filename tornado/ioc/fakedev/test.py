@@ -85,7 +85,7 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
     ctx = Context()
     aais = [await ctx.pv(f"aai{i}", PvType.ARRAY_INT) for i in range(config.adc_count)]
     aao = await ctx.pv("aao0", PvType.ARRAY_INT)
-    aao_req = await ctx.pv("aao0_req", PvType.BOOL)
+    aao_request = await ctx.pv("aao0_request", PvType.BOOL)
     aao_cyclic = await ctx.pv("aao0_cyclic", PvType.BOOL)
 
     wf_size = await (await ctx.pv("aao0.NELM", PvType.INT)).read()
@@ -113,7 +113,7 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
         await asyncio.gather(*[watch_single_adc(i, pv) for i, pv in enumerate(aais)])
 
     async def wait_dac_req() -> None:
-        async with aao_req.monitor() as mon:
+        async with aao_request.monitor() as mon:
             async for flag in mon:
                 if int(flag) != 0:
                     break

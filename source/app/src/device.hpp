@@ -60,19 +60,19 @@ private:
     };
 
 private:
-    std::atomic_bool done;
-    std::thread recv_worker;
-    std::thread send_worker;
-    std::condition_variable send_ready;
-    std::mutex send_mutex;
+    std::atomic_bool done_;
+    std::thread recv_worker_;
+    std::thread send_worker_;
+    std::condition_variable send_ready_;
+    std::mutex send_mutex_;
 
     const size_t msg_max_len_;
     const std::chrono::milliseconds keep_alive_period_{KEEP_ALIVE_PERIOD_MS};
 
-    DinEntry din;
-    DoutEntry dout;
-    std::array<AdcEntry, ADC_COUNT> adcs;
-    DacEntry dac;
+    DinEntry din_;
+    DoutEntry dout_;
+    std::array<AdcEntry, ADC_COUNT> adcs_;
+    DacEntry dac_;
 
     DeviceChannel channel;
 

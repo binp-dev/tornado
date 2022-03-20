@@ -17,9 +17,9 @@ void Device::recv_loop() {
 
     channel.send(ipp::AppMsg{ipp::AppMsgConnect{}}, std::nullopt).unwrap(); // Wait forever
     std::cout << "[app] Connect signal sent" << std::endl;
-    send_worker = std::thread([this]() { this->send_loop(); });
+    send_worker_ = std::thread([this]() { this->send_loop(); });
 
-    while (!this->done.load()) {
+    while (!this->done_.load()) {
         auto result = channel.receive(timeout);
         if (result.is_err()) {
             auto err = result.unwrap_err();
@@ -35,16 +35,16 @@ void Device::recv_loop() {
         auto incoming = result.unwrap();
         std::visit(
             overloaded{
-                [&](ipp::McuMsgDinVal &&din_val) {
-                    // std::cout << "Din updated: " << uint32_t(din_val.value) << std::endl;
-                    din.value.store(din_val.value);
-                    if (din.notify) {
-                        din.notify();
+                [&](ipp::McuMsgDinUpdate &&din_msg) {
+                    // std::cout << "Din updated: " << uint32_t(din_msg.value) << std::endl;
+                    din_.value.store(din_msg.value);
+                    if (din_.notify) {
+                        din_.notify();
                     }
                 },
-                [&](ipp::McuMsgAdcWf &&adc_msg) {
-                    auto &adc = adcs[adc_msg.index];
-                    auto elems = adc_msg.elements;
+                [&](ipp::McuMsgAdcData &&adc_msg) {
+                    auto &adc = adcs_[adc_msg.index];
+                    auto elems = adc_msg.points;
                     if (elems.size() > 0) {
                         adc.last_value.store(elems.back());
                     }
@@ -56,13 +56,13 @@ void Device::recv_loop() {
                         adc.notify();
                     }
                 },
-                [&](ipp::McuMsgDacWfReq &&) {
+                [&](ipp::McuMsgDacRequest &&) {
                     {
-                        // Note: `send_mutex` must be locked even if atomic is used. See `std::condition_variable` reference.
-                        std::lock_guard send_guard(send_mutex);
-                        dac.has_mcu_req.store(true);
+                        // Note: `send_mutex_` must be locked even if atomic is used. See `std::condition_variable` reference.
+                        std::lock_guard send_guard(send_mutex_);
+                        dac_.has_mcu_req.store(true);
                     }
-                    send_ready.notify_all();
+                    send_ready_.notify_all();
                 },
                 [&](ipp::McuMsgDebug &&debug) { //
                     std::cout << "Device: " << debug.message << std::endl;
@@ -77,47 +77,47 @@ void Device::recv_loop() {
         );
     }
 
-    send_ready.notify_all();
-    send_worker.join();
+    send_ready_.notify_all();
+    send_worker_.join();
 }
 
 void Device::send_loop() {
     std::cout << "[app] Channel send thread started" << std::endl;
     const auto timeout = keep_alive_period_;
     auto next_wakeup = std::chrono::steady_clock::now();
-    while (!this->done.load()) {
-        std::unique_lock send_lock(send_mutex);
-        auto status = send_ready.wait_until(send_lock, next_wakeup);
+    while (!this->done_.load()) {
+        std::unique_lock send_lock(send_mutex_);
+        auto status = send_ready_.wait_until(send_lock, next_wakeup);
         if (status == std::cv_status::timeout) {
             channel.send(ipp::AppMsg{ipp::AppMsgKeepAlive{}}, timeout).unwrap();
             next_wakeup = std::chrono::steady_clock::now() + keep_alive_period_;
             // continue;
         }
 
-        if (dout.update.exchange(false)) {
-            uint8_t value = dout.value.load();
+        if (dout_.update.exchange(false)) {
+            uint8_t value = dout_.value.load();
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
-            channel.send(ipp::AppMsg{ipp::AppMsgDoutSet{uint8_t(value)}}, timeout).unwrap();
+            channel.send(ipp::AppMsg{ipp::AppMsgDoutUpdate{uint8_t(value)}}, timeout).unwrap();
         }
-        if (dac.has_mcu_req.exchange(false)) {
-            auto tmp = dac.tmp_buf;
-            ipp::AppMsgDacWf dac_msg;
+        if (dac_.has_mcu_req.exchange(false)) {
+            auto tmp = dac_.tmp_buf;
+            ipp::AppMsgDacData dac_msg;
             size_t max_count = (msg_max_len_ - dac_msg.packed_size() - 1) / sizeof(int32_t);
 
-            dac.data.read_array_into(tmp, max_count);
+            dac_.data.read_array_into(tmp, max_count);
 
             if (!tmp.empty()) {
-                dac_msg.elements = std::move(tmp);
+                dac_msg.points = std::move(tmp);
                 assert_true(dac_msg.packed_size() <= msg_max_len_ - 1);
                 channel.send(ipp::AppMsg{std::move(dac_msg)}, timeout).unwrap();
-                dac.tmp_buf = std::move(tmp);
+                dac_.tmp_buf = std::move(tmp);
             } else {
-                dac.has_mcu_req.store(true);
+                dac_.has_mcu_req.store(true);
             }
 
-            if (dac.data.write_ready() && !dac.ioc_requested.load() && dac.sync_ioc_request_flag) {
-                dac.sync_ioc_request_flag();
-                dac.ioc_requested.store(true);
+            if (dac_.data.write_ready() && !dac_.ioc_requested.load() && dac_.sync_ioc_request_flag) {
+                dac_.sync_ioc_request_flag();
+                dac_.ioc_requested.store(true);
             }
         }
     }
@@ -127,21 +127,21 @@ Device::Device(std::unique_ptr<Channel> &&raw_channel, size_t msg_max_len) :
     msg_max_len_(msg_max_len),
     channel(std::move(raw_channel), msg_max_len) //
 {
-    done.store(true);
+    done_.store(true);
 }
 Device::~Device() {
     stop();
 }
 
 void Device::start() {
-    done.store(false);
-    recv_worker = std::thread([this]() { this->recv_loop(); });
+    done_.store(false);
+    recv_worker_ = std::thread([this]() { this->recv_loop(); });
 }
 
 void Device::stop() {
-    if (!done.load()) {
-        done.store(true);
-        recv_worker.join();
+    if (!done_.load()) {
+        done_.store(true);
+        recv_worker_.join();
     }
 }
 
@@ -149,49 +149,49 @@ void Device::write_dout(uint32_t value) {
     {
         constexpr uint32_t mask = 0xfu;
         if ((value & ~mask) != 0) {
-            std::cout << "[app:warning] Ignoring extra bits in dout 4-bit mask: " << value << std::endl;
+            std::cout << "[app:warning] Ignoring extra bits in dout_ 4-bit mask: " << value << std::endl;
         }
         {
-            // Note: `send_mutex` must be locked even if atomic is used. See `std::condition_variable` reference.
-            std::lock_guard send_guard(send_mutex);
-            dout.value.store(uint8_t(value & mask));
-            dout.update.store(true);
+            // Note: `send_mutex_` must be locked even if atomic is used. See `std::condition_variable` reference.
+            std::lock_guard send_guard(send_mutex_);
+            dout_.value.store(uint8_t(value & mask));
+            dout_.update.store(true);
         }
     }
-    send_ready.notify_all();
+    send_ready_.notify_all();
 }
 
 uint32_t Device::read_din() {
-    return din.value.load();
+    return din_.value.load();
 }
 void Device::set_din_callback(std::function<void()> &&callback) {
-    din.notify = std::move(callback);
+    din_.notify = std::move(callback);
 }
 
 void Device::init_dac(const size_t max_size) {
-    dac.data.reserve(max_size);
+    dac_.data.reserve(max_size);
 }
 
 void Device::write_dac(const int32_t *data, const size_t len) {
-    assert_true(dac.data.write_array_exact(data, len));
-    send_ready.notify_all();
-    if (dac.sync_ioc_request_flag) {
-        dac.ioc_requested.store(false);
-        dac.sync_ioc_request_flag();
+    assert_true(dac_.data.write_array_exact(data, len));
+    send_ready_.notify_all();
+    if (dac_.sync_ioc_request_flag) {
+        dac_.ioc_requested.store(false);
+        dac_.sync_ioc_request_flag();
     }
 }
 
 void Device::init_adc(uint8_t index, size_t max_size) {
-    adcs[index].max_size = max_size;
+    adcs_[index].max_size = max_size;
 }
 
 void Device::set_adc_callback(size_t index, std::function<void()> &&callback) {
     assert_true(index < ADC_COUNT);
-    adcs[index].notify = std::move(callback);
+    adcs_[index].notify = std::move(callback);
 }
 
 std::vector<int32_t> Device::read_adc(size_t index) {
-    auto &adc = adcs[index];
+    auto &adc = adcs_[index];
 
     Vec<int32_t> data;
     data.reserve(adc.max_size);
@@ -202,26 +202,26 @@ std::vector<int32_t> Device::read_adc(size_t index) {
 
 int32_t Device::read_adc_last_value(size_t index) {
     assert_true(index < ADC_COUNT);
-    return adcs[index].last_value.load();
+    return adcs_[index].last_value.load();
 }
 
 bool Device::dac_req_flag() {
-    return dac.data.write_ready();
+    return dac_.data.write_ready();
 }
 
 void Device::set_dac_req_callback(std::function<void()> &&callback) {
-    dac.sync_ioc_request_flag = std::move(callback);
+    dac_.sync_ioc_request_flag = std::move(callback);
 }
 
 void Device::set_dac_playback_mode(DacPlaybackMode mode) {
     switch (mode) {
     case DacPlaybackMode::OneShot:
         std::cout << "One-shot DAC mode set" << std::endl;
-        dac.data.set_cyclic(false);
+        dac_.data.set_cyclic(false);
         break;
     case DacPlaybackMode::Cyclic:
         std::cout << "Cyclic DAC mode set" << std::endl;
-        dac.data.set_cyclic(true);
+        dac_.data.set_cyclic(true);
         break;
     default:
         unreachable();

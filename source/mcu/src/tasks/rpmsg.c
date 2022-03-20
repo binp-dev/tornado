@@ -71,12 +71,12 @@ static void write_adc_message(Rpmsg *self, void *user_data, IppMcuMsg *basic_mes
     size_t index = *(const size_t *)user_data;
     static const size_t SIZE = ADC_MSG_MAX_POINTS;
 
-    basic_message->type = IPP_MCU_MSG_ADC_WF;
-    IppMcuMsgAdcWf *message = &basic_message->adc_wf;
+    basic_message->type = IPP_MCU_MSG_ADC_DATA;
+    IppMcuMsgAdcData *message = &basic_message->adc_data;
     message->index = (uint8_t)index;
-    message->elements.len = (uint16_t)SIZE;
-    // It must be guaranteed that ADC buffer contains at least `ADC_MSG_MAX_POINTS` elemetns.
-    hal_assert(rb_read(&self->control->adc.buffers[index], message->elements.data, SIZE) == SIZE);
+    message->points.len = (uint16_t)SIZE;
+    // It must be guaranteed that ADC buffer contains at least `ADC_MSG_MAX_POINTS` points.
+    hal_assert(rb_read(&self->control->adc.buffers[index], message->points.data, SIZE) == SIZE);
 }
 
 static void rpmsg_send_adcs(Rpmsg *self) {
@@ -100,8 +100,8 @@ static void rpmsg_discard_adcs(Rpmsg *self) {
 
 static void write_dac_req_message(Rpmsg *self, void *user_data, IppMcuMsg *message) {
     size_t count = *(const size_t *)user_data;
-    message->type = IPP_MCU_MSG_DAC_WF_REQ;
-    message->dac_wf_req.count = count;
+    message->type = IPP_MCU_MSG_DAC_REQUEST;
+    message->dac_request.count = count;
 }
 
 static void rpmsg_send_dac_request(Rpmsg *self) {
@@ -113,7 +113,7 @@ static void rpmsg_send_dac_request(Rpmsg *self) {
     size_t req_count_raw = vacant - self->dac_requested;
 
     if (req_count_raw >= SIZE) {
-        // Request number of elements that is multiple of `DAC_MSG_MAX_POINTS`.
+        // Request number of points that is multiple of `DAC_MSG_MAX_POINTS`.
         size_t req_count = (req_count_raw / SIZE) * SIZE;
 
         rpmsg_send_message(self, write_dac_req_message, (void *)&req_count);
@@ -124,8 +124,8 @@ static void rpmsg_send_dac_request(Rpmsg *self) {
 
 static void write_din_message(Rpmsg *self, void *user_data, IppMcuMsg *basic_message) {
     SkifioDin din = *(const SkifioDin *)user_data;
-    basic_message->type = IPP_MCU_MSG_DIN_VAL;
-    basic_message->din_val.value = din;
+    basic_message->type = IPP_MCU_MSG_DIN_UPDATE;
+    basic_message->din_update.value = din;
 }
 
 static void rpmsg_send_din(Rpmsg *self) {
@@ -192,15 +192,15 @@ static void read_any_message(Rpmsg *self, void *user_data, const IppAppMsg *mess
         check_alive(self);
         break;
     }
-    case IPP_APP_MSG_DOUT_SET: {
+    case IPP_APP_MSG_DOUT_UPDATE: {
         check_alive(self);
-        set_dout(self, message->dout_set.value);
+        set_dout(self, message->dout_update.value);
         break;
     }
-    case IPP_APP_MSG_DAC_WF: {
+    case IPP_APP_MSG_DAC_DATA: {
         check_alive(self);
-        const IppAppMsgDacWf *dac_msg = &message->dac_wf;
-        write_dac(self, dac_msg->elements.data, (size_t)dac_msg->elements.len);
+        const IppAppMsgDacData *dac_msg = &message->dac_data;
+        write_dac(self, dac_msg->points.data, (size_t)dac_msg->points.len);
         break;
     }
     default:

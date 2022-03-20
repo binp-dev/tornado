@@ -82,7 +82,7 @@ record(aao, "aao0") {
 }
 
 # DAC next waveform request
-record(bi, "aao0_req")
+record(bi, "aao0_request")
 {
     field(DTYP, "devsup")
     field(SCAN, "I/O Intr")

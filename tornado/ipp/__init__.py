@@ -10,14 +10,15 @@ AppMsg = make_variant(
     Name(["app", "msg"]),
     [
         (Name(["connect"]), []),
-        (Name(["start", "dac"]), []),
-        (Name(["stop", "dac"]), []),
         (Name(["keep", "alive"]), []),
-        (Name(["dout", "set"]), [
+        (Name(["dout", "update"]), [
             Field("value", Int(8, signed=False)),
         ]),
-        (Name(["dac", "wf"]), [
-            Field("elements", Vector(Int(32, signed=True))),
+        (Name(["dac", "mode"]), [
+            Field("enable", Int(8, signed=False)),
+        ]),
+        (Name(["dac", "data"]), [
+            Field("points", Vector(Int(32, signed=True))),
         ]),
     ],
 )
@@ -25,15 +26,15 @@ AppMsg = make_variant(
 McuMsg = make_variant(
     Name(["mcu", "msg"]),
     [
-        (Name(["din", "val"]), [
+        (Name(["din", "update"]), [
             Field("value", Int(8, signed=False)),
         ]),
-        (Name(["dac", "wf", "req"]), [
+        (Name(["dac", "request"]), [
             Field("count", Int(32, signed=False)),
         ]),
-        (Name(["adc", "wf"]), [
+        (Name(["adc", "data"]), [
             Field("index", Int(8, signed=False)),
-            Field("elements", Vector(Int(32, signed=True))),
+            Field("points", Vector(Int(32, signed=True))),
         ]),
         (Name(["error"]), [
             Field("code", Int(8, signed=False)),
