@@ -26,6 +26,14 @@ void value_stats_update(ValueStats *self, point_t value) {
     self->sum += value;
 }
 
+void value_stats_print(ValueStats *self, const char *prefix) {
+    hal_log_info("%slast: (0x%08lx) %ld", prefix, self->last, self->last);
+    hal_log_info("%smin: (0x%08lx) %ld", prefix, self->min, self->min);
+    hal_log_info("%smax: (0x%08lx) %ld", prefix, self->max, self->max);
+    int32_t avg = (int32_t)(self->sum / self->count);
+    hal_log_info("%savg: (0x%08lx) %ld", prefix, avg, avg);
+}
+
 void stats_reset(Statistics *stats) {
 #ifdef GENERATE_SYNC
     stats->clock_count = 0;
@@ -40,7 +48,7 @@ void stats_reset(Statistics *stats) {
 
     for (size_t i = 0; i < ADC_COUNT; ++i) {
         stats->adcs[i].lost_full = 0;
-        _stats_value_reset(&stats->adcs[i].value);
+        value_stats_reset(&stats->adcs[i].value);
     }
 }
 
@@ -51,23 +59,15 @@ void stats_print(Statistics *stats) {
     hal_log_info("sample_count: %ld", stats->sample_count);
     hal_log_info("max_intrs_per_sample: %ld", stats->max_intrs_per_sample);
 
-    for (size_t j = 0; j < ADC_COUNT; ++j) {
-        volatile AdcStats *adc = &stats->adcs[j];
-        hal_log_info("adc[%d]:", j);
-        hal_log_info("    last: (0x%08lx) %ld", adc->last, adc->last);
-        hal_log_info("    min: (0x%08lx) %ld", adc->min, adc->min);
-        hal_log_info("    max: (0x%08lx) %ld", adc->max, adc->max);
-        int32_t avg = (int32_t)(adc->sum / stats->sample_count);
-        hal_log_info("    avg: (0x%08lx) %ld", avg, avg);
-    }
-
-    hal_log_info("dac waveform:");
-    hal_log_info("    buffer was full: %ld", stats->dac_wf.buff_was_full);
-    hal_log_info("    buffer was empty: %ld", stats->dac_wf.buff_was_empty);
+    hal_log_info("DAC:");
+    hal_log_info("    Points lost because buffer was full: %ld", stats->dac.lost_full);
+    hal_log_info("    Points lost because buffer was empty: %ld", stats->dac.lost_empty);
 
     for (size_t j = 0; j < ADC_COUNT; ++j) {
-        hal_log_info("adc waveform[%d]:", j);
-        hal_log_info("    buffer was full: %ld", stats->adc_buff_was_full[j]);
+        hal_log_info("ADC[%d]:", j);
+        hal_log_info("    Points lost because buffer was full: %ld", stats->adcs[j].lost_full);
+        hal_log_info("    Mertics:");
+        value_stats_print(&stats->adcs[j].value, "        ");
     }
 }
 
@@ -77,8 +77,6 @@ static void stats_task(void *param) {
     for (size_t i = 0;; ++i) {
         hal_log_info("");
         stats_print(stats);
-        hal_log_info("din: 0x%02lx", (uint32_t)DIO.in);
-        hal_log_info("dout: 0x%01lx", (uint32_t)DIO.out);
         vTaskDelay(STATS_REPORT_PERIOD_MS);
     }
 }

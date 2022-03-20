@@ -41,6 +41,7 @@ typedef struct {
 
 void value_stats_reset(ValueStats *self);
 void value_stats_update(ValueStats *self, point_t value);
+void value_stats_print(ValueStats *self, const char *prefix);
 
 void stats_reset(Statistics *self);
 void stats_print(Statistics *self);
