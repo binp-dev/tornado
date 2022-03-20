@@ -9,15 +9,15 @@
 
 #include "board.h"
 
-#define RPMSG_LITE_SHMEM_BASE         ((void *)(VDEV0_VRING_BASE))
-#define RPMSG_LITE_LINK_ID            (RL_PLATFORM_IMX8MN_M7_USER_LINK_ID)
+#define RPMSG_LITE_SHMEM_BASE ((void *)(VDEV0_VRING_BASE))
+#define RPMSG_LITE_LINK_ID (RL_PLATFORM_IMX8MN_M7_USER_LINK_ID)
 #define RPMSG_LITE_NS_ANNOUNCE_STRING "rpmsg-virtual-tty-channel-1"
 
 static struct rpmsg_lite_instance *RPMSG = RL_NULL;
 
 void hal_rpmsg_init() {
     RPMSG = rpmsg_lite_remote_init(RPMSG_LITE_SHMEM_BASE, RPMSG_LITE_LINK_ID, RL_NO_FLAGS);
-    while (!rpmsg_lite_is_link_up(RPMSG));
+    while (!rpmsg_lite_is_link_up(RPMSG)) {}
 }
 
 void hal_rpmsg_deinit() {
@@ -58,15 +58,16 @@ hal_retcode hal_rpmsg_alloc_tx_buffer(hal_rpmsg_channel *channel, uint8_t **tx_b
     uint32_t size_uint = 0;
     char *buffer = rpmsg_lite_alloc_tx_buffer(RPMSG, &size_uint, timeout);
     if (buffer == RL_NULL) {
+        /// TODO: Distinguish bad alloc and timeout.
         return HAL_BAD_ALLOC;
     }
     *size = (size_t)size_uint;
-    *tx_buf = (uint8_t*)buffer;
+    *tx_buf = (uint8_t *)buffer;
     return HAL_SUCCESS;
 }
 
 hal_retcode hal_rpmsg_free_rx_buffer(hal_rpmsg_channel *channel, uint8_t *rx_buf) {
-    int ret = rpmsg_queue_nocopy_free(RPMSG, (char*)rx_buf);
+    int ret = rpmsg_queue_nocopy_free(RPMSG, (char *)rx_buf);
     if (ret != RL_SUCCESS) {
         /// TODO: Handle different error types.
         return HAL_FAILURE;
@@ -76,7 +77,7 @@ hal_retcode hal_rpmsg_free_rx_buffer(hal_rpmsg_channel *channel, uint8_t *rx_buf
 
 hal_retcode hal_rpmsg_send_nocopy(hal_rpmsg_channel *channel, uint8_t *tx_buf, size_t len) {
     /// TODO: Check that we have set channel->remote_address
-    int ret = rpmsg_lite_send_nocopy(RPMSG, channel->ept, channel->remote_addr, (char*)tx_buf, (uint32_t)len);
+    int ret = rpmsg_lite_send_nocopy(RPMSG, channel->ept, channel->remote_addr, (char *)tx_buf, (uint32_t)len);
     if (ret != RL_SUCCESS) {
         /// TODO: Handle different error types.
         return HAL_FAILURE;
@@ -86,9 +87,15 @@ hal_retcode hal_rpmsg_send_nocopy(hal_rpmsg_channel *channel, uint8_t *tx_buf, s
 
 hal_retcode hal_rpmsg_recv_nocopy(hal_rpmsg_channel *channel, uint8_t **rx_buf, size_t *len, uint32_t timeout) {
     uint32_t len_uint = 0;
-    int ret = rpmsg_queue_recv_nocopy(RPMSG, channel->queue, &channel->remote_addr, (char**)rx_buf, &len_uint, timeout);
-    if (ret != RL_SUCCESS) {
-        /// TODO: Handle different error types.
+    int ret = rpmsg_queue_recv_nocopy(RPMSG, channel->queue, &channel->remote_addr, (char **)rx_buf, &len_uint, timeout);
+    switch (ret) {
+    case RL_SUCCESS:
+        break;
+    case RL_ERR_NO_BUFF:
+        return HAL_TIMED_OUT;
+    case RL_ERR_PARAM:
+        return HAL_INVALID_INPUT;
+    default:
         return HAL_FAILURE;
     }
     *len = (size_t)len_uint;
