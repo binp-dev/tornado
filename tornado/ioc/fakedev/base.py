@@ -106,7 +106,7 @@ class FakeDev:
         msg = base_msg.variant
         if isinstance(msg, AppMsg.DacData):
             await self._sample_chunk(msg.points)
-            await _send_msg(self.socket, McuMsg.DacRequest(self.config.chunk_size))
+            await _send_msg(self.socket, McuMsg.DacRequest(len(msg.points)))
         elif isinstance(msg, AppMsg.DacMode):
             if msg.enable:
                 logger.debug("Start Dac")

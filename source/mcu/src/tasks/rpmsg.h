@@ -14,11 +14,6 @@
 #include <tasks/stats.h>
 
 
-#define DAC_MSG_MAX_POINTS \
-    ((RPMSG_MAX_MSG_LEN - sizeof(((IppAppMsg *)NULL)->type) - sizeof(IppAppMsgDacData)) / sizeof(point_t))
-#define ADC_MSG_MAX_POINTS \
-    ((RPMSG_MAX_MSG_LEN - sizeof(((IppMcuMsg *)NULL)->type) - sizeof(IppMcuMsgAdcData)) / sizeof(point_t))
-
 typedef struct {
     hal_rpmsg_channel channel;
     bool alive;

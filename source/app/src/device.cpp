@@ -15,12 +15,12 @@ void Device::recv_loop() {
     std::cout << "[app] Channel recv thread started" << std::endl;
     const auto timeout = std::chrono::milliseconds(100);
 
-    channel.send(ipp::AppMsg{ipp::AppMsgConnect{}}, std::nullopt).unwrap(); // Wait forever
+    channel_.send(ipp::AppMsg{ipp::AppMsgConnect{}}, std::nullopt).unwrap(); // Wait forever
     std::cout << "[app] Connect signal sent" << std::endl;
     send_worker_ = std::thread([this]() { this->send_loop(); });
 
     while (!this->done_.load()) {
-        auto result = channel.receive(timeout);
+        auto result = channel_.receive(timeout);
         if (result.is_err()) {
             auto err = result.unwrap_err();
             if (err.kind == io::ErrorKind::TimedOut) {
@@ -56,11 +56,11 @@ void Device::recv_loop() {
                         adc.notify();
                     }
                 },
-                [&](ipp::McuMsgDacRequest &&) {
+                [&](ipp::McuMsgDacRequest &&dac_req_msg) {
                     {
                         // Note: `send_mutex_` must be locked even if atomic is used. See `std::condition_variable` reference.
                         std::lock_guard send_guard(send_mutex_);
-                        dac_.has_mcu_req.store(true);
+                        dac_.mcu_requested_count += dac_req_msg.count;
                     }
                     send_ready_.notify_all();
                 },
@@ -89,30 +89,33 @@ void Device::send_loop() {
         std::unique_lock send_lock(send_mutex_);
         auto status = send_ready_.wait_until(send_lock, next_wakeup);
         if (status == std::cv_status::timeout) {
-            channel.send(ipp::AppMsg{ipp::AppMsgKeepAlive{}}, timeout).unwrap();
+            channel_.send(ipp::AppMsg{ipp::AppMsgKeepAlive{}}, timeout).unwrap();
             next_wakeup = std::chrono::steady_clock::now() + keep_alive_period_;
-            // continue;
+            continue;
         }
 
         if (dout_.update.exchange(false)) {
             uint8_t value = dout_.value.load();
             std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
-            channel.send(ipp::AppMsg{ipp::AppMsgDoutUpdate{uint8_t(value)}}, timeout).unwrap();
+            channel_.send(ipp::AppMsg{ipp::AppMsgDoutUpdate{uint8_t(value)}}, timeout).unwrap();
         }
-        if (dac_.has_mcu_req.exchange(false)) {
-            auto tmp = dac_.tmp_buf;
-            ipp::AppMsgDacData dac_msg;
-            size_t max_count = (msg_max_len_ - dac_msg.packed_size() - 1) / sizeof(int32_t);
+        if (dac_.mcu_requested_count.load() > 0) {
+            for (;;) {
+                auto tmp = dac_.tmp_buf;
+                ipp::AppMsgDacData dac_msg;
 
-            dac_.data.read_array_into(tmp, max_count);
+                size_t max_count = std::min(DAC_MSG_MAX_POINTS, dac_.mcu_requested_count.load());
+                size_t count = dac_.data.read_array_into(tmp, max_count);
+                dac_.mcu_requested_count -= count;
 
-            if (!tmp.empty()) {
-                dac_msg.points = std::move(tmp);
-                assert_true(dac_msg.packed_size() <= msg_max_len_ - 1);
-                channel.send(ipp::AppMsg{std::move(dac_msg)}, timeout).unwrap();
-                dac_.tmp_buf = std::move(tmp);
-            } else {
-                dac_.has_mcu_req.store(true);
+                if (count > 0) {
+                    dac_msg.points = std::move(tmp);
+                    assert_true(dac_msg.packed_size() <= RPMSG_MAX_MSG_LEN - 1);
+                    channel_.send(ipp::AppMsg{std::move(dac_msg)}, timeout).unwrap();
+                    dac_.tmp_buf = std::move(tmp);
+                } else {
+                    break;
+                }
             }
 
             if (dac_.data.write_ready() && !dac_.ioc_requested.load() && dac_.sync_ioc_request_flag) {
@@ -123,9 +126,8 @@ void Device::send_loop() {
     }
 }
 
-Device::Device(std::unique_ptr<Channel> &&raw_channel, size_t msg_max_len) :
-    msg_max_len_(msg_max_len),
-    channel(std::move(raw_channel), msg_max_len) //
+Device::Device(std::unique_ptr<Channel> &&raw_channel) :
+    channel_(std::move(raw_channel), RPMSG_MAX_MSG_LEN) //
 {
     done_.store(true);
 }
