@@ -17,7 +17,7 @@ void rpmsg_init(Rpmsg *self, Control *control, Statistics *stats) {
 }
 
 void rpmsg_deinit(Rpmsg *self) {
-    xSemaphoreDelete(self->send_sem);
+    vSemaphoreDelete(self->send_sem);
 }
 
 static hal_retcode rpmsg_recv_message(
@@ -50,6 +50,8 @@ static hal_retcode rpmsg_recv_message(
 
     // Free received buffer
     hal_assert_retcode(hal_rpmsg_free_rx_buffer(&self->channel, buffer));
+
+    return HAL_SUCCESS;
 }
 
 static void rpmsg_send_message(Rpmsg *self, void (*write_message)(Rpmsg *, void *, IppMcuMsg *), void *user_data) {
@@ -103,7 +105,7 @@ static void write_dac_req_message(Rpmsg *self, void *user_data, IppMcuMsg *messa
 }
 
 static void rpmsg_send_dac_request(Rpmsg *self) {
-    static const SIZE = DAC_MSG_MAX_POINTS;
+    static const size_t SIZE = DAC_MSG_MAX_POINTS;
 
     size_t vacant = rb_vacant(&self->control->dac.buffer);
     hal_assert(self->dac_requested <= vacant);
@@ -162,14 +164,14 @@ static void connect(Rpmsg *self) {
 
 static void set_dout(Rpmsg *self, SkifioDout value) {
     SkifioDout mask = (SkifioDout)((1 << SKIFIO_DOUT_SIZE) - 1);
-    if (~mask & value != 0) {
+    if ((~mask & value) != 0) {
         hal_log_warn("Dout is out of bounds: %lx", (uint32_t)value);
     }
     self->control->dio.out = value & mask;
     self->control_sync.dout_changed = true;
 }
 
-static void write_dac(Rpmsg *self, point_t *data, size_t len) {
+static void write_dac(Rpmsg *self, const point_t *data, size_t len) {
     size_t wlen = rb_write(&self->control->dac.buffer, data, len);
     self->stats->dac.lost_full += len - wlen;
 }
@@ -197,7 +199,7 @@ static void read_any_message(Rpmsg *self, void *user_data, const IppAppMsg *mess
     }
     case IPP_APP_MSG_DAC_WF: {
         check_alive(self);
-        IppAppMsgDacWf *dac_msg = &message->dac_wf;
+        const IppAppMsgDacWf *dac_msg = &message->dac_wf;
         write_dac(self, dac_msg->elements.data, (size_t)dac_msg->elements.len);
         break;
     }

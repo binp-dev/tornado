@@ -1,6 +1,7 @@
 #include "control.h"
 
 #include <hal/assert.h>
+#include <hal/math.h>
 
 void control_init(Control *self, Statistics *stats) {
     self->dio.in = 0;

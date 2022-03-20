@@ -9,7 +9,7 @@
 
 #define STATS_REPORT_PERIOD_MS 10000
 
-typedef struct {
+typedef volatile struct {
     size_t count;
     int64_t sum;
     point_t last;
@@ -27,7 +27,7 @@ typedef struct {
     size_t lost_full;
 } AdcStats;
 
-typedef struct {
+typedef volatile struct {
 #ifdef GENERATE_SYNC
     size_t clock_count;
 #endif

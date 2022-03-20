@@ -3,6 +3,7 @@
 #include <FreeRTOS.h>
 #include <task.h>
 
+#include <hal/assert.h>
 #include <hal/log.h>
 #include <hal/math.h>
 
@@ -54,18 +55,18 @@ void stats_reset(Statistics *stats) {
 
 void stats_print(Statistics *stats) {
 #ifdef GENERATE_SYNC
-    hal_log_info("clock_count: %ld", stats->clock_count);
+    hal_log_info("clock_count: %d", stats->clock_count);
 #endif
-    hal_log_info("sample_count: %ld", stats->sample_count);
-    hal_log_info("max_intrs_per_sample: %ld", stats->max_intrs_per_sample);
+    hal_log_info("sample_count: %d", stats->sample_count);
+    hal_log_info("max_intrs_per_sample: %d", stats->max_intrs_per_sample);
 
     hal_log_info("DAC:");
-    hal_log_info("    Points lost because buffer was full: %ld", stats->dac.lost_full);
-    hal_log_info("    Points lost because buffer was empty: %ld", stats->dac.lost_empty);
+    hal_log_info("    Points lost because buffer was full: %d", stats->dac.lost_full);
+    hal_log_info("    Points lost because buffer was empty: %d", stats->dac.lost_empty);
 
     for (size_t j = 0; j < ADC_COUNT; ++j) {
         hal_log_info("ADC[%d]:", j);
-        hal_log_info("    Points lost because buffer was full: %ld", stats->adcs[j].lost_full);
+        hal_log_info("    Points lost because buffer was full: %d", stats->adcs[j].lost_full);
         hal_log_info("    Mertics:");
         value_stats_print(&stats->adcs[j].value, "        ");
     }

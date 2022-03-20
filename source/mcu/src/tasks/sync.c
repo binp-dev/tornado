@@ -7,8 +7,7 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <semphr.h>
-
-#include "fsl_iomuxc.h"
+#include <fsl_iomuxc.h>
 
 #include <hal/assert.h>
 #include <hal/gpt.h>

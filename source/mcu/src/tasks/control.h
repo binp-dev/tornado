@@ -30,8 +30,8 @@ typedef struct {
 } ControlAdc;
 
 typedef struct {
-    SkifioDin in;
-    SkifioDout out;
+    volatile SkifioDin in;
+    volatile SkifioDout out;
 } ControlDio;
 
 typedef struct {

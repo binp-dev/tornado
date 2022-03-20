@@ -13,7 +13,7 @@ hal_retcode rb_init(RingBuffer *self, size_t len) {
 }
 
 hal_retcode rb_deinit(RingBuffer *self) {
-    xStreamBufferDelete(self->stream_buffer);
+    vStreamBufferDelete(self->stream_buffer);
     return HAL_SUCCESS;
 }
 
