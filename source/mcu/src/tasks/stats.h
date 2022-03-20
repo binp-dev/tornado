@@ -10,8 +10,8 @@
 #define STATS_REPORT_PERIOD_MS 10000
 
 typedef volatile struct {
-    size_t count;
     int64_t sum;
+    size_t count;
     point_t last;
     point_t min;
     point_t max;

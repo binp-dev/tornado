@@ -1,18 +1,8 @@
-#include <stdint.h>
-#include <stdbool.h>
-
-#include <fsl_common.h>
-#include <fsl_gpio.h>
-
 #include <FreeRTOS.h>
 #include <task.h>
-#include <semphr.h>
 
 #include <hal/assert.h>
 #include <hal/io.h>
-#include <hal/rpmsg.h>
-#include <hal/math.h>
-#include <hal/time.h>
 
 #include "device/board.h"
 #include "device/clock_config.h"
@@ -24,6 +14,12 @@
 #ifdef GENERATE_SYNC
 #include <tasks/sync.h>
 #endif
+
+
+// The stack of `main` is tiny, so we store our state as globals.
+Statistics stats;
+Control control;
+Rpmsg rpmsg;
 
 
 int main(void) {
@@ -49,12 +45,8 @@ int main(void) {
     hal_print("\n\r\n\r");
     hal_log_info("** Board started **");
 
-    Statistics stats;
     stats_reset(&stats);
-
-    Control control;
     control_init(&control, &stats);
-    Rpmsg rpmsg;
     rpmsg_init(&rpmsg, &control, &stats);
 
     hal_log_info("Enable statistics report");

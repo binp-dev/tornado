@@ -90,14 +90,14 @@ static void control_task(void *param) {
 
     hal_log_info("Enter SkifIO loop");
     uint64_t prev_intr_count = _SKIFIO_DEBUG_INFO.intr_count;
-    for (size_t i = 0;; ++i) {
+    for (size_t k = 0;; ++k) {
         bool ready = false;
 
         // Wait for 10 kHz sync signal
         {
             hal_retcode ret = skifio_wait_ready(1000);
             if (ret == HAL_TIMED_OUT) {
-                hal_log_warn("SkifIO timeout %d", i);
+                hal_log_warn("SkifIO timeout %d", k);
                 continue;
             }
             hal_assert_retcode(ret);
@@ -151,16 +151,16 @@ static void control_task(void *param) {
             hal_assert_retcode(ret);
 
             // Handle ADCs
-            for (size_t j = 0; j < ADC_COUNT; ++j) {
-                point_t value = input.adcs[j];
-                volatile AdcStats *adc_stats = &self->stats->adcs[j];
+            for (size_t i = 0; i < ADC_COUNT; ++i) {
+                point_t value = input.adcs[i];
+                volatile AdcStats *adc_stats = &self->stats->adcs[i];
 
                 // Update ADC value statistics
                 value_stats_update(&adc_stats->value, value);
 
                 // Push ADC point to buffer.
-                if (rb_write(&self->adc.buffers[j], &value, 1) != 1) {
-                    self->stats->adcs[j].lost_full += 1;
+                if (rb_write(&self->adc.buffers[i], &value, 1) != 1) {
+                    self->stats->adcs[i].lost_full += 1;
                 }
             }
             // Decrement ADC notification counter.
@@ -187,6 +187,5 @@ static void control_task(void *param) {
 }
 
 void control_run(Control *self) {
-    hal_log_info("Starting control task");
-    hal_assert(xTaskCreate(control_task, "Control task", TASK_STACK_SIZE, (void *)self, CONTROL_TASK_PRIORITY, NULL) == pdPASS);
+    hal_assert(xTaskCreate(control_task, "control", TASK_STACK_SIZE, (void *)self, CONTROL_TASK_PRIORITY, NULL) == pdPASS);
 }

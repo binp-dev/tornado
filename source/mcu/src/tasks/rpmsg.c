@@ -224,7 +224,6 @@ static void rpmsg_recv_task(void *param) {
     rpmsg_recv_message(self, read_hello_world, NULL, false, HAL_WAIT_FOREVER);
     hal_log_info("`hello world!` received");
 
-    //
     for (;;) {
         // Receive message
         hal_retcode ret = rpmsg_recv_message(self, read_any_message, NULL, true, KEEP_ALIVE_MAX_DELAY_MS);
@@ -233,8 +232,9 @@ static void rpmsg_recv_task(void *param) {
                 hal_log_error("Keep-alive timeout reached. RPMSG connection is considered to be dead.");
                 self->alive = false;
             }
+        } else {
+            hal_assert_retcode(ret);
         }
-        hal_assert_retcode(ret);
     }
 
     hal_unreachable();
@@ -246,10 +246,8 @@ static void rpmsg_recv_task(void *param) {
 
 void rpmsg_run(Rpmsg *self) {
     hal_assert(
-        xTaskCreate(rpmsg_send_task, "RPMsg send task", TASK_STACK_SIZE, (void *)self, RPMSG_SEND_TASK_PRIORITY, NULL)
-        == pdPASS);
+        xTaskCreate(rpmsg_send_task, "rpmsg_send", TASK_STACK_SIZE, (void *)self, RPMSG_SEND_TASK_PRIORITY, NULL) == pdPASS);
 
     hal_assert(
-        xTaskCreate(rpmsg_recv_task, "RPMsg recv task", TASK_STACK_SIZE, (void *)self, RPMSG_RECV_TASK_PRIORITY, NULL)
-        == pdPASS);
+        xTaskCreate(rpmsg_recv_task, "rpmsg_recv", TASK_STACK_SIZE, (void *)self, RPMSG_RECV_TASK_PRIORITY, NULL) == pdPASS);
 }
