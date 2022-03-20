@@ -84,8 +84,10 @@ Result<size_t, io::Error> RpmsgChannel::stream_read(uint8_t *data, size_t len) {
     }
 
     int read_len = ::read(this->fd_, data, len);
-    if (read_len <= 0) {
-        return Err(io::Error{io::ErrorKind::Other, "Read error"});
+    if (read_len < 0) {
+        std::stringstream ss;
+        ss << "Read error: " << read_len;
+        return Err(io::Error{io::ErrorKind::Other, ss.str()});
     }
     return Ok(size_t(read_len));
 }
