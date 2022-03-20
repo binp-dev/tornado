@@ -93,11 +93,12 @@ public:
     void set_din_callback(std::function<void()> &&callback);
 
     void init_dac_wf(size_t wf_max_size);
+    void write_dac_wf(const double *wf_data, const size_t wf_len);
     void write_dac_wf(const int32_t *wf_data, const size_t wf_len);
 
     void init_adc_wf(uint8_t index, size_t wf_max_size);
     void set_adc_wf_callback(size_t index, std::function<void()> &&callback);
-    const std::vector<int32_t> read_adc_wf(size_t index);
+    const std::vector<double> read_adc_wf(size_t index);
 
     [[nodiscard]] bool dac_wf_req_flag() const;
     void set_dac_wf_req_callback(std::function<void()> &&callback);
@@ -108,4 +109,5 @@ private:
     void fill_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size);
     void copy_dac_wf_to_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size);
     bool swap_dac_wf_buffers();
+    int32_t volt_to_code(double v);
 };

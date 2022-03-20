@@ -54,11 +54,11 @@ void framework_record_init(Record &record) {
     } else if (name.rfind("aai", 0) == 0) { // name.startswith("aai")
         const auto index_str = name.substr(3);
         uint8_t index = std::stoi(std::string(index_str));
-        auto &aai_record = dynamic_cast<InputArrayRecord<int32_t> &>(record);
+        auto &aai_record = dynamic_cast<InputArrayRecord<double> &>(record);
         aai_record.set_handler(std::make_unique<AdcWfHandler>(*DEVICE, aai_record, index));
 
     } else if (name == "aao0") {
-        auto &aao_record = dynamic_cast<OutputArrayRecord<int32_t> &>(record);
+        auto &aao_record = dynamic_cast<OutputArrayRecord<double> &>(record);
         aao_record.set_handler(std::make_unique<DacWfHandler>(*DEVICE, aao_record));
 
     } else if (name == "aao0_req") {

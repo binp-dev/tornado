@@ -80,15 +80,15 @@ public:
     }
 };
 
-class DacWfHandler final : public DeviceHandler, public OutputArrayHandler<int32_t> {
+class DacWfHandler final : public DeviceHandler, public OutputArrayHandler<double> {
 public:
-    DacWfHandler(Device &device, OutputArrayRecord<int32_t> &record) :
+    DacWfHandler(Device &device, OutputArrayRecord<double> &record) :
         DeviceHandler(device)
     {
         device_.init_dac_wf(record.max_length());
     }
 
-    virtual void write(OutputArrayRecord<int32_t> &record) override {
+    virtual void write(OutputArrayRecord<double> &record) override {
         device_.write_dac_wf(record.data(), record.length());
     }
 
@@ -97,24 +97,24 @@ public:
     }
 };
 
-class AdcWfHandler final : public DeviceHandler, public InputArrayHandler<int32_t> {
+class AdcWfHandler final : public DeviceHandler, public InputArrayHandler<double> {
 private:
     uint8_t index_;
 
 public:
-    AdcWfHandler(Device &device, InputArrayRecord<int32_t> &record, uint8_t index) :
+    AdcWfHandler(Device &device, InputArrayRecord<double> &record, uint8_t index) :
         DeviceHandler(device),
         index_(index)
     {
         device_.init_adc_wf(index_, record.max_length());
     }
 
-    virtual void read(InputArrayRecord<int32_t> &record) override {
+    virtual void read(InputArrayRecord<double> &record) override {
         auto adc_wf = device_.read_adc_wf(index_);
         assert_true(record.set_data(adc_wf.data(), adc_wf.size()));
     }
 
-    virtual void set_read_request(InputArrayRecord<int32_t> &, std::function<void()> &&callback) override {
+    virtual void set_read_request(InputArrayRecord<double> &, std::function<void()> &&callback) override {
         device_.set_adc_wf_callback(index_, std::move(callback));
     }
 

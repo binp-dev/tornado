@@ -58,6 +58,7 @@ void Device::recv_loop() {
                     }
                 },
                 [&](ipp::McuMsgDacWfReq &&) {
+                    std::lock_guard send_guard(send_mutex);
                     dac_wf.has_req.store(true);
                     send_ready.notify_all();
                 },
@@ -82,10 +83,7 @@ void Device::send_loop() {
 
     while (!this->done.load()) {
         std::unique_lock send_lock(send_mutex);
-        auto status = send_ready.wait_for(send_lock, std::chrono::milliseconds(100));
-        if (status == std::cv_status::timeout) {
-            continue;
-        }
+        auto status = send_ready.wait_for(send_lock, std::chrono::milliseconds(1000));
 
         if (dout.update.exchange(false)) {
             uint8_t value = dout.value.load();
@@ -100,7 +98,6 @@ void Device::send_loop() {
             buffer.reserve(max_buffer_size);
 
             fill_dac_wf_msg(buffer, max_buffer_size);
-
             assert_true(dac_wf_msg.packed_size() < msg_max_len_);
             channel.send(ipp::AppMsg{std::move(dac_wf_msg)}, std::nullopt).unwrap();
         }
@@ -162,6 +159,31 @@ void Device::init_dac_wf(size_t wf_max_size) {
     dac_wf.wf_max_size = wf_max_size;
 }
 
+void Device::write_dac_wf(const double *wf_data, const size_t wf_len) {
+    std::lock_guard<std::mutex> guard(dac_wf.mutex);
+
+    std::vector<int32_t> wf_data_codes(wf_len, 0);
+    for (size_t i = 0; i < wf_len; ++i) {
+        wf_data_codes[i] = volt_to_code(wf_data[i]);
+    } 
+
+    if (!dac_wf.wf_is_set.load()) {
+        dac_wf.wf_data[0].resize(wf_len);
+        std::copy(wf_data_codes.data(), wf_data_codes.data() + wf_len, dac_wf.wf_data[0].begin());
+        dac_wf.wf_is_set.store(true);
+
+        send_ready.notify_all();
+    } else if (wf_len > 0) {
+        dac_wf.wf_data[1].resize(wf_len);
+        std::copy(wf_data_codes.data(), wf_data_codes.data() + wf_len, dac_wf.wf_data[1].begin());
+        dac_wf.swap_ready.store(true);
+
+        if (dac_wf.request_next_wf) {
+            dac_wf.request_next_wf();
+        }
+    }
+}
+
 void Device::write_dac_wf(const int32_t *wf_data, const size_t wf_len) {
     std::lock_guard<std::mutex> guard(dac_wf.mutex);
 
@@ -191,12 +213,17 @@ void Device::set_adc_wf_callback(size_t index, std::function<void()> &&callback)
     adc_wfs[index].notify = std::move(callback);
 }
 
-const std::vector<int32_t> Device::read_adc_wf(size_t index) {
+const std::vector<double> Device::read_adc_wf(size_t index) {
     auto &adc_wf = adc_wfs[index];
 
     std::lock_guard<std::mutex> lock(adc_wf.mutex);
 
-    std::vector<int32_t> wf_data(adc_wf.wf_data.begin(), adc_wf.wf_data.begin() + adc_wf.wf_max_size);
+    std::vector<double> wf_data(adc_wf.wf_max_size, 0.0);
+    double aslo = 0.000001354692188;
+    for (size_t i = 0; i < wf_data.size(); ++i) {
+        wf_data[i] = adc_wf.wf_data[i] * aslo;
+    }
+
     adc_wf.wf_data.erase(adc_wf.wf_data.begin(), adc_wf.wf_data.begin() + adc_wf.wf_max_size);
 
     return wf_data;
@@ -264,4 +291,26 @@ void Device::set_dac_wf_req_callback(std::function<void()> &&callback) {
 
 void Device::set_dac_wf_out_mode(bool mode) {
     dac_wf.cyclic_out.store(mode);
+}
+
+int32_t Device::volt_to_code(double volt) {
+    double aoff = -10.346;
+    double aslo = 0.0003157445;
+
+    double value = (volt - aoff) / aslo;
+    int32_t code = 0;
+    // Code from EPICS sources of ao record support
+    if (value >= 0.0) {
+        if (value >= (0x7fffffff - 0.5))
+            code = 0x7fffffff;
+        else
+            code = (int32_t)(value + 0.5);
+    } else {
+        if (value > (0.5 - 0x80000000))
+            code = (int32_t)(value - 0.5);
+        else
+            code = 0x80000000;
+    }
+
+    return code;
 }
