@@ -19,7 +19,7 @@ typedef struct {
     bool alive;
 
     SemaphoreHandle_t send_sem;
-    size_t dac_requested;
+    volatile size_t dac_requested;
 
     ControlSync control_sync;
     Control *control;

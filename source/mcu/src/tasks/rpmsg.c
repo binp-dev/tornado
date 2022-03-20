@@ -115,9 +115,8 @@ static void rpmsg_send_dac_request(Rpmsg *self) {
     if (req_count_raw >= SIZE) {
         // Request number of points that is multiple of `DAC_MSG_MAX_POINTS`.
         size_t req_count = (req_count_raw / SIZE) * SIZE;
-
         rpmsg_send_message(self, write_dac_req_message, (void *)&req_count);
-
+        /// FIXME: Use atomic.
         self->dac_requested += req_count;
     }
 }
@@ -157,9 +156,16 @@ static void read_hello_world(Rpmsg *self, void *user_data, const IppAppMsg *str)
 
 static void connect(Rpmsg *self) {
     self->dac_requested = 0;
+    control_dac_start(self->control);
     self->alive = true;
     xSemaphoreGive(self->send_sem);
     hal_log_info("IOC connected");
+}
+
+static void disconnect(Rpmsg *self) {
+    self->alive = false;
+    control_dac_stop(self->control);
+    hal_log_info("IOC disconnected");
 }
 
 static void set_dout(Rpmsg *self, SkifioDout value) {
@@ -172,6 +178,8 @@ static void set_dout(Rpmsg *self, SkifioDout value) {
 }
 
 static void write_dac(Rpmsg *self, const point_t *data, size_t len) {
+    /// FIXME: Use atomic.
+    self->dac_requested -= len;
     size_t wlen = rb_write(&self->control->dac.buffer, data, len);
     self->stats->dac.lost_full += len - wlen;
 }
@@ -230,7 +238,7 @@ static void rpmsg_recv_task(void *param) {
         if (ret == HAL_TIMED_OUT) {
             if (self->alive) {
                 hal_log_error("Keep-alive timeout reached. RPMSG connection is considered to be dead.");
-                self->alive = false;
+                disconnect(self);
             }
         } else {
             hal_assert_retcode(ret);
