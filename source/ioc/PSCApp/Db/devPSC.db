@@ -92,7 +92,7 @@ record(bi, "aao0_req")
 
 # ADC waveform output mode
 record(bo, "aao0_cyclic") {
-    field(RVAL, 1)
+    field(RVAL, 0)
     field(DTYP, "devsup")
     field(PINI, "YES")
 }

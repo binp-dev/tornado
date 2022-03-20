@@ -243,6 +243,14 @@ void Device::fill_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_s
             break;
         }
     }
+
+    if (dac_wf.buff_position == dac_wf.wf_data.size()) {
+        dac_wf.buff_position = 0;
+
+        if (dac_wf.cyclic_out.load() == false) {
+            dac_wf.wf_is_set.store(false);
+        }
+    }
 }
 
 void Device::copy_dac_wf_to_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size) {
