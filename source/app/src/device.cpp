@@ -101,7 +101,7 @@ void Device::send_loop() {
         }
         if (dac_.mcu_requested_count.load() > 0) {
             for (;;) {
-                auto tmp = dac_.tmp_buf;
+                Vec<point_t> tmp = std::move(dac_.tmp_buf);
                 ipp::AppMsgDacData dac_msg;
 
                 size_t max_count = std::min(DAC_MSG_MAX_POINTS, dac_.mcu_requested_count.load());
