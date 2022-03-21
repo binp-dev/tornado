@@ -71,6 +71,8 @@ void stats_print(Statistics *self) {
     hal_log_info("    lost_empty: %d", self->dac.lost_empty);
     // Number of points lost because the DAC buffer was full.
     hal_log_info("    lost_full: %d", self->dac.lost_full);
+    // IOC sent more points than were requested.
+    hal_log_info("    req_exceed: %d", self->dac.req_exceed);
 
     for (size_t i = 0; i < ADC_COUNT; ++i) {
         hal_log_info("adc%d:", i);

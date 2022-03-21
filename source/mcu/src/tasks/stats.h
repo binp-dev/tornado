@@ -20,6 +20,7 @@ typedef volatile struct {
 typedef struct {
     size_t lost_empty;
     size_t lost_full;
+    size_t req_exceed;
 } DacStats;
 
 typedef struct {

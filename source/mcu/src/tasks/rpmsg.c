@@ -8,6 +8,7 @@ void rpmsg_init(Rpmsg *self, Control *control, Statistics *stats) {
 
     self->send_sem = xSemaphoreCreateBinary();
     hal_assert(self->send_sem != NULL);
+    hal_atomic_size_store(&self->dac_requested, 0);
 
     control_sync_init(&self->control_sync, &self->send_sem, DAC_MSG_MAX_POINTS, ADC_MSG_MAX_POINTS);
     control_set_sync(control, &self->control_sync);
@@ -108,16 +109,16 @@ static void rpmsg_send_dac_request(Rpmsg *self) {
     static const size_t SIZE = DAC_MSG_MAX_POINTS;
 
     size_t vacant = rb_vacant(&self->control->dac.buffer);
-    hal_assert(self->dac_requested <= vacant);
-
-    size_t req_count_raw = vacant - self->dac_requested;
-
+    size_t requested = hal_atomic_size_load(&self->dac_requested);
+    size_t req_count_raw = 0;
+    if (requested <= vacant) {
+        req_count_raw = vacant - requested;
+    }
     if (req_count_raw >= SIZE) {
         // Request number of points that is multiple of `DAC_MSG_MAX_POINTS`.
         size_t req_count = (req_count_raw / SIZE) * SIZE;
         rpmsg_send_message(self, write_dac_req_message, (void *)&req_count);
-        /// FIXME: Use atomic.
-        self->dac_requested += req_count;
+        hal_atomic_size_add(&self->dac_requested, req_count);
     }
 }
 
@@ -155,7 +156,7 @@ static void read_hello_world(Rpmsg *self, void *user_data, const IppAppMsg *str)
 }
 
 static void connect(Rpmsg *self) {
-    self->dac_requested = 0;
+    hal_atomic_size_store(&self->dac_requested, 0);
     control_dac_start(self->control);
     self->alive = true;
     xSemaphoreGive(self->send_sem);
@@ -178,10 +179,11 @@ static void set_dout(Rpmsg *self, SkifioDout value) {
 }
 
 static void write_dac(Rpmsg *self, const point_t *data, size_t len) {
-    /// FIXME: Use atomic.
-    self->dac_requested -= len;
     size_t wlen = rb_write(&self->control->dac.buffer, data, len);
     self->stats->dac.lost_full += len - wlen;
+
+    // Safely decrement requested points counter.
+    self->stats->dac.req_exceed += hal_atomic_size_sub_checked(&self->dac_requested, len);
 }
 
 static void check_alive(Rpmsg *self) {

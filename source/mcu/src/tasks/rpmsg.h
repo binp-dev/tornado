@@ -6,7 +6,9 @@
 #include <task.h>
 #include <semphr.h>
 
+#include <hal/atomic.h>
 #include <hal/rpmsg.h>
+
 #include <ipp.h>
 
 #include <common/config.h>
@@ -16,10 +18,13 @@
 
 typedef struct {
     hal_rpmsg_channel channel;
+    /// Whether IOC is alive.
     bool alive;
 
+    /// Semaphore used to wait for data sending.
     SemaphoreHandle_t send_sem;
-    volatile size_t dac_requested;
+    /// Number of DAC points requested from IOC.
+    hal_atomic_size_t dac_requested;
 
     ControlSync control_sync;
     Control *control;
