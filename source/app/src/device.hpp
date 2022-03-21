@@ -53,28 +53,27 @@ private:
         DoubleBuffer<int32_t> data;
         Vec<int32_t> tmp_buf;
 
-        std::atomic<bool> has_mcu_req{false};
+        std::atomic<size_t> mcu_requested_count{0};
 
         std::function<void()> sync_ioc_request_flag;
         std::atomic<bool> ioc_requested{false};
     };
 
 private:
-    std::atomic_bool done;
-    std::thread recv_worker;
-    std::thread send_worker;
-    std::condition_variable send_ready;
-    std::mutex send_mutex;
+    std::atomic_bool done_;
+    std::thread recv_worker_;
+    std::thread send_worker_;
+    std::condition_variable send_ready_;
+    std::mutex send_mutex_;
 
-    const size_t msg_max_len_;
     const std::chrono::milliseconds keep_alive_period_{KEEP_ALIVE_PERIOD_MS};
 
-    DinEntry din;
-    DoutEntry dout;
-    std::array<AdcEntry, ADC_COUNT> adcs;
-    DacEntry dac;
+    DinEntry din_;
+    DoutEntry dout_;
+    std::array<AdcEntry, ADC_COUNT> adcs_;
+    DacEntry dac_;
 
-    DeviceChannel channel;
+    DeviceChannel channel_;
 
 private:
     void recv_loop();
@@ -86,7 +85,7 @@ public:
     Device(Device &&dev) = delete;
     Device &operator=(Device &&dev) = delete;
 
-    Device(std::unique_ptr<Channel> &&channel, size_t msg_max_len);
+    explicit Device(std::unique_ptr<Channel> &&channel);
     ~Device();
 
     void start();

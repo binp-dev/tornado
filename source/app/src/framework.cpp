@@ -6,9 +6,7 @@
 #include <memory>
 
 #include <core/lazy_static.hpp>
-#include <core/mutex.hpp>
 
-#include <common/config.h>
 #include <device.hpp>
 #include <handlers.hpp>
 #include <external.hpp>
@@ -16,7 +14,7 @@
 void init_device(MaybeUninit<Device> &mem) {
     std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
 
-    mem.init_in_place(make_device_channel(), RPMSG_MAX_MSG_LEN);
+    mem.init_in_place(make_device_channel());
 }
 
 /// We use LazyStatic to initialize global Device without global constructor.
@@ -61,7 +59,7 @@ void framework_record_init(Record &record) {
         auto &aao_record = dynamic_cast<OutputArrayRecord<int32_t> &>(record);
         aao_record.set_handler(std::make_unique<DacWfHandler>(*DEVICE, aao_record));
 
-    } else if (name == "aao0_req") {
+    } else if (name == "aao0_request") {
         auto &aao_req_record = dynamic_cast<InputValueRecord<bool> &>(record);
         aao_req_record.set_handler(std::make_unique<WfReqHandler>(*DEVICE));
 

@@ -6,9 +6,11 @@
 
 #include <hal/defs.h>
 
+#include <common/config.h>
+
 #define _SKIFIO_DEBUG
 
-#define SKIFIO_ADC_CHANNEL_COUNT 6
+#define SKIFIO_ADC_CHANNEL_COUNT ADC_COUNT
 
 #define SKIFIO_DIN_SIZE 8
 #define SKIFIO_DOUT_SIZE 4
@@ -30,6 +32,9 @@ typedef void (*SkifioDinCallback)(void *, SkifioDin);
 
 hal_retcode skifio_init();
 hal_retcode skifio_deinit();
+
+hal_retcode skifio_dac_enable();
+hal_retcode skifio_dac_disable();
 
 hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in);
 hal_retcode skifio_wait_ready(uint32_t delay_ms);

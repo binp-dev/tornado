@@ -75,50 +75,54 @@ class FakeDev:
         self.config = config
         self.handler = handler
 
-        self.adc_wfs: List[List[int]] = [[] for _ in range(self.config.adc_count)]
+        self.adc_buffers: List[List[int]] = [[] for _ in range(self.config.adc_count)]
 
     async def _sample(self, dac: int) -> None:
         adcs = self.handler.transfer_codes(dac)
-        assert len(adcs) == len(self.adc_wfs)
-        for adc, wf in zip(adcs, self.adc_wfs):
+        assert len(adcs) == len(self.adc_buffers)
+        for adc, wf in zip(adcs, self.adc_buffers):
             wf.append(adc)
 
         # Send back ADC chunks if they're ready
         chunk_size = self.config.chunk_size
-        if len(self.adc_wfs[0]) >= chunk_size:
-            for i, wf in enumerate(self.adc_wfs):
-                await _send_msg(self.socket, McuMsg.AdcWf(i, wf[:chunk_size]))
-            self.adc_wfs = [wf[chunk_size:] for wf in self.adc_wfs]
+        if len(self.adc_buffers[0]) >= chunk_size:
+            for i, wf in enumerate(self.adc_buffers):
+                await _send_msg(self.socket, McuMsg.AdcData(i, wf[:chunk_size]))
+            self.adc_buffers = [wf[chunk_size:] for wf in self.adc_buffers]
 
-    async def _sample_chunk(self, dac_wf: List[int]) -> None:
+    async def _sample_chunk(self, dac_chunk: List[int]) -> None:
 
         async def sample_all() -> None:
-            for dac in dac_wf:
+            for dac in dac_chunk:
                 await self._sample(dac)
 
         await asyncio.gather(
             sample_all(),
-            asyncio.sleep(self.config.sample_period * len(dac_wf)),
+            asyncio.sleep(self.config.sample_period * len(dac_chunk)),
         )
 
     async def _recv_msg(self) -> None:
-        msg = await _recv_msg(self.socket)
-        if isinstance(msg.variant, AppMsg.DacWf):
-            await self._sample_chunk(msg.variant.elements)
-            await _send_msg(self.socket, McuMsg.DacWfReq(self.config.chunk_size))
-        elif isinstance(msg.variant, AppMsg.StartDac):
-            logger.debug("StartDac")
-        elif isinstance(msg.variant, AppMsg.KeepAlive):
+        base_msg = await _recv_msg(self.socket)
+        msg = base_msg.variant
+        if isinstance(msg, AppMsg.DacData):
+            await self._sample_chunk(msg.points)
+            await _send_msg(self.socket, McuMsg.DacRequest(len(msg.points)))
+        elif isinstance(msg, AppMsg.DacMode):
+            if msg.enable:
+                logger.debug("Start Dac")
+            else:
+                logger.debug("Stop Dac")
+        elif isinstance(msg, AppMsg.KeepAlive):
             pass
         else:
             raise RuntimeError(f"Unexpected message type")
 
     async def loop(self) -> None:
         assert isinstance((await _recv_msg(self.socket)).variant, AppMsg.Connect)
-        logger.info("Received start signal")
+        logger.info("IOC connected signal")
         await _send_msg(self.socket, McuMsg.Debug("Hello from MCU!"))
 
-        await _send_msg(self.socket, McuMsg.DacWfReq(self.config.chunk_size))
+        await _send_msg(self.socket, McuMsg.DacRequest(self.config.chunk_size))
         while True:
             try:
                 await asyncio.wait_for(self._recv_msg(), self.config.keepalive_timeout)

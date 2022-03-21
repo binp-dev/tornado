@@ -5,3 +5,4 @@
 + Keepalive messages. When no messages then stop playback.
 + Include requested size in waveform request.
 + Resend waveform request after IOC connection.
++ Print logging call location.

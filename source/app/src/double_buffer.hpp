@@ -41,17 +41,24 @@ public:
         }
     }
 
+    /// @note Calling this method will cause an infinite loop if DoubleBuffer is in cyclic mode and `stream` is infinite
+    /// (e.g. `stream.write()` never returns zero).
     size_t read_array_into(WriteArray<T> &stream, std::optional<size_t> len_opt) override {
-        size_t first_len = read_buffer_.read_array_into(stream, len_opt);
-        size_t second_len = 0;
-        if (!len_opt.has_value() || first_len < len_opt.value()) {
+        size_t total_len = read_buffer_.read_array_into(stream, len_opt);
+        while (!len_opt.has_value() || total_len < len_opt.value()) {
             swap();
-            auto len_opt_2 = len_opt.has_value() ? //
-                std::optional(len_opt.value() - first_len) :
+
+            auto rem_opt = len_opt.has_value() ? //
+                std::optional(len_opt.value() - total_len) :
                 std::nullopt;
-            second_len = read_buffer_.read_array_into(stream, len_opt_2);
+
+            size_t len = read_buffer_.read_array_into(stream, rem_opt);
+            if (len == 0) {
+                break;
+            }
+            total_len += len;
         }
-        return first_len + second_len;
+        return total_len;
     }
 
     /// NOTE: Safe to call only from read side.
