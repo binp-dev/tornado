@@ -17,10 +17,12 @@ set(COMMON_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/spi.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/gpt.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/gpio.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/hal/atomic.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/defs.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/panic.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/time.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/atomic.c"
 )
 set(IMX7_SRC
     ${COMMON_SRC}
