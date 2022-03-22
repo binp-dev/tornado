@@ -9,6 +9,7 @@ from ferrite.utils.asyncio import with_background
 from ferrite.utils.epics.ioc import make_ioc
 from ferrite.utils.epics.asyncio import Context, Pv, PvType
 
+from tornado.common.config import read_common_config
 from tornado.ioc.fakedev.base import FakeDev
 
 import logging
@@ -16,14 +17,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def assert_eq(a: float, b: float, eps: float = 1e-3) -> None:
-    if abs(a - b) > eps:
-        raise AssertionError(f"abs({a} - {b}) < {eps}")
+def approx_eq(a: float, b: float, eps: float = 1e-3) -> bool:
+    return abs(a - b) <= eps
 
 
 @dataclass
 class Handler(FakeDev.Handler):
-    config: FakeDev.Config
 
     class _Watcher:
 
@@ -33,17 +32,16 @@ class Handler(FakeDev.Handler):
 
     def __post_init__(self) -> None:
         # Waveform layout in list: [ADC0, ..., ADC{N-1}, DAC]
-        self.wfs: List[List[int]] = [[] for _ in range(self.config.adc_count + 1)]
+        self.wfs: List[List[float]] = [[] for _ in range(self.config.adc_count + 1)]
         self.watchers: Dict[int, Handler._Watcher] = {}
 
-    # FIXME: Use volts
-    def transfer_codes(self, dac_code: int) -> List[int]:
+    def transfer(self, dac: float) -> List[float]:
         dac_wf = self.wfs[-1]
         adc_wfs = self.wfs[:-1]
 
-        dac_wf.append(dac_code)
-        adc_codes = [10000 * i + dac_code for i in range(len(adc_wfs))]
-        for x, wf in zip(adc_codes, adc_wfs):
+        dac_wf.append(dac)
+        adcs = [1.0 * i + dac for i in range(len(adc_wfs))]
+        for x, wf in zip(adcs, adc_wfs):
             wf.append(x)
 
         # Notify watchers
@@ -51,14 +49,14 @@ class Handler(FakeDev.Handler):
             if len(self.wfs[idx]) >= watcher.count:
                 watcher.event.set()
 
-        return adc_codes
+        return adcs
 
     @staticmethod
-    def _eq_wfs(a_wf: List[int], b_wf: List[int]) -> bool:
-        assert len(a_wf) == len(b_wf)
-        return all((a == b for a, b in zip(a_wf, b_wf)))
+    def _assert_wfs_eq(a_wf: List[float], b_wf: List[float]) -> None:
+        if len(a_wf) != len(b_wf) or not all((approx_eq(a, b) for a, b in zip(a_wf, b_wf))):
+            raise AssertionError(f"{a_wf} != {b_wf}")
 
-    async def _check_wf(self, idx: int, subwf: List[int]) -> None:
+    async def _check_wf(self, idx: int, subwf: List[float]) -> None:
         size = len(subwf)
 
         if len(self.wfs[idx]) < size:
@@ -70,21 +68,21 @@ class Handler(FakeDev.Handler):
             del self.watchers[idx]
             assert len(self.wfs[idx]) >= size
 
-        assert Handler._eq_wfs(subwf, self.wfs[idx][:size])
+        Handler._assert_wfs_eq(subwf, self.wfs[idx][:size])
         self.wfs[idx] = self.wfs[idx][size:]
 
-    async def check_dac(self, dac_subwf: List[int]) -> None:
+    async def check_dac(self, dac_subwf: List[float]) -> None:
         await self._check_wf(-1, dac_subwf)
 
-    async def check_adc(self, index: int, adc_subwf: List[int]) -> None:
+    async def check_adc(self, index: int, adc_subwf: List[float]) -> None:
         assert index in range(0, self.config.adc_count)
         await self._check_wf(index, adc_subwf)
 
 
 async def async_run(config: FakeDev.Config, handler: Handler) -> None:
     ctx = Context()
-    aais = [await ctx.pv(f"aai{i}", PvType.ARRAY_INT) for i in range(config.adc_count)]
-    aao = await ctx.pv("aao0", PvType.ARRAY_INT)
+    aais = [await ctx.pv(f"aai{i}", PvType.ARRAY_FLOAT) for i in range(config.adc_count)]
+    aao = await ctx.pv("aao0", PvType.ARRAY_FLOAT)
     aao_request = await ctx.pv("aao0_request", PvType.BOOL)
     aao_cyclic = await ctx.pv("aao0_cyclic", PvType.BOOL)
 
@@ -93,14 +91,14 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
     # Check that `aai*` sizes are the same as `aao0` size
     assert all([wf_size == await (await ctx.pv(f"aai{i}.NELM", PvType.INT)).read() for i in range(len(aais))])
 
-    async def write_and_check_dac(array: List[int]) -> None:
+    async def write_and_check_dac(array: List[float]) -> None:
         await aao.write(array)
         await handler.check_dac(array)
         logger.debug(f"DAC of size {len(array)} is correct")
 
     adcs_samples_count = [0] * config.adc_count
 
-    async def watch_single_adc(index: int, adc_pv: Pv[List[int]]) -> None:
+    async def watch_single_adc(index: int, adc_pv: Pv[List[float]]) -> None:
         async with adc_pv.monitor() as mon:
             async for array in mon:
                 if len(array) == 0:
@@ -150,11 +148,11 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
 def run(source_dir: Path, ioc_dir: Path, arch: str) -> None:
     ioc = make_ioc(ioc_dir, arch)
 
-    config = FakeDev.read_config(source_dir)
+    config = read_common_config(source_dir)
     handler = Handler(config)
     device = FakeDev(ioc, config, handler)
 
     asyncio.run(with_background(
-        async_run(config, handler),
+        async_run(device.config, handler),
         device.run(),
     ))

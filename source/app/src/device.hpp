@@ -43,15 +43,17 @@ private:
     };
 
     struct AdcEntry {
-        Mutex<VecDeque<int32_t>> data;
+        Mutex<VecDeque<double>> data;
+        Vec<double> tmp_buf;
+
         size_t max_size;
         std::function<void()> notify;
-        std::atomic<int32_t> last_value{0};
+        std::atomic<point_t> last_value{0};
     };
 
     struct DacEntry {
-        DoubleBuffer<int32_t> data;
-        Vec<int32_t> tmp_buf;
+        DoubleBuffer<double> data;
+        Vec<double> tmp_buf;
 
         std::atomic<size_t> mcu_requested_count{0};
 
@@ -98,16 +100,20 @@ public:
     void set_din_callback(std::function<void()> &&callback);
 
     void init_dac(size_t max_len);
-    void write_dac(const int32_t *data, size_t len);
+    void write_dac(const double *data, size_t len);
 
     void init_adc(uint8_t index, size_t max_size);
     void set_adc_callback(size_t index, std::function<void()> &&callback);
-    std::vector<int32_t> read_adc(size_t index);
-    int32_t read_adc_last_value(size_t index);
+    std::vector<double> read_adc(size_t index);
+    point_t read_adc_last_value(size_t index);
 
     [[nodiscard]] bool dac_req_flag();
     void set_dac_req_callback(std::function<void()> &&callback);
 
     void set_dac_playback_mode(DacPlaybackMode mode);
     void set_dac_operation_state(DacOperationState state);
+
+private:
+    point_t dac_volt_to_code(double volt) const;
+    double adc_code_to_volt(point_t code) const;
 };

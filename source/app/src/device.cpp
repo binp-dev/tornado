@@ -44,13 +44,30 @@ void Device::recv_loop() {
                 },
                 [&](ipp::McuMsgAdcData &&adc_msg) {
                     auto &adc = adcs_[adc_msg.index];
-                    auto elems = adc_msg.points;
-                    if (elems.size() > 0) {
-                        adc.last_value.store(elems.back());
+                    const auto &points = adc_msg.points;
+                    // Remember last value.
+                    if (points.size() > 0) {
+                        adc.last_value.store(points.back());
                     }
 
+                    // Convert codes to voltage.
+                    Vec<double> tmp = std::move(adc.tmp_buf);
+                    std::transform(
+                        points.begin(),
+                        points.end(),
+                        std::back_inserter(tmp),
+                        [&](point_t code) {
+                            return adc_code_to_volt(code);
+                        } //
+                    );
+
+                    // Write chunk to queue.
                     auto data_guard = adc.data.lock();
-                    assert_true(data_guard->write_array_exact(elems.data(), elems.size()));
+                    assert_true(data_guard->write_array_exact(tmp.data(), tmp.size()));
+                    tmp.clear();
+                    adc.tmp_buf = std::move(tmp);
+
+                    // Notify.
                     if (data_guard->size() >= adc.max_size) {
                         assert_true(adc.notify);
                         adc.notify();
@@ -58,7 +75,8 @@ void Device::recv_loop() {
                 },
                 [&](ipp::McuMsgDacRequest &&dac_req_msg) {
                     {
-                        // Note: `send_mutex_` must be locked even if atomic is used. See `std::condition_variable` reference.
+                        // Note: `send_mutex_` must be locked even if atomic is used. See `std::condition_variable`
+                        // reference.
                         std::lock_guard send_guard(send_mutex_);
                         dac_.mcu_requested_count += dac_req_msg.count;
                     }
@@ -101,15 +119,26 @@ void Device::send_loop() {
         }
         if (dac_.mcu_requested_count.load() > 0) {
             for (;;) {
-                Vec<point_t> tmp = std::move(dac_.tmp_buf);
+                Vec<double> tmp = std::move(dac_.tmp_buf);
                 ipp::AppMsgDacData dac_msg;
 
+                // Read next chunk from double buffer.
                 size_t max_count = std::min(DAC_MSG_MAX_POINTS, dac_.mcu_requested_count.load());
                 size_t count = dac_.data.read_array_into(tmp, max_count);
                 dac_.mcu_requested_count -= count;
 
                 if (count > 0) {
-                    dac_msg.points = std::move(tmp);
+                    // Convert voltage to codes.
+                    std::transform(
+                        tmp.begin(),
+                        tmp.end(),
+                        std::back_inserter(dac_msg.points),
+                        [&](double volt) {
+                            return dac_volt_to_code(volt);
+                        } //
+                    );
+
+                    // Send.
                     assert_true(dac_msg.packed_size() <= RPMSG_MAX_MSG_LEN - 1);
                     channel_.send(ipp::AppMsg{std::move(dac_msg)}, timeout).unwrap();
                     dac_.tmp_buf = std::move(tmp);
@@ -174,7 +203,7 @@ void Device::init_dac(const size_t max_size) {
     dac_.data.reserve(max_size);
 }
 
-void Device::write_dac(const int32_t *data, const size_t len) {
+void Device::write_dac(const double *data, const size_t len) {
     assert_true(dac_.data.write_array_exact(data, len));
     send_ready_.notify_all();
     if (dac_.sync_ioc_request_flag) {
@@ -192,10 +221,10 @@ void Device::set_adc_callback(size_t index, std::function<void()> &&callback) {
     adcs_[index].notify = std::move(callback);
 }
 
-std::vector<int32_t> Device::read_adc(size_t index) {
+std::vector<double> Device::read_adc(size_t index) {
     auto &adc = adcs_[index];
 
-    Vec<int32_t> data;
+    Vec<double> data;
     data.reserve(adc.max_size);
     assert_eq(data.write_array_from(*(adc.data.lock()), adc.max_size), adc.max_size);
 
@@ -232,4 +261,12 @@ void Device::set_dac_playback_mode(DacPlaybackMode mode) {
 
 void Device::set_dac_operation_state(DacOperationState) {
     std::cout << "DAC operation state changing is not supported yet" << std::endl;
+}
+
+point_t Device::dac_volt_to_code(double volt) const {
+    return DAC_SHIFT + point_t((volt * 1e6) / DAC_STEP_UV);
+}
+
+double Device::adc_code_to_volt(point_t code) const {
+    return (double(code) / 256.0) * ADC_STEP_UV * 1e-6;
 }

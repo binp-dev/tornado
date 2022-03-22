@@ -5,6 +5,10 @@
 
 #define ADC_COUNT 6
 
+#define DAC_SHIFT 32767
+#define DAC_STEP_UV 315.7445
+#define ADC_STEP_UV 346.8012
+
 typedef int32_t point_t;
 
 #define RPMSG_MAX_MSG_LEN 256 // 512

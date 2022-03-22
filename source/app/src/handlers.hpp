@@ -1,9 +1,9 @@
 #pragma once
 
-#include <array>
-
 #include <record/value.hpp>
 #include <record/array.hpp>
+
+#include <common/config.h>
 
 #include <device.hpp>
 
@@ -16,13 +16,14 @@ protected:
     virtual ~DeviceHandler() = default;
 };
 
-class DacHandler final : public DeviceHandler, public OutputValueHandler<int32_t> {
+class DacHandler final : public DeviceHandler, public OutputValueHandler<point_t> {
 public:
     DacHandler(Device &device) : DeviceHandler(device) {}
 
-    virtual void write(OutputValueRecord<int32_t> &record) override {
-        std::array<int32_t, 1> array{record.value()};
-        device_.write_dac(array.data(), array.size());
+    virtual void write(OutputValueRecord<point_t> &record) override {
+        /// FIXME: Remove conversion.
+        double voltage = double(record.value() - DAC_SHIFT) * 1e-6 * DAC_STEP_UV;
+        device_.write_dac(&voltage, 1);
     }
 
     virtual bool is_async() const override {
@@ -30,18 +31,18 @@ public:
     }
 };
 
-class AdcHandler final : public DeviceHandler, public InputValueHandler<int32_t> {
+class AdcHandler final : public DeviceHandler, public InputValueHandler<point_t> {
 private:
     uint8_t index_;
 
 public:
     AdcHandler(Device &device, uint8_t index) : DeviceHandler(device), index_(index) {}
 
-    virtual void read(InputValueRecord<int32_t> &record) override {
+    virtual void read(InputValueRecord<point_t> &record) override {
         record.set_value(device_.read_adc_last_value(index_));
     }
 
-    virtual void set_read_request(InputValueRecord<int32_t> &, std::function<void()> &&) override {
+    virtual void set_read_request(InputValueRecord<point_t> &, std::function<void()> &&) override {
         unimplemented();
     }
 
@@ -80,13 +81,13 @@ public:
     }
 };
 
-class DacWfHandler final : public DeviceHandler, public OutputArrayHandler<int32_t> {
+class DacWfHandler final : public DeviceHandler, public OutputArrayHandler<double> {
 public:
-    DacWfHandler(Device &device, OutputArrayRecord<int32_t> &record) : DeviceHandler(device) {
+    DacWfHandler(Device &device, OutputArrayRecord<double> &record) : DeviceHandler(device) {
         device_.init_dac(record.max_length());
     }
 
-    virtual void write(OutputArrayRecord<int32_t> &record) override {
+    virtual void write(OutputArrayRecord<double> &record) override {
         device_.write_dac(record.data(), record.length());
     }
 
@@ -95,21 +96,21 @@ public:
     }
 };
 
-class AdcWfHandler final : public DeviceHandler, public InputArrayHandler<int32_t> {
+class AdcWfHandler final : public DeviceHandler, public InputArrayHandler<double> {
 private:
     uint8_t index_;
 
 public:
-    AdcWfHandler(Device &device, InputArrayRecord<int32_t> &record, uint8_t index) : DeviceHandler(device), index_(index) {
+    AdcWfHandler(Device &device, InputArrayRecord<double> &record, uint8_t index) : DeviceHandler(device), index_(index) {
         device_.init_adc(index_, record.max_length());
     }
 
-    virtual void read(InputArrayRecord<int32_t> &record) override {
+    virtual void read(InputArrayRecord<double> &record) override {
         auto adc_wf = device_.read_adc(index_);
         assert_true(record.set_data(adc_wf.data(), adc_wf.size()));
     }
 
-    virtual void set_read_request(InputArrayRecord<int32_t> &, std::function<void()> &&callback) override {
+    virtual void set_read_request(InputArrayRecord<double> &, std::function<void()> &&callback) override {
         device_.set_adc_callback(index_, std::move(callback));
     }
 

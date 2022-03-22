@@ -11,19 +11,11 @@ import zmq.asyncio as azmq
 from ferrite.utils.epics.ioc import Ioc
 
 from tornado.ipp import AppMsg, McuMsg
-from tornado.common.config import read_common_config
+from tornado.common.config import Config as CommonConfig
 
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-def dac_code_to_volt(code: int) -> float:
-    return (code - 32767) * (315.7445 * 1e-6)
-
-
-def adc_volt_to_code(voltage: float) -> int:
-    return round(voltage / (346.8012 * 1e-6) * 256)
 
 
 async def _send_msg(socket: azmq.Socket, msg: McuMsg.Variant) -> None:
@@ -40,14 +32,20 @@ class FakeDev:
 
     @dataclass
     class Handler:
-        adc_count = 0
+        config: CommonConfig
+
+        def dac_code_to_volt(self, code: int) -> float:
+            return (code - self.config.dac_shift) * (self.config.dac_step_uv * 1e-6)
+
+        def adc_volt_to_code(self, voltage: float) -> int:
+            return round(voltage / (self.config.adc_step_uv * 1e-6) * 256)
 
         # Takes DAC value and returns ADC values
         def transfer(self, dac: float) -> List[float]:
             raise NotImplementedError()
 
         def transfer_codes(self, dac_code: int) -> List[int]:
-            return [adc_volt_to_code(adc_code) for adc_code in self.transfer(dac_code_to_volt(dac_code))]
+            return [self.adc_volt_to_code(adc_code) for adc_code in self.transfer(self.dac_code_to_volt(dac_code))]
 
     @dataclass
     class Config:
@@ -57,8 +55,7 @@ class FakeDev:
         keepalive_timeout: float
 
     @staticmethod
-    def read_config(source: Path) -> Config:
-        cc = read_common_config(source)
+    def _make_config(cc: CommonConfig) -> Config:
         return FakeDev.Config(
             adc_count=cc.adc_count,
             sample_period=0.0001, # 10 kHz
@@ -66,13 +63,13 @@ class FakeDev:
             keepalive_timeout=(cc.keep_alive_max_delay_ms / 1000),
         )
 
-    def __init__(self, ioc: Ioc, config: Config, handler: FakeDev.Handler) -> None:
+    def __init__(self, ioc: Ioc, cc: CommonConfig, handler: FakeDev.Handler) -> None:
         self.ioc = ioc
 
         self.context = azmq.Context()
         self.socket = self.context.socket(zmq.PAIR)
 
-        self.config = config
+        self.config = FakeDev._make_config(cc)
         self.handler = handler
 
         self.adc_buffers: List[List[int]] = [[] for _ in range(self.config.adc_count)]
