@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Dict, List
 
+import math
 from pathlib import Path
 from dataclasses import dataclass
 import asyncio
@@ -21,8 +22,13 @@ def approx_eq(a: float, b: float, eps: float = 1e-3) -> bool:
     return abs(a - b) <= eps
 
 
+DAC_MAX_ABS_VALUE = 10.0
+ADC_MAX_ABS_VALUE = 10.0
+
+
 @dataclass
 class Handler(FakeDev.Handler):
+    _dt: float = 0.0
 
     class _Watcher:
 
@@ -40,7 +46,13 @@ class Handler(FakeDev.Handler):
         adc_wfs = self.wfs[:-1]
 
         dac_wf.append(dac)
-        adcs = [1.0 * i + dac for i in range(len(adc_wfs))]
+
+        adcs = [0.0] * self.config.adc_count
+        adcs[0] = dac / DAC_MAX_ABS_VALUE * ADC_MAX_ABS_VALUE
+        for i in range(1, self.config.adc_count):
+            adcs[i] = ADC_MAX_ABS_VALUE * math.sin(2.0 * math.pi * i * self._dt)
+        self._dt += 1e-4
+
         for x, wf in zip(adcs, adc_wfs):
             wf.append(x)
 
@@ -53,8 +65,8 @@ class Handler(FakeDev.Handler):
 
     @staticmethod
     def _assert_wfs_eq(a_wf: List[float], b_wf: List[float]) -> None:
-        if len(a_wf) != len(b_wf) or not all((approx_eq(a, b) for a, b in zip(a_wf, b_wf))):
-            raise AssertionError(f"{a_wf} != {b_wf}")
+        assert len(a_wf) == len(b_wf)
+        assert all((approx_eq(a, b) for a, b in zip(a_wf, b_wf)))
 
     async def _check_wf(self, idx: int, subwf: List[float]) -> None:
         size = len(subwf)
@@ -81,18 +93,18 @@ class Handler(FakeDev.Handler):
 
 async def async_run(config: FakeDev.Config, handler: Handler) -> None:
     ctx = Context()
-    aais = [await ctx.pv(f"aai{i}", PvType.ARRAY_FLOAT) for i in range(config.adc_count)]
-    aao = await ctx.pv("aao0", PvType.ARRAY_FLOAT)
-    aao_request = await ctx.pv("aao0_request", PvType.BOOL)
-    aao_cyclic = await ctx.pv("aao0_cyclic", PvType.BOOL)
+    aais = [await ctx.connect(f"aai{i}", PvType.ARRAY_FLOAT) for i in range(config.adc_count)]
+    aao = await ctx.connect("aao0", PvType.ARRAY_FLOAT)
+    aao_request = await ctx.connect("aao0_request", PvType.BOOL)
+    aao_cyclic = await ctx.connect("aao0_cyclic", PvType.BOOL)
 
-    wf_size = await (await ctx.pv("aao0.NELM", PvType.INT)).read()
+    wf_size = aao.nelm
     logger.debug(f"Waveform max size: {wf_size}")
     # Check that `aai*` sizes are the same as `aao0` size
-    assert all([wf_size == await (await ctx.pv(f"aai{i}.NELM", PvType.INT)).read() for i in range(len(aais))])
+    assert all([wf_size == aai.nelm for aai in aais])
 
     async def write_and_check_dac(array: List[float]) -> None:
-        await aao.write(array)
+        await aao.put(array)
         await handler.check_dac(array)
         logger.debug(f"DAC of size {len(array)} is correct")
 
@@ -111,28 +123,24 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
         await asyncio.gather(*[watch_single_adc(i, pv) for i, pv in enumerate(aais)])
 
     async def wait_dac_req() -> None:
-        async with aao_request.monitor() as mon:
+        async with aao_request.monitor(current=True) as mon:
             async for flag in mon:
                 if int(flag) != 0:
                     break
 
     async def run_check() -> None:
         logger.info("Set one-shot DAC playback mode")
-        await aao_cyclic.write(False)
-
-        logger.info("Check empty DAC waveform")
-        await wait_dac_req()
-        await write_and_check_dac([])
+        await aao_cyclic.put(False)
 
         logger.info("Check full-size DAC waveform")
         await wait_dac_req()
-        await write_and_check_dac(list(range(wf_size)))
+        await write_and_check_dac([DAC_MAX_ABS_VALUE * x / wf_size for x in range(wf_size)])
 
         logger.info("Check two half-size DAC waveforms")
         await wait_dac_req()
-        await write_and_check_dac(list(range(0, -wf_size // 2, -1)))
+        await write_and_check_dac([DAC_MAX_ABS_VALUE * x / wf_size for x in range(0, -wf_size, -2)])
         await wait_dac_req()
-        await write_and_check_dac(list(range(-wf_size // 2, 0)))
+        await write_and_check_dac([DAC_MAX_ABS_VALUE * x / wf_size for x in range(-wf_size, 0, 2)])
 
         logger.info("Flush DAC and check all ADCs")
         await wait_dac_req()

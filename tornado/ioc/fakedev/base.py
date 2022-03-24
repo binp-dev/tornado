@@ -130,5 +130,6 @@ class FakeDev:
     async def run(self) -> None:
         self.socket.bind("tcp://127.0.0.1:8321")
         with self.ioc:
+            await asyncio.sleep(1.0)
             logger.debug("Fakedev started")
             await self.loop()
