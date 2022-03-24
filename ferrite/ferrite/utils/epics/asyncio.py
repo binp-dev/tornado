@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, AsyncGenerator, Generic, List, Literal, Sequence, Type, TypeVar, AsyncContextManager, overload, Union
+from typing import Any, AsyncGenerator, Generic, List, Literal, Type, TypeVar, AsyncContextManager, overload, Union
 
 from enum import Enum
 from dataclasses import dataclass
@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import asyncio
 from asyncio import AbstractEventLoop, Future, Queue
 
-from epics import PV
+from epics import PV # type: ignore
 
 import logging
 
