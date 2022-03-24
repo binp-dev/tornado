@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import time
 import asyncio
 from asyncio import CancelledError, ensure_future
+from typing import Any
 
 from ferrite.utils.asyncio import forever, cancel_and_wait, with_background
 
@@ -109,3 +111,27 @@ async def test_with_background_secondary_exception() -> None:
     assert fore.done()
     assert back.done()
     assert status.cancelled and status.finalized
+
+
+@dataclass
+class Blocker:
+    delay: float
+
+    def __enter__(self) -> None:
+        time.sleep(self.delay)
+
+    def __exit__(self, *args: Any) -> None:
+        pass
+
+
+async def _blocker(delay: float) -> None:
+    with Blocker(delay):
+        pass
+
+
+async def test_with_background_secondary_block_loop() -> None:
+    fore = ensure_future(_immediate())
+    back = ensure_future(_blocker(0.2))
+
+    await with_background(fore, back)
+    assert fore.done() and back.done()

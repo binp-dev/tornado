@@ -14,11 +14,13 @@ async def forever() -> None:
 
 async def cancel_and_wait(awaitable: Awaitable[Any]) -> None:
     future = ensure_future(awaitable)
-    if future.done() or future.cancelled():
-        return
-    future.cancel()
+    while not future.done():
+        # Sometimes `CancelledError` sent to future is being lost due to unknown reason.
+        # This workaround tries to cancel future repeatedly to mitigate this loss.
+        future.cancel()
+        await asyncio.wait([future], timeout=0.1)
     try:
-        await future
+        future.result()
     except CancelledError:
         pass
 
@@ -30,7 +32,7 @@ async def with_background(
     fore_task = ensure_future(fore)
     back_task = ensure_future(back)
     try:
-        await asyncio.wait([fore_task, back_task], return_when=asyncio.FIRST_COMPLETED)
+        await asyncio.wait([fore_task, back_task], return_when=asyncio.FIRST_COMPLETED, timeout=None)
         if fore_task.done():
             await cancel_and_wait(back_task)
             return fore_task.result()
