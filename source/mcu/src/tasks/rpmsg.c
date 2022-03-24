@@ -59,6 +59,10 @@ static void rpmsg_send_message(Rpmsg *self, void (*write_message)(Rpmsg *, void 
     uint8_t *buffer = NULL;
     size_t len = 0;
     hal_assert_retcode(hal_rpmsg_alloc_tx_buffer(&self->channel, &buffer, &len, HAL_WAIT_FOREVER));
+    if (len != RPMSG_MAX_MSG_LEN) {
+        hal_log_error("Allocated RPMSG buffer len (%d) is not equal to RPMSG_MAX_MSG_LEN (%d)", len, RPMSG_MAX_MSG_LEN);
+        hal_panic();
+    }
 
     IppMcuMsg *message = (IppMcuMsg *)buffer;
     write_message(self, user_data, message);

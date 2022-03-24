@@ -16,7 +16,7 @@
 
 typedef int32_t point_t;
 
-#define RPMSG_MAX_MSG_LEN 256 // 512
+#define RPMSG_MAX_MSG_LEN 496
 
 #define DAC_MSG_MAX_POINTS \
     ((RPMSG_MAX_MSG_LEN - sizeof(((IppAppMsg *)NULL)->type) - sizeof(IppAppMsgDacData)) / sizeof(point_t))
