@@ -143,7 +143,7 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
         logger.info("Flush DAC and check all ADCs")
         await wait_dac_req()
         # Flush FakeDev chunk buffer
-        await write_and_check_dac(list(range(config.chunk_size)))
+        await write_and_check_dac([0.0] * config.adc_chunk_size)
         await asyncio.sleep(0.5)
         # Check total ADCs samples count
         assert all([sc >= 2 * wf_size for sc in adcs_samples_count])

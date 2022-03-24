@@ -51,7 +51,8 @@ class FakeDev:
     class Config:
         common: CommonConfig
         sample_period: float
-        chunk_size: int
+        dac_chunk_size: int
+        adc_chunk_size: int
         keepalive_timeout: float
 
     @staticmethod
@@ -59,7 +60,8 @@ class FakeDev:
         return FakeDev.Config(
             common=cc,
             sample_period=1.0 / cc.sample_freq_hz,
-            chunk_size=(cc.rpmsg_max_msg_len - 3) // 4, # TODO: Check on IPP update
+            dac_chunk_size=(cc.rpmsg_max_app_msg_len - 3) // 4, # TODO: Check on IPP update
+            adc_chunk_size=(cc.rpmsg_max_mcu_msg_len - 4) // 4, # TODO: Check on IPP update
             keepalive_timeout=(cc.keep_alive_max_delay_ms / 1000),
         )
 
@@ -81,11 +83,11 @@ class FakeDev:
             wf.append(adc)
 
         # Send back ADC chunks if they're ready
-        chunk_size = self.config.chunk_size
-        if len(self.adc_buffers[0]) >= chunk_size:
+        adc_chunk_size = self.config.adc_chunk_size
+        if len(self.adc_buffers[0]) >= adc_chunk_size:
             for i, wf in enumerate(self.adc_buffers):
-                await _send_msg(self.socket, McuMsg.AdcData(i, wf[:chunk_size]))
-            self.adc_buffers = [wf[chunk_size:] for wf in self.adc_buffers]
+                await _send_msg(self.socket, McuMsg.AdcData(i, wf[:adc_chunk_size]))
+            self.adc_buffers = [wf[adc_chunk_size:] for wf in self.adc_buffers]
 
     async def _sample_chunk(self, dac_chunk: List[int]) -> None:
 
@@ -119,7 +121,7 @@ class FakeDev:
         logger.info("IOC connected signal")
         await _send_msg(self.socket, McuMsg.Debug("Hello from MCU!"))
 
-        await _send_msg(self.socket, McuMsg.DacRequest(self.config.chunk_size))
+        await _send_msg(self.socket, McuMsg.DacRequest(self.config.dac_chunk_size))
         while True:
             try:
                 await asyncio.wait_for(self._recv_msg(), self.config.keepalive_timeout)

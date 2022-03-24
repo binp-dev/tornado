@@ -18,7 +18,8 @@ class Config(pydantic.BaseModel):
     dac_step_uv: float
     adc_step_uv: float
 
-    rpmsg_max_msg_len: int
+    rpmsg_max_app_msg_len: int
+    rpmsg_max_mcu_msg_len: int
 
     keep_alive_period_ms: int
     keep_alive_max_delay_ms: int

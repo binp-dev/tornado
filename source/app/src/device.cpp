@@ -141,7 +141,7 @@ void Device::send_loop() {
                     tmp.clear();
 
                     // Send.
-                    assert_true(dac_msg.packed_size() <= RPMSG_MAX_MSG_LEN - 1);
+                    assert_true(dac_msg.packed_size() <= channel_.max_message_length() - 1);
                     channel_.send(ipp::AppMsg{std::move(dac_msg)}, timeout).unwrap();
                     dac_.tmp_buf = std::move(tmp);
                 } else {
@@ -161,7 +161,7 @@ void Device::send_loop() {
 }
 
 Device::Device(std::unique_ptr<Channel> &&raw_channel) :
-    channel_(std::move(raw_channel), RPMSG_MAX_MSG_LEN) //
+    channel_(std::move(raw_channel), RPMSG_MAX_APP_MSG_LEN) //
 {
     done_.store(true);
 }
