@@ -54,9 +54,9 @@ class Handler(FakeDev.Handler):
         return adc_codes
 
     @staticmethod
-    def _eq_wfs(a_wf: List[int], b_wf: List[int]) -> bool:
+    def _assert_eq_wfs(a_wf: List[int], b_wf: List[int]) -> None:
         assert len(a_wf) == len(b_wf)
-        return all((a == b for a, b in zip(a_wf, b_wf)))
+        assert all((a == b for a, b in zip(a_wf, b_wf)))
 
     async def _check_wf(self, idx: int, subwf: List[int]) -> None:
         size = len(subwf)
@@ -70,7 +70,7 @@ class Handler(FakeDev.Handler):
             del self.watchers[idx]
             assert len(self.wfs[idx]) >= size
 
-        assert Handler._eq_wfs(subwf, self.wfs[idx][:size])
+        Handler._assert_eq_wfs(subwf, self.wfs[idx][:size])
         self.wfs[idx] = self.wfs[idx][size:]
 
     async def check_dac(self, dac_subwf: List[int]) -> None:
@@ -83,18 +83,18 @@ class Handler(FakeDev.Handler):
 
 async def async_run(config: FakeDev.Config, handler: Handler) -> None:
     ctx = Context()
-    aais = [await ctx.pv(f"aai{i}", PvType.ARRAY_INT) for i in range(config.adc_count)]
-    aao = await ctx.pv("aao0", PvType.ARRAY_INT)
-    aao_request = await ctx.pv("aao0_request", PvType.BOOL)
-    aao_cyclic = await ctx.pv("aao0_cyclic", PvType.BOOL)
+    aais = [await ctx.connect(f"aai{i}", PvType.ARRAY_INT) for i in range(config.adc_count)]
+    aao = await ctx.connect("aao0", PvType.ARRAY_INT)
+    aao_request = await ctx.connect("aao0_request", PvType.BOOL)
+    aao_cyclic = await ctx.connect("aao0_cyclic", PvType.BOOL)
 
-    wf_size = await (await ctx.pv("aao0.NELM", PvType.INT)).read()
+    wf_size = aao.nelm
     logger.debug(f"Waveform max size: {wf_size}")
     # Check that `aai*` sizes are the same as `aao0` size
-    assert all([wf_size == await (await ctx.pv(f"aai{i}.NELM", PvType.INT)).read() for i in range(len(aais))])
+    assert all([wf_size == aai.nelm for aai in aais])
 
     async def write_and_check_dac(array: List[int]) -> None:
-        await aao.write(array)
+        await aao.put(array)
         await handler.check_dac(array)
         logger.debug(f"DAC of size {len(array)} is correct")
 
@@ -113,18 +113,14 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
         await asyncio.gather(*[watch_single_adc(i, pv) for i, pv in enumerate(aais)])
 
     async def wait_dac_req() -> None:
-        async with aao_request.monitor() as mon:
+        async with aao_request.monitor(current=True) as mon:
             async for flag in mon:
                 if int(flag) != 0:
                     break
 
     async def run_check() -> None:
         logger.info("Set one-shot DAC playback mode")
-        await aao_cyclic.write(False)
-
-        logger.info("Check empty DAC waveform")
-        await wait_dac_req()
-        await write_and_check_dac([])
+        await aao_cyclic.put(False)
 
         logger.info("Check full-size DAC waveform")
         await wait_dac_req()

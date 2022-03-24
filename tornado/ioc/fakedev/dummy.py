@@ -4,9 +4,12 @@ from typing import List
 import math
 from pathlib import Path
 from dataclasses import dataclass
+
 import asyncio
 
+from ferrite.utils.asyncio import with_background
 from ferrite.utils.epics.ioc import make_ioc
+from ferrite.utils.epics.asyncio import Context, PvType
 
 from tornado.ioc.fakedev.base import FakeDev
 
@@ -22,6 +25,22 @@ class Handler(FakeDev.Handler):
         return [dac] + [value] * (self.config.adc_count - 1)
 
 
+async def test() -> None:
+    ctx = Context()
+    ai = await ctx.connect("ai0", PvType.FLOAT)
+    aao = await ctx.connect("aao0", PvType.ARRAY_INT)
+
+    async def put() -> None:
+        aao.put([32000 * i // aao.nelm for i in range(aao.nelm)])
+
+    async def monitor() -> None:
+        async with ai.monitor() as m:
+            async for v in m:
+                print(f"ai0: {v}")
+
+    await asyncio.gather(put(), monitor())
+
+
 def run(source_dir: Path, ioc_dir: Path, arch: str) -> None:
 
     ioc = make_ioc(ioc_dir, arch)
@@ -30,4 +49,4 @@ def run(source_dir: Path, ioc_dir: Path, arch: str) -> None:
     handler = Handler(config)
     device = FakeDev(ioc, config, handler)
 
-    asyncio.run(device.run(), debug=True)
+    asyncio.run(with_background(test(), device.run()), debug=True)
