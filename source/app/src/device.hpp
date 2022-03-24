@@ -45,10 +45,11 @@ private:
     struct AdcEntry {
         Mutex<VecDeque<double>> data;
         Vec<double> tmp_buf;
+        std::atomic<point_t> last_value{0};
 
         size_t max_size;
         std::function<void()> notify;
-        std::atomic<point_t> last_value{0};
+        std::atomic<bool> ioc_notified{false};
     };
 
     struct DacEntry {

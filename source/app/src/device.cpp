@@ -68,8 +68,9 @@ void Device::recv_loop() {
                     adc.tmp_buf = std::move(tmp);
 
                     // Notify.
-                    if (data_guard->size() >= adc.max_size) {
+                    if (data_guard->size() >= adc.max_size && !adc.ioc_notified.load()) {
                         assert_true(adc.notify);
+                        adc.ioc_notified.store(true);
                         adc.notify();
                     }
                 },
@@ -137,6 +138,7 @@ void Device::send_loop() {
                             return dac_volt_to_code(volt);
                         } //
                     );
+                    tmp.clear();
 
                     // Send.
                     assert_true(dac_msg.packed_size() <= RPMSG_MAX_MSG_LEN - 1);
@@ -225,8 +227,22 @@ std::vector<double> Device::read_adc(size_t index) {
     auto &adc = adcs_[index];
 
     Vec<double> data;
-    data.reserve(adc.max_size);
-    assert_eq(data.write_array_from(*(adc.data.lock()), adc.max_size), adc.max_size);
+    size_t skipped_count = 0;
+    {
+        auto adc_data_guard = adc.data.lock();
+        while (adc_data_guard->size() >= 2 * adc.max_size) {
+            adc_data_guard->skip_front(adc.max_size);
+            skipped_count += 1;
+        }
+
+        data.reserve(adc.max_size);
+        assert_eq(data.write_array_from(*adc_data_guard, adc.max_size), adc.max_size);
+    }
+    adc.ioc_notified.store(false);
+
+    if (skipped_count) {
+        std::cout << "[app:warn] Skipped " << skipped_count << " ADC" << int(index) << " waveforms" << std::endl;
+    }
 
     return data;
 }
