@@ -20,6 +20,7 @@ AppMsg = make_variant(
         (Name(["dac", "data"]), [
             Field("points", Vector(Int(32, signed=True))),
         ]),
+        (Name(["stats", "reset"]), []),
     ],
 )
 

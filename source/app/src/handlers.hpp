@@ -169,3 +169,16 @@ public:
         return false;
     }
 };
+
+class StatsResetHandler final : public DeviceHandler, public OutputValueHandler<bool> {
+public:
+    StatsResetHandler(Device &device) : DeviceHandler(device) {}
+
+    virtual void write(OutputValueRecord<bool> &) override {
+        device_.reset_statistics();
+    }
+
+    virtual bool is_async() const override {
+        return false;
+    }
+};

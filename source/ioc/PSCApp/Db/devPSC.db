@@ -154,3 +154,9 @@ record(aai, "aai5") {
     field(FTVL, "DOUBLE")
     field(SCAN, "I/O Intr")
 }
+
+# Write 1 to this record to reset MCU statistics
+record(bo, "stats_reset")
+{
+    field(DTYP, "devsup")
+}

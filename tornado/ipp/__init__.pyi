@@ -72,6 +72,17 @@ class AppMsgDacData:
 
 
 @dataclass
+class AppMsgStatsReset:
+
+    @staticmethod
+    def load(data: bytes) -> AppMsgStatsReset:
+        ...
+
+    def store(self) -> bytes:
+        ...
+
+
+@dataclass
 class AppMsg:
 
     Connect = AppMsgConnect
@@ -79,8 +90,9 @@ class AppMsg:
     DoutUpdate = AppMsgDoutUpdate
     DacMode = AppMsgDacMode
     DacData = AppMsgDacData
+    StatsReset = AppMsgStatsReset
 
-    Variant = AppMsgConnect | AppMsgKeepAlive | AppMsgDoutUpdate | AppMsgDacMode | AppMsgDacData
+    Variant = AppMsgConnect | AppMsgKeepAlive | AppMsgDoutUpdate | AppMsgDacMode | AppMsgDacData | AppMsgStatsReset
 
     variant: Variant
 

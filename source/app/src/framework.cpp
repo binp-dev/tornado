@@ -71,6 +71,10 @@ void framework_record_init(Record &record) {
         auto &specific_record = dynamic_cast<OutputValueRecord<bool> &>(record);
         specific_record.set_handler(std::make_unique<DacOpStateHandler>(*DEVICE));
 
+    } else if (name == "stats_reset") {
+        auto &specific_record = dynamic_cast<OutputValueRecord<bool> &>(record);
+        specific_record.set_handler(std::make_unique<StatsResetHandler>(*DEVICE));
+
     } else {
         unimplemented();
     }

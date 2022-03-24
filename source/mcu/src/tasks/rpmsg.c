@@ -217,6 +217,11 @@ static void read_any_message(Rpmsg *self, void *user_data, const IppAppMsg *mess
         write_dac(self, dac_msg->points.data, (size_t)dac_msg->points.len);
         break;
     }
+    case IPP_APP_MSG_STATS_RESET: {
+        check_alive(self);
+        stats_reset(self->stats);
+        break;
+    }
     default:
         hal_log_error("Wrong message type: %ld", (uint32_t)message->type);
         break;

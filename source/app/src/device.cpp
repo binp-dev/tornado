@@ -154,6 +154,9 @@ void Device::send_loop() {
                 dac_.ioc_requested.store(true);
             }
         }
+        if (stats_reset_.exchange(false)) {
+            channel_.send(ipp::AppMsg{ipp::AppMsgStatsReset{}}, timeout).unwrap();
+        }
     }
 }
 
@@ -277,6 +280,15 @@ void Device::set_dac_playback_mode(DacPlaybackMode mode) {
 
 void Device::set_dac_operation_state(DacOperationState) {
     std::cout << "DAC operation state changing is not supported yet" << std::endl;
+}
+
+void Device::reset_statistics() {
+    {
+        // Note: `send_mutex_` must be locked even if atomic is used. See `std::condition_variable` reference.
+        std::lock_guard send_guard(send_mutex_);
+        stats_reset_.store(true);
+    }
+    send_ready_.notify_all();
 }
 
 point_t Device::dac_volt_to_code(double volt) const {

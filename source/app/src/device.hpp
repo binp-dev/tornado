@@ -75,6 +75,7 @@ private:
     DoutEntry dout_;
     std::array<AdcEntry, ADC_COUNT> adcs_;
     DacEntry dac_;
+    std::atomic<bool> stats_reset_{false};
 
     DeviceChannel channel_;
 
@@ -113,6 +114,8 @@ public:
 
     void set_dac_playback_mode(DacPlaybackMode mode);
     void set_dac_operation_state(DacOperationState state);
+
+    void reset_statistics();
 
 private:
     point_t dac_volt_to_code(double volt) const;
