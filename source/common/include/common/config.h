@@ -5,7 +5,12 @@
 
 #define ADC_COUNT 6
 
-#define DAC_SHIFT 32767
+#define SAMPLE_FREQ_HZ 10000
+
+#define DAC_MAX_ABS_V 10.0
+#define ADC_MAX_ABS_V 10.0
+
+#define DAC_CODE_SHIFT 32767
 #define DAC_STEP_UV 315.7445
 #define ADC_STEP_UV 346.8012
 

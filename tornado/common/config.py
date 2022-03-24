@@ -9,7 +9,12 @@ from ferrite.utils.interop import read_defs
 class Config(pydantic.BaseModel):
     adc_count: int
 
-    dac_shift: int
+    sample_freq_hz: float
+
+    dac_max_abs_v: float
+    adc_max_abs_v: float
+
+    dac_code_shift: int
     dac_step_uv: float
     adc_step_uv: float
 

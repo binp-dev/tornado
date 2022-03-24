@@ -18,8 +18,9 @@ class Handler(FakeDev.Handler):
     time: float = 0.0
 
     def transfer(self, dac: float) -> List[float]:
-        value = 0.5 * dac * math.cos(math.e * self.time) + 5.0 * math.cos(math.pi * self.time)
-        self.time += 1e-4
+        adc_mag = dac / self.config.dac_max_abs_v * self.config.adc_max_abs_v
+        value = 0.5 * adc_mag * math.cos(math.e * self.time) + 0.5 * self.config.adc_max_abs_v * math.cos(math.pi * self.time)
+        self.time += 1.0 / self.config.sample_freq_hz
         return [dac] + [value] * (self.config.adc_count - 1)
 
 

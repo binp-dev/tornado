@@ -35,7 +35,7 @@ class FakeDev:
         config: CommonConfig
 
         def dac_code_to_volt(self, code: int) -> float:
-            return (code - self.config.dac_shift) * (self.config.dac_step_uv * 1e-6)
+            return (code - self.config.dac_code_shift) * (self.config.dac_step_uv * 1e-6)
 
         def adc_volt_to_code(self, voltage: float) -> int:
             return round(voltage / (self.config.adc_step_uv * 1e-6) * 256)
@@ -49,7 +49,7 @@ class FakeDev:
 
     @dataclass
     class Config:
-        adc_count: int
+        common: CommonConfig
         sample_period: float
         chunk_size: int
         keepalive_timeout: float
@@ -57,9 +57,9 @@ class FakeDev:
     @staticmethod
     def _make_config(cc: CommonConfig) -> Config:
         return FakeDev.Config(
-            adc_count=cc.adc_count,
-            sample_period=0.0001, # 10 kHz
-            chunk_size=(cc.rpmsg_max_msg_len - 3) // 4,
+            common=cc,
+            sample_period=1.0 / cc.sample_freq_hz,
+            chunk_size=(cc.rpmsg_max_msg_len - 3) // 4, # TODO: Check on IPP update
             keepalive_timeout=(cc.keep_alive_max_delay_ms / 1000),
         )
 
@@ -72,7 +72,7 @@ class FakeDev:
         self.config = FakeDev._make_config(cc)
         self.handler = handler
 
-        self.adc_buffers: List[List[int]] = [[] for _ in range(self.config.adc_count)]
+        self.adc_buffers: List[List[int]] = [[] for _ in range(self.config.common.adc_count)]
 
     async def _sample(self, dac: int) -> None:
         adcs = self.handler.transfer_codes(dac)

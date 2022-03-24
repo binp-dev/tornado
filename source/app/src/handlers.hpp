@@ -22,7 +22,7 @@ public:
 
     virtual void write(OutputValueRecord<point_t> &record) override {
         /// FIXME: Remove conversion.
-        double voltage = double(record.value() - DAC_SHIFT) * 1e-6 * DAC_STEP_UV;
+        double voltage = double(record.value() - DAC_CODE_SHIFT) * 1e-6 * DAC_STEP_UV;
         device_.write_dac(&voltage, 1);
     }
 

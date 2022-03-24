@@ -264,7 +264,7 @@ void Device::set_dac_operation_state(DacOperationState) {
 }
 
 point_t Device::dac_volt_to_code(double volt) const {
-    return DAC_SHIFT + point_t((volt * 1e6) / DAC_STEP_UV);
+    return DAC_CODE_SHIFT + point_t((volt * 1e6) / DAC_STEP_UV);
 }
 
 double Device::adc_code_to_volt(point_t code) const {

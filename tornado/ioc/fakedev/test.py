@@ -22,10 +22,6 @@ def approx_eq(a: float, b: float, eps: float = 1e-3) -> bool:
     return abs(a - b) <= eps
 
 
-DAC_MAX_ABS_VALUE = 10.0
-ADC_MAX_ABS_VALUE = 10.0
-
-
 @dataclass
 class Handler(FakeDev.Handler):
     _dt: float = 0.0
@@ -48,9 +44,9 @@ class Handler(FakeDev.Handler):
         dac_wf.append(dac)
 
         adcs = [0.0] * self.config.adc_count
-        adcs[0] = dac / DAC_MAX_ABS_VALUE * ADC_MAX_ABS_VALUE
+        adcs[0] = dac / self.config.dac_max_abs_v * self.config.adc_max_abs_v
         for i in range(1, self.config.adc_count):
-            adcs[i] = ADC_MAX_ABS_VALUE * math.sin(2.0 * math.pi * i * self._dt)
+            adcs[i] = self.config.adc_max_abs_v * math.sin(2.0 * math.pi * i * self._dt)
         self._dt += 1e-4
 
         for x, wf in zip(adcs, adc_wfs):
@@ -93,7 +89,7 @@ class Handler(FakeDev.Handler):
 
 async def async_run(config: FakeDev.Config, handler: Handler) -> None:
     ctx = Context()
-    aais = [await ctx.connect(f"aai{i}", PvType.ARRAY_FLOAT) for i in range(config.adc_count)]
+    aais = [await ctx.connect(f"aai{i}", PvType.ARRAY_FLOAT) for i in range(config.common.adc_count)]
     aao = await ctx.connect("aao0", PvType.ARRAY_FLOAT)
     aao_request = await ctx.connect("aao0_request", PvType.BOOL)
     aao_cyclic = await ctx.connect("aao0_cyclic", PvType.BOOL)
@@ -108,7 +104,7 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
         await handler.check_dac(array)
         logger.debug(f"DAC of size {len(array)} is correct")
 
-    adcs_samples_count = [0] * config.adc_count
+    adcs_samples_count = [0] * config.common.adc_count
 
     async def watch_single_adc(index: int, adc_pv: Pv[List[float]]) -> None:
         async with adc_pv.monitor() as mon:
@@ -128,19 +124,21 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
                 if int(flag) != 0:
                     break
 
-    async def run_check() -> None:
+    async def run_check(config: FakeDev.Config) -> None:
+        dac_mag = config.common.dac_max_abs_v
+
         logger.info("Set one-shot DAC playback mode")
         await aao_cyclic.put(False)
 
         logger.info("Check full-size DAC waveform")
         await wait_dac_req()
-        await write_and_check_dac([DAC_MAX_ABS_VALUE * x / wf_size for x in range(wf_size)])
+        await write_and_check_dac([dac_mag * x / wf_size for x in range(wf_size)])
 
         logger.info("Check two half-size DAC waveforms")
         await wait_dac_req()
-        await write_and_check_dac([DAC_MAX_ABS_VALUE * x / wf_size for x in range(0, -wf_size, -2)])
+        await write_and_check_dac([dac_mag * x / wf_size for x in range(0, -wf_size, -2)])
         await wait_dac_req()
-        await write_and_check_dac([DAC_MAX_ABS_VALUE * x / wf_size for x in range(-wf_size, 0, 2)])
+        await write_and_check_dac([dac_mag * x / wf_size for x in range(-wf_size, 0, 2)])
 
         logger.info("Flush DAC and check all ADCs")
         await wait_dac_req()
@@ -150,7 +148,7 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
         # Check total ADCs samples count
         assert all([sc >= 2 * wf_size for sc in adcs_samples_count])
 
-    await with_background(run_check(), watch_adcs())
+    await with_background(run_check(config), watch_adcs())
 
 
 def run(source_dir: Path, ioc_dir: Path, arch: str) -> None:
