@@ -84,5 +84,5 @@ void sync_generator_task(void *param) {
 
 void sync_generator_run(Statistics *stats) {
     hal_assert(
-        xTaskCreate(sync_generator_task, "sync", TASK_STACK_SIZE, (void *)stats, STATISTICS_TASK_PRIORITY, NULL) == pdPASS);
+        xTaskCreate(sync_generator_task, "sync", TASK_STACK_SIZE, (void *)stats, SYNC_TASK_PRIORITY, NULL) == pdPASS);
 }
