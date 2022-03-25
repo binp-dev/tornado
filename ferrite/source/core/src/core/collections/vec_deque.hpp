@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include <core/maybe_uninit.hpp>
+#include <core/stream.hpp>
 #include <core/io.hpp>
 
 #include "slice.hpp"
@@ -15,9 +16,10 @@ struct VecDeque;
 template <typename T>
 struct VecDequeView;
 
+namespace vec_deque_impl {
 
 template <typename T>
-class _VecDeque {
+class BasicVecDeque {
 private:
     std::vector<MaybeUninit<T>> data_;
     size_t front_ = 0;
@@ -28,18 +30,18 @@ private:
     }
 
 public:
-    _VecDeque() = default;
-    explicit _VecDeque(size_t cap) : data_(cap + 1) {}
+    BasicVecDeque() = default;
+    explicit BasicVecDeque(size_t cap) : data_(cap + 1) {}
 
-    ~_VecDeque() {
+    ~BasicVecDeque() {
         clear();
     }
 
-    _VecDeque(const _VecDeque &other);
-    _VecDeque &operator=(const _VecDeque &other);
+    BasicVecDeque(const BasicVecDeque &other);
+    BasicVecDeque &operator=(const BasicVecDeque &other);
 
-    _VecDeque(_VecDeque &&other);
-    _VecDeque &operator=(_VecDeque &&other);
+    BasicVecDeque(BasicVecDeque &&other);
+    BasicVecDeque &operator=(BasicVecDeque &&other);
 
 public:
     [[nodiscard]] size_t capacity() const;
@@ -53,8 +55,8 @@ private:
     void push_back_unchecked(T &&value);
     void push_front_unchecked(T &&value);
 
-    void append_unchecked(_VecDeque &other);
-    void append_copy_unchecked(const _VecDeque &other);
+    void append_unchecked(BasicVecDeque<T> &other);
+    void append_copy_unchecked(const BasicVecDeque<T> &other);
 
     void reserve_mod(size_t new_mod);
 
@@ -67,8 +69,8 @@ public:
 
     void reserve(size_t new_cap);
 
-    void append(_VecDeque &other);
-    void append_copy(const _VecDeque &other);
+    void append(BasicVecDeque &other);
+    void append_copy(const BasicVecDeque &other);
 
     [[nodiscard]] std::optional<T> pop_back();
     [[nodiscard]] std::optional<T> pop_front();
@@ -99,15 +101,15 @@ public:
 
 
 template <typename T>
-class _VecDequeView {
+class BasicVecDequeView {
 private:
     Slice<T> first_;
     Slice<T> second_;
 
 public:
     // Empty view.
-    _VecDequeView() = default;
-    _VecDequeView(Slice<T> first, Slice<T> second) : first_(first), second_(second) {}
+    BasicVecDequeView() = default;
+    BasicVecDequeView(Slice<T> first, Slice<T> second) : first_(first), second_(second) {}
 
     [[nodiscard]] size_t size() const;
     [[nodiscard]] bool empty() const;
@@ -125,48 +127,67 @@ public:
 };
 
 
-template <typename T>
-class VecDeque final : public _VecDeque<T> {
+template <typename T, bool = std::is_trivial_v<T>>
+class StreamVecDeque : public BasicVecDeque<T> {
 public:
-    using _VecDeque<T>::_VecDeque;
+    using BasicVecDeque<T>::BasicVecDeque;
 };
 
-template <>
-class VecDeque<uint8_t> final :
-    public _VecDeque<uint8_t>,
-    public virtual io::ReadExact,
-    public virtual io::WriteExact,
-    public virtual io::ReadFrom,
-    public virtual io::WriteInto //
+template <typename T>
+class StreamVecDeque<T, true> :
+    public BasicVecDeque<T>,
+    public virtual ReadArrayExact<T>,
+    public virtual WriteArrayExact<T>,
+    public virtual WriteArrayFrom<T>,
+    public virtual ReadArrayInto<T> //
 {
 public:
-    using _VecDeque<uint8_t>::_VecDeque;
+    using BasicVecDeque<T>::BasicVecDeque;
 
-    Result<size_t, io::Error> read(uint8_t *data, size_t len) override;
-    Result<std::monostate, io::Error> read_exact(uint8_t *data, size_t len) override;
+    [[nodiscard]] size_t read_array(T *data, size_t len) override;
+    [[nodiscard]] bool read_array_exact(T *data, size_t len) override;
 
-    Result<size_t, io::Error> write(const uint8_t *data, size_t len) override;
-    Result<std::monostate, io::Error> write_exact(const uint8_t *data, size_t len) override;
+    [[nodiscard]] size_t write_array(const T *data, size_t len) override;
+    [[nodiscard]] bool write_array_exact(const T *data, size_t len) override;
 
-    Result<size_t, io::Error> read_from(io::Read &stream, std::optional<size_t> len) override;
-    Result<size_t, io::Error> write_into(io::Write &stream, std::optional<size_t> len) override;
+    size_t write_array_from(ReadArray<T> &stream, std::optional<size_t> len) override;
+    size_t read_array_into(WriteArray<T> &stream, std::optional<size_t> len) override;
+};
+
+template <typename T, bool = std::is_trivial_v<T>>
+class StreamVecDequeView : public BasicVecDequeView<T> {
+public:
+    using BasicVecDequeView<T>::BasicVecDequeView;
 };
 
 template <typename T>
-class VecDequeView final : public _VecDequeView<T> {
+class StreamVecDequeView<T, true> :
+    public BasicVecDequeView<T>,
+    public virtual ReadArrayExact<T>,
+    public virtual ReadArrayInto<T> //
+{
 public:
-    using _VecDequeView<T>::_VecDequeView;
+    using vec_deque_impl::BasicVecDequeView<T>::BasicVecDequeView;
+
+    [[nodiscard]] size_t read_array(T *data, size_t len) override;
+    [[nodiscard]] bool read_array_exact(T *data, size_t len) override;
+
+    size_t read_array_into(WriteArray<T> &stream, std::optional<size_t> len) override;
 };
 
-template <>
-class VecDequeView<uint8_t> final : public _VecDequeView<uint8_t>, public virtual io::ReadExact, public virtual io::WriteInto {
+
+} // namespace vec_deque_impl
+
+template <typename T>
+class VecDeque : public vec_deque_impl::StreamVecDeque<T> {
 public:
-    using _VecDequeView<uint8_t>::_VecDequeView;
+    using vec_deque_impl::StreamVecDeque<T>::StreamVecDeque;
+};
 
-    Result<size_t, io::Error> read(uint8_t *data, size_t len) override;
-    Result<std::monostate, io::Error> read_exact(uint8_t *data, size_t len) override;
-
-    Result<size_t, io::Error> write_into(io::Write &stream, std::optional<size_t> len) override;
+template <typename T>
+class VecDequeView : public vec_deque_impl::StreamVecDequeView<T> {
+public:
+    using vec_deque_impl::StreamVecDequeView<T>::StreamVecDequeView;
 };
 
 #include "vec_deque.hxx"

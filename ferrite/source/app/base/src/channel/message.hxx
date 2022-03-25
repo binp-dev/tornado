@@ -35,7 +35,7 @@ Result<std::monostate, io::Error> MessageChannel<OutMsg, InMsg>::send(
         return Err(io::Error{io::ErrorKind::UnexpectedEof, "Message size is greater than max length"});
     }
     raw_->timeout = timeout;
-    return raw_->write_exact(send_buffer_.data(), length);
+    return raw_->stream_write_exact(send_buffer_.data(), length);
 }
 
 template <typename OutMsg, typename InMsg>
@@ -66,7 +66,7 @@ Result<InMsg, io::Error> MessageChannel<OutMsg, InMsg>::receive(std::optional<st
         } else {
             raw_->timeout = std::nullopt;
         }
-        auto read_res = recv_buffer_.read_from(*raw_, std::nullopt);
+        auto read_res = recv_buffer_.write_from_stream(*raw_, std::nullopt);
         if (read_res.is_err()) {
             return Err(read_res.unwrap_err());
         }

@@ -67,7 +67,7 @@ struct [[nodiscard]] Result final {
         if (this->is_err()) {
             std::stringstream ss;
             ss << message;
-            if constexpr (display_v<E>) {
+            if constexpr (is_display_v<E>) {
                 ss << ": Result::Err(" << this->err() << ")";
             }
             panic(ss.str());
@@ -78,7 +78,7 @@ struct [[nodiscard]] Result final {
         if (this->is_ok()) {
             std::stringstream ss;
             ss << message;
-            if constexpr (display_v<T>) {
+            if constexpr (is_display_v<T>) {
                 ss << ": Result::Ok(" << this->ok() << ")";
             }
             panic(ss.str());
@@ -123,7 +123,7 @@ struct [[nodiscard]] Result final {
 template <typename T>
 std::ostream &operator<<(std::ostream &os, const Ok<T> &ok) {
     os << "Ok(";
-    if constexpr (display_v<T>) {
+    if constexpr (is_display_v<T>) {
         os << ok.value;
     }
     os << ")";
@@ -133,7 +133,7 @@ std::ostream &operator<<(std::ostream &os, const Ok<T> &ok) {
 template <typename E>
 std::ostream &operator<<(std::ostream &os, const Err<E> &err) {
     os << "Err(";
-    if constexpr (display_v<E>) {
+    if constexpr (is_display_v<E>) {
         os << err.value;
     }
     os << ")";
@@ -145,12 +145,12 @@ std::ostream &operator<<(std::ostream &os, const Result<T, E> &res) {
     os << "Result::";
     if (res.is_ok()) {
         os << "Ok(";
-        if constexpr (display_v<T>) {
+        if constexpr (is_display_v<T>) {
             os << res.ok();
         }
     } else {
         os << "Err(";
-        if constexpr (display_v<E>) {
+        if constexpr (is_display_v<E>) {
             os << res.err();
         }
     }

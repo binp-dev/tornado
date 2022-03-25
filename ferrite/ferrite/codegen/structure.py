@@ -93,7 +93,7 @@ class Struct(Type[StructValue]):
         return self.value(*args)
 
     def is_instance(self, value: StructValue) -> bool:
-        return isinstance(value, StructValue) and value._type == self
+        return value._type is self
 
     def deps(self) -> List[Type[Any]]:
         return [f.type for f in self.fields]

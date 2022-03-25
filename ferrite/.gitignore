@@ -4,6 +4,7 @@ __pycache__
 /poetry.lock
 .venv
 .mypy_cache
+.pytest_cache
 
 .vscode
 *.code-workspace

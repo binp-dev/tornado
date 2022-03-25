@@ -26,7 +26,6 @@ class Ioc:
 
     def __enter__(self) -> None:
         self.proc = Popen([self.binary, self.script.name], cwd=self.script.parent, text=True)
-        time.sleep(1)
         logger.debug("ioc '%s' started")
 
     def __exit__(self, *args: Any) -> None:

@@ -12,20 +12,26 @@ public:
 
     public:
         Guard() = delete;
-        Guard(std::mutex &mutex, T &value_ref) :
-            guard_(mutex), value_ref_(value_ref)
-        {}
+        Guard(std::mutex &mutex, T &value_ref) : guard_(mutex), value_ref_(value_ref) {}
         ~Guard() = default;
 
         Guard(const Guard &) = delete;
         Guard &operator=(const Guard &) = delete;
-        Guard(Guard &&) = delete;
-        Guard &operator=(Guard &&) = delete;
+        Guard(Guard &&) = default;
+        Guard &operator=(Guard &&) = default;
 
-        T &operator*() { return value_ref_; }
-        const T &operator*() const { return value_ref_; }
-        T *operator->() { return &value_ref_; }
-        const T *operator->() const { return &value_ref_; }
+        T &operator*() {
+            return value_ref_;
+        }
+        const T &operator*() const {
+            return value_ref_;
+        }
+        T *operator->() {
+            return &value_ref_;
+        }
+        const T *operator->() const {
+            return &value_ref_;
+        }
     };
 
 private:
@@ -34,9 +40,10 @@ private:
 
 public:
     Mutex() = default;
+    ~Mutex() = default;
+
     Mutex(T &&value) : value_(std::move(value)) {}
     Mutex(const T &value) : value_(value) {}
-    ~Mutex() = default;
 
     Mutex(Mutex &&other) {
         value_ = std::move(other.value_);

@@ -2,43 +2,58 @@
 
 #include <vector>
 #include <cstring>
+#include <type_traits>
+#include <iostream>
 
-#include <core/io.hpp>
+#include <core/stream.hpp>
+#include <core/fmt.hpp>
 
 #include "slice.hpp"
 
+namespace vec_impl {
+
 template <typename T>
-class _Vec : public std::vector<T> {
+class BasicVec : public std::vector<T> {
 public:
+    using std::vector<T>::vector;
+
     [[nodiscard]] Slice<T> slice() {
         return Slice<T>(this->data(), this->size());
     }
     [[nodiscard]] Slice<const T> slice() const {
-        return Slice<T>(this->data(), this->size());
+        return Slice<const T>(this->data(), this->size());
     }
+};
 
-    using std::vector<T>::vector;
+
+template <typename T, bool = std::is_trivial_v<T>>
+class StreamVec : public BasicVec<T> {
+public:
+    using BasicVec<T>::BasicVec;
 };
 
 template <typename T>
-class Vec final : public _Vec<T> {
+class StreamVec<T, true> :
+    public BasicVec<T>,
+    public virtual WriteArrayExact<T>,
+    public virtual WriteArrayFrom<T> //
+{
 public:
-    using _Vec<T>::_Vec;
-};
+    using BasicVec<T>::BasicVec;
 
-template <>
-class Vec<uint8_t> final : public _Vec<uint8_t>, public virtual io::WriteExact, public virtual io::ReadFrom {
-public:
-    using _Vec<uint8_t>::_Vec;
-
-    inline Result<std::monostate, io::Error> write_exact(const uint8_t *data, size_t len) override {
+    [[nodiscard]] size_t write_array(const T *data, size_t len) override {
         size_t size = this->size();
-        resize(size + len);
-        memcpy(this->data() + size, data, len);
-        return Ok(std::monostate{});
+        this->resize(size + len);
+        memcpy(this->data() + size, data, sizeof(T) * len);
+        return len;
     }
 
-    inline Result<size_t, io::Error> read_from(io::Read &stream, std::optional<size_t> len_opt) override {
+    [[nodiscard]] bool write_array_exact(const T *data, size_t len) override {
+        assert_eq(this->write_array(data, len), len);
+        return true;
+    }
+
+    size_t write_array_from(ReadArray<T> &stream, std::optional<size_t> len_opt) override {
         if (len_opt.has_value()) {
             size_t len = len_opt.value();
             size_t size = this->size();
@@ -51,30 +66,19 @@ public:
             this->resize(new_cap);
 
             // Read from stream.
-            auto res = stream.read(this->data() + size, len);
-            size_t read_len = 0;
-            if (res.is_ok()) {
-                read_len = res.ok();
-            }
+            size_t read_len = stream.read_array(this->data() + size, len);
             this->resize(size + read_len);
-            return res;
+            return read_len;
         } else {
             // Read infinitely until stream ends.
             size_t total = 0;
             for (;;) {
                 size_t free = this->capacity() - this->size();
                 if (free > 0) {
-                    auto res = read_from(stream, free);
-                    if (res.is_err()) {
-                        if (total == 0) {
-                            return res;
-                        } else {
-                            return Ok(total);
-                        }
-                    }
-                    total += res.ok();
-                    if (res.ok() < free) {
-                        return Ok(total);
+                    size_t res_len = write_array_from(stream, free);
+                    total += res_len;
+                    if (res_len < free) {
+                        return total;
                     }
                 }
                 this->reserve(std::max(this->capacity() * 2, size_t(1)));
@@ -82,3 +86,19 @@ public:
         }
     }
 };
+
+} // namespace vec_impl
+
+template <typename T>
+class Vec final : public vec_impl::StreamVec<T> {
+public:
+    using vec_impl::StreamVec<T>::StreamVec;
+};
+
+template <typename T>
+struct Display<Vec<T>, void> : public std::integral_constant<bool, is_display_v<T>> {};
+
+template <typename T, typename = std::enable_if_t<is_display_v<Vec<T>>, void>>
+std::ostream &operator<<(std::ostream &os, const Vec<T> &value) {
+    return os << value.slice();
+}

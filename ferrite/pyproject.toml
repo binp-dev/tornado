@@ -10,7 +10,7 @@ python = "^3.9"
 toml = "^0.10.2"
 types-toml = "^0.10.4"
 conan = "^1.44.0"
-caproto = "^0.8.1"
+pyepics = "^3.5.1"
 paramiko = "^2.9.2"
 types-paramiko = "^2.8.10"
 colorama = "^0.4.4"
@@ -20,6 +20,8 @@ pydantic = "^1.9.0"
 [tool.poetry.dev-dependencies]
 yapf = "^0.32.0"
 mypy = "^0.931"
+pytest = "^7.0.1"
+pytest-asyncio = "^0.18.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -41,3 +43,7 @@ each_dict_entry_on_separate_line = false
 [tool.mypy]
 strict = true
 namespace_packages = true
+
+[tool.pytest.ini_options]
+testpaths = ["ferrite/tests"]
+asyncio_mode = "auto"

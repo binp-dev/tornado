@@ -6,7 +6,7 @@ from random import Random
 from ferrite.codegen.base import CONTEXT, Include, Location, Name, Type, Source
 from ferrite.codegen.macros import ErrorKind, io_error, io_read_type, io_result_type, io_write_type, monostate, stream_read, stream_write, try_unwrap
 from ferrite.codegen.primitive import Int, Pointer
-from ferrite.codegen.utils import ceil_to_power_of_2, indent, list_join
+from ferrite.codegen.utils import indent, list_join
 from ferrite.codegen.structure import Field
 
 
@@ -16,9 +16,6 @@ class VariantValue:
         self._type = type
         self._id = id
         self.variant = variant
-
-    def is_instance(self, type: Variant) -> bool:
-        return self._type.name() == type.name()
 
     def store(self) -> bytes:
         return self._type.store(self)
@@ -35,7 +32,8 @@ class Variant(Type[VariantValue]):
         super().__init__(sized=sized)
         self._name = name
         self.variants = variants
-        self._id_type = Int(max(8, ceil_to_power_of_2(len(self.variants))))
+        self._id_type = Int(8)
+        assert len(self.variants) < (1 << self._id_type.bits)
 
         # Variant types for convenience
         for f in self.variants:
@@ -104,7 +102,7 @@ class Variant(Type[VariantValue]):
         return self.value(id, variant)
 
     def is_instance(self, value: VariantValue) -> bool:
-        return value.is_instance(self)
+        return value._type is self
 
     def deps(self) -> List[Type[Any]]:
         return [f.type for f in self.variants]

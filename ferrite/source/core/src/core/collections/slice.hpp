@@ -1,23 +1,26 @@
 #pragma once
 
 #include <functional>
+#include <type_traits>
 
 #include <core/assert.hpp>
-#include <core/io.hpp>
+#include <core/fmt.hpp>
 
 template <typename T>
 class Slice;
 
+namespace slice_impl {
+
 // Replace with std::span in C++20
 template <typename T>
-class _Slice {
+class BasicSlice {
 private:
     T *ptr_ = nullptr;
     size_t size_ = 0;
 
 public:
-    _Slice() = default;
-    _Slice(T *ptr, size_t size) : ptr_(ptr), size_(size) {}
+    BasicSlice() = default;
+    BasicSlice(T *ptr, size_t size) : ptr_(ptr), size_(size) {}
 
     T *data() {
         return ptr_;
@@ -42,8 +45,8 @@ public:
         return ptr_[i];
     }
 
-    operator Slice<const T>() const {
-        return Slice{ptr_, size_};
+    operator ::Slice<const T>() const {
+        return ::Slice{ptr_, size_};
     }
 
     [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_back() {
@@ -94,38 +97,66 @@ public:
     }
 };
 
+
+template <typename T, bool = std::is_trivial_v<T> && !std::is_const_v<T>>
+class StreamSlice : public BasicSlice<T> {
+public:
+    using BasicSlice<T>::BasicSlice;
+};
+
 template <typename T>
-class Slice final : public _Slice<T> {
+class StreamSlice<T, true> :
+    public BasicSlice<T>,
+    public virtual ReadArrayExact<T>,
+    public virtual ReadArrayInto<T> //
+{
 public:
-    using _Slice<T>::_Slice;
-};
+    using BasicSlice<T>::BasicSlice;
 
-template <>
-class Slice<uint8_t> final : public _Slice<uint8_t>, public virtual io::ReadExact, public virtual io::WriteInto {
-public:
-    using _Slice<uint8_t>::_Slice;
-
-    inline Result<std::monostate, io::Error> read_exact(uint8_t *data, size_t len) override {
+    [[nodiscard]] bool read_array_exact(T *data, size_t len) override {
         if (len > this->size()) {
-            return Err(io::Error{io::ErrorKind::UnexpectedEof});
+            return false;
         }
-        memcpy(data, this->data(), len);
+        memcpy(data, this->data(), sizeof(T) * len);
         assert_eq(this->skip_front(len), len);
-        return Ok(std::monostate{});
+        return true;
     }
 
-    inline Result<size_t, io::Error> read(uint8_t *data, size_t len) override {
+    size_t read_array(T *data, size_t len) override {
         size_t read_len = std::min(this->size(), len);
-        assert_true(read_exact(data, read_len).is_ok());
-        return Ok(read_len);
+        assert_true(read_array_exact(data, read_len));
+        return read_len;
     }
 
-    inline Result<size_t, io::Error> write_into(io::Write &stream, std::optional<size_t> len) override {
-        size_t write_len = len.value_or(this->size());
-        auto res = stream.write(this->data(), write_len);
-        if (res.is_ok()) {
-            this->skip_front(res.ok());
-        }
-        return res;
+    size_t read_array_into(WriteArray<T> &stream, std::optional<size_t> len) override {
+        size_t write_len = stream.write_array(this->data(), len.value_or(this->size()));
+        assert_eq(this->skip_front(write_len), write_len);
+        return write_len;
     }
 };
+
+} // namespace slice_impl
+
+template <typename T>
+class Slice final : public slice_impl::StreamSlice<T> {
+public:
+    using slice_impl::StreamSlice<T>::StreamSlice;
+};
+
+template <typename T>
+struct Display<Slice<T>, void> : public std::integral_constant<bool, is_display_v<T>> {};
+
+template <typename T, typename = std::enable_if_t<is_display_v<Slice<T>>, void>>
+std::ostream &operator<<(std::ostream &os, const Slice<T> &value) {
+    auto it = value.begin();
+    os << "[";
+    if (it != value.end()) {
+        os << *it;
+        ++it;
+    }
+    for (; it != value.end(); ++it) {
+        os << ", " << *it;
+    }
+    os << "]";
+    return os;
+}

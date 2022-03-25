@@ -55,6 +55,9 @@ class Name:
             raise NotImplementedError()
         return not (self == other)
 
+    def __repr__(self) -> str:
+        return f"[" + ", ".join(self.words) + "]"
+
 
 class Location(Enum):
     NONE = 0
@@ -283,7 +286,7 @@ class Type(Generic[T]):
                         f"ASSERT_EQ(stream.size(), {self.cpp_size('src')});",
                         f"",
                         f"buffer.clear();",
-                        f"ASSERT_EQ(stream.view().write_into(buffer, std::nullopt), Ok(stream.size()));",
+                        f"ASSERT_EQ(stream.view().read_into_stream(buffer, std::nullopt), Ok(stream.size()));",
                         f"auto *obj = reinterpret_cast<{self.c_type()} *>(buffer.data());",
                         f"ASSERT_EQ({self.c_size('(*obj)')}, {self.cpp_size('src')});",
                         *self.c_test('(*obj)', 'src'),

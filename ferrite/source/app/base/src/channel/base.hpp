@@ -11,7 +11,11 @@
 #include <core/io.hpp>
 #include <core/result.hpp>
 
-class Channel : public virtual io::Read, public virtual io::Write, public virtual io::WriteExact {
+class Channel :
+    public virtual io::StreamRead,
+    public virtual io::StreamWrite,
+    public virtual io::StreamWriteExact //
+{
 public:
     std::optional<std::chrono::milliseconds> timeout = std::nullopt;
 

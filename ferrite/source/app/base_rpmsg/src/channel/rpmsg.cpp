@@ -39,7 +39,16 @@ RpmsgChannel &RpmsgChannel::operator=(RpmsgChannel &&other) {
     return *this;
 }
 
-Result<std::monostate, io::Error> RpmsgChannel::write_exact(const uint8_t *data, size_t len) {
+Result<size_t, io::Error> RpmsgChannel::stream_write(const uint8_t *data, size_t len) {
+    auto res = stream_write_exact(data, len);
+    if (res.is_ok()) {
+        return Ok(len);
+    } else {
+        return Err(res.unwrap_err());
+    }
+}
+
+Result<std::monostate, io::Error> RpmsgChannel::stream_write_exact(const uint8_t *data, size_t len) {
     pollfd pfd = {this->fd_, POLLOUT, 0};
     int pr = poll(&pfd, 1, timeout ? int(timeout->count()) : -1);
     if (pr > 0) {
@@ -61,7 +70,7 @@ Result<std::monostate, io::Error> RpmsgChannel::write_exact(const uint8_t *data,
     return Ok(std::monostate{});
 }
 
-Result<size_t, io::Error> RpmsgChannel::read(uint8_t *data, size_t len) {
+Result<size_t, io::Error> RpmsgChannel::stream_read(uint8_t *data, size_t len) {
     pollfd pfd = {this->fd_, POLLIN, 0};
     int pr = poll(&pfd, 1, timeout.has_value() ? int(timeout->count()) : -1);
     if (pr > 0) {
@@ -75,8 +84,10 @@ Result<size_t, io::Error> RpmsgChannel::read(uint8_t *data, size_t len) {
     }
 
     int read_len = ::read(this->fd_, data, len);
-    if (read_len <= 0) {
-        return Err(io::Error{io::ErrorKind::Other, "Read error"});
+    if (read_len < 0) {
+        std::stringstream ss;
+        ss << "Read error: " << read_len;
+        return Err(io::Error{io::ErrorKind::Other, ss.str()});
     }
     return Ok(size_t(read_len));
 }
