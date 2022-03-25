@@ -11,10 +11,10 @@ def generate(path: Path) -> None:
 
 
 @dataclass
-class AppMsgStart:
+class AppMsgConnect:
 
     @staticmethod
-    def load(data: bytes) -> AppMsgStart:
+    def load(data: bytes) -> AppMsgConnect:
         ...
 
     def store(self) -> bytes:
@@ -22,10 +22,10 @@ class AppMsgStart:
 
 
 @dataclass
-class AppMsgStop:
+class AppMsgKeepAlive:
 
     @staticmethod
-    def load(data: bytes) -> AppMsgStop:
+    def load(data: bytes) -> AppMsgKeepAlive:
         ...
 
     def store(self) -> bytes:
@@ -33,12 +33,12 @@ class AppMsgStop:
 
 
 @dataclass
-class AppMsgDoutSet:
+class AppMsgDoutUpdate:
 
     value: int
 
     @staticmethod
-    def load(data: bytes) -> AppMsgDoutSet:
+    def load(data: bytes) -> AppMsgDoutUpdate:
         ...
 
     def store(self) -> bytes:
@@ -46,12 +46,36 @@ class AppMsgDoutSet:
 
 
 @dataclass
-class AppMsgDacWf:
+class AppMsgDacMode:
 
-    elements: List[int]
+    enable: int
 
     @staticmethod
-    def load(data: bytes) -> AppMsgDacWf:
+    def load(data: bytes) -> AppMsgDacMode:
+        ...
+
+    def store(self) -> bytes:
+        ...
+
+
+@dataclass
+class AppMsgDacData:
+
+    points: List[int]
+
+    @staticmethod
+    def load(data: bytes) -> AppMsgDacData:
+        ...
+
+    def store(self) -> bytes:
+        ...
+
+
+@dataclass
+class AppMsgStatsReset:
+
+    @staticmethod
+    def load(data: bytes) -> AppMsgStatsReset:
         ...
 
     def store(self) -> bytes:
@@ -61,12 +85,14 @@ class AppMsgDacWf:
 @dataclass
 class AppMsg:
 
-    Start = AppMsgStart
-    Stop = AppMsgStop
-    DoutSet = AppMsgDoutSet
-    DacWf = AppMsgDacWf
+    Connect = AppMsgConnect
+    KeepAlive = AppMsgKeepAlive
+    DoutUpdate = AppMsgDoutUpdate
+    DacMode = AppMsgDacMode
+    DacData = AppMsgDacData
+    StatsReset = AppMsgStatsReset
 
-    Variant = AppMsgStart | AppMsgStop | AppMsgDoutSet | AppMsgDacWf
+    Variant = AppMsgConnect | AppMsgKeepAlive | AppMsgDoutUpdate | AppMsgDacMode | AppMsgDacData | AppMsgStatsReset
 
     variant: Variant
 
@@ -79,12 +105,39 @@ class AppMsg:
 
 
 @dataclass
-class McuMsgDinVal:
+class McuMsgDinUpdate:
 
     value: int
 
     @staticmethod
-    def load(data: bytes) -> McuMsgDinVal:
+    def load(data: bytes) -> McuMsgDinUpdate:
+        ...
+
+    def store(self) -> bytes:
+        ...
+
+
+@dataclass
+class McuMsgDacRequest:
+
+    count: int
+
+    @staticmethod
+    def load(data: bytes) -> McuMsgDacRequest:
+        ...
+
+    def store(self) -> bytes:
+        ...
+
+
+@dataclass
+class McuMsgAdcData:
+
+    index: int
+    points: List[int]
+
+    @staticmethod
+    def load(data: bytes) -> McuMsgAdcData:
         ...
 
     def store(self) -> bytes:
@@ -119,40 +172,15 @@ class McuMsgDebug:
 
 
 @dataclass
-class McuMsgDacWfReq:
-
-    @staticmethod
-    def load(data: bytes) -> McuMsgDacWfReq:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
-
-@dataclass
-class McuMsgAdcWf:
-
-    index: int
-    elements: List[int]
-
-    @staticmethod
-    def load(data: bytes) -> McuMsgAdcWf:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
-
-@dataclass
 class McuMsg:
 
-    DinVal = McuMsgDinVal
+    DinUpdate = McuMsgDinUpdate
+    DacRequest = McuMsgDacRequest
+    AdcData = McuMsgAdcData
     Error = McuMsgError
     Debug = McuMsgDebug
-    DacWfReq = McuMsgDacWfReq
-    AdcWf = McuMsgAdcWf
 
-    Variant = McuMsgDinVal | McuMsgError | McuMsgDebug | McuMsgDacWfReq | McuMsgAdcWf
+    Variant = McuMsgDinUpdate | McuMsgDacRequest | McuMsgAdcData | McuMsgError | McuMsgDebug
 
     variant: Variant
 

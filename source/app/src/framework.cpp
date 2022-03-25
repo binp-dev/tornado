@@ -6,9 +6,7 @@
 #include <memory>
 
 #include <core/lazy_static.hpp>
-#include <core/mutex.hpp>
 
-#include <config.h>
 #include <device.hpp>
 #include <handlers.hpp>
 #include <external.hpp>
@@ -16,7 +14,7 @@
 void init_device(MaybeUninit<Device> &mem) {
     std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
 
-    mem.init_in_place(make_device_channel(), RPMSG_MAX_MSG_LEN);
+    mem.init_in_place(make_device_channel());
 }
 
 /// We use LazyStatic to initialize global Device without global constructor.
@@ -54,16 +52,28 @@ void framework_record_init(Record &record) {
     } else if (name.rfind("aai", 0) == 0) { // name.startswith("aai")
         const auto index_str = name.substr(3);
         uint8_t index = std::stoi(std::string(index_str));
-        auto &aai_record = dynamic_cast<InputArrayRecord<int32_t> &>(record);
+        auto &aai_record = dynamic_cast<InputArrayRecord<double> &>(record);
         aai_record.set_handler(std::make_unique<AdcWfHandler>(*DEVICE, aai_record, index));
 
     } else if (name == "aao0") {
-        auto &aao_record = dynamic_cast<OutputArrayRecord<int32_t> &>(record);
+        auto &aao_record = dynamic_cast<OutputArrayRecord<double> &>(record);
         aao_record.set_handler(std::make_unique<DacWfHandler>(*DEVICE, aao_record));
 
-    } else if (name == "aao0_req") {
+    } else if (name == "aao0_request") {
         auto &aao_req_record = dynamic_cast<InputValueRecord<bool> &>(record);
         aao_req_record.set_handler(std::make_unique<WfReqHandler>(*DEVICE));
+
+    } else if (name == "aao0_cyclic") {
+        auto &specific_record = dynamic_cast<OutputValueRecord<bool> &>(record);
+        specific_record.set_handler(std::make_unique<DacPlaybackModeHandler>(*DEVICE));
+
+    } else if (name == "aao0_running") {
+        auto &specific_record = dynamic_cast<OutputValueRecord<bool> &>(record);
+        specific_record.set_handler(std::make_unique<DacOpStateHandler>(*DEVICE));
+
+    } else if (name == "stats_reset") {
+        auto &specific_record = dynamic_cast<OutputValueRecord<bool> &>(record);
+        specific_record.set_handler(std::make_unique<StatsResetHandler>(*DEVICE));
 
     } else {
         unimplemented();

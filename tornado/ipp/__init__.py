@@ -9,34 +9,40 @@ from ferrite.codegen.generate import make_variant, generate_and_write
 AppMsg = make_variant(
     Name(["app", "msg"]),
     [
-        (Name(["start"]), []),
-        (Name(["stop"]), []),
-        (Name(["dout", "set"]), [
+        (Name(["connect"]), []),
+        (Name(["keep", "alive"]), []),
+        (Name(["dout", "update"]), [
             Field("value", Int(8, signed=False)),
         ]),
-        (Name(["dac", "wf"]), [
-            Field("elements", Vector(Int(32, signed=True))),
+        (Name(["dac", "mode"]), [
+            Field("enable", Int(8, signed=False)),
         ]),
+        (Name(["dac", "data"]), [
+            Field("points", Vector(Int(32, signed=True))),
+        ]),
+        (Name(["stats", "reset"]), []),
     ],
 )
 
 McuMsg = make_variant(
     Name(["mcu", "msg"]),
     [
-        (Name(["din", "val"]), [
+        (Name(["din", "update"]), [
             Field("value", Int(8, signed=False)),
         ]),
+        (Name(["dac", "request"]), [
+            Field("count", Int(32, signed=False)),
+        ]),
+        (Name(["adc", "data"]), [
+            Field("index", Int(8, signed=False)),
+            Field("points", Vector(Int(32, signed=True))),
+        ]),
         (Name(["error"]), [
-            Field("code", Int(8)),
+            Field("code", Int(8, signed=False)),
             Field("message", String()),
         ]),
         (Name(["debug"]), [
             Field("message", String()),
-        ]),
-        (Name(["dac", "wf", "req"]), []),
-        (Name(["adc", "wf"]), [
-            Field("index", Int(8, signed=False)),
-            Field("elements", Vector(Int(32, signed=True))),
         ]),
     ],
 )

@@ -4,22 +4,32 @@
 #include <deque>
 #include <memory>
 #include <atomic>
-#include <mutex>
 #include <condition_variable>
 #include <thread>
 #include <functional>
 
+#include <core/mutex.hpp>
+#include <core/collections/vec_deque.hpp>
 
+#include <common/config.h>
+#include <ipp.hpp>
 #include <channel/message.hpp>
 
-#include <config.h>
-#include <ipp.hpp>
+#include "double_buffer.hpp"
 
 using DeviceChannel = MessageChannel<ipp::AppMsg, ipp::McuMsg>;
 
 class Device final {
 public:
-    static constexpr size_t DAC_WF_BUFF_COUNT = 2;
+    enum class DacOperationState {
+        Stopped = 0,
+        Running,
+    };
+
+    enum class DacPlaybackMode {
+        OneShot = 0,
+        Cyclic,
+    };
 
 private:
     struct DinEntry {
@@ -32,41 +42,42 @@ private:
         std::atomic<bool> update{false};
     };
 
-    struct AdcWfEntry {
-        std::deque<int32_t> wf_data;
-        size_t wf_max_size;
-        std::mutex mutex;
+    struct AdcEntry {
+        Mutex<VecDeque<double>> data;
+        Vec<double> tmp_buf;
+        std::atomic<point_t> last_value{0};
+
+        size_t max_size;
         std::function<void()> notify;
-        std::atomic<int32_t> last_value{0};
+        std::atomic<bool> ioc_notified{false};
     };
 
-    struct DacWfEntry {
-        std::array<std::vector<int32_t>, DAC_WF_BUFF_COUNT> wf_data;
-        size_t wf_max_size;
-        std::mutex mutex;
-        std::atomic<bool> wf_is_set{false};
-        std::atomic<bool> swap_ready{false};
-        size_t buff_position = 0;
-        std::function<void()> request_next_wf;
+    struct DacEntry {
+        DoubleBuffer<double> data;
+        Vec<double> tmp_buf;
+
+        std::atomic<size_t> mcu_requested_count{0};
+
+        std::function<void()> sync_ioc_request_flag;
+        std::atomic<bool> ioc_requested{false};
     };
 
 private:
-    std::atomic_bool done;
-    std::thread recv_worker;
-    std::thread send_worker;
-    std::condition_variable send_ready;
-    std::mutex send_mutex;
+    std::atomic_bool done_;
+    std::thread recv_worker_;
+    std::thread send_worker_;
+    std::condition_variable send_ready_;
+    std::mutex send_mutex_;
 
-    const size_t msg_max_len_;
-    std::atomic<bool> has_dac_wf_req{false};
-    bool cyclic_dac_wf_output{false};
+    const std::chrono::milliseconds keep_alive_period_{KEEP_ALIVE_PERIOD_MS};
 
-    DinEntry din;
-    DoutEntry dout;
-    std::array<AdcWfEntry, ADC_COUNT> adc_wfs;
-    DacWfEntry dac_wf;
+    DinEntry din_;
+    DoutEntry dout_;
+    std::array<AdcEntry, ADC_COUNT> adcs_;
+    DacEntry dac_;
+    std::atomic<bool> stats_reset_{false};
 
-    DeviceChannel channel;
+    DeviceChannel channel_;
 
 private:
     void recv_loop();
@@ -78,32 +89,35 @@ public:
     Device(Device &&dev) = delete;
     Device &operator=(Device &&dev) = delete;
 
-    Device(std::unique_ptr<Channel> &&channel, size_t msg_max_len);
+    explicit Device(std::unique_ptr<Channel> &&channel);
     ~Device();
 
     void start();
     void stop();
 
 public:
-    int32_t read_adc(size_t index);
-
     void write_dout(uint32_t value);
 
     uint32_t read_din();
     void set_din_callback(std::function<void()> &&callback);
 
-    void init_dac_wf(size_t wf_max_size);
-    void write_dac_wf(const int32_t *wf_data, const size_t wf_len);
+    void init_dac(size_t max_len);
+    void write_dac(const double *data, size_t len);
 
-    void init_adc_wf(uint8_t index, size_t wf_max_size);
-    void set_adc_wf_callback(size_t index, std::function<void()> &&callback);
-    const std::vector<int32_t> read_adc_wf(size_t index);
+    void init_adc(uint8_t index, size_t max_size);
+    void set_adc_callback(size_t index, std::function<void()> &&callback);
+    std::vector<double> read_adc(size_t index);
+    point_t read_adc_last_value(size_t index);
 
-    [[nodiscard]] bool dac_wf_req_flag() const;
-    void set_dac_wf_req_callback(std::function<void()> &&callback);
+    [[nodiscard]] bool dac_req_flag();
+    void set_dac_req_callback(std::function<void()> &&callback);
+
+    void set_dac_playback_mode(DacPlaybackMode mode);
+    void set_dac_operation_state(DacOperationState state);
+
+    void reset_statistics();
 
 private:
-    void fill_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size);
-    void copy_dac_wf_to_dac_wf_msg(std::vector<int32_t> &msg_buff, size_t max_buffer_size);
-    bool swap_dac_wf_buffers();
+    point_t dac_volt_to_code(double volt) const;
+    double adc_code_to_volt(point_t code) const;
 };

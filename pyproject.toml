@@ -7,8 +7,9 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.9"
+pydantic = "^1.9.0"
+pyzmq = "^23.0.0b1"
 ferrite = { path = "ferrite", develop = true }
-pyzmq = { git = "https://github.com/zeromq/pyzmq.git", rev = "8d406b6" }
 
 [tool.poetry.dev-dependencies]
 toml = "^0.10.2"

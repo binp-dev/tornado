@@ -34,36 +34,44 @@ include(${ProjDirPath}/config.cmake)
 
 set(SRC
     "${ProjDirPath}/src/main.c"
-    "${ProjDirPath}/src/FreeRTOSConfig.h"
-    "${ProjDirPath}/src/rpmsg_config.h"
-    "${ProjDirPath}/src/rsc_table.c"
-    "${ProjDirPath}/src/rsc_table.h"
-    "${ProjDirPath}/src/remoteproc.h"
-    "${ProjDirPath}/src/board.c"
-    "${ProjDirPath}/src/board.h"
-    "${ProjDirPath}/src/clock_config.c"
-    "${ProjDirPath}/src/clock_config.h"
-    "${ProjDirPath}/src/skifio.c"
-    "${ProjDirPath}/src/skifio.h"
-    "${ProjDirPath}/src/stats.c"
-    "${ProjDirPath}/src/stats.h"
-    "${ProjDirPath}/src/crc.c"
-    "${ProjDirPath}/src/crc.h"
+    
+    "${ProjDirPath}/src/device/FreeRTOSConfig.h"
+    "${ProjDirPath}/src/device/rpmsg_config.h"
+    "${ProjDirPath}/src/device/rsc_table.c"
+    "${ProjDirPath}/src/device/rsc_table.h"
+    "${ProjDirPath}/src/device/remoteproc.h"
+    "${ProjDirPath}/src/device/board.c"
+    "${ProjDirPath}/src/device/board.h"
+    "${ProjDirPath}/src/device/clock_config.c"
+    "${ProjDirPath}/src/device/clock_config.h"
+
+    "${ProjDirPath}/src/utils/ringbuf.c"
+    "${ProjDirPath}/src/utils/ringbuf.h"
+    "${ProjDirPath}/src/utils/crc.c"
+    "${ProjDirPath}/src/utils/crc.h"
+
+    "${ProjDirPath}/src/drivers/skifio.c"
+    "${ProjDirPath}/src/drivers/skifio.h"
+
+    "${ProjDirPath}/src/tasks/stats.c"
+    "${ProjDirPath}/src/tasks/stats.h"
+    "${ProjDirPath}/src/tasks/control.c"
+    "${ProjDirPath}/src/tasks/control.h"
+    "${ProjDirPath}/src/tasks/rpmsg.c"
+    "${ProjDirPath}/src/tasks/rpmsg.h"
+    "${ProjDirPath}/src/tasks/sync.c"
+    "${ProjDirPath}/src/tasks/sync.h"
 )
 
 if(${INTERNAL_SYNC})
-set(SRC
-    ${SRC}
-    "${ProjDirPath}/src/sync.c"
-    "${ProjDirPath}/src/sync.h"
-)
 add_definitions("-DGENERATE_SYNC")
 endif()
 
 add_executable(${MCUX_SDK_PROJECT_NAME} ${SRC})
 
 target_include_directories(${MCUX_SDK_PROJECT_NAME} PRIVATE
-    ${ProjDirPath}/src
+    "${ProjDirPath}/src"
+    "${ProjDirPath}/src/device"
 )
 
 set(CMAKE_MODULE_PATH

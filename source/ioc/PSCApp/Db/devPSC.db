@@ -78,11 +78,11 @@ record(mbboDirect, "do0") {
 record(aao, "aao0") {
     field(DTYP, "devsup")
     field(NELM, 10000)
-    field(FTVL, "LONG")
+    field(FTVL, "DOUBLE")
 }
 
 # DAC next waveform request
-record(bi, "aao0_req")
+record(bi, "aao0_request")
 {
     field(DTYP, "devsup")
     field(SCAN, "I/O Intr")
@@ -90,45 +90,73 @@ record(bi, "aao0_req")
     field(PINI, "YES")
 }
 
+# DAC operation state
+# 0 - stopped
+# 1 - running
+record(bo, "aao0_running")
+{
+    field(DTYP, "devsup")
+
+    field(RVAL, 0)
+    field(PINI, "YES")
+}
+
+# DAC playback mode
+# 0 - one-shot
+# 1 - cyclic
+record(bo, "aao0_cyclic")
+{
+    field(DTYP, "devsup")
+
+    field(RVAL, 0)
+    field(PINI, "YES")
+}
+
 # ADC waveform channels
 record(aai, "aai0") {
     field(DTYP, "devsup")
     field(NELM, 10000)
-    field(FTVL, "LONG")
+    field(FTVL, "DOUBLE")
     field(SCAN, "I/O Intr")
 }
 
 record(aai, "aai1") {
     field(DTYP, "devsup")
     field(NELM, 10000)
-    field(FTVL, "LONG")
+    field(FTVL, "DOUBLE")
     field(SCAN, "I/O Intr")
 }
 
 record(aai, "aai2") {
     field(DTYP, "devsup")
     field(NELM, 10000)
-    field(FTVL, "LONG")
+    field(FTVL, "DOUBLE")
     field(SCAN, "I/O Intr")
 }
 
 record(aai, "aai3") {
     field(DTYP, "devsup")
     field(NELM, 10000)
-    field(FTVL, "LONG")
+    field(FTVL, "DOUBLE")
     field(SCAN, "I/O Intr")
 }
 
 record(aai, "aai4") {
     field(DTYP, "devsup")
     field(NELM, 10000)
-    field(FTVL, "LONG")
+    field(FTVL, "DOUBLE")
     field(SCAN, "I/O Intr")
 }
 
 record(aai, "aai5") {
     field(DTYP, "devsup")
     field(NELM, 10000)
-    field(FTVL, "LONG")
+    field(FTVL, "DOUBLE")
     field(SCAN, "I/O Intr")
+}
+
+# Write 1 to this record to reset MCU statistics
+record(bo, "stats_reset")
+{
+    field(DTYP, "devsup")
 }
