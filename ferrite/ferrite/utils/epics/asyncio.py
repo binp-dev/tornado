@@ -2,125 +2,11 @@ from __future__ import annotations
 from typing import Any, AsyncGenerator, Generic, List, Literal, Type, TypeVar, AsyncContextManager, overload, Union
 
 from enum import Enum
-from dataclasses import dataclass
+from contextlib import asynccontextmanager
 
-import asyncio
-from asyncio import AbstractEventLoop, Future, Queue
-
-from epics import PV # type: ignore
-
-import logging
-
-logger = logging.getLogger(__name__)
+import pyepics_asyncio as aepics
 
 T = TypeVar("T", bool, int, float, str, List[int], List[float])
-
-
-class _PvConnectFuture(Future[PV]):
-
-    def _cancel(self) -> None:
-        self._pv.disconnect()
-
-    def _complete(self) -> None:
-        self.set_result(self._pv)
-
-    def _connection_callback(self, pvname: str = "", conn: bool = False, **kw: Any) -> None:
-        assert pvname == self._name
-        if conn:
-            assert self.remove_done_callback(_PvConnectFuture._cancel) == 1
-            loop = self.get_loop()
-            if not loop.is_closed():
-                loop.call_soon_threadsafe(self._complete)
-
-    def __init__(self, name: str) -> None:
-        super().__init__()
-
-        self._name = name
-
-        self.add_done_callback(_PvConnectFuture._cancel)
-        self._pv = PV(
-            name,
-            form="native",
-            auto_monitor=True,
-            connection_callback=self._connection_callback,
-        )
-
-
-class _PvPutFuture(Future[None], Generic[T]):
-
-    def _complete(self) -> None:
-        if not self.done():
-            self.set_result(None)
-
-    def _callback(self, **kw: Any) -> None:
-        loop = self.get_loop()
-        if not loop.is_closed():
-            loop.call_soon_threadsafe(self._complete)
-
-    def __init__(self, pv: Pv[T], value: T) -> None:
-        super().__init__()
-        pv._raw.put(value, wait=False, callback=self._callback)
-
-
-@dataclass
-class _PvMonitorGenerator(AsyncGenerator[T, None]):
-    _pv: Pv[T]
-    _loop: AbstractEventLoop
-
-    def __post_init__(self) -> None:
-        self._queue: Queue[T | None] = Queue()
-        self._done = False
-
-    def _callback(self, value: Any = None, **kw: Any) -> None:
-        if not self._loop.is_closed():
-            self._loop.call_soon_threadsafe(lambda: self._queue.put_nowait(self._pv._convert(value)))
-
-    def _cancel(self) -> None:
-        self._done = True
-        self._queue.put_nowait(None)
-
-    def __aiter__(self) -> AsyncGenerator[T, None]:
-        return self
-
-    async def __anext__(self) -> T:
-        value = await self._queue.get()
-        if not self._done:
-            assert value is not None
-            return value
-        else:
-            assert value is None
-            raise StopAsyncIteration()
-
-    async def aclose(self) -> None:
-        self._cancel()
-
-    async def asend(self, value: Any) -> T:
-        logger.warning("_PvMonitorGenerator.asend() called")
-        return await self.__anext__()
-
-    async def athrow(self, *args: Any, **kw: Any) -> T:
-        logger.warning("_PvMonitorGenerator.athrow() called")
-        return await self.__anext__()
-
-
-@dataclass
-class _PvMonitorContextManager(AsyncContextManager[_PvMonitorGenerator[T]]):
-    _pv: Pv[T]
-    _ret_cur: bool
-    _gen: _PvMonitorGenerator[T] | None = None
-
-    async def __aenter__(self) -> _PvMonitorGenerator[T]:
-        assert self._gen is None
-        self._gen = _PvMonitorGenerator(self._pv, asyncio.get_running_loop())
-        self._pv._raw.add_callback(self._gen._callback)
-        if self._ret_cur:
-            self._pv._raw.run_callbacks()
-        return self._gen
-
-    async def __aexit__(self, *args: Any) -> None:
-        assert self._gen is not None
-        self._pv._raw.remove_callback(self._gen._callback)
-        self._gen = None
 
 
 class PvType(Enum):
@@ -147,28 +33,29 @@ class PvType(Enum):
         else:
             raise RuntimeError("Unreachable")
 
-    def _check_pv(self, raw: PV) -> None:
+    def _check_pv(self, raw: aepics.Pv) -> None:
         int_names = ["char", "short", "int", "long", "enum"]
         float_names = ["float", "double"]
 
+        rtype = raw.raw.type
         try:
             if self == PvType.BOOL:
-                assert raw.type in int_names
+                assert rtype in int_names
                 assert raw.nelm == 1
             elif self == PvType.INT:
-                assert raw.type in int_names
+                assert rtype in int_names
                 assert raw.nelm == 1
             elif self == PvType.FLOAT:
-                assert raw.type in float_names
+                assert rtype in float_names
                 assert raw.nelm == 1
             elif self == PvType.STR:
-                assert raw.type == "string"
+                assert rtype == "string"
                 assert raw.nelm == 1
             elif self == PvType.ARRAY_INT:
-                assert raw.type in int_names
+                assert rtype in int_names
                 assert raw.nelm > 1
             elif self == PvType.ARRAY_FLOAT:
-                assert raw.type in float_names
+                assert rtype in float_names
                 assert raw.nelm > 1
             else:
                 raise RuntimeError("Unreachable")
@@ -179,7 +66,7 @@ class PvType(Enum):
 class Pv(Generic[T]):
     type: PvType
 
-    def __init__(self, raw: PV) -> None:
+    def __init__(self, raw: aepics.Pv) -> None:
         self.type._check_pv(raw)
         self._raw = raw
 
@@ -188,26 +75,30 @@ class Pv(Generic[T]):
         raise NotImplementedError()
 
     async def get(self) -> T:
-        return self._convert(self._raw.get(use_monitor=True))
+        return self._convert(await self._raw.get())
 
-    def put(self, value: T) -> _PvPutFuture[T]:
-        return _PvPutFuture(self, value)
+    async def put(self, value: T) -> None:
+        return await self._raw.put(value)
 
-    # NOTE: Current value is not provided by default, set `current` to `True` if you need it.
-    def monitor(self, current: bool = False) -> _PvMonitorContextManager[T]:
-        return _PvMonitorContextManager(self, current)
+    @asynccontextmanager
+    async def monitor(self, current: bool = False) -> AsyncContextManager[AsyncGenerator[T, None]]:
+
+        async def converter(mon: AsyncGenerator[Any, None]) -> AsyncGenerator:
+            async for value in mon:
+                yield self._convert(value)
+
+        async with self._raw.monitor(current=current) as mon:
+            yield converter(mon)
 
     @property
     def name(self) -> str:
-        assert isinstance(self._raw.pvname, str)
-        return self._raw.pvname
+        return self._raw.name
 
 
 class PvArray(Pv[T]):
 
     @property
     def nelm(self) -> int:
-        assert isinstance(self._raw.nelm, int)
         return self._raw.nelm
 
 
@@ -299,5 +190,5 @@ class Context:
         ...
 
     async def connect(self, name: str, pv_type: PvType) -> _PvAny:
-        raw = await _PvConnectFuture(name)
+        raw = await aepics.Pv.connect(name)
         return pv_type._type()(raw)
