@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, AsyncGenerator, Generic, List, Literal, Type, TypeVar, AsyncContextManager, overload, Union
+from typing import Any, AsyncGenerator, AsyncIterator, Generic, List, Literal, Type, TypeVar, overload, Union
 
 from enum import Enum
 from contextlib import asynccontextmanager
@@ -60,7 +60,7 @@ class PvType(Enum):
             else:
                 raise RuntimeError("Unreachable")
         except AssertionError:
-            raise AssertionError(f"Actual PV type '{raw.type}' (nelm: {raw.nelm}) does not match requested type {self}")
+            raise AssertionError(f"Actual PV type '{raw.raw.type}' (nelm: {raw.nelm}) does not match requested type {self}")
 
 
 class Pv(Generic[T]):
@@ -78,17 +78,16 @@ class Pv(Generic[T]):
         return self._convert(await self._raw.get())
 
     async def put(self, value: T) -> None:
-        return await self._raw.put(value)
+        await self._raw.put(value)
+
+    async def _converter(self, mon: AsyncGenerator[Any, None]) -> AsyncGenerator[T, None]:
+        async for value in mon:
+            yield self._convert(value)
 
     @asynccontextmanager
-    async def monitor(self, current: bool = False) -> AsyncContextManager[AsyncGenerator[T, None]]:
-
-        async def converter(mon: AsyncGenerator[Any, None]) -> AsyncGenerator:
-            async for value in mon:
-                yield self._convert(value)
-
+    async def monitor(self, current: bool = False) -> AsyncIterator[AsyncGenerator[T, None]]:
         async with self._raw.monitor(current=current) as mon:
-            yield converter(mon)
+            yield self._converter(mon)
 
     @property
     def name(self) -> str:
