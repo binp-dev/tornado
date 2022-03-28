@@ -14,7 +14,7 @@ ferrite = { path = "ferrite", develop = true }
 [tool.poetry.dev-dependencies]
 toml = "^0.10.2"
 yapf = "^0.32.0"
-mypy = "^0.931"
+mypy = "^0.942"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

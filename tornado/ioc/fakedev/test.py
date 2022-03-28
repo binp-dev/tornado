@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Dict, List
 
+import os
 import math
 from pathlib import Path
 from dataclasses import dataclass
@@ -152,6 +153,9 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
 
 
 def run(source_dir: Path, ioc_dir: Path, arch: str) -> None:
+    os.environ["EPICS_CA_ADDR_LIST"] = "127.0.0.1"
+    os.environ["EPICS_CA_AUTO_ADDR_LIST"] = "NO"
+
     ioc = make_ioc(ioc_dir, arch)
 
     config = read_common_config(source_dir)
