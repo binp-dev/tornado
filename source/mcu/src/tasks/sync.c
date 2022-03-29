@@ -4,14 +4,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include <FreeRTOS.h>
-#include <task.h>
-#include <semphr.h>
 #include <fsl_iomuxc.h>
 
 #include <hal/assert.h>
 #include <hal/gpt.h>
-#include <hal/gpio.h>
 
 #include "stats.h"
 
@@ -25,55 +21,61 @@
 #define SYN_1_PIN 4, 30
 
 #define GPT_CHANNEL 1
-#define GPT_PERIOD_US 100
 
+static void update_pins(SyncGenerator *self) {
+    hal_gpio_pin_write(&self->pins[0], self->counter % 2 != 0);
+}
+
+void sync_generator_init(SyncGenerator *self, uint32_t period_us, Statistics *stats) {
+    self->period_us = period_us;
+
+    IOMUXC_SetPinMux(SYN_10K_MUX, 0u);
+    IOMUXC_SetPinMux(SYN_1_MUX, 0u);
+
+    hal_gpio_group_init(&self->group);
+    hal_gpio_pin_init(&self->pins[0], &self->group, SYN_10K_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
+    hal_gpio_pin_init(&self->pins[1], &self->group, SYN_1_PIN, HAL_GPIO_INPUT, HAL_GPIO_INTR_DISABLED);
+
+    self->sem = xSemaphoreCreateBinary();
+    hal_assert(self->sem != NULL);
+
+    self->stats = stats;
+
+    self->counter = 0;
+    update_pins(self);
+}
 
 static void handle_gpt(void *data) {
     BaseType_t hptw = pdFALSE;
-    SemaphoreHandle_t *sem = (SemaphoreHandle_t *)data;
+    SyncGenerator *self = (SyncGenerator *)data;
+
+    // Update state and pins
+    self->counter += 1;
+    update_pins(self);
 
     // Notify target task
-    xSemaphoreGiveFromISR(*sem, &hptw);
+    xSemaphoreGiveFromISR(self->sem, &hptw);
 
     // Yield to higher priority task
     portYIELD_FROM_ISR(hptw);
 }
 
 void sync_generator_task(void *param) {
-    Statistics *stats = (Statistics *)param;
-
-    hal_log_info("GPT init");
+    SyncGenerator *self = (SyncGenerator *)param;
 
     HalGpt gpt;
     hal_assert(hal_gpt_init(&gpt, 1) == HAL_SUCCESS);
+    hal_log_info("GPT initialized");
 
-    IOMUXC_SetPinMux(SYN_10K_MUX, 0u);
-    IOMUXC_SetPinMux(SYN_1_MUX, 0u);
-
-    HalGpioGroup group;
-    hal_gpio_group_init(&group);
-    HalGpioPin gpt_pins[2];
-    hal_gpio_pin_init(&gpt_pins[0], &group, SYN_10K_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
-    hal_gpio_pin_init(&gpt_pins[1], &group, SYN_1_PIN, HAL_GPIO_INPUT, HAL_GPIO_INTR_DISABLED);
-    hal_gpio_pin_write(&gpt_pins[0], false);
-
-    SemaphoreHandle_t sem = xSemaphoreCreateBinary();
-    hal_assert(sem != NULL);
-
-    bool pin_state = false;
-    hal_assert(hal_gpt_start(&gpt, GPT_CHANNEL, GPT_PERIOD_US / 2, handle_gpt, (void *)&sem) == HAL_SUCCESS);
+    hal_assert(hal_gpt_start(&gpt, GPT_CHANNEL, self->period_us / 2, handle_gpt, (void *)self) == HAL_SUCCESS);
     for (size_t i = 0;; ++i) {
-        if (xSemaphoreTake(sem, 10000) != pdTRUE) {
+        if (xSemaphoreTake(self->sem, 10000) != pdTRUE) {
             hal_log_info("GPT semaphore timeout %x", i);
             continue;
         }
 
-        // Toggle pin
-        pin_state = !pin_state;
-        hal_gpio_pin_write(&gpt_pins[0], pin_state);
-
-        if (pin_state) {
-            stats->clock_count += 1;
+        if (self->counter % 2 == 1) {
+            self->stats->clock_count += 1;
         }
     }
     hal_panic();
@@ -82,7 +84,6 @@ void sync_generator_task(void *param) {
     hal_assert(hal_gpt_deinit(&gpt) == HAL_SUCCESS);
 }
 
-void sync_generator_run(Statistics *stats) {
-    hal_assert(
-        xTaskCreate(sync_generator_task, "sync", TASK_STACK_SIZE, (void *)stats, SYNC_TASK_PRIORITY, NULL) == pdPASS);
+void sync_generator_run(SyncGenerator *self) {
+    hal_assert(xTaskCreate(sync_generator_task, "sync", TASK_STACK_SIZE, (void *)self, SYNC_TASK_PRIORITY, NULL) == pdPASS);
 }
