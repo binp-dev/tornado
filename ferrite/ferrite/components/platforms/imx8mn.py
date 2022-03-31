@@ -32,11 +32,11 @@ class Imx8mnMcuToolchain(CrossToolchain):
             name="imx8mn",
             target=Target("arm", "none", "eabi"),
             target_dir=target_dir,
-            dir_name="gcc-arm-none-eabi-9-2020-q2-update",
-            archive="gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2",
+            dir_name="gcc-arm-none-eabi-10-2020-q4-major",
+            archive="gcc-arm-none-eabi-10-2020-q4-major-x86_64-linux.tar.bz2",
             urls=[
-                "https://gitlab.inp.nsk.su/psc/storage/-/raw/master/toolchains/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2",
-                "https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2020q2/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2",
+                "https://gitlab.inp.nsk.su/psc/storage/-/raw/master/toolchains/gcc-arm-none-eabi-10-2020-q4-major-x86_64-linux.tar.bz2",
+                "https://developer.arm.com/-/media/Files/downloads/gnu-rm/10-2020q4/gcc-arm-none-eabi-10-2020-q4-major-x86_64-linux.tar.bz2",
             ],
         )
 
@@ -44,7 +44,7 @@ class Imx8mnMcuToolchain(CrossToolchain):
 class Imx8mnFreertos(Freertos):
 
     def __init__(self, target_dir: Path) -> None:
-        branch = "mcuxpresso_sdk_2.9.x-var01"
+        branch = "mcuxpresso_sdk_2.10.x-var01"
         super().__init__(target_dir / branch, branch)
 
 
