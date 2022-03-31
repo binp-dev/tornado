@@ -112,7 +112,7 @@ class EpicsBaseHost(AbstractEpicsBase):
 
     def __init__(self, target_dir: Path, toolchain: HostToolchain):
 
-        self.version = "7.0.4.1"
+        self.version = "7.0.6.1"
         prefix = f"epics_base_{self.version}"
 
         self._toolchain = toolchain

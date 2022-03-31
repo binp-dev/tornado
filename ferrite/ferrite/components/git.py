@@ -42,6 +42,9 @@ class RepoSource:
     remote: str
     branch: Optional[str]
 
+    def __repr__(self) -> str:
+        return f"'{self.remote}'" + f", branch '{self.branch}'" if self.branch is not None else ""
+
 
 class GitCloneTask(Task):
 
@@ -59,6 +62,7 @@ class GitCloneTask(Task):
                 return
             except RunError as e:
                 last_error = e
+                logger.warning(f"Failed to clone {source}: {e}")
                 continue
         if last_error is not None:
             raise last_error
