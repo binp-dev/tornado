@@ -59,11 +59,21 @@ class SshDevice(Device):
 
         self.user = user
 
-    def store(self, src: Path, dst: PurePosixPath, recursive: bool = False) -> None:
+    def store(self, src: Path, dst: PurePosixPath, recursive: bool = False, exclude: List[str] = []) -> None:
         if not recursive:
+            assert len(exclude) == 0, "'exclude' is not supported"
             run(["bash", "-c", f"test -f {src} && cat {src} | ssh -p {self.port} {self.user}@{self.host} 'cat > {dst}'"])
         else:
-            run(["rsync", "-rlpt", "--progress", "--rsh", f"ssh -p {self.port}", f"{src}/", f"{self.user}@{self.host}:{dst}"])
+            run([
+                "rsync",
+                "-rlpt",
+                *["--exclude=" + mask.replace('*', '**') for mask in exclude],
+                "--progress",
+                "--rsh",
+                f"ssh -p {self.port}",
+                f"{src}/",
+                f"{self.user}@{self.host}:{dst}",
+            ])
 
     def store_mem(self, src_data: str, dst_path: PurePosixPath) -> None:
         logger.debug(f"Store {len(src_data)} chars to {self.name()}:{dst_path}")

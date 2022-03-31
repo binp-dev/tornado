@@ -132,17 +132,22 @@ class IocCross(AbstractIoc):
 
         def __init__(
             self,
-            install_dir: Path,
+            owner: IocCross,
             deploy_dir: PurePosixPath,
             epics_deploy_path: PurePosixPath,
             deps: List[Task],
         ):
-            super().__init__(install_dir, deploy_dir, deps)
+            self._owner = owner
+            super().__init__(deploy_dir, deps)
             self.epics_deploy_path = epics_deploy_path
+
+        @property
+        def owner(self) -> IocCross:
+            return self._owner
 
         def _post(self, ctx: Context) -> None:
             assert ctx.device is not None
-            boot_dir = self.install_dir / "iocBoot"
+            boot_dir = self.owner.install_path / "iocBoot"
             for ioc_name in [path.name for path in boot_dir.iterdir()]:
                 ioc_dirs = boot_dir / ioc_name
                 if not ioc_dirs.is_dir():
@@ -152,9 +157,9 @@ class IocCross(AbstractIoc):
                     continue
                 with open(env_path, "r") as f:
                     text = f.read()
-                text = re.sub(r'(epicsEnvSet\("TOP",)[^\n]+', f'\\1"{self.deploy_dir}")', text)
+                text = re.sub(r'(epicsEnvSet\("TOP",)[^\n]+', f'\\1"{self.deploy_path}")', text)
                 text = re.sub(r'(epicsEnvSet\("EPICS_BASE",)[^\n]+', f'\\1"{self.epics_deploy_path}")', text)
-                ctx.device.store_mem(text, self.deploy_dir / "iocBoot" / ioc_name / "envPaths")
+                ctx.device.store_mem(text, self.deploy_path / "iocBoot" / ioc_name / "envPaths")
 
     class RunTask(FinalTask):
 
@@ -203,7 +208,7 @@ class IocCross(AbstractIoc):
         self.deploy_path = PurePosixPath("/opt/ioc")
 
         self.deploy_task = self.DeployTask(
-            self.install_path,
+            self,
             self.deploy_path,
             self.epics_base.deploy_path,
             [self.build_task],
