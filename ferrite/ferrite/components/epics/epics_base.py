@@ -26,7 +26,7 @@ class AbstractEpicsBase(AbstractEpicsProject):
             defs = [
                 #("USR_CFLAGS", ""),
                 #("USR_CPPFLAGS", ""),
-                ("USR_CXXFLAGS", "-std=c++17"),
+                ("USR_CXXFLAGS", "-std=c++20"),
                 ("BIN_PERMISSIONS", "755"),
                 ("LIB_PERMISSIONS", "644"),
                 ("SHRLIB_PERMISSIONS", "755"),

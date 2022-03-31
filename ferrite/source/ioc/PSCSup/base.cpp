@@ -28,9 +28,7 @@ ScanLockGuard &ScanLockGuard::operator=(const ScanLockGuard &&other) {
 }
 
 
-EpicsRecord::EpicsRecord(dbCommon *raw) :
-    raw_(raw)
-{
+EpicsRecord::EpicsRecord(dbCommon *raw) : raw_(raw) {
     init_async_processing_callback(&async_callback_);
 }
 
