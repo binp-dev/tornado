@@ -10,6 +10,7 @@ import asyncio
 from ferrite.utils.asyncio import with_background
 from ferrite.utils.epics.ioc import make_ioc
 from ferrite.utils.epics.asyncio import Context, Pv, PvType
+import ferrite.utils.epics.ca as ca
 
 from tornado.common.config import read_common_config
 from tornado.ioc.fakedev.base import FakeDev
@@ -152,17 +153,19 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
     await with_background(run_check(config), watch_adcs())
 
 
-def run(source_dir: Path, ioc_dir: Path, arch: str) -> None:
+def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
     os.environ["EPICS_CA_ADDR_LIST"] = "127.0.0.1"
     os.environ["EPICS_CA_AUTO_ADDR_LIST"] = "NO"
 
     ioc = make_ioc(ioc_dir, arch)
+    repeater = ca.Repeater(epics_base_dir / "bin" / arch)
 
     config = read_common_config(source_dir)
     handler = Handler(config)
     device = FakeDev(ioc, config, handler)
 
-    asyncio.run(with_background(
-        async_run(device.config, handler),
-        device.run(),
-    ))
+    with repeater:
+        asyncio.run(with_background(
+            async_run(device.config, handler),
+            device.run(),
+        ))
