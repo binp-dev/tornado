@@ -18,8 +18,8 @@ void init_device(MaybeUninit<Device> &mem) {
 }
 
 /// We use LazyStatic to initialize global Device without global constructor.
+/// NOTE: Must subject to [constant initialization](https://en.cppreference.com/w/cpp/language/constant_initialization).
 LazyStatic<Device, init_device> DEVICE = {};
-static_assert(std::is_pod_v<decltype(DEVICE)>);
 
 
 void framework_init() {

@@ -17,7 +17,7 @@ class AppIocHost(AbstractAppIoc, IocHost):
 
     class RunTask(Task):
 
-        def __init__(self, owner: AppIocHost, run_fn: Callable[[Path, Path, str], None]) -> None:
+        def __init__(self, owner: AppIocHost, run_fn: Callable[[Path, Path, Path, str], None]) -> None:
             super().__init__()
             self.owner = owner
             self.run_fn = run_fn
@@ -25,6 +25,7 @@ class AppIocHost(AbstractAppIoc, IocHost):
         def run(self, ctx: Context) -> None:
             self.run_fn(
                 self.owner.source_dir,
+                self.owner.epics_base.install_path,
                 self.owner.install_path,
                 self.owner.arch,
             )

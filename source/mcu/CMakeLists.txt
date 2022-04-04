@@ -1,6 +1,6 @@
 # CROSS COMPILER SETTING
 SET(CMAKE_SYSTEM_NAME Generic)
-CMAKE_MINIMUM_REQUIRED (VERSION 3.1.1)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.10.0)
 
 # THE VERSION NUMBER
 SET (Tutorial_VERSION_MAJOR 1)
@@ -83,7 +83,7 @@ set(CMAKE_MODULE_PATH
     $ENV{FREERTOS_DIR}/components/uart
     $ENV{FREERTOS_DIR}/components/serial_manager
     $ENV{FREERTOS_DIR}/components/lists
-    $ENV{FREERTOS_DIR}/CMSIS/Include
+    $ENV{FREERTOS_DIR}/CMSIS/Core/Include
 )
 
 # include modules
@@ -105,9 +105,7 @@ include(device_MIMX8MN6_startup_MIMX8MN6)
 include(utility_assert_MIMX8MN6)
 include(middleware_multicore_rpmsg_lite_MIMX8MN6)
 include(middleware_freertos-kernel_extension_MIMX8MN6)
-include(CMSIS_Include_core_cm7_MIMX8MN6)
-include(CMSIS_Include_common_MIMX8MN6)
-include(CMSIS_Include_dsp_MIMX8MN6)
+include(CMSIS_Include_core_cm_MIMX8MN6)
 include(utilities_misc_utilities_MIMX8MN6)
 include(device_MIMX8MN6_system_MIMX8MN6)
 include(driver_ecspi_MIMX8MN6)
