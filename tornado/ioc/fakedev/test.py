@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, List
+from typing import Awaitable, Callable, Coroutine, Dict, List
 
 import os
 import math
@@ -10,9 +10,10 @@ import asyncio
 from ferrite.utils.asyncio import with_background
 from ferrite.utils.epics.ioc import make_ioc
 from ferrite.utils.epics.asyncio import Context, Pv, PvType
+from ferrite.utils.progress import CountBar
 import ferrite.utils.epics.ca as ca
 
-from tornado.common.config import read_common_config
+from tornado.common.config import Config, read_common_config
 from tornado.ioc.fakedev.base import FakeDev
 
 import logging
@@ -89,9 +90,9 @@ class Handler(FakeDev.Handler):
         await self._check_wf(index, adc_subwf)
 
 
-async def async_run(config: FakeDev.Config, handler: Handler) -> None:
+async def async_run(config: Config, handler: Handler) -> None:
     ctx = Context()
-    aais = [await ctx.connect(f"aai{i}", PvType.ARRAY_FLOAT) for i in range(config.common.adc_count)]
+    aais = [await ctx.connect(f"aai{i}", PvType.ARRAY_FLOAT) for i in range(config.adc_count)]
     aao = await ctx.connect("aao0", PvType.ARRAY_FLOAT)
     aao_request = await ctx.connect("aao0_request", PvType.BOOL)
     aao_cyclic = await ctx.connect("aao0_cyclic", PvType.BOOL)
@@ -104,9 +105,9 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
     async def write_and_check_dac(array: List[float]) -> None:
         await aao.put(array)
         await handler.check_dac(array)
-        logger.debug(f"DAC of size {len(array)} is correct")
+        #logger.debug(f"DAC of size {len(array)} is correct")
 
-    adcs_samples_count = [0] * config.common.adc_count
+    adcs_samples_count = [0] * config.adc_count
 
     async def watch_single_adc(index: int, adc_pv: Pv[List[float]]) -> None:
         async with adc_pv.monitor() as mon:
@@ -115,7 +116,7 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
                     continue
                 await handler.check_adc(index, array)
                 adcs_samples_count[index] += len(array)
-                logger.debug(f"ADC[{index}] of size {len(array)} is correct")
+                #logger.debug(f"ADC[{index}] of size {len(array)} is correct")
 
     async def watch_adcs() -> None:
         await asyncio.gather(*[watch_single_adc(i, pv) for i, pv in enumerate(aais)])
@@ -126,29 +127,49 @@ async def async_run(config: FakeDev.Config, handler: Handler) -> None:
                 if int(flag) != 0:
                     break
 
-    async def run_check(config: FakeDev.Config) -> None:
-        dac_mag = config.common.dac_max_abs_v
+    async def run_check(config: Config) -> None:
+        dac_mag = config.dac_max_abs_v
+        attempts = 64
+        timeout = 10.0
+
+        async def check_attempts(check: Callable[[], Awaitable[None]]) -> None:
+            bar = CountBar(total_count=attempts)
+            bar.print()
+            for i in range(attempts):
+                await asyncio.wait_for(check(), timeout)
+                bar.current_count = i + 1
+                bar.print()
+            bar.print()
+            print()
 
         logger.info("Set one-shot DAC playback mode")
         await aao_cyclic.put(False)
 
         logger.info("Check full-size DAC waveform")
-        await wait_dac_req()
-        await write_and_check_dac([dac_mag * x / wf_size for x in range(wf_size)])
+
+        async def check_full() -> None:
+            await wait_dac_req()
+            await write_and_check_dac([dac_mag * x / wf_size for x in range(wf_size)])
+
+        await check_attempts(check_full)
 
         logger.info("Check two half-size DAC waveforms")
-        await wait_dac_req()
-        await write_and_check_dac([dac_mag * x / wf_size for x in range(0, -wf_size, -2)])
-        await wait_dac_req()
-        await write_and_check_dac([dac_mag * x / wf_size for x in range(-wf_size, 0, 2)])
+
+        async def check_half() -> None:
+            await wait_dac_req()
+            await write_and_check_dac([dac_mag * x / wf_size for x in range(0, -wf_size, -2)])
+            await wait_dac_req()
+            await write_and_check_dac([dac_mag * x / wf_size for x in range(-wf_size, 0, 2)])
+
+        await check_attempts(check_half)
 
         logger.info("Flush DAC and check all ADCs")
         await wait_dac_req()
         # Flush FakeDev chunk buffer
-        await write_and_check_dac([0.0] * config.adc_chunk_size)
+        await write_and_check_dac([0.0] * FakeDev.REQUEST_SIZE)
         await asyncio.sleep(0.5)
         # Check total ADCs samples count
-        assert all([sc >= 2 * wf_size for sc in adcs_samples_count])
+        assert all([sc == 2 * wf_size * attempts for sc in adcs_samples_count])
 
     await with_background(run_check(config), watch_adcs())
 

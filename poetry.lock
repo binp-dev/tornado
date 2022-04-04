@@ -62,7 +62,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
 name = "conan"
-version = "1.46.2"
+version = "1.47.0"
 description = "Conan C/C++ package manager"
 category = "main"
 optional = false
@@ -414,7 +414,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "tqdm"
-version = "4.63.1"
+version = "4.64.0"
 description = "Fast, Extensible Progress Meter"
 category = "main"
 optional = false
@@ -426,11 +426,12 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 [package.extras]
 dev = ["py-make (>=0.1.0)", "twine", "wheel"]
 notebook = ["ipywidgets (>=6)"]
+slack = ["slack-sdk"]
 telegram = ["requests"]
 
 [[package]]
 name = "types-colorama"
-version = "0.4.9"
+version = "0.4.10"
 description = "Typing stubs for colorama"
 category = "main"
 optional = false
@@ -579,7 +580,7 @@ colorama = [
     {file = "colorama-0.4.4.tar.gz", hash = "sha256:5941b2b48a20143d2267e95b1c2a7603ce057ee39fd88e7329b0c292aa16869b"},
 ]
 conan = [
-    {file = "conan-1.46.2.tar.gz", hash = "sha256:01f9dc2e6fc180db934a05e2bc20892d55d2af396173139663a4f15d54aa7f61"},
+    {file = "conan-1.47.0.tar.gz", hash = "sha256:c0f066be1871ae23a9dbe7465929ae38f221531b7025f85cdd56d4790c1816be"},
 ]
 cryptography = [
     {file = "cryptography-36.0.2-cp36-abi3-macosx_10_10_universal2.whl", hash = "sha256:4e2dddd38a5ba733be6a025a1475a9f45e4e41139d1321f412c6b360b19070b6"},
@@ -882,12 +883,12 @@ tomli = [
     {file = "tomli-2.0.1.tar.gz", hash = "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"},
 ]
 tqdm = [
-    {file = "tqdm-4.63.1-py2.py3-none-any.whl", hash = "sha256:6461b009d6792008d0000e1b0c7ca50195ec78c0e808a3a6b668a56a3236c3a5"},
-    {file = "tqdm-4.63.1.tar.gz", hash = "sha256:4230a49119a416c88cc47d0d2d32d5d90f1a282d5e497d49801950704e49863d"},
+    {file = "tqdm-4.64.0-py2.py3-none-any.whl", hash = "sha256:74a2cdefe14d11442cedf3ba4e21a3b84ff9a2dbdc6cfae2c34addb2a14a5ea6"},
+    {file = "tqdm-4.64.0.tar.gz", hash = "sha256:40be55d30e200777a307a7585aee69e4eabb46b4ec6a4b4a5f2d9f11e7d5408d"},
 ]
 types-colorama = [
-    {file = "types-colorama-0.4.9.tar.gz", hash = "sha256:e801e56c86b0b113d107b12971a473b4538f27195e65ac5ccb99cb4b3332c572"},
-    {file = "types_colorama-0.4.9-py3-none-any.whl", hash = "sha256:757319bb0e8ba412d8df03374bbd221009b0a243e1a89fc6bd37e1c1f3c36a50"},
+    {file = "types-colorama-0.4.10.tar.gz", hash = "sha256:474fc6b0ed83cd341189ac6f78b93393dfd6b61800a82ddf4fc2032f4700b4e7"},
+    {file = "types_colorama-0.4.10-py3-none-any.whl", hash = "sha256:44e46305172d66d1c65054745cd256e37b68a10abec4ce005a862afe21feca6a"},
 ]
 types-cryptography = [
     {file = "types-cryptography-3.3.18.tar.gz", hash = "sha256:448feaf9ae31226149bc6bce1cf8fff54da661ef04837f7c0c316829885c3628"},
