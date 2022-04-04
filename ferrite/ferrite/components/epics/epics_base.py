@@ -26,7 +26,7 @@ class AbstractEpicsBase(AbstractEpicsProject):
             defs = [
                 #("USR_CFLAGS", ""),
                 #("USR_CPPFLAGS", ""),
-                ("USR_CXXFLAGS", "-std=c++17"),
+                ("USR_CXXFLAGS", "-std=c++20"),
                 ("BIN_PERMISSIONS", "755"),
                 ("LIB_PERMISSIONS", "644"),
                 ("SHRLIB_PERMISSIONS", "755"),
@@ -112,7 +112,7 @@ class EpicsBaseHost(AbstractEpicsBase):
 
     def __init__(self, target_dir: Path, toolchain: HostToolchain):
 
-        self.version = "7.0.4.1"
+        self.version = "7.0.6.1"
         prefix = f"epics_base_{self.version}"
 
         self._toolchain = toolchain
@@ -197,6 +197,25 @@ class EpicsBaseCross(AbstractEpicsBase):
                 ignore=allow_patterns("*.pl", "*.py"),
             )
 
+    class DeployTask(AbstractEpicsProject.DeployTask):
+
+        def __init__(self, owner: EpicsBaseCross, deploy_path: PurePosixPath, deps: List[Task]):
+            self._owner = owner
+
+            super().__init__(
+                deploy_path,
+                deps=deps,
+                blacklist=[
+                    "*.a",
+                    "include/*",
+                    f"*/{self.owner.host_base.arch}/*",
+                ],
+            )
+
+        @property
+        def owner(self) -> EpicsBaseCross:
+            return self._owner
+
     def __init__(self, target_dir: Path, toolchain: CrossToolchain, host_base: EpicsBaseHost):
 
         self._toolchain = toolchain
@@ -219,7 +238,7 @@ class EpicsBaseCross(AbstractEpicsBase):
             ],
         )
         self.deploy_task = self.DeployTask(
-            self.install_path,
+            self,
             self.deploy_path,
             [self.build_task],
         )

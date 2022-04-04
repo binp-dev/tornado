@@ -14,13 +14,13 @@ class Imx8mnAppToolchain(CrossToolchain):
     def __init__(self, target_dir: Path) -> None:
         super().__init__(
             name="imx8mn",
-            target=Target("aarch64", "linux", "gnu"),
+            target=Target("aarch64", "none", "linux", "gnu"),
             target_dir=target_dir,
-            dir_name="gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu",
-            archive="gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz",
+            dir_name="gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu",
+            archive="gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu.tar.xz",
             urls=[
-                "https://gitlab.inp.nsk.su/psc/storage/-/raw/master/toolchains/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz",
-                "http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/aarch64-linux-gnu/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz",
+                "https://gitlab.inp.nsk.su/psc/storage/-/raw/master/toolchains/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu.tar.xz",
+                "https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu.tar.xz",
             ],
         )
 
@@ -32,11 +32,11 @@ class Imx8mnMcuToolchain(CrossToolchain):
             name="imx8mn",
             target=Target("arm", "none", "eabi"),
             target_dir=target_dir,
-            dir_name="gcc-arm-none-eabi-9-2020-q2-update",
-            archive="gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2",
+            dir_name="gcc-arm-none-eabi-10-2020-q4-major",
+            archive="gcc-arm-none-eabi-10-2020-q4-major-x86_64-linux.tar.bz2",
             urls=[
-                "https://gitlab.inp.nsk.su/psc/storage/-/raw/master/toolchains/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2",
-                "https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2020q2/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2",
+                "https://gitlab.inp.nsk.su/psc/storage/-/raw/master/toolchains/gcc-arm-none-eabi-10-2020-q4-major-x86_64-linux.tar.bz2",
+                "https://developer.arm.com/-/media/Files/downloads/gnu-rm/10-2020q4/gcc-arm-none-eabi-10-2020-q4-major-x86_64-linux.tar.bz2",
             ],
         )
 
@@ -44,7 +44,7 @@ class Imx8mnMcuToolchain(CrossToolchain):
 class Imx8mnFreertos(Freertos):
 
     def __init__(self, target_dir: Path) -> None:
-        branch = "mcuxpresso_sdk_2.9.x-var01"
+        branch = "mcuxpresso_sdk_2.10.x-var01"
         super().__init__(target_dir / branch, branch)
 
 

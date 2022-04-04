@@ -69,12 +69,12 @@ imx8mn.app_toolchain.download:
     - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.app_toolchain.download
   artifacts:
     paths:
-      - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
+      - target/toolchain_gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu
   cache:
     - *global_cache
-    - key: "imx8mn.app_toolchain.download:f68a15dd"
+    - key: "imx8mn.app_toolchain.download:f93a1603"
       paths:
-        - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
+        - target/toolchain_gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu
 
 host.core_test.run:
   stage: "1"

@@ -5,6 +5,7 @@
 
 #include "maybe_uninit.hpp"
 
+// NOTE: Must subject to [constant initialization](https://en.cppreference.com/w/cpp/language/constant_initialization).
 template <typename T, void F(MaybeUninit<T> &)>
 class LazyStatic {
 private:
@@ -21,7 +22,7 @@ private:
     }
 
 public:
-    LazyStatic() = default;
+    constexpr LazyStatic() = default;
     ~LazyStatic() = default;
 
     LazyStatic(const LazyStatic &) = delete;

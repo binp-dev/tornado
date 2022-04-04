@@ -3,7 +3,7 @@ from typing import List
 
 import shutil
 from pathlib import Path, PurePosixPath
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ferrite.utils.run import capture, run
 from ferrite.components.base import Artifact, Component, Task, Context
@@ -92,18 +92,15 @@ class AbstractEpicsProject(Component):
                 Artifact(self.install_dir, cached=self.cached),
             ]
 
+    @dataclass
     class DeployTask(Task):
+        deploy_path: PurePosixPath
+        deps: List[Task]
+        blacklist: List[str] = field(default_factory=lambda: [])
 
-        def __init__(
-            self,
-            install_dir: Path,
-            deploy_dir: PurePosixPath,
-            deps: List[Task],
-        ):
-            super().__init__()
-            self.install_dir = install_dir
-            self.deploy_dir = deploy_dir
-            self.deps = deps
+        @property
+        def owner(self) -> AbstractEpicsProject:
+            raise NotImplementedError()
 
         def _pre(self, ctx: Context) -> None:
             pass
@@ -114,11 +111,12 @@ class AbstractEpicsProject(Component):
         def run(self, ctx: Context) -> None:
             assert ctx.device is not None
             self._pre(ctx)
-            logger.info(f"Deploy {self.install_dir} to {ctx.device.name()}:{self.deploy_dir}")
+            logger.info(f"Deploy {self.owner.install_path} to {ctx.device.name()}:{self.deploy_path}")
             ctx.device.store(
-                self.install_dir,
-                self.deploy_dir,
+                self.owner.install_path,
+                self.deploy_path,
                 recursive=True,
+                exclude=self.blacklist,
             )
             self._post(ctx)
 

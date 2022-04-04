@@ -28,13 +28,17 @@ class IocRemoteRunner:
         self.proc: Optional[Connection] = None
 
     def __enter__(self) -> None:
+        lib_dirs = [
+            self.epics_deploy_path / "lib" / self.arch,
+            self.deploy_path / "lib" / self.arch,
+        ]
         self.proc = self.device.run(
             [
                 "bash",
                 "-c",
                 "export {}; export {}; cd {} && {} {}".format(
                     f"TOP={self.deploy_path}",
-                    f"LD_LIBRARY_PATH={self.epics_deploy_path}/lib/{self.arch}:{self.deploy_path}/lib/{self.arch}",
+                    "LD_LIBRARY_PATH={}".format(":".join(map(str, lib_dirs))),
                     f"{self.deploy_path}/iocBoot/iocPSC",
                     f"{self.deploy_path}/bin/{self.arch}/PSC",
                     "st.cmd",

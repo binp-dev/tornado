@@ -1,31 +1,50 @@
 from __future__ import annotations
-from typing import Dict, List
+from typing import Dict, List, overload
 
 import shutil
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from dataclasses import dataclass
 
 from ferrite.utils.run import capture
 from ferrite.utils.net import download_alt
 from ferrite.components.base import Artifact, Component, Task, Context
+from ferrite.remote.base import Device
 
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
 class Target:
-    isa: str # Instruction set architecture
-    api: str
-    abi: str
+
+    @overload
+    def __init__(self, isa: str, api: str, abi: str, /) -> None:
+        ...
+
+    @overload
+    def __init__(self, isa: str, vendor: str, api: str, abi: str, /) -> None:
+        ...
+
+    def __init__(self, *args: str) -> None:
+        if len(args) == 3:
+            self.isa, self.api, self.abi = args
+            self.vendor = None
+        elif len(args) == 4:
+            self.isa, self.vendor, self.api, self.abi = args
+        else:
+            raise TypeError(f"Target() takes 3 or 4 positional arguments but {len(args)} was given")
 
     @staticmethod
-    def from_str(triple: str) -> Target:
-        return Target(*triple.split("-"))
+    def from_str(target: str) -> Target:
+        return Target(*target.split("-"))
 
     def __str__(self) -> str:
-        return f"{self.isa}-{self.api}-{self.abi}"
+        return "-".join([
+            self.isa,
+            *([self.vendor] if self.vendor is not None else []),
+            self.api,
+            self.abi,
+        ])
 
 
 @dataclass
@@ -48,7 +67,7 @@ class CrossToolchain(Toolchain):
 
     class DownloadTask(Task):
 
-        def __init__(self, owner: CrossToolchain):
+        def __init__(self, owner: CrossToolchain) -> None:
             super().__init__()
             self.owner = owner
 
@@ -57,6 +76,16 @@ class CrossToolchain(Toolchain):
 
         def artifacts(self) -> List[Artifact]:
             return [Artifact(self.owner.path, cached=self.owner.cached)]
+
+    class DeployTask(Task):
+
+        def __init__(self, owner: CrossToolchain) -> None:
+            super().__init__()
+            self.owner = owner
+
+        def run(self, ctx: Context) -> None:
+            assert ctx.device is not None
+            self.owner.deploy(ctx.device)
 
     def __init__(self, name: str, target: Target, target_dir: Path, dir_name: str, archive: str, urls: List[str]):
         super().__init__(name, target, cached=True)
@@ -68,8 +97,10 @@ class CrossToolchain(Toolchain):
         self.urls = urls
 
         self.path = target_dir / f"toolchain_{self.dir_name}"
+        self.deploy_path = PurePosixPath("/opt/toolchain")
 
         self.download_task = self.DownloadTask(self)
+        self.deploy_task = self.DeployTask(self)
 
     def download(self) -> bool:
         if self.path.exists():
@@ -99,7 +130,18 @@ class CrossToolchain(Toolchain):
 
         return True
 
+    def deploy(self, device: Device) -> None:
+        src_path = Path(self.path, str(self.target))
+        logger.info(f"Deploy {src_path} to {device.name()}:{self.deploy_path}")
+        device.store(
+            src_path,
+            self.deploy_path,
+            recursive=True,
+            exclude=["include/*", "*.a", "*.o"],
+        )
+
     def tasks(self) -> Dict[str, Task]:
         return {
             "download": self.download_task,
+            "deploy": self.deploy_task,
         }

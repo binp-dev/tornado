@@ -11,16 +11,16 @@
 
 #include <cxxabi.h>
 
+/// NOTE: Must subject to [constant initialization](https://en.cppreference.com/w/cpp/language/constant_initialization).
 using PanicHook = std::atomic<void (*)()>;
-static_assert(std::is_pod_v<PanicHook>);
 static PanicHook panic_hook;
 
-void set_panic_hook(void(*hook)()) {
+void set_panic_hook(void (*hook)()) {
     panic_hook.store(hook);
 }
 
 static void print_backtrace() {
-    static const size_t MAX_SIZE = 64; 
+    static const size_t MAX_SIZE = 64;
     void *array[MAX_SIZE];
     const size_t size = backtrace(array, MAX_SIZE);
     std::cout << "BACKTRACE (" << size << "):" << std::endl;
@@ -42,7 +42,7 @@ static void print_backtrace() {
         const std::string loc = match[1], shift = match[3], addr = match[4];
 
         std::string name = match[2];
-        if (name.size() > 0) { 
+        if (name.size() > 0) {
             int status = -4;
             char *name_ptr = abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status);
             if (status == 0 && name_ptr != nullptr) {

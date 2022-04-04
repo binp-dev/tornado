@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 
 #include <dbCommon.h>
 #include <callback.h>
@@ -28,8 +29,7 @@ public:
 };
 
 // A persistent EPICS record wrapper and private data container.
-class EpicsRecord : public virtual Record
-{
+class EpicsRecord : public virtual Record {
 private:
     // Raw record pointer. *Must be always valid.*
     // TODO: Does EPICS guarantee that this pointer has persistent address?
@@ -67,7 +67,7 @@ private:
     // Implicit record locking.
     [[nodiscard]] ScanLockGuard scan_lock();
 
-    // Internal methods for asynchronous processing pipeline. 
+    // Internal methods for asynchronous processing pipeline.
     void notify_async_processing_complete();
     void schedule_async_processing();
     void process_async();

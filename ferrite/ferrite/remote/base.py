@@ -16,7 +16,7 @@ class Device:
     def name(self) -> str:
         raise NotImplementedError()
 
-    def store(self, local_path: Path, remote_path: PurePosixPath, recursive: bool = False) -> None:
+    def store(self, local_path: Path, remote_path: PurePosixPath, recursive: bool = False, exclude: List[str] = []) -> None:
         raise NotImplementedError()
 
     def store_mem(self, src_data: str, dst_path: PurePosixPath) -> None:
