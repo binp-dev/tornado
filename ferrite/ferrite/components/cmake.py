@@ -17,8 +17,8 @@ class Cmake(Component):
         owner: Cmake
 
         def run(self, ctx: Context) -> None:
-            self.owner.configure(ctx)
-            self.owner.build(ctx)
+            self.owner.configure(capture=ctx.capture)
+            self.owner.build(jobs=ctx.jobs, capture=ctx.capture)
 
         def dependencies(self) -> List[Task]:
             deps: List[Task] = []
@@ -50,7 +50,7 @@ class Cmake(Component):
         assert all((len(ds) == 2 for ds in deflist))
         return {k: v for k, v in deflist}
 
-    def configure(self, ctx: Context) -> None:
+    def configure(self, capture: bool = False) -> None:
         self.create_build_dir()
         run(
             [
@@ -60,10 +60,10 @@ class Cmake(Component):
             ],
             cwd=self.build_dir,
             add_env=self.envs,
-            quiet=ctx.capture,
+            quiet=capture,
         )
 
-    def build(self, ctx: Context, verbose: bool = False) -> None:
+    def build(self, jobs: Optional[int] = None, capture: bool = False, verbose: bool = False) -> None:
         run(
             [
                 "cmake",
@@ -71,10 +71,11 @@ class Cmake(Component):
                 self.build_dir,
                 *["--target", self.target],
                 "--parallel",
+                *([str(jobs)] if jobs is not None else []),
                 *(["--verbose"] if verbose else []),
             ],
             cwd=self.build_dir,
-            quiet=ctx.capture,
+            quiet=capture,
         )
 
     def tasks(self) -> Dict[str, Task]:

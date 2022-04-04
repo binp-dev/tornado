@@ -33,12 +33,12 @@ class McuBase(Cmake):
         def dependencies(self) -> List[Task]:
             return [self.owner.build_task]
 
-    def configure(self, ctx: Context) -> None:
+    def configure(self, capture: bool = False) -> None:
         # Workaround to disable cmake caching (incremental build is broken anyway)
         if self.build_dir.exists():
             shutil.rmtree(self.build_dir)
 
-        super().configure(ctx)
+        super().configure(capture=capture)
 
     def __init__(
         self,

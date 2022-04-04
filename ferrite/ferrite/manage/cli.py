@@ -82,6 +82,14 @@ def add_parser_args(parser: argparse.ArgumentParser, comp: Component) -> None:
         action="store_true",
         help="Display task stdout.",
     )
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        metavar="<N>",
+        default=None,
+        help="Number of parallel process to build. By default automatically determined value is used.",
+    )
 
 
 class ReadRunParamsError(RuntimeError):
@@ -110,11 +118,10 @@ def _make_context_from_args(args: argparse.Namespace) -> Context:
     if args.device:
         device = SshDevice(args.device)
 
-    capture = not args.no_capture
-
     return Context(
         device=device,
-        capture=capture,
+        capture=not args.no_capture,
+        jobs=args.jobs,
     )
 
 

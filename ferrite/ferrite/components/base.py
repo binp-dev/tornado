@@ -11,6 +11,7 @@ from ferrite.remote.base import Device
 class Context:
     device: Optional[Device] = None
     capture: bool = False
+    jobs: Optional[int] = None
 
 
 @dataclass

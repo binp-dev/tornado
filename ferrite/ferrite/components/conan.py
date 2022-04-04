@@ -153,7 +153,7 @@ class ConanProfile:
 @dataclass
 class CmakeWithConan(Cmake):
 
-    def configure(self, ctx: Context) -> None:
+    def configure(self, capture: bool = False) -> None:
         self.create_build_dir()
 
         profile_path = self.build_dir / "profile.conan"
@@ -170,10 +170,10 @@ class CmakeWithConan(Cmake):
         run(
             ["conan", "install", conanfile_path, "--profile", profile_path, "--build", "missing"],
             cwd=self.build_dir,
-            quiet=ctx.capture,
+            quiet=capture,
         )
 
-        super().configure(ctx)
+        super().configure(capture=capture)
 
 
 @dataclass

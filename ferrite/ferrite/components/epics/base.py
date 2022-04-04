@@ -77,7 +77,15 @@ class AbstractEpicsProject(Component):
             self._configure()
 
             logger.info(f"Build {self.build_dir}")
-            run(["make", "--jobs"], cwd=self.build_dir, quiet=ctx.capture)
+            run(
+                [
+                    "make",
+                    "--jobs",
+                    *([str(ctx.jobs)] if ctx.jobs is not None else []),
+                ],
+                cwd=self.build_dir,
+                quiet=ctx.capture,
+            )
 
             logger.info(f"Install {self.build_dir} to {self.install_dir}")
             self.install_dir.mkdir(exist_ok=True)
