@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 from ferrite.utils.files import substitute
-from ferrite.components.base import Task
+from ferrite.components.base import Context, Task
 from ferrite.components.app import AppBase
 from ferrite.components.epics.epics_base import AbstractEpicsBase
 from ferrite.components.epics.ioc import AbstractIoc
@@ -34,6 +34,21 @@ class AbstractAppIoc(AbstractIoc):
         def owner(self) -> AbstractAppIoc:
             return self._app_owner
 
+        def _dep_paths(self) -> List[Path]:
+            return [
+                *super()._dep_paths(),
+                self.core_src_dir,
+                self.app_base_src_dir,
+            ]
+
+        def _store_app_lib(self) -> None:
+            lib_dir = self.install_dir / "lib" / self.owner.arch
+            lib_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(
+                self.app_build_dir / self.app_lib_name,
+                lib_dir / self.app_lib_name,
+            )
+
         def _configure(self) -> None:
             super()._configure()
 
@@ -47,12 +62,13 @@ class AbstractAppIoc(AbstractIoc):
                 self.build_dir / "configure/CONFIG_SITE.local",
             )
 
-            lib_dir = self.install_dir / "lib" / self.owner.arch
-            lib_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(
-                self.app_build_dir / self.app_lib_name,
-                lib_dir / self.app_lib_name,
-            )
+            self._store_app_lib()
+
+        def run(self, ctx: Context) -> None:
+            super().run(ctx)
+
+            # Copy App shared lib to the IOC even if IOC wasn't built.
+            self._store_app_lib()
 
     def _build_deps(self) -> List[Task]:
         deps = super()._build_deps()

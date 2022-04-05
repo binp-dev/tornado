@@ -5,10 +5,10 @@ import shutil
 from pathlib import Path, PurePosixPath
 
 from ferrite.utils.files import substitute, allow_patterns
-from ferrite.components.base import Task, Context
+from ferrite.components.base import Task
 from ferrite.components.git import RepoList, RepoSource
 from ferrite.components.toolchain import HostToolchain, CrossToolchain
-from ferrite.components.epics.base import AbstractEpicsProject, epics_host_arch, epics_arch_by_target
+from ferrite.components.epics.base import AbstractEpicsProject
 
 import logging
 
@@ -74,18 +74,6 @@ class AbstractEpicsBase(AbstractEpicsProject):
                     symlinks=True,
                     ignore=shutil.ignore_patterns("O.*"),
                 )
-
-        def run(self, ctx: Context) -> None:
-            done_path = self.build_dir / "build.done"
-            if done_path.exists():
-                with open(done_path, "r") as f:
-                    if Path(f.read()) == self.build_dir:
-                        logger.info(f"'{self.build_dir}' is already built")
-                        return
-
-            super().run(ctx)
-            with open(done_path, "w") as f:
-                f.write(str(self.build_dir))
 
     @property
     def build_task(self) -> AbstractEpicsBase.BuildTask:

@@ -39,6 +39,9 @@ class AbstractIoc(AbstractEpicsProject):
             for ioc_dirs in self.owner.ioc_dirs:
                 shutil.copytree(ioc_dirs, self.src_dir, dirs_exist_ok=True)
 
+        def _dep_paths(self) -> List[Path]:
+            return self.owner.ioc_dirs
+
         def _configure(self) -> None:
             substitute(
                 [("^\\s*#*(\\s*EPICS_BASE\\s*=).*$", f"\\1 {self.epics_base_dir}")],
