@@ -9,6 +9,7 @@ license = "MIT"
 python = "^3.9"
 pydantic = "^1.9.0"
 pyzmq = "^23.0.0b1"
+numpy = "^1.22.3"
 ferrite = { path = "ferrite", develop = true }
 
 [tool.poetry.dev-dependencies]

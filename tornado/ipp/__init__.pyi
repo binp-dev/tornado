@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
+import numpy as np
+from numpy.typing import NDArray
 
 from pathlib import Path
 
@@ -61,7 +62,7 @@ class AppMsgDacMode:
 @dataclass
 class AppMsgDacData:
 
-    points: List[int]
+    points: NDArray[np.int32]
 
     @staticmethod
     def load(data: bytes) -> AppMsgDacData:
@@ -134,7 +135,7 @@ class McuMsgDacRequest:
 class McuMsgAdcData:
 
     index: int
-    points: List[int]
+    points: NDArray[np.int32]
 
     @staticmethod
     def load(data: bytes) -> McuMsgAdcData:

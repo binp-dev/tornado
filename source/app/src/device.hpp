@@ -89,7 +89,7 @@ public:
     Device(Device &&dev) = delete;
     Device &operator=(Device &&dev) = delete;
 
-    explicit Device(std::unique_ptr<Channel> &&channel);
+    explicit Device(std::unique_ptr<Channel> &&channel, size_t max_msg_len);
     ~Device();
 
     void start();

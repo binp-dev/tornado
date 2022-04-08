@@ -2,8 +2,10 @@ from __future__ import annotations
 from typing import List
 
 import asyncio
-from pathlib import Path
 from dataclasses import dataclass
+
+import numpy as np
+from numpy.typing import NDArray
 
 import zmq
 import zmq.asyncio as azmq
@@ -11,7 +13,7 @@ import zmq.asyncio as azmq
 from ferrite.utils.epics.ioc import Ioc
 
 from tornado.ipp import AppMsg, McuMsg
-from tornado.common.config import Config as CommonConfig
+from tornado.common.config import Config
 
 import logging
 
@@ -29,83 +31,47 @@ async def _recv_msg(socket: azmq.Socket) -> AppMsg:
 
 
 class FakeDev:
+    REQUEST_SIZE: int = 1024
 
     @dataclass
     class Handler:
-        config: CommonConfig
+        config: Config
 
-        def dac_code_to_volt(self, code: int) -> float:
-            return (code - self.config.dac_code_shift) * (self.config.dac_step_uv * 1e-6)
+        def dac_codes_to_volts(self, codes: NDArray[np.int32]) -> NDArray[np.float64]:
+            array: NDArray[np.float64] = codes.astype(np.float64)
+            return (array - self.config.dac_code_shift) * (self.config.dac_step_uv * 1e-6)
 
-        def adc_volt_to_code(self, voltage: float) -> int:
-            return round(voltage / (self.config.adc_step_uv * 1e-6) * 256)
+        def adc_volts_to_codes(self, volts: NDArray[np.float64]) -> NDArray[np.int32]:
+            return (volts / (self.config.adc_step_uv * 1e-6) * 256).astype(np.int32)
 
-        # Takes DAC value and returns ADC values
-        def transfer(self, dac: float) -> List[float]:
+        # Takes DAC values and returns new ADC values for all channels
+        async def transfer(self, dac: NDArray[np.float64]) -> List[NDArray[np.float64]]:
             raise NotImplementedError()
 
-        def transfer_codes(self, dac_code: int) -> List[int]:
-            return [self.adc_volt_to_code(adc_code) for adc_code in self.transfer(self.dac_code_to_volt(dac_code))]
+        async def transfer_codes(self, dac_codes: NDArray[np.int32]) -> List[NDArray[np.int32]]:
+            adcs = await self.transfer(self.dac_codes_to_volts(dac_codes))
+            return [self.adc_volts_to_codes(adc_codes) for adc_codes in adcs]
 
-    @dataclass
-    class Config:
-        common: CommonConfig
-        sample_period: float
-        dac_chunk_size: int
-        adc_chunk_size: int
-        keepalive_timeout: float
-
-    @staticmethod
-    def _make_config(cc: CommonConfig) -> Config:
-        return FakeDev.Config(
-            common=cc,
-            sample_period=1.0 / cc.sample_freq_hz,
-            dac_chunk_size=(cc.rpmsg_max_app_msg_len - 3) // 4, # TODO: Check on IPP update
-            adc_chunk_size=(cc.rpmsg_max_mcu_msg_len - 4) // 4, # TODO: Check on IPP update
-            keepalive_timeout=(cc.keep_alive_max_delay_ms / 1000),
-        )
-
-    def __init__(self, ioc: Ioc, cc: CommonConfig, handler: FakeDev.Handler) -> None:
+    def __init__(self, ioc: Ioc, config: Config, handler: FakeDev.Handler) -> None:
         self.ioc = ioc
 
         self.context = azmq.Context()
         self.socket = self.context.socket(zmq.PAIR)
 
-        self.config = FakeDev._make_config(cc)
+        self.config = config
         self.handler = handler
 
-        self.adc_buffers: List[List[int]] = [[] for _ in range(self.config.common.adc_count)]
-
-    async def _sample(self, dac: int) -> None:
-        adcs = self.handler.transfer_codes(dac)
-        assert len(adcs) == len(self.adc_buffers)
-        for adc, wf in zip(adcs, self.adc_buffers):
-            wf.append(adc)
-
-        # Send back ADC chunks if they're ready
-        adc_chunk_size = self.config.adc_chunk_size
-        if len(self.adc_buffers[0]) >= adc_chunk_size:
-            for i, wf in enumerate(self.adc_buffers):
-                await _send_msg(self.socket, McuMsg.AdcData(i, wf[:adc_chunk_size]))
-            self.adc_buffers = [wf[adc_chunk_size:] for wf in self.adc_buffers]
-
-    async def _sample_chunk(self, dac_chunk: List[int]) -> None:
-
-        async def sample_all() -> None:
-            for dac in dac_chunk:
-                await self._sample(dac)
-
-        await asyncio.gather(
-            sample_all(),
-            asyncio.sleep(self.config.sample_period * len(dac_chunk)),
-        )
+    async def _sample_chunk(self, dac: NDArray[np.int32]) -> None:
+        adcs = await self.handler.transfer_codes(dac)
+        for i, adc in enumerate(adcs):
+            await _send_msg(self.socket, McuMsg.AdcData(i, adc))
+        await _send_msg(self.socket, McuMsg.DacRequest(len(dac)))
 
     async def _recv_msg(self) -> None:
         base_msg = await _recv_msg(self.socket)
         msg = base_msg.variant
         if isinstance(msg, AppMsg.DacData):
             await self._sample_chunk(msg.points)
-            await _send_msg(self.socket, McuMsg.DacRequest(len(msg.points)))
         elif isinstance(msg, AppMsg.DacMode):
             if msg.enable:
                 logger.debug("Start Dac")
@@ -121,10 +87,10 @@ class FakeDev:
         logger.info("IOC connected signal")
         await _send_msg(self.socket, McuMsg.Debug("Hello from MCU!"))
 
-        await _send_msg(self.socket, McuMsg.DacRequest(self.config.dac_chunk_size))
+        await _send_msg(self.socket, McuMsg.DacRequest(FakeDev.REQUEST_SIZE))
         while True:
             try:
-                await asyncio.wait_for(self._recv_msg(), self.config.keepalive_timeout)
+                await asyncio.wait_for(self._recv_msg(), self.config.keep_alive_max_delay_ms * 1e-3)
             except asyncio.TimeoutError:
                 logger.error("Keep-alive timeout reached")
                 raise

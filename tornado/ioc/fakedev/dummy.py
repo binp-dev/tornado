@@ -1,9 +1,11 @@
 from __future__ import annotations
 from typing import List
 
-import math
 from pathlib import Path
 from dataclasses import dataclass
+
+import numpy as np
+from numpy.typing import NDArray
 
 import asyncio
 
@@ -17,10 +19,15 @@ from tornado.ioc.fakedev.base import FakeDev
 class Handler(FakeDev.Handler):
     time: float = 0.0
 
-    def transfer(self, dac: float) -> List[float]:
+    async def transfer(self, dac: NDArray[np.float64]) -> List[NDArray[np.float64]]:
         adc_mag = dac / self.config.dac_max_abs_v * self.config.adc_max_abs_v
-        value = 0.5 * adc_mag * math.cos(math.e * self.time) + 0.5 * self.config.adc_max_abs_v * math.cos(math.pi * self.time)
-        self.time += 1.0 / self.config.sample_freq_hz
+        time = self.time + np.arange(len(dac), dtype=np.float64) / self.config.sample_freq_hz
+        value = 0.5 * adc_mag * np.cos(np.e * time) + 0.5 * self.config.adc_max_abs_v * np.cos(np.pi * time)
+
+        delay = len(dac) / self.config.sample_freq_hz
+        await asyncio.sleep(delay)
+        self.time += delay
+
         return [dac] + [value] * (self.config.adc_count - 1)
 
 
