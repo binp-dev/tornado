@@ -1,11 +1,13 @@
 from __future__ import annotations
-from typing import Awaitable, Callable, Coroutine, Dict, List
+from typing import Awaitable, Callable, List
 
 import os
-import math
 from pathlib import Path
 from dataclasses import dataclass
 import asyncio
+
+import numpy as np
+from numpy.typing import NDArray
 
 from ferrite.utils.asyncio import with_background
 from ferrite.utils.epics.ioc import make_ioc
@@ -21,73 +23,60 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def approx_eq(a: float, b: float, eps: float = 1e-3) -> bool:
-    return abs(a - b) <= eps
+def array_approx_eq(a: NDArray[np.float64], b: NDArray[np.float64], eps: float = 1e-3) -> bool:
+    return float(np.max(np.abs(a - b))) <= eps
 
 
 @dataclass
 class Handler(FakeDev.Handler):
     _dt: float = 0.0
 
-    class _Watcher:
+    class Waveform:
 
-        def __init__(self, count: int) -> None:
-            self.count = count
+        def __init__(self) -> None:
+            self.data: NDArray[np.float64] = np.empty(0, dtype=np.float64)
+            self.notify_on: int | None = None
             self.event = asyncio.Event()
 
+        def push(self, chunk: NDArray[np.float64]) -> None:
+            self.data = np.append(self.data, chunk)
+            if self.notify_on is not None and self.notify_on <= len(self.data):
+                self.notify_on = None
+                self.event.set()
+
+        async def pop(self, size: int) -> NDArray[np.float64]:
+            if len(self.data) < size:
+                assert self.notify_on is None
+                self.notify_on = size
+                await self.event.wait()
+                self.event.clear()
+                assert self.notify_on is None
+            assert len(self.data) >= size
+            chunk: NDArray[np.float64] = self.data[:size]
+            self.data = self.data[size:]
+            return chunk
+
+        async def pop_check(self, chunk: NDArray[np.float64]) -> None:
+            array_approx_eq(await self.pop(len(chunk)), chunk)
+
     def __post_init__(self) -> None:
-        # Waveform layout in list: [ADC0, ..., ADC{N-1}, DAC]
-        self.wfs: List[List[float]] = [[] for _ in range(self.config.adc_count + 1)]
-        self.watchers: Dict[int, Handler._Watcher] = {}
+        self.dac = Handler.Waveform()
+        self.adcs = [Handler.Waveform() for _ in range(self.config.adc_count + 1)]
 
-    def transfer(self, dac: float) -> List[float]:
-        dac_wf = self.wfs[-1]
-        adc_wfs = self.wfs[:-1]
+    async def transfer(self, dac: NDArray[np.float64]) -> List[NDArray[np.float64]]:
+        self.dac.push(dac)
 
-        dac_wf.append(dac)
-
-        adcs = [0.0] * self.config.adc_count
-        adcs[0] = dac / self.config.dac_max_abs_v * self.config.adc_max_abs_v
+        adcs = [dac / self.config.dac_max_abs_v * self.config.adc_max_abs_v]
+        step = 1e-4
         for i in range(1, self.config.adc_count):
-            adcs[i] = self.config.adc_max_abs_v * math.sin(2.0 * math.pi * i * self._dt)
-        self._dt += 1e-4
+            array = self._dt + step * np.arange(len(dac), dtype=np.float64)
+            adcs.append(self.config.adc_max_abs_v * np.sin(2.0 * np.pi * i * array))
+        self._dt += step * len(dac)
 
-        for x, wf in zip(adcs, adc_wfs):
-            wf.append(x)
-
-        # Notify watchers
-        for idx, watcher in self.watchers.items():
-            if len(self.wfs[idx]) >= watcher.count:
-                watcher.event.set()
+        for adc, chunk in zip(self.adcs, adcs):
+            adc.push(chunk)
 
         return adcs
-
-    @staticmethod
-    def _assert_wfs_eq(a_wf: List[float], b_wf: List[float]) -> None:
-        assert len(a_wf) == len(b_wf)
-        assert all((approx_eq(a, b) for a, b in zip(a_wf, b_wf)))
-
-    async def _check_wf(self, idx: int, subwf: List[float]) -> None:
-        size = len(subwf)
-
-        if len(self.wfs[idx]) < size:
-            # Waveform is not ready, waiting
-            assert idx not in self.watchers.keys(), f"Waveform[{idx}] checking is already in progress"
-            watcher = Handler._Watcher(size)
-            self.watchers[idx] = watcher
-            await watcher.event.wait()
-            del self.watchers[idx]
-            assert len(self.wfs[idx]) >= size
-
-        Handler._assert_wfs_eq(subwf, self.wfs[idx][:size])
-        self.wfs[idx] = self.wfs[idx][size:]
-
-    async def check_dac(self, dac_subwf: List[float]) -> None:
-        await self._check_wf(-1, dac_subwf)
-
-    async def check_adc(self, index: int, adc_subwf: List[float]) -> None:
-        assert index in range(0, self.config.adc_count)
-        await self._check_wf(index, adc_subwf)
 
 
 async def async_run(config: Config, handler: Handler) -> None:
@@ -102,19 +91,19 @@ async def async_run(config: Config, handler: Handler) -> None:
     # Check that `aai*` sizes are the same as `aao0` size
     assert all([wf_size == aai.nelm for aai in aais])
 
-    async def write_and_check_dac(array: List[float]) -> None:
+    async def write_and_check_dac(array: NDArray[np.float64]) -> None:
         await aao.put(array)
-        await handler.check_dac(array)
+        await handler.dac.pop_check(array)
         #logger.debug(f"DAC of size {len(array)} is correct")
 
     adcs_samples_count = [0] * config.adc_count
 
-    async def watch_single_adc(index: int, adc_pv: Pv[List[float]]) -> None:
+    async def watch_single_adc(index: int, adc_pv: Pv[NDArray[np.float64]]) -> None:
         async with adc_pv.monitor() as mon:
             async for array in mon:
                 if len(array) == 0:
                     continue
-                await handler.check_adc(index, array)
+                await handler.adcs[index].pop_check(array)
                 adcs_samples_count[index] += len(array)
                 #logger.debug(f"ADC[{index}] of size {len(array)} is correct")
 
@@ -149,7 +138,7 @@ async def async_run(config: Config, handler: Handler) -> None:
 
         async def check_full() -> None:
             await wait_dac_req()
-            await write_and_check_dac([dac_mag * x / wf_size for x in range(wf_size)])
+            await write_and_check_dac(dac_mag * np.arange(-wf_size, wf_size, 2, dtype=np.float64) / wf_size)
 
         await check_attempts(check_full)
 
@@ -157,16 +146,16 @@ async def async_run(config: Config, handler: Handler) -> None:
 
         async def check_half() -> None:
             await wait_dac_req()
-            await write_and_check_dac([dac_mag * x / wf_size for x in range(0, -wf_size, -2)])
+            await write_and_check_dac(dac_mag * np.arange(-wf_size, 0, 2, dtype=np.float64) / wf_size)
             await wait_dac_req()
-            await write_and_check_dac([dac_mag * x / wf_size for x in range(-wf_size, 0, 2)])
+            await write_and_check_dac(dac_mag * np.arange(0, wf_size, 2, dtype=np.float64) / wf_size)
 
         await check_attempts(check_half)
 
         logger.info("Flush DAC and check all ADCs")
         await wait_dac_req()
         # Flush FakeDev chunk buffer
-        await write_and_check_dac([0.0] * FakeDev.REQUEST_SIZE)
+        await write_and_check_dac(np.zeros(FakeDev.REQUEST_SIZE, dtype=np.float64))
         await asyncio.sleep(0.5)
         # Check total ADCs samples count
         assert all([sc == 2 * wf_size * attempts for sc in adcs_samples_count])
@@ -175,6 +164,9 @@ async def async_run(config: Config, handler: Handler) -> None:
 
 
 def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     os.environ["EPICS_CA_ADDR_LIST"] = "127.0.0.1"
     os.environ["EPICS_CA_AUTO_ADDR_LIST"] = "NO"
 
@@ -186,7 +178,7 @@ def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str) -> Non
     device = FakeDev(ioc, config, handler)
 
     with repeater:
-        asyncio.run(with_background(
+        loop.run_until_complete(with_background(
             async_run(device.config, handler),
             device.run(),
         ))

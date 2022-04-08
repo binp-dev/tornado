@@ -137,10 +137,11 @@ develop = true
 [package.dependencies]
 colorama = "^0.4.4"
 conan = "^1.44.0"
+numpy = "^1.22.3"
 paramiko = "^2.9.2"
 pydantic = "^1.9.0"
 pyepics = "^3.5.1"
-pyepics-asyncio = "^0.1.1"
+pyepics-asyncio = "^0.1.2"
 toml = "^0.10.2"
 types-colorama = "^0.4.4"
 types-paramiko = "^2.8.10"
@@ -216,6 +217,14 @@ python-versions = "*"
 
 [package.extras]
 testing = ["pytest"]
+
+[[package]]
+name = "numpy"
+version = "1.22.3"
+description = "NumPy is the fundamental package for array computing with Python."
+category = "main"
+optional = false
+python-versions = ">=3.8"
 
 [[package]]
 name = "paramiko"
@@ -294,7 +303,7 @@ python-versions = "*"
 
 [[package]]
 name = "pyepics-asyncio"
-version = "0.1.1"
+version = "0.1.2"
 description = "Async/await wrapper for PyEpics"
 category = "main"
 optional = false
@@ -431,7 +440,7 @@ telegram = ["requests"]
 
 [[package]]
 name = "types-colorama"
-version = "0.4.10"
+version = "0.4.11"
 description = "Typing stubs for colorama"
 category = "main"
 optional = false
@@ -439,7 +448,7 @@ python-versions = "*"
 
 [[package]]
 name = "types-cryptography"
-version = "3.3.18"
+version = "3.3.19"
 description = "Typing stubs for cryptography"
 category = "main"
 optional = false
@@ -496,7 +505,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "69b84a27d96a440027955ce70f2f9f8567fd2747f8d8e93e9f949f597636f0cd"
+content-hash = "a8af86ad13ce4ed8a6668d5ca3b81fea2fb1cdb48b8351cb1d2ba96997a246be"
 
 [metadata.files]
 bcrypt = [
@@ -696,6 +705,28 @@ node-semver = [
     {file = "node-semver-0.6.1.tar.gz", hash = "sha256:4016f7c1071b0493f18db69ea02d3763e98a633606d7c7beca811e53b5ac66b7"},
     {file = "node_semver-0.6.1-py3-none-any.whl", hash = "sha256:d4bf83873894591a0cbb6591910d96917fbadc9731e8e39e782d3a2fbc2b841e"},
 ]
+numpy = [
+    {file = "numpy-1.22.3-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:92bfa69cfbdf7dfc3040978ad09a48091143cffb778ec3b03fa170c494118d75"},
+    {file = "numpy-1.22.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:8251ed96f38b47b4295b1ae51631de7ffa8260b5b087808ef09a39a9d66c97ab"},
+    {file = "numpy-1.22.3-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:48a3aecd3b997bf452a2dedb11f4e79bc5bfd21a1d4cc760e703c31d57c84b3e"},
+    {file = "numpy-1.22.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a3bae1a2ed00e90b3ba5f7bd0a7c7999b55d609e0c54ceb2b076a25e345fa9f4"},
+    {file = "numpy-1.22.3-cp310-cp310-win32.whl", hash = "sha256:f950f8845b480cffe522913d35567e29dd381b0dc7e4ce6a4a9f9156417d2430"},
+    {file = "numpy-1.22.3-cp310-cp310-win_amd64.whl", hash = "sha256:08d9b008d0156c70dc392bb3ab3abb6e7a711383c3247b410b39962263576cd4"},
+    {file = "numpy-1.22.3-cp38-cp38-macosx_10_14_x86_64.whl", hash = "sha256:201b4d0552831f7250a08d3b38de0d989d6f6e4658b709a02a73c524ccc6ffce"},
+    {file = "numpy-1.22.3-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:f8c1f39caad2c896bc0018f699882b345b2a63708008be29b1f355ebf6f933fe"},
+    {file = "numpy-1.22.3-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:568dfd16224abddafb1cbcce2ff14f522abe037268514dd7e42c6776a1c3f8e5"},
+    {file = "numpy-1.22.3-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3ca688e1b9b95d80250bca34b11a05e389b1420d00e87a0d12dc45f131f704a1"},
+    {file = "numpy-1.22.3-cp38-cp38-win32.whl", hash = "sha256:e7927a589df200c5e23c57970bafbd0cd322459aa7b1ff73b7c2e84d6e3eae62"},
+    {file = "numpy-1.22.3-cp38-cp38-win_amd64.whl", hash = "sha256:07a8c89a04997625236c5ecb7afe35a02af3896c8aa01890a849913a2309c676"},
+    {file = "numpy-1.22.3-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:2c10a93606e0b4b95c9b04b77dc349b398fdfbda382d2a39ba5a822f669a0123"},
+    {file = "numpy-1.22.3-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:fade0d4f4d292b6f39951b6836d7a3c7ef5b2347f3c420cd9820a1d90d794802"},
+    {file = "numpy-1.22.3-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:5bfb1bb598e8229c2d5d48db1860bcf4311337864ea3efdbe1171fb0c5da515d"},
+    {file = "numpy-1.22.3-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:97098b95aa4e418529099c26558eeb8486e66bd1e53a6b606d684d0c3616b168"},
+    {file = "numpy-1.22.3-cp39-cp39-win32.whl", hash = "sha256:fdf3c08bce27132395d3c3ba1503cac12e17282358cb4bddc25cc46b0aca07aa"},
+    {file = "numpy-1.22.3-cp39-cp39-win_amd64.whl", hash = "sha256:639b54cdf6aa4f82fe37ebf70401bbb74b8508fddcf4797f9fe59615b8c5813a"},
+    {file = "numpy-1.22.3-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c34ea7e9d13a70bf2ab64a2532fe149a9aced424cd05a2c4ba662fd989e3e45f"},
+    {file = "numpy-1.22.3.zip", hash = "sha256:dbc7601a3b7472d559dc7b933b18b4b66f9aa7452c120e87dfb33d02008c8a18"},
+]
 paramiko = [
     {file = "paramiko-2.10.3-py2.py3-none-any.whl", hash = "sha256:ac6593479f2b47a9422eca076b22cff9f795495e6733a64723efc75dd8c92101"},
     {file = "paramiko-2.10.3.tar.gz", hash = "sha256:ddb1977853aef82804b35d72a0e597b244fa326c404c350bd00c5b01dbfee71a"},
@@ -755,8 +786,8 @@ pyepics = [
     {file = "pyepics-3.5.1.tar.gz", hash = "sha256:a4d0f2d0d163aa34a53f560519f5664a42ba96aeb19bbf92e46228f22fa87ff6"},
 ]
 pyepics-asyncio = [
-    {file = "pyepics-asyncio-0.1.1.tar.gz", hash = "sha256:2b8cf7d3e65194b7c0c3ce568618a6c5f8ecaaa5158f914b7b1c42cda11c6b4b"},
-    {file = "pyepics_asyncio-0.1.1-py3-none-any.whl", hash = "sha256:78dc0eacb4d44ceaad114aeef78529b56eff2ae366a4325e73cb9d4ae381449d"},
+    {file = "pyepics-asyncio-0.1.2.tar.gz", hash = "sha256:c9f633d2de6570c0f8e1bd4cbaf5d5053c5c6c9a65701b539b63ca9db18fee9a"},
+    {file = "pyepics_asyncio-0.1.2-py3-none-any.whl", hash = "sha256:b84d7389702894a3f5962290fdbd3765a692d2accfd158f49ae56fe605d1afde"},
 ]
 pygments = [
     {file = "Pygments-2.11.2-py3-none-any.whl", hash = "sha256:44238f1b60a76d78fc8ca0528ee429702aae011c265fe6a8dd8b63049ae41c65"},
@@ -887,12 +918,12 @@ tqdm = [
     {file = "tqdm-4.64.0.tar.gz", hash = "sha256:40be55d30e200777a307a7585aee69e4eabb46b4ec6a4b4a5f2d9f11e7d5408d"},
 ]
 types-colorama = [
-    {file = "types-colorama-0.4.10.tar.gz", hash = "sha256:474fc6b0ed83cd341189ac6f78b93393dfd6b61800a82ddf4fc2032f4700b4e7"},
-    {file = "types_colorama-0.4.10-py3-none-any.whl", hash = "sha256:44e46305172d66d1c65054745cd256e37b68a10abec4ce005a862afe21feca6a"},
+    {file = "types-colorama-0.4.11.tar.gz", hash = "sha256:34057d53a28923555ca2b4ec3d5b007f67c4d6db145a1d6fecda5aaff4adc064"},
+    {file = "types_colorama-0.4.11-py3-none-any.whl", hash = "sha256:3f4e67bceb4d35db94eaa8dafd0d4e668bc329b93f8e95e63cdcb76b4085e71e"},
 ]
 types-cryptography = [
-    {file = "types-cryptography-3.3.18.tar.gz", hash = "sha256:448feaf9ae31226149bc6bce1cf8fff54da661ef04837f7c0c316829885c3628"},
-    {file = "types_cryptography-3.3.18-py3-none-any.whl", hash = "sha256:d745cba4b1d0ec0a141b8b7693f887a02c332d8f6036c100db3cac98443e2ddb"},
+    {file = "types-cryptography-3.3.19.tar.gz", hash = "sha256:f957138f073332b9c07eadb0831efaa578fdb604e553ac38d72c467aeb4b7c23"},
+    {file = "types_cryptography-3.3.19-py3-none-any.whl", hash = "sha256:66b4b816d353c7706b775bfc40c541a9d8f5de9651f0253688beaf96e285e8c5"},
 ]
 types-paramiko = [
     {file = "types-paramiko-2.8.17.tar.gz", hash = "sha256:d6da053e46aef5c629bc4ea5bdab5667086535eae0fcfd8de8406943b834d2e6"},
