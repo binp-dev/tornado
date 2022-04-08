@@ -14,7 +14,7 @@
 void init_device(MaybeUninit<Device> &mem) {
     std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
 
-    mem.init_in_place(make_device_channel());
+    mem.init_in_place(make_device_channel(), max_message_length());
 }
 
 /// We use LazyStatic to initialize global Device without global constructor.

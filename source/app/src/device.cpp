@@ -81,7 +81,7 @@ void Device::recv_loop() {
                         std::lock_guard send_guard(send_mutex_);
                         dac_.mcu_requested_count += dac_req_msg.count;
                     }
-                    send_ready_.notify_all();
+                    send_ready_.notify_one();
                 },
                 [&](ipp::McuMsgDebug &&debug) { //
                     std::cout << "Device: " << debug.message << std::endl;
@@ -110,7 +110,9 @@ void Device::send_loop() {
         if (status == std::cv_status::timeout) {
             channel_.send(ipp::AppMsg{ipp::AppMsgKeepAlive{}}, timeout).unwrap();
             next_wakeup = std::chrono::steady_clock::now() + keep_alive_period_;
-            continue;
+            // Sometimes `std::condition_variable` returns `std::cv_status::timeout` even when notified.
+            // So we don't discard wakeup by timeout.
+            // continue;
         }
 
         if (dout_.update.exchange(false)) {
@@ -124,7 +126,11 @@ void Device::send_loop() {
                 ipp::AppMsgDacData dac_msg;
 
                 // Read next chunk from double buffer.
-                size_t max_count = std::min(DAC_MSG_MAX_POINTS, dac_.mcu_requested_count.load());
+                size_t max_count = std::min(
+                    _dac_msg_max_points_by_len(channel_.max_message_length()),
+                    dac_.mcu_requested_count.load() //
+                );
+
                 size_t count = dac_.data.read_array_into(tmp, max_count);
                 dac_.mcu_requested_count -= count;
 
@@ -160,8 +166,8 @@ void Device::send_loop() {
     }
 }
 
-Device::Device(std::unique_ptr<Channel> &&raw_channel) :
-    channel_(std::move(raw_channel), RPMSG_MAX_APP_MSG_LEN) //
+Device::Device(std::unique_ptr<Channel> &&raw_channel, size_t max_msg_len) :
+    channel_(std::move(raw_channel), max_msg_len) //
 {
     done_.store(true);
 }
@@ -194,7 +200,7 @@ void Device::write_dout(uint32_t value) {
             dout_.update.store(true);
         }
     }
-    send_ready_.notify_all();
+    send_ready_.notify_one();
 }
 
 uint32_t Device::read_din() {
@@ -210,7 +216,7 @@ void Device::init_dac(const size_t max_size) {
 
 void Device::write_dac(const double *data, const size_t len) {
     assert_true(dac_.data.write_array_exact(data, len));
-    send_ready_.notify_all();
+    send_ready_.notify_one();
     if (dac_.sync_ioc_request_flag) {
         dac_.ioc_requested.store(false);
         dac_.sync_ioc_request_flag();
