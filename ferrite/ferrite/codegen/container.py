@@ -4,25 +4,82 @@ from typing import Any, Generic, List, Optional, TypeVar
 from random import Random
 from dataclasses import dataclass
 
+import numpy as np
+from numpy.typing import NDArray, DTypeLike
+
 from ferrite.codegen.base import CONTEXT, Include, Location, Name, Type, Source
-from ferrite.codegen.primitive import Char, Int, Pointer, Reference
+from ferrite.codegen.primitive import Char, Int
 from ferrite.codegen.utils import indent
 from ferrite.codegen.macros import ErrorKind, io_error, monostate, stream_read, stream_write, try_unwrap
 
-T = TypeVar("T")
+
+class _ItemBase(Type):
+
+    def __init__(self, item: Type, sized: bool) -> None:
+        assert item.sized
+        self.item = item
+        super().__init__(sized=sized)
+
+    def deps(self) -> List[Type]:
+        return [self.item]
 
 
-@dataclass
-class Array(Type[List[T]]):
-    item: Type[T]
-    len: int
+class _ArrayBase(_ItemBase):
 
-    def __post_init__(self) -> None:
-        assert self.item.sized
-        super().__init__(
-            sized=True,
-            trivial=self.item.trivial,
-        )
+    def _load_array(self, data: bytes, size: int) -> List[Any] | NDArray[Any]:
+        item_size = self.item.size()
+        assert len(data) == item_size * size
+        if not self.item.trivial:
+            array = []
+            for i in range(size):
+                array.append(self.item.load(data[(i * item_size):((i + 1) * item_size)]))
+            return array
+        else:
+            return np.frombuffer(data, self.item.np_dtype(), size)
+
+    def _store_array(self, array: List[Any] | NDArray[Any]) -> bytes:
+        if not self.item.trivial:
+            assert isinstance(array, list)
+            data = b''
+            for item in array:
+                data += self.item.store(item)
+            return data
+        else:
+            assert isinstance(array, np.ndarray) and array.dtype == self.item.np_dtype()
+            return array.tobytes()
+
+    def _random_array(self, rng: Random, size: int) -> List[Any] | NDArray[Any]:
+        array = [self.item.random(rng) for _ in range(size)]
+        if not self.item.trivial:
+            return array
+        else:
+            return np.array(array, dtype=self.item.np_dtype())
+
+    def is_instance(self, value: List[Any] | NDArray[Any]) -> bool:
+        if not self.item.trivial:
+            return isinstance(value, list)
+        else:
+            return isinstance(value, np.ndarray) and value.dtype == self.item.np_dtype()
+
+    def pyi_type(self) -> str:
+        if not self.item.trivial:
+            return f"List[{self.item.pyi_type()}]"
+        else:
+            return f"NDArray[{self.item.pyi_np_dtype()}]"
+
+    def pyi_source(self) -> Optional[Source]:
+        if not self.item.trivial:
+            imports = [["from typing import List"]]
+        else:
+            imports = [["import numpy as np"], ["from numpy.typing import NDArray"]]
+        return Source(Location.INCLUDES, imports)
+
+
+class Array(_ArrayBase):
+
+    def __init__(self, item: Type, len: int) -> None:
+        super().__init__(item, sized=True)
+        self.len = len
 
     def name(self) -> Name:
         return Name(f"array{self.len}", self.item.name())
@@ -30,28 +87,18 @@ class Array(Type[List[T]]):
     def size(self) -> int:
         return self.item.size() * self.len
 
-    def load(self, data: bytes) -> List[T]:
-        item_size = self.item.size()
-        assert len(data) == item_size * self.len
-        array = []
-        for i in range(self.len):
-            array.append(self.item.load(data[(i * item_size):((i + 1) * item_size)]))
-        return array
+    def load(self, data: bytes) -> List[Any] | NDArray[Any]:
+        return self._load_array(data, self.len)
 
-    def store(self, array: List[T]) -> bytes:
-        data = b''
-        for item in array:
-            data += self.item.store(item)
-        return data
+    def store(self, array: List[Any] | NDArray[Any]) -> bytes:
+        assert len(array) == self.len
+        return self._store_array(array)
 
-    def random(self, rng: Random) -> List[T]:
-        return [self.item.random(rng) for _ in range(self.len)]
+    def random(self, rng: Random) -> List[Any] | NDArray[Any]:
+        return self._random_array(rng, self.len)
 
-    def is_instance(self, value: List[T]) -> bool:
-        return isinstance(value, list) and len(value) == self.len
-
-    def deps(self) -> List[Type[Any]]:
-        return [self.item]
+    def is_instance(self, value: List[Any] | NDArray[Any]) -> bool:
+        return len(value) == self.len and super().is_instance(value)
 
     def c_size(self, obj: str) -> str:
         return str(self.size())
@@ -161,23 +208,12 @@ class Array(Type[List[T]]):
             f"}}",
         ]
 
-    def pyi_type(self) -> str:
-        return f"List[{self.item.pyi_type()}]"
-
-    def pyi_source(self) -> Optional[Source]:
-        return Source(Location.INCLUDES, [["from typing import List"]])
-
-
-V = TypeVar('V')
-
 
 @dataclass
-class _BasicVector(Generic[V, T], Type[V]):
-    item: Type[T]
+class _BasicVector(_ItemBase):
 
-    def __post_init__(self) -> None:
-        assert self.item.sized
-        super().__init__(sized=False)
+    def __init__(self, item: Type) -> None:
+        super().__init__(item, sized=False)
         self._size_type = Int(16)
 
     def name(self) -> Name:
@@ -186,7 +222,7 @@ class _BasicVector(Generic[V, T], Type[V]):
     def min_size(self) -> int:
         return self._size_type.size()
 
-    def deps(self) -> List[Type[Any]]:
+    def deps(self) -> List[Type]:
         return [self.item, self._size_type]
 
     def c_type(self) -> str:
@@ -245,34 +281,22 @@ class _BasicVector(Generic[V, T], Type[V]):
         ]
 
 
-class Vector(Generic[T], _BasicVector[List[T], T]):
+class Vector(_BasicVector, _ArrayBase):
 
-    def __init__(self, item: Type[T]):
+    def __init__(self, item: Type):
         super().__init__(item)
 
-    def load(self, data: bytes) -> List[T]:
+    def load(self, data: bytes) -> List[Any] | NDArray[Any]:
         count = self._size_type.load(data[:self._size_type.size()])
         data = data[self._size_type.size():]
-        item_size = self.item.size()
-        assert len(data) == item_size * count
-        array = []
-        for i in range(count):
-            array.append(self.item.load(data[(i * item_size):((i + 1) * item_size)]))
-        return array
+        return self._load_array(data, count)
 
-    def store(self, array: List[T]) -> bytes:
-        data = b''
-        data += self._size_type.store(len(array))
-        for item in array:
-            data += self.item.store(item)
-        return data
+    def store(self, array: List[Any] | NDArray[Any]) -> bytes:
+        return self._size_type.store(len(array)) + self._store_array(array)
 
-    def random(self, rng: Random) -> List[T]:
+    def random(self, rng: Random) -> List[Any] | NDArray[Any]:
         size = rng.randrange(0, 8)
-        return [self.item.random(rng) for _ in range(size)]
-
-    def is_instance(self, value: List[T]) -> bool:
-        return isinstance(value, list)
+        return self._random_array(rng, size)
 
     def cpp_type(self) -> str:
         return f"std::vector<{self.item.cpp_type()}>"
@@ -341,17 +365,11 @@ class Vector(Generic[T], _BasicVector[List[T], T]):
             ]
         )
 
-    def cpp_object(self, value: List[T]) -> str:
+    def cpp_object(self, value: List[Any]) -> str:
         return f"{self.cpp_type()}{{{', '.join([self.item.cpp_object(v) for v in value])}}}"
 
-    def pyi_type(self) -> str:
-        return f"List[{self.item.pyi_type()}]"
 
-    def pyi_source(self) -> Optional[Source]:
-        return Source(Location.INCLUDES, [["from typing import List"]])
-
-
-class String(_BasicVector[str, str]):
+class String(_BasicVector):
 
     def __init__(self) -> None:
         super().__init__(Char())

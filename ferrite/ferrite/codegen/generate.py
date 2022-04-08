@@ -15,7 +15,7 @@ def make_variant(name: Name, messages: List[Tuple[Name, List[Field]]]) -> Varian
     )
 
 
-def generate_and_write(types: List[Type[Any]], base_path: Path, context: Context) -> None:
+def generate_and_write(types: List[Type], base_path: Path, context: Context) -> None:
     for attr in dir(context):
         if attr.startswith('__'):
             continue

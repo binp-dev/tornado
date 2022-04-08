@@ -12,7 +12,7 @@ from ferrite.codegen.generate import generate_and_write
 
 empty = Struct(Name(["empty", "struct"]), [])
 
-all_: List[Type[Any]] = [
+all_: List[Type] = [
     Array(Int(24), 5),
     Vector(Int(24)),
     Vector(Int(64)),
@@ -21,14 +21,21 @@ all_: List[Type[Any]] = [
     Struct(Name(["value", "struct"]), [
         Field("value", Int(32)),
     ]),
-    Struct(Name(["vector", "struct"]), [
+    Struct(Name(["arrays", "struct"]), [
+        Field("idata", Array(Int(32), 8)),
+        Field("fdata", Array(Float(64), 4)),
+    ]),
+    Struct(Name(["int", "vector", "struct"]), [
         Field("data", Vector(Int(32))),
+    ]),
+    Struct(Name(["float", "vector", "struct"]), [
+        Field("data", Vector(Float(32))),
     ]),
     Struct(Name(["string", "struct"]), [
         Field("text", String()),
     ]),
     Struct(
-        Name(["integers"]), [
+        Name(["integers", "struct"]), [
             Field("u8", Int(8)),
             Field("u16", Int(16)),
             Field("u24", Int(24)),
@@ -40,6 +47,8 @@ all_: List[Type[Any]] = [
             Field("i16", Int(16, signed=True)),
             Field("i24", Int(24, signed=True)),
             Field("i32", Int(32, signed=True)),
+            Field("i48", Int(48, signed=True)),
+            Field("i56", Int(56, signed=True)),
             Field("i64", Int(64, signed=True)),
         ]
     ),

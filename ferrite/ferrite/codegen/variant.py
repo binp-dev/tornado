@@ -21,7 +21,7 @@ class VariantValue:
         return self._type.store(self)
 
 
-class Variant(Type[VariantValue]):
+class Variant(Type):
 
     def __init__(self, name: Union[Name, str], variants: List[Field], sized: bool | None = None):
         all_variants_sized = all([f.type.sized for f in variants])
@@ -104,7 +104,7 @@ class Variant(Type[VariantValue]):
     def is_instance(self, value: VariantValue) -> bool:
         return value._type is self
 
-    def deps(self) -> List[Type[Any]]:
+    def deps(self) -> List[Type]:
         return [f.type for f in self.variants]
 
     def _c_size_func_name(self) -> str:
@@ -196,7 +196,7 @@ class Variant(Type[VariantValue]):
             f"}}",
         ]
 
-    def _cpp_load_variant(self, ty: Type[Any], stream: str) -> List[str]:
+    def _cpp_load_variant(self, ty: Type, stream: str) -> List[str]:
         lines = []
         if ty.is_empty():
             lines += [f"{ty.cpp_type()} tmp;"]
@@ -234,7 +234,7 @@ class Variant(Type[VariantValue]):
             f"}}",
         ]
 
-    def _cpp_store_variant(self, ty: Type[Any], stream: str, src: str) -> List[str]:
+    def _cpp_store_variant(self, ty: Type, stream: str, src: str) -> List[str]:
         lines = []
         if not ty.is_empty():
             lines += try_unwrap(ty.cpp_store(stream, src))
@@ -421,7 +421,7 @@ class Variant(Type[VariantValue]):
                 f"    variant: Variant",
                 f"",
                 f"    @staticmethod",
-                f"    def load(data: bytes) -> {self.pyi_type()}:"
+                f"    def load(data: bytes) -> {self.pyi_type()}:",
                 f"        ...",
                 f"",
                 f"    def store(self) -> bytes:",

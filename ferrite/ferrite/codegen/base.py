@@ -4,9 +4,11 @@ from typing import Any, Generic, List, Optional, Sequence, Set, TypeVar, Union
 from dataclasses import dataclass
 from enum import Enum
 from random import Random
-from ferrite.codegen.macros import io_read_type, io_result_type, io_write_type, monostate, stream_read, stream_write, try_unwrap
+
+from numpy.typing import DTypeLike
 
 from ferrite.codegen.utils import indent
+from ferrite.codegen.macros import io_read_type, io_result_type, io_write_type, monostate, stream_read, stream_write, try_unwrap
 
 
 @dataclass
@@ -111,10 +113,7 @@ def declare_variable(c_type: str, variable: str) -> str:
     return f"{c_type} {variable}"
 
 
-T = TypeVar("T")
-
-
-class Type(Generic[T]):
+class Type:
 
     def __init__(self, sized: bool, trivial: bool = False):
         if trivial:
@@ -143,26 +142,29 @@ class Type(Generic[T]):
     def is_empty(self) -> bool:
         return self.sized and self.size() == 0
 
-    def deps(self) -> List[Type[Any]]:
+    def deps(self) -> List[Type]:
         return []
 
-    def load(self, data: bytes) -> T:
+    def load(self, data: bytes) -> Any:
         raise self._not_implemented()
 
-    def store(self, value: T) -> bytes:
+    def store(self, value: Any) -> bytes:
         raise self._not_implemented()
 
-    def default(self) -> T:
+    def default(self) -> Any:
         raise self._not_implemented()
 
-    def random(self, rng: Random) -> T:
+    def random(self, rng: Random) -> Any:
         raise self._not_implemented()
 
-    def is_instance(self, value: T) -> bool:
+    def is_instance(self, value: Any) -> bool:
         raise self._not_implemented()
 
-    def __instancecheck__(self, value: T) -> bool:
+    def __instancecheck__(self, value: Any) -> bool:
         return self.is_instance(value)
+
+    def np_dtype(self) -> DTypeLike:
+        raise self._not_implemented()
 
     def c_type(self) -> str:
         raise self._not_implemented()
@@ -171,6 +173,9 @@ class Type(Generic[T]):
         return self.c_type()
 
     def pyi_type(self) -> str:
+        raise self._not_implemented()
+
+    def pyi_np_dtype(self) -> str:
         raise self._not_implemented()
 
     def c_source(self) -> Optional[Source]:
@@ -245,7 +250,7 @@ class Type(Generic[T]):
             raise self._not_implemented()
         return self._cpp_store_func(stream, value)
 
-    def cpp_object(self, value: T) -> str:
+    def cpp_object(self, value: Any) -> str:
         raise self._not_implemented()
 
     def c_test(self, obj: str, src: str) -> List[str]:

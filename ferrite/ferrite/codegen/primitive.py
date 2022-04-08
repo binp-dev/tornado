@@ -1,10 +1,13 @@
 from __future__ import annotations
-from typing import Any, Callable, List, Optional
+from typing import List, Optional, ClassVar
 
 from random import Random
 from dataclasses import dataclass
 import string
 import struct
+
+import numpy as np
+from numpy.typing import DTypeLike
 
 from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source
 from ferrite.codegen.macros import ErrorKind, io_error, monostate, stream_read, stream_write, try_unwrap
@@ -12,9 +15,16 @@ from ferrite.codegen.utils import ceil_to_power_of_2, indent, is_power_of_2
 
 
 @dataclass
-class Int(Type[int]):
+class Int(Type):
     bits: int
     signed: bool = False
+
+    _DTYPES: ClassVar[List[List[DTypeLike]]] = [
+        [np.uint8, np.int8],
+        [np.uint16, np.int16],
+        [np.uint32, np.int32],
+        [np.uint64, np.int64],
+    ]
 
     def _is_builtin(self) -> bool:
         return is_power_of_2(self.bits // 8) and (self.bits % 8) == 0
@@ -46,6 +56,12 @@ class Int(Type[int]):
 
     def is_instance(self, value: int) -> bool:
         return isinstance(value, int)
+
+    def np_dtype(self) -> DTypeLike:
+        if self._is_builtin():
+            return Int._DTYPES[(self.bits // 8).bit_length() - 1][self.signed]
+        else:
+            raise NotImplementedError(f"No np.dtype for {self.pyi_np_dtype()}")
 
     @staticmethod
     def _int_name(bits: int, signed: bool = False) -> str:
@@ -221,9 +237,12 @@ class Int(Type[int]):
     def pyi_type(self) -> str:
         return "int"
 
+    def pyi_np_dtype(self) -> str:
+        return f"np.{self._int_name(self.bits, self.signed)}"
+
 
 @dataclass
-class Float(Type[float]):
+class Float(Type):
     bits: int
 
     def __post_init__(self) -> None:
@@ -265,6 +284,14 @@ class Float(Type[float]):
     def is_instance(self, value: float) -> bool:
         return isinstance(value, float)
 
+    def np_dtype(self) -> DTypeLike:
+        if self.bits == 32:
+            return np.float32
+        elif self.bits == 64:
+            return np.float64
+        else:
+            raise RuntimeError(f"No np.dtype for {self.pyi_np_dtype()}")
+
     def c_type(self) -> str:
         if self.bits == 32:
             return "float"
@@ -279,8 +306,11 @@ class Float(Type[float]):
     def pyi_type(self) -> str:
         return "float"
 
+    def pyi_np_dtype(self) -> str:
+        return f"np.float{self.bits}"
 
-class Char(Type[str]):
+
+class Char(Type):
 
     def __init__(self) -> None:
         super().__init__(sized=True, trivial=True)
@@ -317,8 +347,8 @@ class Char(Type[str]):
 
 
 @dataclass
-class Pointer(Type[None]):
-    type: Type[Any]
+class Pointer(Type):
+    type: Type
     const: bool = False
     _sep: str = "*"
     _postfix: str = "ptr"
@@ -347,5 +377,5 @@ class Pointer(Type[None]):
 
 class Reference(Pointer):
 
-    def __init__(self, type: Type[Any], const: bool = False):
+    def __init__(self, type: Type, const: bool = False):
         super().__init__(type, const, _sep="&", _postfix="ref")

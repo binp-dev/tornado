@@ -11,7 +11,7 @@ from ferrite.codegen.macros import io_read_type, io_result_type, io_write_type, 
 
 class Field:
 
-    def __init__(self, name: Union[Name, str], type: Type[Any]):
+    def __init__(self, name: Union[Name, str], type: Type):
         self.name = Name(name)
         self.type = type
 
@@ -27,7 +27,7 @@ class StructValue:
         return self._type.store(self)
 
 
-class Struct(Type[StructValue]):
+class Struct(Type):
 
     def __init__(self, name: Union[Name, str], fields: List[Field] = []):
         sized = True
@@ -95,7 +95,7 @@ class Struct(Type[StructValue]):
     def is_instance(self, value: StructValue) -> bool:
         return value._type is self
 
-    def deps(self) -> List[Type[Any]]:
+    def deps(self) -> List[Type]:
         return [f.type for f in self.fields]
 
     def _fields_with_comma(self) -> List[Tuple[Field, str]]:
