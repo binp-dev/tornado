@@ -1,5 +1,6 @@
 #pragma once
 
+#include <span>
 #include <functional>
 #include <type_traits>
 
@@ -11,89 +12,48 @@ class Slice;
 
 namespace slice_impl {
 
-// Replace with std::span in C++20
 template <typename T>
-class BasicSlice {
+class BasicSlice : public std::span<T> {
+public:
+    using std::span<T>::span;
+
 private:
-    T *ptr_ = nullptr;
-    size_t size_ = 0;
+    void assign_this(const std::span<T> &span) {
+        static_cast<std::span<T> &>(*this) = span;
+    }
 
 public:
-    BasicSlice() = default;
-    BasicSlice(T *ptr, size_t size) : ptr_(ptr), size_(size) {}
-
-    T *data() {
-        return ptr_;
-    }
-    const T *data() const {
-        return ptr_;
-    }
-
-    [[nodiscard]] size_t size() const {
-        return size_;
-    }
-    [[nodiscard]] bool empty() const {
-        return size_ == 0;
-    }
-
-    T &operator[](size_t i) {
-        assert_true(i < size_);
-        return ptr_[i];
-    }
-    const T &operator[](size_t i) const {
-        assert_true(i < size_);
-        return ptr_[i];
-    }
-
     operator ::Slice<const T>() const {
-        return ::Slice{ptr_, size_};
+        return ::Slice<const T>(*this);
     }
 
     [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_back() {
-        if (empty()) {
+        if (this->empty()) {
             return std::nullopt;
         }
-        size_ -= 1;
-        return std::ref(ptr_[size_]);
+        auto ret = std::ref(this->back());
+        assign_this(this->subspan(0, this->size() - 1));
+        return ret;
     }
     [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_front() {
-        if (empty()) {
+        if (this->empty()) {
             return std::nullopt;
         }
-        auto ret = std::ref(*ptr_);
-        ptr_ += 1;
-        size_ -= 1;
+        auto ret = std::ref(this->front());
+        assign_this(this->subspan(1, this->size() - 1));
         return ret;
     }
 
     size_t skip_back(size_t count) {
-        size_t skip = std::min(count, size_);
-        size_ -= skip;
+        size_t skip = std::min(count, this->size());
+        assign_this(this->subspan(0, this->size() - skip));
         return skip;
     }
 
     size_t skip_front(size_t count) {
-        size_t skip = std::min(count, size_);
-        ptr_ += skip;
-        size_ -= skip;
+        size_t skip = std::min(count, this->size());
+        assign_this(this->subspan(skip, this->size() - skip));
         return skip;
-    }
-
-public:
-    using iterator = T *;
-    using const_iterator = const T *;
-
-    [[nodiscard]] iterator begin() {
-        return ptr_;
-    }
-    [[nodiscard]] iterator end() {
-        return ptr_ + size_;
-    }
-    [[nodiscard]] const_iterator begin() const {
-        return ptr_;
-    }
-    [[nodiscard]] const_iterator end() const {
-        return ptr_ + size_;
     }
 };
 
