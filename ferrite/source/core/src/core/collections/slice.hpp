@@ -5,7 +5,7 @@
 #include <type_traits>
 
 #include <core/assert.hpp>
-#include <core/fmt.hpp>
+#include <core/format.hpp>
 
 template <typename T>
 class Slice;
@@ -103,20 +103,26 @@ public:
     using slice_impl::StreamSlice<T>::StreamSlice;
 };
 
-template <typename T>
-struct Display<Slice<T>, void> : public std::integral_constant<bool, is_display_v<T>> {};
+template <Printable T>
+struct Print<std::span<T>> {
+    static void print(std::ostream &os, const std::span<T> &value) {
+        auto it = value.begin();
+        os << "[";
+        if (it != value.end()) {
+            Print<T>::print(os, *it);
+            ++it;
+        }
+        for (; it != value.end(); ++it) {
+            os << ", ";
+            Print<T>::print(os, *it);
+        }
+        os << "]";
+    }
+};
 
-template <typename T, typename = std::enable_if_t<is_display_v<Slice<T>>, void>>
-std::ostream &operator<<(std::ostream &os, const Slice<T> &value) {
-    auto it = value.begin();
-    os << "[";
-    if (it != value.end()) {
-        os << *it;
-        ++it;
+template <Printable T>
+struct Print<Slice<T>> {
+    static void print(std::ostream &os, const Slice<T> &value) {
+        Print<std::span<T>>::print(os, value);
     }
-    for (; it != value.end(); ++it) {
-        os << ", " << *it;
-    }
-    os << "]";
-    return os;
-}
+};

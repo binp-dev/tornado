@@ -7,6 +7,7 @@ set(SRC
     "src/core/convert.hpp"
     "src/core/numeric.hpp"
     "src/core/io.hpp"
+    "src/core/format.hpp"
     "src/core/stream.hpp"
     "src/core/stream.cpp"
     "src/core/lazy_static.hpp"

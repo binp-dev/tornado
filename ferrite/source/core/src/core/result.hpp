@@ -3,7 +3,7 @@
 #include <variant>
 #include <sstream>
 
-#include "fmt.hpp"
+#include "format.hpp"
 #include "panic.hpp"
 
 
@@ -67,7 +67,7 @@ struct [[nodiscard]] Result final {
         if (this->is_err()) {
             std::stringstream ss;
             ss << message;
-            if constexpr (is_display_v<E>) {
+            if constexpr (Printable<E>) {
                 ss << ": Result::Err(" << this->err() << ")";
             }
             panic(ss.str());
@@ -78,7 +78,7 @@ struct [[nodiscard]] Result final {
         if (this->is_ok()) {
             std::stringstream ss;
             ss << message;
-            if constexpr (is_display_v<T>) {
+            if constexpr (Printable<T>) {
                 ss << ": Result::Ok(" << this->ok() << ")";
             }
             panic(ss.str());
@@ -123,7 +123,7 @@ struct [[nodiscard]] Result final {
 template <typename T>
 std::ostream &operator<<(std::ostream &os, const Ok<T> &ok) {
     os << "Ok(";
-    if constexpr (is_display_v<T>) {
+    if constexpr (Printable<T>) {
         os << ok.value;
     }
     os << ")";
@@ -133,7 +133,7 @@ std::ostream &operator<<(std::ostream &os, const Ok<T> &ok) {
 template <typename E>
 std::ostream &operator<<(std::ostream &os, const Err<E> &err) {
     os << "Err(";
-    if constexpr (is_display_v<E>) {
+    if constexpr (Printable<E>) {
         os << err.value;
     }
     os << ")";
@@ -145,12 +145,12 @@ std::ostream &operator<<(std::ostream &os, const Result<T, E> &res) {
     os << "Result::";
     if (res.is_ok()) {
         os << "Ok(";
-        if constexpr (is_display_v<T>) {
+        if constexpr (Printable<T>) {
             os << res.ok();
         }
     } else {
         os << "Err(";
-        if constexpr (is_display_v<E>) {
+        if constexpr (Printable<E>) {
             os << res.err();
         }
     }

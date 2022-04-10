@@ -10,7 +10,7 @@ set(SRC
     "src/collections/vec_deque.cpp"
     "src/convert.cpp"
     "src/numeric.cpp"
-    "src/fmt.cpp"
+    "src/format.cpp"
     "src/main.cpp"
 )
 
