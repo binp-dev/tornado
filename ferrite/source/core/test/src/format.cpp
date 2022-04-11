@@ -1,14 +1,12 @@
 #include <core/format.hpp>
 
-#include <string>
 #include <sstream>
 
 #include <gtest/gtest.h>
 
-TEST(Fmt, string) {
-    static_assert(Printable<std::string>);
-}
-
-TEST(Fmt, c_str) {
-    static_assert(Printable<const char *>);
+TEST(Format, empty) {
+    std::stringstream ss;
+    constexpr Literal LIT("");
+    format_impl<LIT>(ss);
+    ASSERT_EQ(ss.str(), "");
 }
