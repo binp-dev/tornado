@@ -11,17 +11,9 @@
 #include "print.hpp"
 #include "result.hpp"
 #include "match.hpp"
+#include "assert.hpp"
 
-struct Subst {
-    size_t index;
-};
-
-struct Error {
-    size_t pos;
-    std::string msg;
-};
-
-using Token = std::variant<std::string, Subst>;
+namespace format_impl {
 
 template <size_t N>
 struct Literal {
@@ -31,68 +23,125 @@ struct Literal {
         std::copy_n(str, N, data);
     }
     constexpr std::string_view view() const {
-        return std::string_view(data, N);
+        return std::string_view(data, N - 1);
+    }
+    constexpr size_t size() const {
+        return N - 1;
     }
 };
 
+enum class ErrorKind {
+    TooManyArgs,
+    TooFewArgs,
+    UnpairedBrace,
+};
+
+struct Error {
+    ErrorKind kind;
+    size_t pos;
+};
+
 template <typename... Ts>
-consteval Result<std::vector<Token>, Error> parse_format_str(const std::string_view str) {
+consteval Result<std::monostate, Error> check_format_str(const std::string_view str) {
     constexpr size_t total_args = sizeof...(Ts);
     size_t arg = 0;
-    std::vector<Token> tokens;
-    std::string buffer;
     bool opened = false;
     bool closed = false;
     for (size_t i = 0; i < str.size(); ++i) {
         char c = str[i];
         if (c == '{') {
             if (opened) {
-                buffer.push_back('{');
                 opened = false;
             } else {
                 opened = true;
             }
         } else if (c == '}') {
             if (opened) {
-                tokens.push_back(std::move(buffer));
                 if (arg >= total_args) {
-                    return Err(Error{i, "Too many args"});
+                    return Err(Error{ErrorKind::TooManyArgs, i});
                 }
-                tokens.push_back(Subst(arg));
                 arg += 1;
                 opened = false;
             } else if (closed) {
-                buffer.push_back('}');
                 closed = false;
             } else {
                 closed = true;
             }
         } else {
             if (opened || closed) {
-                return Err(Error{i, "Unpaired brace"});
+                return Err(Error{ErrorKind::UnpairedBrace, i});
             }
-            buffer.push_back(c);
         }
     }
     if (opened || closed) {
-        return Err(Error{str.length(), "Unpaired brace"});
+        return Err(Error{ErrorKind::UnpairedBrace, str.size()});
     }
     if (arg != total_args) {
-        return Err(Error{str.length(), "Too few args"});
+        return Err(Error{ErrorKind::TooFewArgs, str.size()});
     }
-    return Ok(std::move(tokens));
+    return Ok(std::monostate());
 }
 
-template <Literal FMT_STR, typename... Ts>
-void format_impl(std::ostream &os, Ts &&...args) {
-    constexpr auto tokens = parse_format_str<Ts...>(FMT_STR.view()).unwrap();
-    auto arg_to_string = [](auto arg) {
+template <typename... Ts>
+void print_unchecked(std::ostream &stream, const std::string_view str, Ts &&...args) {
+    [[maybe_unused]] auto arg_to_string = [](auto arg) {
         std::stringstream ss;
         Print<std::remove_reference_t<decltype(arg)>>::print(ss, arg);
         return ss.str();
     };
     std::vector<std::string> printed_args{arg_to_string(args)...};
-    for (Token token : tokens) {
-        overloaded([&](const std::string &str) { os << str; }, [&](Subst subst) { os << printed_args[subst.index]; });
+    size_t arg = 0;
+    bool opened = false;
+    bool closed = false;
+    for (size_t i = 0; i < str.size(); ++i) {
+        char c = str[i];
+        if (c == '{') {
+            if (opened) {
+                stream << '{';
+                opened = false;
+            } else {
+                opened = true;
+            }
+        } else if (c == '}') {
+            if (opened) {
+                assert_true(arg < printed_args.size());
+                stream << printed_args[arg];
+                arg += 1;
+                opened = false;
+            } else if (closed) {
+                stream << '}';
+                closed = false;
+            } else {
+                closed = true;
+            }
+        } else {
+            assert_true(!opened && !closed);
+            stream << c;
+        }
+    }
+    assert_true(!opened && !closed);
+    assert_true(arg == printed_args.size());
+}
+
+template <Literal FmtStr, typename... Ts>
+void print(std::ostream &stream, bool newline, Ts &&...args) {
+    constexpr auto check_result = check_format_str<Ts...>(FmtStr.view());
+    static_assert(check_result.is_ok());
+    print_unchecked(stream, FmtStr.view(), std::forward<Ts>(args)...);
+    if (newline) {
+        stream << std::endl;
     }
 }
+
+template <Literal FmtStr, typename... Ts>
+std::string format(Ts &&...args) {
+    std::stringstream stream;
+    print<FmtStr>(stream, false, std::forward<Ts>(args)...);
+    return stream.str();
+}
+
+} // namespace format_impl
+
+#define println(fmt, ...) ::format_impl::println<fmt>(std::cout, true, ##__VA_ARGS__)
+
+#define format(fmt, ...) ::format_impl::format<fmt>(__VA_ARGS__)
