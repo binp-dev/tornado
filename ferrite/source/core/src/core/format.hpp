@@ -17,16 +17,27 @@ namespace format_impl {
 
 template <size_t N>
 struct Literal {
+    static_assert(N > 0);
     char data[N];
 
+    constexpr Literal() = default;
     constexpr Literal(const char (&str)[N]) {
         std::copy_n(str, N, data);
     }
+
     constexpr std::string_view view() const {
         return std::string_view(data, N - 1);
     }
     constexpr size_t size() const {
         return N - 1;
+    }
+
+    template <size_t M>
+    constexpr Literal<N + M - 1> append(Literal<M> other) const {
+        Literal<N + M - 1> result;
+        std::copy_n(this->data, N - 1, result.data);
+        std::copy_n(other.data, M - 1, result.data + N - 1);
+        return result;
     }
 };
 
@@ -123,25 +134,25 @@ void print_unchecked(std::ostream &stream, const std::string_view str, Ts &&...a
     assert_true(arg == printed_args.size());
 }
 
-template <Literal FmtStr, typename... Ts>
+template <Literal FMT_STR, typename... Ts>
 void print(std::ostream &stream, bool newline, Ts &&...args) {
-    constexpr auto check_result = check_format_str<Ts...>(FmtStr.view());
-    static_assert(check_result.is_ok());
-    print_unchecked(stream, FmtStr.view(), std::forward<Ts>(args)...);
+    constexpr auto check_result = check_format_str<Ts...>(FMT_STR.view());
+    static_assert(check_result.is_ok(), "Format error");
+    print_unchecked(stream, FMT_STR.view(), std::forward<Ts>(args)...);
     if (newline) {
         stream << std::endl;
     }
 }
 
-template <Literal FmtStr, typename... Ts>
+template <Literal FMT_STR, typename... Ts>
 std::string format(Ts &&...args) {
     std::stringstream stream;
-    print<FmtStr>(stream, false, std::forward<Ts>(args)...);
+    print<FMT_STR>(stream, false, std::forward<Ts>(args)...);
     return stream.str();
 }
 
 } // namespace format_impl
 
-#define println(fmt, ...) ::format_impl::println<fmt>(std::cout, true, ##__VA_ARGS__)
+#define println(fmt_str, ...) ::format_impl::println<fmt_str>(std::cout, true, ##__VA_ARGS__)
 
-#define format(fmt, ...) ::format_impl::format<fmt>(__VA_ARGS__)
+#define format(fmt_str, ...) ::format_impl::format<fmt_str>(__VA_ARGS__)

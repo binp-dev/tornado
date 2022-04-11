@@ -1,8 +1,19 @@
+#include <core/print.hpp>
 #include <core/format.hpp>
+#include <core/log.hpp>
 
+#include <string>
 #include <sstream>
 
 #include <gtest/gtest.h>
+
+TEST(Print, string) {
+    static_assert(Printable<std::string>);
+}
+
+TEST(Print, c_str) {
+    static_assert(Printable<const char *>);
+}
 
 TEST(Format, empty) {
     ASSERT_EQ(format(""), "");
@@ -22,4 +33,8 @@ TEST(Format, two_args) {
 
 TEST(Format, escape) {
     ASSERT_EQ(format("}}{{"), "}{");
+}
+
+TEST(Log, info) {
+    core_log_info("test {}", 123);
 }
