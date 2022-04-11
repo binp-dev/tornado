@@ -4,7 +4,7 @@
 
 #include <sstream>
 
-#define assert_true(value) do { \
+#define core_assert(value) do { \
     if (__builtin_expect(!(value), 0)) { \
         std::stringstream ss; \
         ss << "Assertion failed: " << #value << " is false"; \
@@ -12,15 +12,7 @@
     } \
 } while(0)
 
-#define assert_false(value) do { \
-    if (__builtin_expect((value), 0)) { \
-        std::stringstream ss; \
-        ss << "Assertion failed: " << #value << " is true"; \
-        panic(ss.str()); \
-    } \
-} while(0)
-
-#define assert_eq(left, right) do { \
+#define core_assert_eq(left, right) do { \
     if (__builtin_expect(!((left) == (right)), 0)) { \
         std::stringstream ss; \
         ss << "Assertion failed: expected " << #left << " == " << #right \
@@ -29,7 +21,7 @@
     } \
 } while(0)
 
-#define assert_ne(left, right) do { \
+#define core_assert_ne(left, right) do { \
     if (__builtin_expect(!((left) != (right)), 0)) { \
         std::stringstream ss; \
         ss << "Assertion failed: expected " << #left << " != " << #right \

@@ -1,3 +1,5 @@
+#include "panic.hpp"
+
 #include <iostream>
 #include <string>
 #include <regex>
@@ -59,7 +61,11 @@ static void print_backtrace() {
     free(symbols);
 }
 
-[[noreturn]] void __panic_with_location(const char *func, const char *file, size_t line, const std::string &message = "") {
+[[noreturn]] void panic_impl::panic_with_location(
+    const char *func,
+    const char *file,
+    size_t line,
+    const std::string &message = "") {
     print_backtrace();
     if (!message.empty()) {
         std::cout << message;
@@ -69,7 +75,8 @@ static void print_backtrace() {
     std::cout << " in " << func << ", at " << file << ":" << line << std::endl;
 
     if (panic_hook != nullptr) {
-        panic_hook.load();
+        panic_hook.load()();
+    } else {
+        std::abort();
     }
-    std::abort();
 }

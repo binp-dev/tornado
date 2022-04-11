@@ -16,23 +16,23 @@ TEST(Print, c_str) {
 }
 
 TEST(Format, empty) {
-    ASSERT_EQ(format(""), "");
+    ASSERT_EQ(core_format(""), "");
 }
 
 TEST(Format, text) {
-    ASSERT_EQ(format("abc"), "abc");
+    ASSERT_EQ(core_format("abc"), "abc");
 }
 
 TEST(Format, one_arg) {
-    ASSERT_EQ(format("a{}", 1), "a1");
+    ASSERT_EQ(core_format("a{}", 1), "a1");
 }
 
 TEST(Format, two_args) {
-    ASSERT_EQ(format("a{} {}2", 1, "b"), "a1 b2");
+    ASSERT_EQ(core_format("a{} {}2", 1, "b"), "a1 b2");
 }
 
 TEST(Format, escape) {
-    ASSERT_EQ(format("}}{{"), "}{");
+    ASSERT_EQ(core_format("}}{{"), "}{");
 }
 
 TEST(Log, info) {

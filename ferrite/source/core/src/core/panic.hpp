@@ -2,14 +2,20 @@
 
 #include <string>
 
-void set_panic_hook(void(*hook)());
+#include "format.hpp"
 
-[[noreturn]] void __panic_with_location(const char *func, const char *file, size_t line, const std::string &message = "");
+void set_panic_hook(void (*hook)());
 
-#define panic(...) __panic_with_location(__FUNCTION__, __FILE__, __LINE__, ##__VA_ARGS__)
+namespace panic_impl {
 
-#define unimplemented(...) panic("Unimplemented" __VA_ARGS__)
+[[noreturn]] void panic_with_location(const char *func, const char *file, size_t line, const std::string &message = "");
 
-#define unreachable() \
+} // namespace panic_impl
+
+#define core_panic(...) panic_impl::panic_with_location(__FUNCTION__, __FILE__, __LINE__, ##__VA_ARGS__)
+
+#define core_unimplemented(...) core_panic("Unimplemented" __VA_ARGS__)
+
+#define core_unreachable() \
     __builtin_unreachable(); \
-    panic("Unreachable code reached")
+    core_panic("Unreachable code reached")

@@ -153,6 +153,7 @@ std::string format(Ts &&...args) {
 
 } // namespace format_impl
 
-#define println(fmt_str, ...) ::format_impl::println<fmt_str>(std::cout, true, ##__VA_ARGS__)
+#define core_print(fmt_str, ...) ::format_impl::println<fmt_str>(std::cout, false, ##__VA_ARGS__)
+#define core_println(fmt_str, ...) ::format_impl::println<fmt_str>(std::cout, true, ##__VA_ARGS__)
 
-#define format(fmt_str, ...) ::format_impl::format<fmt_str>(__VA_ARGS__)
+#define core_format(fmt_str, ...) ::format_impl::format<fmt_str>(__VA_ARGS__)
