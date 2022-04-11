@@ -34,9 +34,7 @@ void value_stats_print(ValueStats *self, const char *prefix) {
 }
 
 void stats_reset(Statistics *self) {
-#ifdef GENERATE_SYNC
     self->clock_count = 0;
-#endif
     self->sample_count = 0;
     self->max_intrs_per_sample = 0;
 
@@ -53,10 +51,9 @@ void stats_reset(Statistics *self) {
 
 void stats_print(Statistics *self) {
     hal_log_info("");
-#ifdef GENERATE_SYNC
+
     // Number of 10 kHz sync signals captured.
     hal_log_info("clock_count: %d", self->clock_count);
-#endif
     // Number of SkifIO `SMP_RDY` signals captured.
     hal_log_info("sample_count: %d", self->sample_count);
     // Maximum number of `SMP_RDY` per SkifIO communication session.

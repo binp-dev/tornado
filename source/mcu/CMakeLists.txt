@@ -24,8 +24,6 @@ SET(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 
 project(m7image)
 
-option(INTERNAL_SYNC "Whether sync signal should be generated internally" ON)
-
 set(MCUX_SDK_PROJECT_NAME m7image.elf)
 
 include(${ProjDirPath}/flags.cmake)
@@ -62,10 +60,6 @@ set(SRC
     "${ProjDirPath}/src/tasks/sync.c"
     "${ProjDirPath}/src/tasks/sync.h"
 )
-
-if(${INTERNAL_SYNC})
-add_definitions("-DGENERATE_SYNC")
-endif()
 
 add_executable(${MCUX_SDK_PROJECT_NAME} ${SRC})
 
@@ -133,6 +127,9 @@ endif()
 if(NOT DEFINED IPP)
     message(FATAL_ERROR "Variable 'IPP' is not defined")
 endif()
+
+# Generate sync internally
+add_definitions("-DGENERATE_SYNC")
 
 # Link common code
 add_subdirectory("../common" "common" EXCLUDE_FROM_ALL)
