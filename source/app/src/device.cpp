@@ -26,10 +26,7 @@ void Device::recv_loop() {
             if (err.kind == io::ErrorKind::TimedOut) {
                 continue;
             } else {
-                // TODO: Use fmt
-                std::stringstream text;
-                text << err;
-                panic("IO Error: " + text.str());
+                core_panic("IO Error: {}", err);
             }
         }
         auto incoming = result.unwrap();
@@ -63,13 +60,13 @@ void Device::recv_loop() {
 
                     // Write chunk to queue.
                     auto data_guard = adc.data.lock();
-                    assert_true(data_guard->write_array_exact(tmp.data(), tmp.size()));
+                    core_assert(data_guard->write_array_exact(tmp.data(), tmp.size()));
                     tmp.clear();
                     adc.tmp_buf = std::move(tmp);
 
                     // Notify.
                     if (data_guard->size() >= adc.max_size && !adc.ioc_notified.load()) {
-                        assert_true(adc.notify);
+                        core_assert(adc.notify);
                         adc.ioc_notified.store(true);
                         adc.notify();
                     }
@@ -90,7 +87,7 @@ void Device::recv_loop() {
                     std::cout << "Device Error (0x" << std::hex << int(error.code) << std::dec << "): " << error.message
                               << std::endl;
                 },
-                [&](auto &&) { unimplemented(); },
+                [&](auto &&) { core_unimplemented(); },
             },
             std::move(incoming.variant) //
         );
@@ -147,7 +144,7 @@ void Device::send_loop() {
                     tmp.clear();
 
                     // Send.
-                    assert_true(dac_msg.packed_size() <= channel_.max_message_length() - 1);
+                    core_assert(dac_msg.packed_size() <= channel_.max_message_length() - 1);
                     channel_.send(ipp::AppMsg{std::move(dac_msg)}, timeout).unwrap();
                     dac_.tmp_buf = std::move(tmp);
                 } else {
@@ -215,7 +212,7 @@ void Device::init_dac(const size_t max_size) {
 }
 
 void Device::write_dac(const double *data, const size_t len) {
-    assert_true(dac_.data.write_array_exact(data, len));
+    core_assert(dac_.data.write_array_exact(data, len));
     send_ready_.notify_one();
     if (dac_.sync_ioc_request_flag) {
         dac_.ioc_requested.store(false);
@@ -228,7 +225,7 @@ void Device::init_adc(uint8_t index, size_t max_size) {
 }
 
 void Device::set_adc_callback(size_t index, std::function<void()> &&callback) {
-    assert_true(index < ADC_COUNT);
+    core_assert(index < ADC_COUNT);
     adcs_[index].notify = std::move(callback);
 }
 
@@ -245,7 +242,7 @@ std::vector<double> Device::read_adc(size_t index) {
         }
 
         data.reserve(adc.max_size);
-        assert_eq(data.write_array_from(*adc_data_guard, adc.max_size), adc.max_size);
+        core_assert_eq(data.write_array_from(*adc_data_guard, adc.max_size), adc.max_size);
     }
     adc.ioc_notified.store(false);
 
@@ -257,7 +254,7 @@ std::vector<double> Device::read_adc(size_t index) {
 }
 
 int32_t Device::read_adc_last_value(size_t index) {
-    assert_true(index < ADC_COUNT);
+    core_assert(index < ADC_COUNT);
     return adcs_[index].last_value.load();
 }
 
@@ -280,7 +277,7 @@ void Device::set_dac_playback_mode(DacPlaybackMode mode) {
         dac_.data.set_cyclic(true);
         break;
     default:
-        unreachable();
+        core_unreachable();
     }
 }
 

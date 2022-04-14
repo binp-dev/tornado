@@ -76,7 +76,7 @@ void framework_record_init(Record &record) {
         specific_record.set_handler(std::make_unique<StatsResetHandler>(*DEVICE));
 
     } else {
-        unimplemented();
+        core_unimplemented();
     }
 }
 

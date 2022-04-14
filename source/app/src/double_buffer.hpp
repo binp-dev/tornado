@@ -69,7 +69,7 @@ public:
             std::swap(read_buffer_, *write_buffer_guard);
         } else {
             write_buffer_guard->view().read_array_into(read_buffer_, std::nullopt);
-            assert_eq(write_buffer_guard->size(), read_buffer_.size());
+            core_assert_eq(write_buffer_guard->size(), read_buffer_.size());
         }
         swapped_.store(true);
     }

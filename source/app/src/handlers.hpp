@@ -43,7 +43,7 @@ public:
     }
 
     virtual void set_read_request(InputValueRecord<point_t> &, std::function<void()> &&) override {
-        unimplemented();
+        core_unimplemented();
     }
 
     virtual bool is_async() const override {
@@ -107,7 +107,7 @@ public:
 
     virtual void read(InputArrayRecord<double> &record) override {
         auto adc_wf = device_.read_adc(index_);
-        assert_true(record.set_data(adc_wf.data(), adc_wf.size()));
+        core_assert(record.set_data(adc_wf.data(), adc_wf.size()));
     }
 
     virtual void set_read_request(InputArrayRecord<double> &, std::function<void()> &&callback) override {
