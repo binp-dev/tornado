@@ -13,6 +13,8 @@
 
 #include <cxxabi.h>
 
+namespace core {
+
 /// NOTE: Must subject to [constant initialization](https://en.cppreference.com/w/cpp/language/constant_initialization).
 using PanicHook = std::atomic<void (*)()>;
 static PanicHook panic_hook;
@@ -71,3 +73,5 @@ void print_backtrace() {
 }
 
 } // namespace _impl
+
+} // namespace core

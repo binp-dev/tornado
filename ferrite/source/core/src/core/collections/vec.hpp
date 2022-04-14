@@ -10,7 +10,9 @@
 
 #include "slice.hpp"
 
-namespace vec_impl {
+namespace core {
+
+namespace _impl {
 
 template <typename T>
 class BasicVec : public std::vector<T> {
@@ -87,12 +89,12 @@ public:
     }
 };
 
-} // namespace vec_impl
+} // namespace _impl
 
 template <typename T>
-class Vec final : public vec_impl::StreamVec<T> {
+class Vec final : public _impl::StreamVec<T> {
 public:
-    using vec_impl::StreamVec<T>::StreamVec;
+    using _impl::StreamVec<T>::StreamVec;
 };
 
 template <Printable T>
@@ -108,3 +110,5 @@ struct Print<Vec<T>> {
         Print<std::vector<T>>::print(os, value);
     }
 };
+
+} // namespace core

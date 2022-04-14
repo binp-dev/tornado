@@ -4,6 +4,7 @@
 
 #include <core/assert.hpp>
 
+using namespace core;
 
 namespace zmq_helper {
 

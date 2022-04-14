@@ -1,34 +1,46 @@
 from __future__ import annotations
-from typing import Any, Callable, List
+from typing import Callable, List
 
 from enum import Enum
 
 from ferrite.utils.strings import quote
 
-from ferrite.codegen.utils import hash_str, indent, to_ident
+from ferrite.codegen.utils import hash_str
 
-
-def io_read_type() -> str:
-    return "io::StreamReadExact"
-
-
-def io_write_type() -> str:
-    return "io::StreamWriteExact"
-
-
-def io_result_type(tys: str = "std::monostate") -> str:
-    return f"Result<{tys}, io::Error>"
+OK = "core::Ok"
+ERR = "core::Err"
+MONOSTATE = "std::monostate"
 
 
 def monostate() -> str:
-    return "std::monostate{}"
+    return f"{MONOSTATE}()"
+
+
+def ok(value: str = monostate()) -> str:
+    return f"{OK}({value})"
+
+
+def err(value: str) -> str:
+    return f"{ERR}({value})"
+
+
+def io_read_type() -> str:
+    return "core::io::StreamReadExact"
+
+
+def io_write_type() -> str:
+    return "core::io::StreamWriteExact"
+
+
+def io_result_type(tys: str = MONOSTATE) -> str:
+    return f"core::Result<{tys}, core::io::Error>"
 
 
 def try_unwrap(expr: str, op: Callable[[str], str] | None = None) -> List[str]:
     res = f"res_{hash_str((op('') if op is not None else '') + expr)[:4]}"
     return [
         f"auto {res} = {expr};",
-        f"if ({res}.is_err()) {{ return Err({res}.unwrap_err()); }}",
+        f"if ({res}.is_err()) {{ return {err(f'{res}.unwrap_err()')}; }}",
         *([op(f"{res}.unwrap()")] if op is not None else []),
     ]
 
@@ -50,7 +62,7 @@ class ErrorKind(Enum):
     INVALID_DATA = 2,
 
     def cpp_name(self) -> str:
-        pref = "io::ErrorKind::"
+        pref = "core::io::ErrorKind::"
         if self == ErrorKind.UNEXPECTED_EOF:
             post = "UnexpectedEof"
         elif self == ErrorKind.INVALID_DATA:
@@ -63,4 +75,4 @@ def io_error(kind: ErrorKind, desc: str | None = None) -> str:
         msg_arg = f", \"{quote(desc)}\""
     else:
         msg_arg = ""
-    return f"io::Error{{{kind.cpp_name()}{msg_arg}}}"
+    return f"core::io::Error{{{kind.cpp_name()}{msg_arg}}}"

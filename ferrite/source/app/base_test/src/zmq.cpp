@@ -8,6 +8,7 @@
 
 #include <core/result.hpp>
 
+using namespace core;
 
 inline constexpr auto TIMEOUT = std::chrono::milliseconds(100);
 

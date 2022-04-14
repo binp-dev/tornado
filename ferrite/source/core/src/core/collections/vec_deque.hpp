@@ -11,12 +11,14 @@
 
 #include "slice.hpp"
 
+namespace core {
+
 template <typename T>
 struct VecDeque;
 template <typename T>
 struct VecDequeView;
 
-namespace vec_deque_impl {
+namespace _impl {
 
 template <typename T>
 class BasicVecDeque {
@@ -167,7 +169,7 @@ class StreamVecDequeView<T, true> :
     public virtual ReadArrayInto<T> //
 {
 public:
-    using vec_deque_impl::BasicVecDequeView<T>::BasicVecDequeView;
+    using _impl::BasicVecDequeView<T>::BasicVecDequeView;
 
     [[nodiscard]] size_t read_array(T *data, size_t len) override;
     [[nodiscard]] bool read_array_exact(T *data, size_t len) override;
@@ -176,18 +178,20 @@ public:
 };
 
 
-} // namespace vec_deque_impl
+} // namespace _impl
 
 template <typename T>
-class VecDeque : public vec_deque_impl::StreamVecDeque<T> {
+class VecDeque : public _impl::StreamVecDeque<T> {
 public:
-    using vec_deque_impl::StreamVecDeque<T>::StreamVecDeque;
+    using _impl::StreamVecDeque<T>::StreamVecDeque;
 };
 
 template <typename T>
-class VecDequeView : public vec_deque_impl::StreamVecDequeView<T> {
+class VecDequeView : public _impl::StreamVecDequeView<T> {
 public:
-    using vec_deque_impl::StreamVecDequeView<T>::StreamVecDequeView;
+    using _impl::StreamVecDequeView<T>::StreamVecDequeView;
 };
+
+} // namespace core
 
 #include "vec_deque.hxx"

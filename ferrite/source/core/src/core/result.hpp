@@ -5,6 +5,7 @@
 #include "panic.hpp"
 #include "format.hpp"
 
+namespace core {
 
 template <typename T>
 struct Ok final {
@@ -83,10 +84,10 @@ struct [[nodiscard]] Result final {
         return std::move(this->err());
     }
     T unwrap() {
-        return this->expect("Result is Err");
+        return this->expect("Result::Ok is expected");
     }
     E unwrap_err() {
-        return this->expect_err("Result is Ok");
+        return this->expect_err("Result::Err is expected");
     }
 
     constexpr bool operator==(const Result &other) const {
@@ -109,48 +110,53 @@ struct [[nodiscard]] Result final {
     }
 };
 
-#define try_unwrap(res) \
+template <typename T>
+struct Print<Ok<T>> {
+    static void print(std::ostream &os, const Ok<T> &ok) {
+        os << "Ok(";
+        if constexpr (Printable<T>) {
+            os << ok.value;
+        }
+        os << ")";
+    }
+};
+
+template <typename E>
+struct Print<Err<E>> {
+    static void print(std::ostream &os, const Err<E> &err) {
+        os << "Err(";
+        if constexpr (Printable<E>) {
+            os << err.value;
+        }
+        os << ")";
+    }
+};
+
+template <typename T, typename E>
+struct Print<Result<T, E>> {
+    static void print(std::ostream &os, const Result<T, E> &res) {
+        os << "Result::";
+        if (res.is_ok()) {
+            os << "Ok(";
+            if constexpr (Printable<T>) {
+                os << res.ok();
+            }
+        } else {
+            os << "Err(";
+            if constexpr (Printable<E>) {
+                os << res.err();
+            }
+        }
+        os << ")";
+    }
+};
+
+} // namespace core
+
+#define core_try_unwrap(res) \
     { \
         auto tmp = std::move(res); \
         if (tmp.is_err()) { \
-            return Err(std::move(tmp.err())); \
+            return ::core::Err(std::move(tmp.err())); \
         } \
     }
-
-template <typename T>
-std::ostream &operator<<(std::ostream &os, const Ok<T> &ok) {
-    os << "Ok(";
-    if constexpr (Printable<T>) {
-        os << ok.value;
-    }
-    os << ")";
-    return os;
-}
-
-template <typename E>
-std::ostream &operator<<(std::ostream &os, const Err<E> &err) {
-    os << "Err(";
-    if constexpr (Printable<E>) {
-        os << err.value;
-    }
-    os << ")";
-    return os;
-}
-
-template <typename T, typename E>
-std::ostream &operator<<(std::ostream &os, const Result<T, E> &res) {
-    os << "Result::";
-    if (res.is_ok()) {
-        os << "Ok(";
-        if constexpr (Printable<T>) {
-            os << res.ok();
-        }
-    } else {
-        os << "Err(";
-        if constexpr (Printable<E>) {
-            os << res.err();
-        }
-    }
-    os << ")";
-    return os;
-}

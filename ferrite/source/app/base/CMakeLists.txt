@@ -12,7 +12,6 @@ set(SRC
     "src/record/value.hpp"
 
     "src/channel/base.hpp"
-    "src/channel/base.cpp"
     "src/channel/message.hpp"
     "src/channel/message.hxx"
 )

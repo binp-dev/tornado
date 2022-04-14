@@ -5,6 +5,8 @@
 
 #include "maybe_uninit.hpp"
 
+namespace core {
+
 // NOTE: Must subject to [constant initialization](https://en.cppreference.com/w/cpp/language/constant_initialization).
 template <typename T, void F(MaybeUninit<T> &)>
 class LazyStatic {
@@ -48,3 +50,5 @@ public:
         return &*(*this);
     }
 };
+
+} // namespace core

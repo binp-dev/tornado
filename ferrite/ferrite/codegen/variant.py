@@ -4,7 +4,7 @@ from typing import Any, List, Optional, Tuple, Union
 from random import Random
 
 from ferrite.codegen.base import CONTEXT, Include, Location, Name, Type, Source
-from ferrite.codegen.macros import ErrorKind, io_error, io_read_type, io_result_type, io_write_type, monostate, stream_read, stream_write, try_unwrap
+from ferrite.codegen.macros import ErrorKind, err, io_error, io_read_type, io_result_type, io_write_type, ok, stream_read, stream_write, try_unwrap
 from ferrite.codegen.primitive import Int, Pointer
 from ferrite.codegen.utils import indent, list_join
 from ferrite.codegen.structure import Field
@@ -212,14 +212,14 @@ class Variant(Type):
                     *try_unwrap(stream_read("stream", "buf", size_diff, cast=False)),
                 ]
 
-        lines += [f"return Ok({self.cpp_type()}{{std::move(tmp)}});"]
+        lines += [f"return {ok(f'{self.cpp_type()}{{std::move(tmp)}}')};"]
         return lines
 
     def _cpp_load_method_impl(self) -> List[str]:
         return [
             f"{io_result_type(self.cpp_type())} {self.cpp_type()}::load({io_read_type()} &stream) {{",
             *indent(try_unwrap(self._id_type.cpp_load("stream"), lambda x: f"auto raw_id = {x};")),
-            f"    if (raw_id >= {len(self.variants)}) {{ return Err({io_error(ErrorKind.INVALID_DATA)}); }}",
+            f"    if (raw_id >= {len(self.variants)}) {{ return {err(io_error(ErrorKind.INVALID_DATA))}; }}",
             f"",
             f"    switch (static_cast<{self._cpp_enum_type()}>(raw_id)) {{",
             *indent(
@@ -248,7 +248,7 @@ class Variant(Type):
                     *try_unwrap(stream_write("stream", "buf", size_diff, cast=False)),
                 ]
 
-        lines += [f"return Ok({monostate()});"]
+        lines += [f"return {ok()};"]
         return lines
 
     def _cpp_store_method_impl(self) -> List[str]:

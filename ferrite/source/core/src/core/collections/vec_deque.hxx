@@ -1,6 +1,6 @@
 #include "vec_deque.hpp"
 
-namespace vec_deque_impl {
+namespace core::_impl {
 
 template <typename T>
 BasicVecDeque<T>::BasicVecDeque(const BasicVecDeque &other) : BasicVecDeque(other.size()) {
@@ -511,4 +511,4 @@ size_t StreamVecDequeView<T, true>::read_array_into(WriteArray<T> &stream, std::
     return left_len + right_res_len;
 }
 
-} // namespace vec_deque_impl
+} // namespace core::_impl

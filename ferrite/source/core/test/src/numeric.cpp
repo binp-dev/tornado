@@ -4,6 +4,8 @@
 
 #include <cstdint>
 
+using namespace core;
+
 TEST(Numeric, next_power_of_two) {
     ASSERT_EQ(next_power_of_two(1), 1);
     ASSERT_EQ(next_power_of_two(2), 2);

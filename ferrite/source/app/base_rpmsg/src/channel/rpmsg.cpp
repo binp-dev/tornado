@@ -6,6 +6,7 @@
 
 #include "rpmsg.hpp"
 
+using namespace core;
 
 Result<RpmsgChannel, io::Error> RpmsgChannel::create(const std::string &dev) {
     int fd = open(dev.c_str(), O_NOCTTY | O_RDWR); // | O_NONBLOCK);

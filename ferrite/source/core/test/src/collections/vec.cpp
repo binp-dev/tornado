@@ -7,6 +7,8 @@
 
 #include <gtest/gtest.h>
 
+using namespace core;
+
 TEST(Vec, from_std_vector) {
     std::vector<int32_t> sv{0, 1, 2, 3};
     ASSERT_EQ(sv.size(), 4u);

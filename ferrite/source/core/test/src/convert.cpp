@@ -4,6 +4,8 @@
 
 #include <cstdint>
 
+using namespace core;
+
 TEST(Cast, i8_to_i32) {
     ASSERT_TRUE(safe_cast<int32_t>(int8_t(0)) == int32_t(0));
     ASSERT_TRUE(safe_cast<int32_t>(int8_t(0x7f)) == int32_t(0x7f));

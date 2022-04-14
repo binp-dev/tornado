@@ -19,7 +19,7 @@ MessageChannel<OutMsg, InMsg>::MessageChannel(std::unique_ptr<Channel> &&raw_, c
 }
 
 template <typename OutMsg, typename InMsg>
-Result<std::monostate, io::Error> MessageChannel<OutMsg, InMsg>::send(
+core::Result<std::monostate, core::io::Error> MessageChannel<OutMsg, InMsg>::send(
     const OutMsg &message,
     std::optional<std::chrono::milliseconds> timeout) {
 
@@ -31,14 +31,14 @@ Result<std::monostate, io::Error> MessageChannel<OutMsg, InMsg>::send(
     }
     const size_t length = send_buffer_.size();
     if (length > max_message_length()) {
-        return Err(io::Error{io::ErrorKind::UnexpectedEof, "Message size is greater than max length"});
+        return Err(core::io::Error{io::ErrorKind::UnexpectedEof, "Message size is greater than max length"});
     }
     raw_->timeout = timeout;
     return raw_->stream_write_exact(send_buffer_.data(), length);
 }
 
 template <typename OutMsg, typename InMsg>
-Result<InMsg, io::Error> MessageChannel<OutMsg, InMsg>::receive(std::optional<std::chrono::milliseconds> timeout) {
+core::Result<InMsg, core::io::Error> MessageChannel<OutMsg, InMsg>::receive(std::optional<std::chrono::milliseconds> timeout) {
     auto begin = std::chrono::steady_clock::now();
     for (;;) {
         // Try to read data from buffer.
@@ -70,5 +70,5 @@ Result<InMsg, io::Error> MessageChannel<OutMsg, InMsg>::receive(std::optional<st
             return Err(read_res.unwrap_err());
         }
     }
-    return Err(io::Error{io::ErrorKind::TimedOut});
+    return Err(core::io::Error{io::ErrorKind::TimedOut});
 }

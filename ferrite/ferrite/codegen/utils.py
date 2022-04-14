@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, List, TypeVar
+from typing import List, TypeVar
 
 import re
 import zlib

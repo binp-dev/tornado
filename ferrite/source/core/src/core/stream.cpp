@@ -1,5 +1,7 @@
 #include "stream.hpp"
 
+namespace core {
+
 inline namespace {
 
 struct StreamReadArrayWrapper final : ReadArray<uint8_t> {
@@ -83,3 +85,5 @@ Result<size_t, io::Error> ReadArrayInto<uint8_t>::read_into_stream(io::StreamWri
         return Ok(write_len);
     }
 }
+
+} // namespace core

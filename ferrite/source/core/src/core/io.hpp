@@ -8,6 +8,8 @@
 #include "result.hpp"
 #include "format.hpp"
 
+namespace core {
+
 namespace io {
 
 enum class ErrorKind {
@@ -68,27 +70,34 @@ public:
 
 } // namespace io
 
-inline std::ostream &operator<<(std::ostream &o, const io::ErrorKind &ek) {
-    switch (ek) {
-    case io::ErrorKind::NotFound:
-        o << "Not Found";
-        break;
-    case io::ErrorKind::UnexpectedEof:
-        o << "Unexpected Eof";
-        break;
-    case io::ErrorKind::InvalidData:
-        o << "Invalid Data";
-        break;
-    case io::ErrorKind::TimedOut:
-        o << "Timed Out";
-        break;
-    case io::ErrorKind::Other:
-        o << "Other";
-        break;
+template <>
+struct Print<io::ErrorKind> {
+    inline static void print(std::ostream &o, io::ErrorKind &ek) {
+        switch (ek) {
+        case io::ErrorKind::NotFound:
+            o << "Not Found";
+            break;
+        case io::ErrorKind::UnexpectedEof:
+            o << "Unexpected Eof";
+            break;
+        case io::ErrorKind::InvalidData:
+            o << "Invalid Data";
+            break;
+        case io::ErrorKind::TimedOut:
+            o << "Timed Out";
+            break;
+        case io::ErrorKind::Other:
+            o << "Other";
+            break;
+        }
     }
-    return o;
-}
+};
 
-inline std::ostream &operator<<(std::ostream &o, const io::Error &e) {
-    return o << "io::Error(" << e.kind << ": " << e.message << ")";
-}
+template <>
+struct Print<io::Error> {
+    inline static void print(std::ostream &o, const io::Error &e) {
+        core_write(o, "io::Error({}: {})", e.kind, e.message);
+    }
+};
+
+} // namespace core

@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+using namespace core;
+
 TEST(Print, string) {
     static_assert(Printable<std::string>);
 }

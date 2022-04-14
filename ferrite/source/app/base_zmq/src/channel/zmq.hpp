@@ -43,9 +43,9 @@ public:
     ZmqChannel(ZmqChannel &&) = default;
     ZmqChannel &operator=(ZmqChannel &&) = default;
 
-    static Result<ZmqChannel, io::Error> create(const std::string &host);
+    static core::Result<ZmqChannel, core::io::Error> create(const std::string &host);
 
-    virtual Result<size_t, io::Error> stream_write(const uint8_t *data, size_t len) override;
-    virtual Result<std::monostate, io::Error> stream_write_exact(const uint8_t *data, size_t len) override;
-    virtual Result<size_t, io::Error> stream_read(uint8_t *data, size_t len) override;
+    virtual core::Result<size_t, core::io::Error> stream_write(const uint8_t *data, size_t len) override;
+    virtual core::Result<std::monostate, core::io::Error> stream_write_exact(const uint8_t *data, size_t len) override;
+    virtual core::Result<size_t, core::io::Error> stream_read(uint8_t *data, size_t len) override;
 };

@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+using namespace core;
+
 TEST(VecDeque, grow) {
     VecDeque<int32_t> rb;
     ASSERT_EQ(rb.size(), 0u);

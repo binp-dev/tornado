@@ -7,10 +7,12 @@
 #include <core/assert.hpp>
 #include <core/format.hpp>
 
+namespace core {
+
 template <typename T>
 class Slice;
 
-namespace slice_impl {
+namespace _impl {
 
 template <typename T>
 class BasicSlice : public std::span<T> {
@@ -23,8 +25,8 @@ private:
     }
 
 public:
-    operator ::Slice<const T>() const {
-        return ::Slice<const T>(*this);
+    operator Slice<const T>() const {
+        return Slice<const T>(*this);
     }
 
     [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_back() {
@@ -95,12 +97,12 @@ public:
     }
 };
 
-} // namespace slice_impl
+} // namespace _impl
 
 template <typename T>
-class Slice final : public slice_impl::StreamSlice<T> {
+class Slice final : public _impl::StreamSlice<T> {
 public:
-    using slice_impl::StreamSlice<T>::StreamSlice;
+    using _impl::StreamSlice<T>::StreamSlice;
 };
 
 template <Printable T>
@@ -126,3 +128,5 @@ struct Print<Slice<T>> {
         Print<std::span<T>>::print(os, value);
     }
 };
+
+} // namespace core

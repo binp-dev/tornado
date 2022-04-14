@@ -11,7 +11,7 @@
 
 #include "print.hpp"
 
-namespace _impl {
+namespace core::_impl {
 
 template <size_t N>
 struct Literal {
@@ -149,12 +149,12 @@ std::string format(Ts &&...args) {
     return stream.str();
 }
 
-} // namespace _impl
+} // namespace core::_impl
 
-#define core_write(stream, fmt_str, ...) ::_impl::print<fmt_str>((stream), false, ##__VA_ARGS__)
-#define core_writeln(stream, fmt_str, ...) ::_impl::print<"" fmt_str>((stream), true, ##__VA_ARGS__)
+#define core_write(stream, fmt_str, ...) ::core::_impl::print<fmt_str>((stream), false, ##__VA_ARGS__)
+#define core_writeln(stream, fmt_str, ...) ::core::_impl::print<"" fmt_str>((stream), true, ##__VA_ARGS__)
 
 #define core_print(...) core_write(std::cout, ##__VA_ARGS__)
 #define core_println(...) core_writeln(std::cout, ##__VA_ARGS__)
 
-#define core_format(fmt_str, ...) ::_impl::format<fmt_str>(__VA_ARGS__)
+#define core_format(fmt_str, ...) ::core::_impl::format<fmt_str>(__VA_ARGS__)

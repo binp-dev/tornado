@@ -4,6 +4,7 @@
 #include <concepts>
 #include <cstdint>
 
+namespace core {
 
 template <typename T>
 concept _StdPrintable = requires(std::ostream &stream, const T &value) {
@@ -45,3 +46,5 @@ struct Print<bool> {
         stream << (value ? "true" : "false");
     }
 };
+
+} // namespace core

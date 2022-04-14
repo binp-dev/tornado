@@ -2,6 +2,8 @@
 
 #include "format.hpp"
 
+namespace core {
+
 void set_panic_hook(void (*hook)());
 
 namespace _impl {
@@ -10,13 +12,14 @@ void print_backtrace();
 [[noreturn]] void panic();
 
 } // namespace _impl
+} // namespace core
 
 #define core_panic(...) \
     do { \
-        ::_impl::print_backtrace(); \
+        ::core::_impl::print_backtrace(); \
         core_println("Thread panicked in {}, at {}:{}", __FUNCTION__, __FILE__, __LINE__); \
         core_println(__VA_ARGS__); \
-        ::_impl::panic(); \
+        ::core::_impl::panic(); \
     } while (false)
 
 #define core_unimplemented(...) core_panic("Unimplemented. " __VA_ARGS__)

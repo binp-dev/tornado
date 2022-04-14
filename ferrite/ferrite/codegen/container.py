@@ -1,16 +1,16 @@
 from __future__ import annotations
-from typing import Any, Generic, List, Optional, TypeVar
+from typing import Any, List, Optional
 
 from random import Random
 from dataclasses import dataclass
 
 import numpy as np
-from numpy.typing import NDArray, DTypeLike
+from numpy.typing import NDArray
 
 from ferrite.codegen.base import CONTEXT, Include, Location, Name, Type, Source
 from ferrite.codegen.primitive import Char, Int
 from ferrite.codegen.utils import indent
-from ferrite.codegen.macros import ErrorKind, io_error, monostate, stream_read, stream_write, try_unwrap
+from ferrite.codegen.macros import ErrorKind, err, io_error, ok, stream_read, stream_write, try_unwrap
 
 
 class _ItemBase(Type):
@@ -153,7 +153,7 @@ class Array(_ArrayBase):
                     self.item.size() * self.len,
                 )),
             ][self.item.trivial]),
-            f"    return Ok(std::move(dst));",
+            f"    return {ok('std::move(dst)')};",
             f"}}",
         ]
         store_src = [
@@ -170,7 +170,7 @@ class Array(_ArrayBase):
                     self.item.size() * self.len,
                 )),
             ][self.item.trivial]),
-            f"    return Ok({monostate()});",
+            f"    return {ok()};",
             f"}}",
         ]
         return Source(
@@ -333,13 +333,13 @@ class Vector(_BasicVector, _ArrayBase):
                     f"({self.item.size()} * dst.size())",
                 )),
             ][self.item.trivial]),
-            f"    return Ok(std::move(dst));",
+            f"    return {ok('std::move(dst)')};",
             f"}}",
         ]
         store_src = [
             f"{self._cpp_store_func_decl('stream', 'src')} {{",
-            f"    auto len_opt = safe_cast<{self._size_type.cpp_type()}>(src.size());",
-            f"    if (!len_opt.has_value()) {{ return Err({io_error(ErrorKind.INVALID_DATA)}); }}",
+            f"    auto len_opt = core::safe_cast<{self._size_type.cpp_type()}>(src.size());",
+            f"    if (!len_opt.has_value()) {{ return {err(io_error(ErrorKind.INVALID_DATA))}; }}",
             *indent(try_unwrap(self._size_type.cpp_store("stream", "len_opt.value()"))),
             *indent([
                 [
@@ -353,7 +353,7 @@ class Vector(_BasicVector, _ArrayBase):
                     f"({self.item.size()} * src.size())",
                 )),
             ][self.item.trivial]),
-            f"    return Ok({monostate()});",
+            f"    return {ok()};",
             f"}}",
         ]
         return Source(
@@ -407,16 +407,16 @@ class String(_BasicVector):
             *indent(try_unwrap(self._size_type.cpp_load("stream"), lambda l: f"{self._size_type.cpp_type()} len = {l};")),
             f"    auto dst = {self.cpp_type()}(static_cast<size_t>(len), '\\0');",
             *indent(try_unwrap(stream_read("stream", "dst.data()", f"dst.length()"))),
-            f"    return Ok(std::move(dst));",
+            f"    return {ok('std::move(dst)')};",
             f"}}",
         ]
         store_src = [
             f"{store_decl} {{",
-            f"    auto len_opt = safe_cast<{self._size_type.cpp_type()}>(src.size());",
-            f"    if (!len_opt.has_value()) {{ return Err({io_error(ErrorKind.INVALID_DATA)}); }}",
+            f"    auto len_opt = core::safe_cast<{self._size_type.cpp_type()}>(src.size());",
+            f"    if (!len_opt.has_value()) {{ return {err(io_error(ErrorKind.INVALID_DATA))}; }}",
             *indent(try_unwrap(self._size_type.cpp_store("stream", "len_opt.value()"))),
             *indent(try_unwrap(stream_write("stream", "src.data()", f"src.length()"))),
-            f"    return Ok({monostate()});",
+            f"    return {ok()};",
             f"}}",
         ]
         return Source(

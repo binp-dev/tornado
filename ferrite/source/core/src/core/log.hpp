@@ -4,6 +4,8 @@
 
 #include "format.hpp"
 
+namespace core {
+
 enum class LogLevel {
     Fatal = 0,
     Error,
@@ -31,6 +33,7 @@ void log(Ts &&...args) {
 }
 
 } // namespace _impl
+} // namespace core
 
 #define core_log(level, fmt, ...) ::_impl::log<level, fmt>(__VA_ARGS__)
 

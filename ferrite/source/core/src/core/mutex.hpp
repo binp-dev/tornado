@@ -2,6 +2,8 @@
 
 #include <mutex>
 
+namespace core {
+
 template <typename T>
 class Mutex final {
 public:
@@ -66,3 +68,5 @@ public:
         return Guard(mutex_, value_);
     }
 };
+
+} // namespace core

@@ -4,6 +4,8 @@
 #include <limits>
 #include <optional>
 
+namespace core {
+
 template <typename Dst, typename Src>
 std::optional<Dst> safe_cast(Src src) {
     static_assert(std::is_integral_v<Src> && std::is_integral_v<Dst>);
@@ -21,4 +23,6 @@ std::optional<Dst> safe_cast(Src src) {
         }
     }
     return std::nullopt;
+}
+
 }
