@@ -187,7 +187,7 @@ class Variant(Type):
                     f"        break;",
                 ] for i, f in enumerate(self.variants)]),
                 f"    default:",
-                f"        unreachable();",
+                f"        core_unreachable();",
                 f"    }}",
                 f"    return size;",
             ] if not self.sized else [
@@ -230,7 +230,7 @@ class Variant(Type):
                 ] for i, f in enumerate(self.variants)])
             ),
             f"    }}",
-            f"    unreachable();",
+            f"    core_unreachable();",
             f"}}",
         ]
 
@@ -266,7 +266,7 @@ class Variant(Type):
                 ] for i, f in enumerate(self.variants)])
             ),
             f"    }}",
-            f"    unreachable();",
+            f"    core_unreachable();",
             f"}}",
         ]
 

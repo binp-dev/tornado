@@ -2,18 +2,16 @@
 
 // TODO: Migrate to std::format when supported.
 
-#include <iostream>
 #include <vector>
 #include <string>
-#include <variant>
+#include <iostream>
 #include <sstream>
+#include <optional>
+#include <cassert>
 
 #include "print.hpp"
-#include "result.hpp"
-#include "match.hpp"
-#include "assert.hpp"
 
-namespace format_impl {
+namespace _impl {
 
 template <size_t N>
 struct Literal {
@@ -53,7 +51,7 @@ struct Error {
 };
 
 template <typename... Ts>
-consteval Result<std::monostate, Error> check_format_str(const std::string_view str) {
+consteval std::optional<Error> check_format_str(const std::string_view str) {
     constexpr size_t total_args = sizeof...(Ts);
     size_t arg = 0;
     bool opened = false;
@@ -69,7 +67,7 @@ consteval Result<std::monostate, Error> check_format_str(const std::string_view 
         } else if (c == '}') {
             if (opened) {
                 if (arg >= total_args) {
-                    return Err(Error{ErrorKind::TooManyArgs, i});
+                    return Error{ErrorKind::TooManyArgs, i};
                 }
                 arg += 1;
                 opened = false;
@@ -80,17 +78,17 @@ consteval Result<std::monostate, Error> check_format_str(const std::string_view 
             }
         } else {
             if (opened || closed) {
-                return Err(Error{ErrorKind::UnpairedBrace, i});
+                return Error{ErrorKind::UnpairedBrace, i};
             }
         }
     }
     if (opened || closed) {
-        return Err(Error{ErrorKind::UnpairedBrace, str.size()});
+        return Error{ErrorKind::UnpairedBrace, str.size()};
     }
     if (arg != total_args) {
-        return Err(Error{ErrorKind::TooFewArgs, str.size()});
+        return Error{ErrorKind::TooFewArgs, str.size()};
     }
-    return Ok(std::monostate());
+    return std::nullopt;
 }
 
 template <typename... Ts>
@@ -115,7 +113,7 @@ void print_unchecked(std::ostream &stream, const std::string_view str, Ts &&...a
             }
         } else if (c == '}') {
             if (opened) {
-                assert_true(arg < printed_args.size());
+                assert(arg < printed_args.size());
                 stream << printed_args[arg];
                 arg += 1;
                 opened = false;
@@ -126,18 +124,18 @@ void print_unchecked(std::ostream &stream, const std::string_view str, Ts &&...a
                 closed = true;
             }
         } else {
-            assert_true(!opened && !closed);
+            assert(!opened && !closed);
             stream << c;
         }
     }
-    assert_true(!opened && !closed);
-    assert_true(arg == printed_args.size());
+    assert(!opened && !closed);
+    assert(arg == printed_args.size());
 }
 
 template <Literal FMT_STR, typename... Ts>
 void print(std::ostream &stream, bool newline, Ts &&...args) {
-    constexpr auto check_result = check_format_str<Ts...>(FMT_STR.view());
-    static_assert(check_result.is_ok(), "Format error");
+    constexpr auto check_error = check_format_str<Ts...>(FMT_STR.view());
+    static_assert(!check_error.has_value(), "Format error");
     print_unchecked(stream, FMT_STR.view(), std::forward<Ts>(args)...);
     if (newline) {
         stream << std::endl;
@@ -151,9 +149,12 @@ std::string format(Ts &&...args) {
     return stream.str();
 }
 
-} // namespace format_impl
+} // namespace _impl
 
-#define core_print(fmt_str, ...) ::format_impl::println<fmt_str>(std::cout, false, ##__VA_ARGS__)
-#define core_println(fmt_str, ...) ::format_impl::println<fmt_str>(std::cout, true, ##__VA_ARGS__)
+#define core_write(stream, fmt_str, ...) ::_impl::print<fmt_str>((stream), false, ##__VA_ARGS__)
+#define core_writeln(stream, fmt_str, ...) ::_impl::print<"" fmt_str>((stream), true, ##__VA_ARGS__)
 
-#define core_format(fmt_str, ...) ::format_impl::format<fmt_str>(__VA_ARGS__)
+#define core_print(...) core_write(std::cout, ##__VA_ARGS__)
+#define core_println(...) core_writeln(std::cout, ##__VA_ARGS__)
+
+#define core_format(fmt_str, ...) ::_impl::format<fmt_str>(__VA_ARGS__)

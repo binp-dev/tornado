@@ -12,6 +12,7 @@
 #include <initHooks.h>
 
 #include <core/panic.hpp>
+#include <core/log.hpp>
 #include <framework.hpp>
 
 extern "C" {
@@ -28,13 +29,8 @@ static void init_hooks(initHookState state) {
     }
 }
 
-// FIXME: Figure out why this function isn't called anymore.
 void psc_init(void) {
-    std::cout << "*** PSC Device Support ***" << std::endl;
-
-    set_panic_hook([]() {
-        epicsExit(1);
-    });
+    set_panic_hook([]() { epicsExit(1); });
 
     initHookRegister(init_hooks);
 

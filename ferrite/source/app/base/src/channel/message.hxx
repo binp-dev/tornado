@@ -1,7 +1,6 @@
 #include "message.hpp"
 
 #include <chrono>
-#include <sstream>
 #include <iostream>
 #include <iomanip>
 

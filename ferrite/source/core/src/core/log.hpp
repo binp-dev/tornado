@@ -13,7 +13,7 @@ enum class LogLevel {
     Trace,
 };
 
-namespace log_impl {
+namespace _impl {
 
 constexpr std::array<const char *, size_t(LogLevel::Trace) + 1> LEVEL_NAMES = {
     "fatal",
@@ -24,15 +24,15 @@ constexpr std::array<const char *, size_t(LogLevel::Trace) + 1> LEVEL_NAMES = {
     "trace",
 };
 
-template <LogLevel LEVEL, format_impl::Literal FMT_STR, typename... Ts>
+template <LogLevel LEVEL, _impl::Literal FMT_STR, typename... Ts>
 void log(Ts &&...args) {
-    constexpr auto LOG_FMT_STR = format_impl::Literal("[app:{}] ").append(FMT_STR);
-    format_impl::print<LOG_FMT_STR>(std::cout, true, LEVEL_NAMES[size_t(LEVEL)], std::forward<Ts>(args)...);
+    constexpr auto LOG_FMT_STR = _impl::Literal("[app:{}] ").append(FMT_STR);
+    _impl::print<LOG_FMT_STR>(std::cout, true, LEVEL_NAMES[size_t(LEVEL)], std::forward<Ts>(args)...);
 }
 
-} // namespace log_impl
+} // namespace _impl
 
-#define core_log(level, fmt, ...) ::log_impl::log<level, fmt>(__VA_ARGS__)
+#define core_log(level, fmt, ...) ::_impl::log<level, fmt>(__VA_ARGS__)
 
 /* clang-format off */
 #define core_log_fatal(  fmt, ...) core_log(::LogLevel::Fatal,   fmt, ##__VA_ARGS__)

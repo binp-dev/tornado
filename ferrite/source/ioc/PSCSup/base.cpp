@@ -33,21 +33,21 @@ EpicsRecord::EpicsRecord(dbCommon *raw) : raw_(raw) {
 }
 
 void EpicsRecord::set_private_data(dbCommon *raw, std::unique_ptr<EpicsRecord> &&record) {
-    assert_true(raw->dpvt == nullptr);
+    core_assert(raw->dpvt == nullptr);
     raw->dpvt = static_cast<void *>(record.release());
 }
 const EpicsRecord *EpicsRecord::get_private_data(const dbCommon *raw) {
-    assert_true(raw->dpvt != nullptr);
+    core_assert(raw->dpvt != nullptr);
     const auto *record = (const EpicsRecord *)(raw->dpvt);
     // This assert fails if `raw` address change.
-    assert_true(raw == record->raw());
+    core_assert(raw == record->raw());
     return record;
 }
 EpicsRecord *EpicsRecord::get_private_data(dbCommon *raw) {
-    assert_true(raw->dpvt != nullptr);
+    core_assert(raw->dpvt != nullptr);
     auto *record = (EpicsRecord *)(raw->dpvt);
     // This assert fails if `raw` address change.
-    assert_true(raw == record->raw());
+    core_assert(raw == record->raw());
     return record;
 }
 
@@ -129,13 +129,13 @@ void EpicsRecord::set_scan_list(std::optional<ScanList> &&scan_list) {
 }
 
 void EpicsRecord::request_processing() {
-    assert_true(scan_list_.has_value());
+    core_assert(scan_list_.has_value());
     scan_list_->scan();
 }
 
-// TODO make true virtual?
+/// TODO: make true virtual?
 void EpicsRecord::register_processing_request() {
-    unreachable();
+    core_unreachable();
 }
 
 std::string_view EpicsRecord::name() const {

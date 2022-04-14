@@ -301,13 +301,13 @@ std::pair<Slice<MaybeUninit<T>>, Slice<MaybeUninit<T>>> BasicVecDeque<T>::free_s
 
 template <typename T>
 void BasicVecDeque<T>::expand_front(size_t count) {
-    assert_true(count <= capacity() - size());
+    core_assert(count <= capacity() - size());
     front_ = ((front_ + mod()) - count) % mod();
 }
 
 template <typename T>
 void BasicVecDeque<T>::expand_back(size_t count) {
-    assert_true(count <= capacity() - size());
+    core_assert(count <= capacity() - size());
     back_ = (back_ + count) % mod();
 }
 
@@ -388,14 +388,14 @@ std::pair<Slice<const T>, Slice<const T>> BasicVecDequeView<T>::as_slices() cons
 template <typename T>
 size_t StreamVecDeque<T, true>::read_array(T *data, size_t len) {
     size_t read_len = this->view().read_array(data, len);
-    assert_eq(this->skip_front(read_len), read_len);
+    core_assert_eq(this->skip_front(read_len), read_len);
     return read_len;
 }
 
 template <typename T>
 bool StreamVecDeque<T, true>::read_array_exact(T *data, size_t len) {
     if (this->view().read_array_exact(data, len)) {
-        assert_eq(this->skip_front(len), len);
+        core_assert_eq(this->skip_front(len), len);
         return true;
     } else {
         return false;
@@ -414,14 +414,14 @@ size_t StreamVecDeque<T, true>::write_array(const T *data, size_t len) {
     size_t right_len = std::min(right.size(), len - left_len);
     memcpy(right.data(), data + left_len, sizeof(T) * right_len);
 
-    assert_eq(left_len + right_len, len);
+    core_assert_eq(left_len + right_len, len);
     this->expand_back(len);
     return len;
 }
 
 template <typename T>
 bool StreamVecDeque<T, true>::write_array_exact(const T *data, size_t len) {
-    assert_eq(this->write_array(data, len), len);
+    core_assert_eq(this->write_array(data, len), len);
     return true;
 }
 
@@ -467,7 +467,7 @@ size_t StreamVecDeque<T, true>::write_array_from(ReadArray<T> &stream, std::opti
 template <typename T>
 size_t StreamVecDeque<T, true>::read_array_into(WriteArray<T> &stream, std::optional<size_t> len_opt) {
     size_t res_len = this->view().read_array_into(stream, len_opt);
-    assert_eq(this->skip_front(res_len), res_len);
+    core_assert_eq(this->skip_front(res_len), res_len);
     return res_len;
 }
 
@@ -477,14 +477,14 @@ size_t StreamVecDequeView<T, true>::read_array(T *data, size_t len) {
     size_t first_len = first.read_array(data, len);
     size_t second_len = second.read_array(data + first_len, len - first_len);
     size_t read_len = first_len + second_len;
-    assert_eq(this->skip_front(read_len), read_len);
+    core_assert_eq(this->skip_front(read_len), read_len);
     return read_len;
 }
 
 template <typename T>
 bool StreamVecDequeView<T, true>::read_array_exact(T *data, size_t len) {
     if (len <= this->size()) {
-        assert_eq(this->read_array(data, len), len);
+        core_assert_eq(this->read_array(data, len), len);
         return true;
     } else {
         return false;
@@ -499,7 +499,7 @@ size_t StreamVecDequeView<T, true>::read_array_into(WriteArray<T> &stream, std::
     // Write first slice.
     size_t left_len = std::min(left.size(), len);
     size_t left_res_len = stream.write_array(left.data(), left_len);
-    assert_eq(this->skip_front(left_res_len), left_res_len);
+    core_assert_eq(this->skip_front(left_res_len), left_res_len);
     if (left_res_len < left_len) {
         return left_res_len;
     }
@@ -507,7 +507,7 @@ size_t StreamVecDequeView<T, true>::read_array_into(WriteArray<T> &stream, std::
     // Write second slice.
     size_t right_len = std::min(right.size(), len - left_len);
     size_t right_res_len = stream.write_array(right.data(), right_len);
-    assert_eq(this->skip_front(right_res_len), right_res_len);
+    core_assert_eq(this->skip_front(right_res_len), right_res_len);
     return left_len + right_res_len;
 }
 

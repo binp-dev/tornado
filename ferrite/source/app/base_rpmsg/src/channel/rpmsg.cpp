@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <poll.h>
 
+#include <core/format.hpp>
+
 #include "rpmsg.hpp"
 
 
@@ -85,9 +87,7 @@ Result<size_t, io::Error> RpmsgChannel::stream_read(uint8_t *data, size_t len) {
 
     int read_len = ::read(this->fd_, data, len);
     if (read_len < 0) {
-        std::stringstream ss;
-        ss << "Read error: " << read_len;
-        return Err(io::Error{io::ErrorKind::Other, ss.str()});
+        return Err(io::Error{io::ErrorKind::Other, core_format("Read error: {}", read_len)});
     }
     return Ok(size_t(read_len));
 }

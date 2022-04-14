@@ -1,10 +1,9 @@
 #pragma once
 
 #include <variant>
-#include <sstream>
 
 #include "panic.hpp"
-#include "print.hpp"
+#include "format.hpp"
 
 
 template <typename T>
@@ -63,25 +62,23 @@ struct [[nodiscard]] Result final {
         return std::get<0>(this->variant);
     }
 
-    T expect(const std::string message) {
+    T expect(const std::string &message) {
         if (this->is_err()) {
-            std::stringstream ss;
-            ss << message;
             if constexpr (Printable<E>) {
-                ss << ": Result::Err(" << this->err() << ")";
+                core_panic("{}: {}", message, this->err());
+            } else {
+                core_panic("{}", message);
             }
-            panic(ss.str());
         }
         return std::move(this->ok());
     }
-    E expect_err(const std::string message) {
+    E expect_err(const std::string &message) {
         if (this->is_ok()) {
-            std::stringstream ss;
-            ss << message;
             if constexpr (Printable<T>) {
-                ss << ": Result::Ok(" << this->ok() << ")";
+                core_panic("{}: {}", message, this->ok());
+            } else {
+                core_panic("{}", message);
             }
-            panic(ss.str());
         }
         return std::move(this->err());
     }

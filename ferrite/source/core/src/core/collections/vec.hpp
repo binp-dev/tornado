@@ -49,7 +49,7 @@ public:
     }
 
     [[nodiscard]] bool write_array_exact(const T *data, size_t len) override {
-        assert_eq(this->write_array(data, len), len);
+        core_assert_eq(this->write_array(data, len), len);
         return true;
     }
 

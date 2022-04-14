@@ -8,10 +8,10 @@
 namespace zmq_helper {
 
 void ContextDestroyer::operator()(void *context) const {
-    assert_eq(zmq_ctx_destroy(context), 0);
+    core_assert_eq(zmq_ctx_destroy(context), 0);
 }
 void SocketCloser::operator()(void *socket) const {
-    assert_eq(zmq_close(socket), 0);
+    core_assert_eq(zmq_close(socket), 0);
 }
 
 static const ContextDestroyer CONTEXT_DESTROYER{};
@@ -39,7 +39,6 @@ Result<ZmqChannel, io::Error> ZmqChannel::create(const std::string &host) {
     }
     auto socket = zmq_helper::guard_socket(raw_socket);
 
-    // std::cout << "ZmqChannel(host='" << host << "')" << std::endl;
     if (zmq_connect(socket.get(), host.c_str()) != 0) {
         return Err(io::Error{io::ErrorKind::Other, "Error connecting ZMQ socket"});
     }
@@ -92,7 +91,7 @@ Result<size_t, io::Error> ZmqChannel::stream_read(uint8_t *data, size_t len) {
             return Err(io::Error{io::ErrorKind::Other, "Poll error"});
         }
 
-        assert_eq(zmq_msg_init(&this->last_msg_), 0);
+        core_assert_eq(zmq_msg_init(&this->last_msg_), 0);
         int ret = zmq_msg_recv(&this->last_msg_, this->socket_.get(), ZMQ_NOBLOCK);
         if (ret <= 0) {
             return Err(io::Error{io::ErrorKind::Other, "Error receive"});

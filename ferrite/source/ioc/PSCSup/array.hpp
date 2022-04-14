@@ -14,12 +14,11 @@
 #include "types.hpp"
 
 template <typename T, typename Raw>
-class EpicsArrayRecordBase : public EpicsRecord
-{
+class EpicsArrayRecordBase : public EpicsRecord {
 public:
     explicit EpicsArrayRecordBase(Raw *raw_) : EpicsRecord((dbCommon *)raw_) {
-        assert_eq(epics_type_enum<T>, data_type());
-        assert_eq(dbValueSize(data_type()), sizeof(T));
+        core_assert_eq(epics_type_enum<T>, data_type());
+        core_assert_eq(dbValueSize(data_type()), sizeof(T));
     }
 
     const Raw *raw() const {
@@ -42,10 +41,7 @@ protected:
 };
 
 template <typename T, typename Raw>
-class EpicsInputArrayRecord :
-    public virtual InputArrayRecord<T>,
-    public EpicsArrayRecordBase<T, Raw>
-{
+class EpicsInputArrayRecord : public virtual InputArrayRecord<T>, public EpicsArrayRecordBase<T, Raw> {
 public:
     explicit EpicsInputArrayRecord(Raw *raw) : EpicsArrayRecordBase<T, Raw>(raw) {}
 
@@ -65,9 +61,7 @@ protected:
 
     virtual void register_processing_request() override {
         if (handler() != nullptr) {
-            handler()->set_read_request(*this, [this]() {
-                this->request_processing();
-            });
+            handler()->set_read_request(*this, [this]() { this->request_processing(); });
         }
     }
 
@@ -90,8 +84,7 @@ public:
     virtual size_t length() const override {
         return this->raw()->nord;
     }
-    [[nodiscard]]
-    virtual bool set_length(size_t length) override {
+    [[nodiscard]] virtual bool set_length(size_t length) override {
         if (length <= max_length()) {
             this->raw()->nord = length;
             return true;
@@ -110,10 +103,7 @@ public:
 };
 
 template <typename T, typename Raw>
-class EpicsOutputArrayRecord :
-    public virtual OutputArrayRecord<T>,
-    public EpicsArrayRecordBase<T, Raw>
-{
+class EpicsOutputArrayRecord : public virtual OutputArrayRecord<T>, public EpicsArrayRecordBase<T, Raw> {
 public:
     explicit EpicsOutputArrayRecord(Raw *raw) : EpicsArrayRecordBase<T, Raw>(raw) {}
 

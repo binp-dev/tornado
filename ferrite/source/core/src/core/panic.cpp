@@ -21,7 +21,9 @@ void set_panic_hook(void (*hook)()) {
     panic_hook.store(hook);
 }
 
-static void print_backtrace() {
+namespace _impl {
+
+void print_backtrace() {
     static const size_t MAX_SIZE = 64;
     void *array[MAX_SIZE];
     const size_t size = backtrace(array, MAX_SIZE);
@@ -61,22 +63,11 @@ static void print_backtrace() {
     free(symbols);
 }
 
-[[noreturn]] void panic_impl::panic_with_location(
-    const char *func,
-    const char *file,
-    size_t line,
-    const std::string &message = "") {
-    print_backtrace();
-    if (!message.empty()) {
-        std::cout << message;
-    } else {
-        std::cout << "Thread panicked";
-    }
-    std::cout << " in " << func << ", at " << file << ":" << line << std::endl;
-
+[[noreturn]] void panic() {
     if (panic_hook != nullptr) {
         panic_hook.load()();
-    } else {
-        std::abort();
     }
+    std::abort();
 }
+
+} // namespace _impl

@@ -3,7 +3,6 @@
 #include <core/log.hpp>
 
 #include <string>
-#include <sstream>
 
 #include <gtest/gtest.h>
 

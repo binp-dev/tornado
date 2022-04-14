@@ -78,19 +78,19 @@ public:
             return false;
         }
         memcpy(data, this->data(), sizeof(T) * len);
-        assert_eq(this->skip_front(len), len);
+        core_assert_eq(this->skip_front(len), len);
         return true;
     }
 
     size_t read_array(T *data, size_t len) override {
         size_t read_len = std::min(this->size(), len);
-        assert_true(read_array_exact(data, read_len));
+        core_assert(read_array_exact(data, read_len));
         return read_len;
     }
 
     size_t read_array_into(WriteArray<T> &stream, std::optional<size_t> len) override {
         size_t write_len = stream.write_array(this->data(), len.value_or(this->size()));
-        assert_eq(this->skip_front(write_len), write_len);
+        core_assert_eq(this->skip_front(write_len), write_len);
         return write_len;
     }
 };

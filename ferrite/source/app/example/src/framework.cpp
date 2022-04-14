@@ -2,17 +2,17 @@
 
 #include <iostream>
 
+#include "core/log.hpp"
 #include "record/base.hpp"
 
-
 void framework_init() {
-    std::cout << "[app_lib] framework_init" << std::endl;
+    core_log_info("framework_init");
 }
 
-void framework_record_init(Record &) {
-    std::cout << "[app_lib] framework_record_init" << std::endl;
+void framework_record_init(Record &record) {
+    core_log_info("framework_record_init({})", record.name());
 }
 
 void framework_start() {
-    std::cout << "[app_lib] framework_start" << std::endl;
+    core_log_info("framework_start");
 }
