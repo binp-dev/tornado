@@ -35,13 +35,13 @@ void log(Ts &&...args) {
 } // namespace _impl
 } // namespace core
 
-#define core_log(level, fmt, ...) ::_impl::log<level, fmt>(__VA_ARGS__)
+#define core_log(level, fmt, ...) ::core::_impl::log<level, fmt>(__VA_ARGS__)
 
 /* clang-format off */
-#define core_log_fatal(  fmt, ...) core_log(::LogLevel::Fatal,   fmt, ##__VA_ARGS__)
-#define core_log_error(  fmt, ...) core_log(::LogLevel::Error,   fmt, ##__VA_ARGS__)
-#define core_log_warning(fmt, ...) core_log(::LogLevel::Warning, fmt, ##__VA_ARGS__)
-#define core_log_info(   fmt, ...) core_log(::LogLevel::Info,    fmt, ##__VA_ARGS__)
-#define core_log_debug(  fmt, ...) core_log(::LogLevel::Debug,   fmt, ##__VA_ARGS__)
-#define core_log_trace(  fmt, ...) core_log(::LogLevel::Trace,   fmt, ##__VA_ARGS__)
+#define core_log_fatal(  fmt, ...) core_log(::core::LogLevel::Fatal,   fmt, ##__VA_ARGS__)
+#define core_log_error(  fmt, ...) core_log(::core::LogLevel::Error,   fmt, ##__VA_ARGS__)
+#define core_log_warning(fmt, ...) core_log(::core::LogLevel::Warning, fmt, ##__VA_ARGS__)
+#define core_log_info(   fmt, ...) core_log(::core::LogLevel::Info,    fmt, ##__VA_ARGS__)
+#define core_log_debug(  fmt, ...) core_log(::core::LogLevel::Debug,   fmt, ##__VA_ARGS__)
+#define core_log_trace(  fmt, ...) core_log(::core::LogLevel::Trace,   fmt, ##__VA_ARGS__)
 /* clang-format on */

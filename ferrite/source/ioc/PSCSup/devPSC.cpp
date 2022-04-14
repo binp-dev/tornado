@@ -30,7 +30,7 @@ static void init_hooks(initHookState state) {
 }
 
 void psc_init(void) {
-    set_panic_hook([]() { epicsExit(1); });
+    core::set_panic_hook([]() { epicsExit(1); });
 
     initHookRegister(init_hooks);
 
