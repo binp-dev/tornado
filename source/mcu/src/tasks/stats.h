@@ -29,9 +29,7 @@ typedef struct {
 } AdcStats;
 
 typedef volatile struct {
-#ifdef GENERATE_SYNC
     size_t clock_count;
-#endif
     size_t sample_count;
     size_t max_intrs_per_sample;
 
