@@ -146,11 +146,11 @@ class StreamVecDeque<T, true> :
 public:
     using BasicVecDeque<T>::BasicVecDeque;
 
-    [[nodiscard]] size_t read_array(T *data, size_t len) override;
-    [[nodiscard]] bool read_array_exact(T *data, size_t len) override;
+    [[nodiscard]] size_t read_array(std::span<T> data) override;
+    [[nodiscard]] bool read_array_exact(std::span<T> data) override;
 
-    [[nodiscard]] size_t write_array(const T *data, size_t len) override;
-    [[nodiscard]] bool write_array_exact(const T *data, size_t len) override;
+    [[nodiscard]] size_t write_array(std::span<const T> data) override;
+    [[nodiscard]] bool write_array_exact(std::span<const T> data) override;
 
     size_t write_array_from(ReadArray<T> &stream, std::optional<size_t> len) override;
     size_t read_array_into(WriteArray<T> &stream, std::optional<size_t> len) override;
@@ -171,8 +171,8 @@ class StreamVecDequeView<T, true> :
 public:
     using _impl::BasicVecDequeView<T>::BasicVecDequeView;
 
-    [[nodiscard]] size_t read_array(T *data, size_t len) override;
-    [[nodiscard]] bool read_array_exact(T *data, size_t len) override;
+    [[nodiscard]] size_t read_array(std::span<T> data) override;
+    [[nodiscard]] bool read_array_exact(std::span<T> data) override;
 
     size_t read_array_into(WriteArray<T> &stream, std::optional<size_t> len) override;
 };

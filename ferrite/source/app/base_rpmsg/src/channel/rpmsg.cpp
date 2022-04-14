@@ -3,6 +3,7 @@
 #include <poll.h>
 
 #include <core/format.hpp>
+#include <core/convert.hpp>
 
 #include "rpmsg.hpp"
 
@@ -42,16 +43,16 @@ RpmsgChannel &RpmsgChannel::operator=(RpmsgChannel &&other) {
     return *this;
 }
 
-Result<size_t, io::Error> RpmsgChannel::stream_write(const uint8_t *data, size_t len) {
-    auto res = stream_write_exact(data, len);
+Result<size_t, io::Error> RpmsgChannel::stream_write(std::span<const uint8_t> data) {
+    auto res = stream_write_exact(data);
     if (res.is_ok()) {
-        return Ok(len);
+        return Ok(data.size());
     } else {
         return Err(res.unwrap_err());
     }
 }
 
-Result<std::monostate, io::Error> RpmsgChannel::stream_write_exact(const uint8_t *data, size_t len) {
+Result<std::monostate, io::Error> RpmsgChannel::stream_write_exact(std::span<const uint8_t> data) {
     pollfd pfd = {this->fd_, POLLOUT, 0};
     int pr = poll(&pfd, 1, timeout ? int(timeout->count()) : -1);
     if (pr > 0) {
@@ -64,16 +65,16 @@ Result<std::monostate, io::Error> RpmsgChannel::stream_write_exact(const uint8_t
         return Err(io::Error{io::ErrorKind::Other, "Poll error"});
     }
 
-    int write_len = ::write(this->fd_, data, len);
+    int write_len = ::write(this->fd_, data.data(), data.size());
     if (write_len <= 0) {
         return Err(io::Error{io::ErrorKind::Other, "Write error"});
-    } else if (write_len != (int)len) {
+    } else if (write_len != safe_cast<int>(data.size())) {
         return Err(io::Error{io::ErrorKind::UnexpectedEof, "Cannot write full message"});
     }
     return Ok(std::monostate{});
 }
 
-Result<size_t, io::Error> RpmsgChannel::stream_read(uint8_t *data, size_t len) {
+Result<size_t, io::Error> RpmsgChannel::stream_read(std::span<uint8_t> data) {
     pollfd pfd = {this->fd_, POLLIN, 0};
     int pr = poll(&pfd, 1, timeout.has_value() ? int(timeout->count()) : -1);
     if (pr > 0) {
@@ -86,7 +87,7 @@ Result<size_t, io::Error> RpmsgChannel::stream_read(uint8_t *data, size_t len) {
         return Err(io::Error{io::ErrorKind::Other, "Poll error"});
     }
 
-    int read_len = ::read(this->fd_, data, len);
+    int read_len = ::read(this->fd_, data.data(), data.size());
     if (read_len < 0) {
         return Err(io::Error{io::ErrorKind::Other, core_format("Read error: {}", read_len)});
     }

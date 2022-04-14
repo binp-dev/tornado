@@ -31,12 +31,11 @@ core::Result<std::monostate, core::io::Error> MessageChannel<OutMsg, InMsg>::sen
     if (res.is_err()) {
         return res;
     }
-    const size_t length = send_buffer_.size();
-    if (length > max_message_length()) {
+    if (send_buffer_.size() > max_message_length()) {
         return Err(io::Error{io::ErrorKind::UnexpectedEof, "Message size is greater than max length"});
     }
     raw_->timeout = timeout;
-    return raw_->stream_write_exact(send_buffer_.data(), length);
+    return raw_->stream_write_exact(send_buffer_);
 }
 
 template <typename OutMsg, typename InMsg>

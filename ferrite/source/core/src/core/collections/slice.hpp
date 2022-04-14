@@ -75,23 +75,23 @@ class StreamSlice<T, true> :
 public:
     using BasicSlice<T>::BasicSlice;
 
-    [[nodiscard]] bool read_array_exact(T *data, size_t len) override {
-        if (len > this->size()) {
+    [[nodiscard]] bool read_array_exact(std::span<T> data) override {
+        if (data.size() > this->size()) {
             return false;
         }
-        memcpy(data, this->data(), sizeof(T) * len);
-        core_assert_eq(this->skip_front(len), len);
+        memcpy(data.data(), this->data(), sizeof(T) * data.size());
+        core_assert_eq(this->skip_front(data.size()), data.size());
         return true;
     }
 
-    size_t read_array(T *data, size_t len) override {
-        size_t read_len = std::min(this->size(), len);
-        core_assert(read_array_exact(data, read_len));
+    size_t read_array(std::span<T> data) override {
+        size_t read_len = std::min(this->size(), data.size());
+        core_assert(read_array_exact(data.subspan(0, read_len)));
         return read_len;
     }
 
     size_t read_array_into(WriteArray<T> &stream, std::optional<size_t> len) override {
-        size_t write_len = stream.write_array(this->data(), len.value_or(this->size()));
+        size_t write_len = stream.write_array(this->subspan(0, len.value_or(this->size())));
         core_assert_eq(this->skip_front(write_len), write_len);
         return write_len;
     }

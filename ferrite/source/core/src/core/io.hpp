@@ -4,6 +4,7 @@
 #include <string>
 #include <iostream>
 #include <optional>
+#include <span>
 
 #include "result.hpp"
 #include "format.hpp"
@@ -32,26 +33,26 @@ class StreamRead {
 public:
     //! Try to read at most `len` bytes into `data` buffer.
     //! @return Number of bytes read or error.
-    virtual Result<size_t, Error> stream_read(uint8_t *data, size_t len) = 0;
+    virtual Result<size_t, Error> stream_read(std::span<uint8_t> data) = 0;
 };
 
 class StreamWrite {
 public:
     //! Try to write at most `len` bytes from `data` buffer.
     //! @return Number of bytes written or error.
-    virtual Result<size_t, Error> stream_write(const uint8_t *data, size_t len) = 0;
+    virtual Result<size_t, Error> stream_write(std::span<const uint8_t> data) = 0;
 };
 
 class StreamReadExact : public virtual StreamRead {
 public:
     //! Try to read exactly `len` bytes into `data` buffer or return error.
-    virtual Result<std::monostate, Error> stream_read_exact(uint8_t *data, size_t len) = 0;
+    virtual Result<std::monostate, Error> stream_read_exact(std::span<uint8_t> data) = 0;
 };
 
 class StreamWriteExact : public virtual StreamWrite {
 public:
     //! Try to write exactly `len` bytes from `data` buffer or return error.
-    virtual Result<std::monostate, Error> stream_write_exact(const uint8_t *data, size_t len) = 0;
+    virtual Result<std::monostate, Error> stream_write_exact(std::span<const uint8_t> data) = 0;
 };
 
 class WriteFromStream {

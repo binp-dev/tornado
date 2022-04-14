@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <span>
 #include <type_traits>
 #include <concepts>
 
@@ -23,7 +24,7 @@ class BasicReadArray {
 public:
     //! Try to read at most `len` items into `data` buffer.
     //! @return Number of items read.
-    [[nodiscard]] virtual size_t read_array(T *data, size_t len) = 0;
+    [[nodiscard]] virtual size_t read_array(std::span<T> data) = 0;
 };
 
 template <typename T>
@@ -32,7 +33,7 @@ class BasicWriteArray {
 public:
     //! Try to write at most `len` items from `data` buffer.
     //! @return Number of items written or error.
-    [[nodiscard]] virtual size_t write_array(const T *data, size_t len) = 0;
+    [[nodiscard]] virtual size_t write_array(std::span<const T> data) = 0;
 };
 
 template <typename T>
@@ -40,11 +41,11 @@ class BasicReadArrayExact : public virtual BasicReadArray<T> {
 public:
     //! Try to read exactly `len` items into `data` buffer.
     //! @return `true` on success.
-    [[nodiscard]] virtual bool read_array_exact(T *data, size_t len) = 0;
+    [[nodiscard]] virtual bool read_array_exact(std::span<T> data) = 0;
 
-    [[nodiscard]] size_t read_array(T *data, size_t len) override {
-        if (read_array_exact(data, len)) {
-            return len;
+    [[nodiscard]] size_t read_array(std::span<T> data) override {
+        if (read_array_exact(data)) {
+            return data.size();
         } else {
             return 0;
         }
@@ -56,11 +57,11 @@ class BasicWriteArrayExact : public virtual BasicWriteArray<T> {
 public:
     //! Try to write exactly `len` items from `data` buffer.
     //! @return `true` on success.
-    [[nodiscard]] virtual bool write_array_exact(const T *data, size_t len) = 0;
+    [[nodiscard]] virtual bool write_array_exact(std::span<const T> data) = 0;
 
-    [[nodiscard]] size_t write_array(const T *data, size_t len) override {
-        if (write_array_exact(data, len)) {
-            return len;
+    [[nodiscard]] size_t write_array(std::span<const T> data) override {
+        if (write_array_exact(data)) {
+            return data.size();
         } else {
             return 0;
         }
@@ -111,7 +112,7 @@ class ReadArray<uint8_t> :
     public virtual io::StreamRead //
 {
 public:
-    Result<size_t, io::Error> stream_read(uint8_t *data, size_t len) override;
+    Result<size_t, io::Error> stream_read(std::span<uint8_t> data) override;
 };
 
 template <>
@@ -120,7 +121,7 @@ class WriteArray<uint8_t> :
     public virtual io::StreamWrite //
 {
 public:
-    Result<size_t, io::Error> stream_write(const uint8_t *data, size_t len) override;
+    Result<size_t, io::Error> stream_write(std::span<const uint8_t> data) override;
 };
 
 template <>
@@ -130,7 +131,7 @@ class ReadArrayExact<uint8_t> :
     public virtual io::StreamReadExact //
 {
 public:
-    Result<std::monostate, io::Error> stream_read_exact(uint8_t *data, size_t len) override;
+    Result<std::monostate, io::Error> stream_read_exact(std::span<uint8_t> data) override;
 };
 
 template <>
@@ -140,7 +141,7 @@ class WriteArrayExact<uint8_t> :
     public virtual io::StreamWriteExact //
 {
 public:
-    Result<std::monostate, io::Error> stream_write_exact(const uint8_t *data, size_t len) override;
+    Result<std::monostate, io::Error> stream_write_exact(std::span<const uint8_t> data) override;
 };
 
 template <>

@@ -43,15 +43,15 @@ class StreamVec<T, true> :
 public:
     using BasicVec<T>::BasicVec;
 
-    [[nodiscard]] size_t write_array(const T *data, size_t len) override {
+    [[nodiscard]] size_t write_array(std::span<const T> data) override {
         size_t size = this->size();
-        this->resize(size + len);
-        memcpy(this->data() + size, data, sizeof(T) * len);
-        return len;
+        this->resize(size + data.size());
+        memcpy(this->data() + size, data.data(), sizeof(T) * data.size());
+        return data.size();
     }
 
-    [[nodiscard]] bool write_array_exact(const T *data, size_t len) override {
-        core_assert_eq(this->write_array(data, len), len);
+    [[nodiscard]] bool write_array_exact(std::span<const T> data) override {
+        core_assert_eq(this->write_array(data), data.size());
         return true;
     }
 
@@ -68,7 +68,7 @@ public:
             this->resize(new_cap);
 
             // Read from stream.
-            size_t read_len = stream.read_array(this->data() + size, len);
+            size_t read_len = stream.read_array(std::span(this->data() + size, len));
             this->resize(size + read_len);
             return read_len;
         } else {

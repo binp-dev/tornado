@@ -45,7 +45,7 @@ public:
 
     static core::Result<ZmqChannel, core::io::Error> create(const std::string &host);
 
-    virtual core::Result<size_t, core::io::Error> stream_write(const uint8_t *data, size_t len) override;
-    virtual core::Result<std::monostate, core::io::Error> stream_write_exact(const uint8_t *data, size_t len) override;
-    virtual core::Result<size_t, core::io::Error> stream_read(uint8_t *data, size_t len) override;
+    virtual core::Result<size_t, core::io::Error> stream_write(std::span<const uint8_t> data) override;
+    virtual core::Result<std::monostate, core::io::Error> stream_write_exact(std::span<const uint8_t> data) override;
+    virtual core::Result<size_t, core::io::Error> stream_read(std::span<uint8_t> data) override;
 };
