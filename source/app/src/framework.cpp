@@ -11,6 +11,8 @@
 #include <handlers.hpp>
 #include <external.hpp>
 
+using namespace core;
+
 void init_device(MaybeUninit<Device> &mem) {
     std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
 

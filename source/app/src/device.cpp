@@ -10,6 +10,7 @@
 #include <core/collections/vec.hpp>
 #include <ipp.hpp>
 
+using namespace core;
 
 void Device::recv_loop() {
     std::cout << "[app] Channel recv thread started" << std::endl;

@@ -43,8 +43,8 @@ private:
     };
 
     struct AdcEntry {
-        Mutex<VecDeque<double>> data;
-        Vec<double> tmp_buf;
+        core::Mutex<core::VecDeque<double>> data;
+        core::Vec<double> tmp_buf;
         std::atomic<point_t> last_value{0};
 
         size_t max_size;
@@ -54,7 +54,7 @@ private:
 
     struct DacEntry {
         DoubleBuffer<double> data;
-        Vec<double> tmp_buf;
+        core::Vec<double> tmp_buf;
 
         std::atomic<size_t> mcu_requested_count{0};
 

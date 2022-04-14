@@ -6,10 +6,13 @@
 #include <core/collections/vec_deque.hpp>
 
 template <typename T>
-class DoubleBuffer final : public virtual WriteArrayExact<T>, public virtual ReadArrayInto<T> {
+class DoubleBuffer final :
+    public virtual core::WriteArrayExact<T>,
+    public virtual core::ReadArrayInto<T> //
+{
 private:
-    VecDeque<T> read_buffer_;
-    Mutex<VecDeque<T>> write_buffer_;
+    core::VecDeque<T> read_buffer_;
+    core::Mutex<core::VecDeque<T>> write_buffer_;
     std::atomic<bool> cyclic_{false};
     std::atomic<bool> swapped_{false};
 
@@ -43,7 +46,7 @@ public:
 
     /// @note Calling this method will cause an infinite loop if DoubleBuffer is in cyclic mode and `stream` is infinite
     /// (e.g. `stream.write()` never returns zero).
-    size_t read_array_into(WriteArray<T> &stream, std::optional<size_t> len_opt) override {
+    size_t read_array_into(core::WriteArray<T> &stream, std::optional<size_t> len_opt) override {
         size_t total_len = read_buffer_.read_array_into(stream, len_opt);
         while (!len_opt.has_value() || total_len < len_opt.value()) {
             swap();
