@@ -12,6 +12,8 @@
 #include <core/panic.hpp>
 #include <framework.hpp>
 
+using BaseRecord = EpicsRecord<mbbiDirectRecord>;
+
 uint32_t MbbiDirectRecord::value() const {
     return this->raw()->rval;
 }
@@ -22,13 +24,13 @@ void MbbiDirectRecord::set_value(uint32_t value) {
 
 static long record_mbbi_direct_init(mbbiDirectRecord *raw) {
     auto record = std::make_unique<MbbiDirectRecord>(raw);
-    EpicsRecord::set_private_data((dbCommon *)raw, std::move(record));
-    framework_record_init(*EpicsRecord::get_private_data((dbCommon *)raw));
+    BaseRecord::set_private_data(raw, std::move(record));
+    framework_record_init(*BaseRecord::get_private_data(raw));
     return 0;
 }
 
 static long record_mbbi_direct_get_ioint_info(int cmd, mbbiDirectRecord *raw, IOSCANPVT *ppvt) {
-    auto *record = EpicsRecord::get_private_data((dbCommon *)raw);
+    auto *record = BaseRecord::get_private_data(raw);
     ScanList scan_list;
     *ppvt = scan_list.raw();
     record->set_scan_list(std::move(scan_list));
@@ -36,7 +38,7 @@ static long record_mbbi_direct_get_ioint_info(int cmd, mbbiDirectRecord *raw, IO
 }
 
 static long record_mbbi_direct_read(mbbiDirectRecord *raw) {
-    EpicsRecord::get_private_data((dbCommon *)raw)->process();
+    BaseRecord::get_private_data(raw)->process();
     return 0;
 }
 
@@ -55,7 +57,7 @@ struct AaiRecordCallbacks mbbi_direct_record_handler = {
     nullptr,
     reinterpret_cast<DEVSUPFUN>(record_mbbi_direct_init),
     reinterpret_cast<DEVSUPFUN>(record_mbbi_direct_get_ioint_info),
-    reinterpret_cast<DEVSUPFUN>(record_mbbi_direct_read)
+    reinterpret_cast<DEVSUPFUN>(record_mbbi_direct_read),
 };
 
 epicsExportAddress(dset, mbbi_direct_record_handler);

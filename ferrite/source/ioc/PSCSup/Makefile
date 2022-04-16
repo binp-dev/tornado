@@ -15,7 +15,6 @@ INCLUDES += \
 # Library Source files
 devPSC_SRCS += \
 	devPSC.cpp \
-	base.cpp \
 	iointr.cpp \
 	waveform.cpp \
 	aai.cpp \

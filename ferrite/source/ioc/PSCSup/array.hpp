@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <utility>
+#include <span>
 
 #include <dbAccess.h>
 #include <epicsTypes.h>
@@ -13,128 +14,79 @@
 #include "base.hpp"
 #include "types.hpp"
 
-template <typename T, typename Raw>
-class EpicsArrayRecordBase : public EpicsRecord {
+template <typename T, typename R, typename H>
+class EpicsArrayRecordBase : public EpicsRecord<R>, public virtual HandledRecord<H> {
 public:
-    explicit EpicsArrayRecordBase(Raw *raw_) : EpicsRecord((dbCommon *)raw_) {
+    explicit EpicsArrayRecordBase(R *raw) : EpicsRecord<R>(raw) {
         core_assert_eq(epics_type_enum<T>, data_type());
         core_assert_eq(dbValueSize(data_type()), sizeof(T));
     }
 
-    const Raw *raw() const {
-        return (const Raw *)EpicsRecord::raw();
-    }
-    Raw *raw() {
-        return (Raw *)EpicsRecord::raw();
-    }
-
 protected:
     menuFtype data_type() const {
-        return static_cast<menuFtype>(raw()->ftvl);
-    }
-    const void *raw_data() const {
-        return raw()->bptr;
-    }
-    void *raw_data() {
-        return raw()->bptr;
+        return static_cast<menuFtype>(this->raw()->ftvl);
     }
 };
 
-template <typename T, typename Raw>
-class EpicsInputArrayRecord : public virtual InputArrayRecord<T>, public EpicsArrayRecordBase<T, Raw> {
+template <typename T, typename R>
+class EpicsInputArrayRecord : public virtual InputArrayRecord<T>, public EpicsArrayRecordBase<T, R, InputArrayHandler<T>> {
 public:
-    explicit EpicsInputArrayRecord(Raw *raw) : EpicsArrayRecordBase<T, Raw>(raw) {}
+    using EpicsArrayRecordBase<T, R, InputArrayHandler<T>>::EpicsArrayRecordBase;
 
 protected:
-    const InputArrayHandler<T> *handler() const {
-        return static_cast<const InputArrayHandler<T> *>(EpicsRecord::handler());
-    }
-    InputArrayHandler<T> *handler() {
-        return static_cast<InputArrayHandler<T> *>(EpicsRecord::handler());
-    }
-
     virtual void process_sync() override {
-        if (handler() != nullptr) {
-            handler()->read(*this);
-        }
+        core_assert(this->handler() != nullptr);
+        this->handler()->read(*this);
     }
 
     virtual void register_processing_request() override {
-        if (handler() != nullptr) {
-            handler()->set_read_request(*this, [this]() { this->request_processing(); });
-        }
+        core_assert(this->handler() != nullptr);
+        this->handler()->set_read_request(*this, [this]() { this->request_processing(); });
     }
 
 public:
-    virtual void set_handler(std::unique_ptr<InputArrayHandler<T>> &&handler) override {
-        EpicsRecord::set_handler(std::move(handler));
+    virtual std::span<const T> data() const override {
+        return std::span(static_cast<const T *>(this->raw()->bptr), this->raw()->nord);
     }
-
-public:
-    virtual const T *data() const override {
-        return (const T *)this->raw_data();
-    }
-    virtual T *data() override {
-        return (T *)this->raw_data();
+    virtual std::span<T> data() override {
+        return std::span(static_cast<T *>(this->raw()->bptr), this->raw()->nord);
     }
 
     virtual size_t max_length() const override {
         return this->raw()->nelm;
     }
-    virtual size_t length() const override {
-        return this->raw()->nord;
-    }
-    [[nodiscard]] virtual bool set_length(size_t length) override {
-        if (length <= max_length()) {
-            this->raw()->nord = length;
-            return true;
-        } else {
-            return false;
-        }
-    }
 
-    [[nodiscard]] virtual bool set_data(const T *new_data, size_t length) override {
-        if (!set_length(length)) {
+    [[nodiscard]] virtual bool set_data(std::span<const T> new_data) override {
+        if (new_data.size() > max_length()) {
             return false;
         }
-        std::copy(new_data, new_data + length, data());
+        std::copy_n(new_data.data(), new_data.size(), data().data());
+        this->raw()->nord = new_data.size();
         return true;
     }
 };
 
-template <typename T, typename Raw>
-class EpicsOutputArrayRecord : public virtual OutputArrayRecord<T>, public EpicsArrayRecordBase<T, Raw> {
+template <typename T, typename R>
+class EpicsOutputArrayRecord : public virtual OutputArrayRecord<T>, public EpicsArrayRecordBase<T, R, OutputArrayHandler<T>> {
 public:
-    explicit EpicsOutputArrayRecord(Raw *raw) : EpicsArrayRecordBase<T, Raw>(raw) {}
+    using EpicsArrayRecordBase<T, R, OutputArrayHandler<T>>::EpicsArrayRecordBase;
 
 protected:
-    const OutputArrayHandler<T> *handler() const {
-        return static_cast<const OutputArrayHandler<T> *>(EpicsRecord::handler());
-    }
-    OutputArrayHandler<T> *handler() {
-        return static_cast<OutputArrayHandler<T> *>(EpicsRecord::handler());
-    }
-
     virtual void process_sync() override {
-        if (handler() != nullptr) {
-            handler()->write(*this);
-        }
+        core_assert(this->handler() != nullptr);
+        this->handler()->write(*this);
+    }
+
+    virtual void register_processing_request() override {
+        core_unimplemented();
     }
 
 public:
-    virtual void set_handler(std::unique_ptr<OutputArrayHandler<T>> &&handler) override {
-        EpicsRecord::set_handler(std::move(handler));
-    }
-
-public:
-    virtual const T *data() const override {
-        return (const T *)this->raw_data();
+    virtual std::span<const T> data() const override {
+        return std::span(static_cast<const T *>(this->raw()->bptr), this->raw()->nord);
     }
 
     virtual size_t max_length() const override {
         return this->raw()->nelm;
-    }
-    virtual size_t length() const override {
-        return this->raw()->nord;
     }
 };

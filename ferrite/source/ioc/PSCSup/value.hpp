@@ -10,80 +10,41 @@
 
 #include "base.hpp"
 
-template <typename Raw>
-class EpicsValueRecordBase : public EpicsRecord
-{
+template <typename R, typename H>
+class EpicsValueRecordBase : public EpicsRecord<R>, public virtual HandledRecord<H> {
 public:
-    explicit EpicsValueRecordBase(Raw *raw_) : EpicsRecord((dbCommon *)raw_) {}
-
-    const Raw *raw() const {
-        return (const Raw *)EpicsRecord::raw();
-    }
-    Raw *raw() {
-        return (Raw *)EpicsRecord::raw();
-    }
+    using EpicsRecord<R>::EpicsRecord;
 };
 
-template <typename T, typename Raw>
-class EpicsInputValueRecord :
-    public virtual InputValueRecord<T>,
-    public EpicsValueRecordBase<Raw>
-{
+template <typename T, typename R>
+class EpicsInputValueRecord : public EpicsValueRecordBase<R, InputValueHandler<T>>, public virtual InputValueRecord<T> {
 public:
-    explicit EpicsInputValueRecord(Raw *raw) : EpicsValueRecordBase<Raw>(raw) {}
+    using EpicsValueRecordBase<R, InputValueHandler<T>>::EpicsValueRecordBase;
 
 protected:
-    const InputValueHandler<T> *handler() const {
-        return static_cast<const InputValueHandler<T> *>(EpicsRecord::handler());
-    }
-    InputValueHandler<T> *handler() {
-        return static_cast<InputValueHandler<T> *>(EpicsRecord::handler());
-    }
-
     virtual void process_sync() override {
-        if (handler() != nullptr) {
-            handler()->read(*this);
-        }
+        core_assert(this->handler() != nullptr);
+        this->handler()->read(*this);
     }
 
     virtual void register_processing_request() override {
-        if (handler() != nullptr) {
-            handler()->set_read_request(*this, [this]() {
-                this->request_processing();
-            });
-        }
-    }
-
-public:
-    virtual void set_handler(std::unique_ptr<InputValueHandler<T>> &&handler) override {
-        EpicsRecord::set_handler(std::move(handler));
+        core_assert(this->handler() != nullptr);
+        this->handler()->set_read_request(*this, [this]() { this->request_processing(); });
     }
 };
 
-template <typename T, typename Raw>
-class EpicsOutputValueRecord :
-    public virtual OutputValueRecord<T>,
-    public EpicsValueRecordBase<Raw>
-{
+template <typename T, typename R>
+class EpicsOutputValueRecord : public EpicsValueRecordBase<R, OutputValueHandler<T>>, public virtual OutputValueRecord<T> {
 public:
-    explicit EpicsOutputValueRecord(Raw *raw) : EpicsValueRecordBase<Raw>(raw) {}
+    using EpicsValueRecordBase<R, OutputValueHandler<T>>::EpicsValueRecordBase;
 
 protected:
-    const OutputValueHandler<T> *handler() const {
-        return static_cast<const OutputValueHandler<T> *>(EpicsRecord::handler());
-    }
-    OutputValueHandler<T> *handler() {
-        return static_cast<OutputValueHandler<T> *>(EpicsRecord::handler());
-    }
-
     virtual void process_sync() override {
-        if (handler() != nullptr) {
-            handler()->write(*this);
-        }
+        core_assert(this->handler() != nullptr);
+        this->handler()->write(*this);
     }
 
-public:
-    virtual void set_handler(std::unique_ptr<OutputValueHandler<T>> &&handler) override {
-        EpicsRecord::set_handler(std::move(handler));
+    virtual void register_processing_request() override {
+        core_unimplemented();
     }
 };

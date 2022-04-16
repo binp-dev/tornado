@@ -12,19 +12,21 @@
 #include <core/panic.hpp>
 #include <framework.hpp>
 
+using BaseRecord = EpicsRecord<boRecord>;
+
 bool BoRecord::value() const {
     return this->raw()->rval != 0;
 }
 
 static long record_bo_init(boRecord *raw) {
     auto record = std::make_unique<BoRecord>(raw);
-    EpicsRecord::set_private_data((dbCommon *)raw, std::move(record));
-    framework_record_init(*EpicsRecord::get_private_data((dbCommon *)raw));
+    BaseRecord::set_private_data(raw, std::move(record));
+    framework_record_init(*BaseRecord::get_private_data(raw));
     return 0;
 }
 
 static long record_bo_write(boRecord *raw) {
-    EpicsRecord::get_private_data((dbCommon *)raw)->process();
+    BaseRecord::get_private_data(raw)->process();
     return 0;
 }
 
@@ -49,6 +51,7 @@ struct BoRecordCallbacks bo_record_handler = {
     reinterpret_cast<DEVSUPFUN>(record_bo_init),
     nullptr,
     reinterpret_cast<DEVSUPFUN>(record_bo_write),
-    reinterpret_cast<DEVSUPFUN>(record_bo_linconv)};
+    reinterpret_cast<DEVSUPFUN>(record_bo_linconv),
+};
 
 epicsExportAddress(dset, bo_record_handler);
