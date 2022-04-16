@@ -4,7 +4,7 @@
 #include <cstring>
 
 #include <core/assert.hpp>
-#include <core/panic.hpp>
+#include <core/log.hpp>
 #include <core/convert.hpp>
 #include <core/match.hpp>
 #include <core/collections/vec.hpp>
@@ -13,12 +13,14 @@
 using namespace core;
 
 void Device::recv_loop() {
-    std::cout << "[app] Channel recv thread started" << std::endl;
+    core_log_info("Channel recv thread started");
     const auto timeout = std::chrono::milliseconds(100);
 
     channel_.send(ipp::AppMsg{ipp::AppMsgConnect{}}, std::nullopt).unwrap(); // Wait forever
-    std::cout << "[app] Connect signal sent" << std::endl;
-    send_worker_ = std::thread([this]() { this->send_loop(); });
+    core_log_info("Connect signal sent");
+    send_worker_ = std::thread([this]() {
+        this->send_loop();
+    });
 
     while (!this->done_.load()) {
         auto result = channel_.receive(timeout);
@@ -34,7 +36,6 @@ void Device::recv_loop() {
         std::visit(
             overloaded{
                 [&](ipp::McuMsgDinUpdate &&din_msg) {
-                    // std::cout << "Din updated: " << uint32_t(din_msg.value) << std::endl;
                     din_.value.store(din_msg.value);
                     if (din_.notify) {
                         din_.notify();
@@ -81,14 +82,15 @@ void Device::recv_loop() {
                     }
                     send_ready_.notify_one();
                 },
-                [&](ipp::McuMsgDebug &&debug) { //
-                    std::cout << "Device: " << debug.message << std::endl;
+                [&](ipp::McuMsgDebug &&debug) {
+                    core_log_debug("[device.debug]: {}", debug.message);
                 },
                 [&](ipp::McuMsgError &&error) {
-                    std::cout << "Device Error (0x" << std::hex << int(error.code) << std::dec << "): " << error.message
-                              << std::endl;
+                    core_log_error("[device.error] (code {}): {}", uint32_t(error.code), error.message);
                 },
-                [&](auto &&) { core_unimplemented(); },
+                [&](auto &&) {
+                    core_unimplemented();
+                },
             },
             std::move(incoming.variant) //
         );
@@ -99,7 +101,7 @@ void Device::recv_loop() {
 }
 
 void Device::send_loop() {
-    std::cout << "[app] Channel send thread started" << std::endl;
+    core_log_info("Channel send thread started");
     const auto timeout = keep_alive_period_;
     auto next_wakeup = std::chrono::steady_clock::now();
     while (!this->done_.load()) {
@@ -115,7 +117,7 @@ void Device::send_loop() {
 
         if (dout_.update.exchange(false)) {
             uint8_t value = dout_.value.load();
-            std::cout << "[app] Send Dout value: " << uint32_t(value) << std::endl;
+            core_log_debug("Send Dout value: {}", value);
             channel_.send(ipp::AppMsg{ipp::AppMsgDoutUpdate{uint8_t(value)}}, timeout).unwrap();
         }
         if (dac_.mcu_requested_count.load() > 0) {
@@ -175,7 +177,9 @@ Device::~Device() {
 
 void Device::start() {
     done_.store(false);
-    recv_worker_ = std::thread([this]() { this->recv_loop(); });
+    recv_worker_ = std::thread([this]() {
+        this->recv_loop();
+    });
 }
 
 void Device::stop() {
@@ -189,7 +193,7 @@ void Device::write_dout(uint32_t value) {
     {
         constexpr uint32_t mask = 0xfu;
         if ((value & ~mask) != 0) {
-            std::cout << "[app:warning] Ignoring extra bits in dout_ 4-bit mask: " << value << std::endl;
+            core_log_warning("Ignoring extra bits in dout ({})", uint32_t(value));
         }
         {
             // Note: `send_mutex_` must be locked even if atomic is used. See `std::condition_variable` reference.
@@ -248,7 +252,7 @@ std::vector<double> Device::read_adc(size_t index) {
     adc.ioc_notified.store(false);
 
     if (skipped_count) {
-        std::cout << "[app:warn] Skipped " << skipped_count << " ADC" << int(index) << " waveforms" << std::endl;
+        core_log_warning("Skipped {} ADC{} waveforms", skipped_count, uint32_t(index));
     }
 
     return data;
@@ -270,11 +274,11 @@ void Device::set_dac_req_callback(std::function<void()> &&callback) {
 void Device::set_dac_playback_mode(DacPlaybackMode mode) {
     switch (mode) {
     case DacPlaybackMode::OneShot:
-        std::cout << "One-shot DAC mode set" << std::endl;
+        core_log_info("One-shot DAC mode set");
         dac_.data.set_cyclic(false);
         break;
     case DacPlaybackMode::Cyclic:
-        std::cout << "Cyclic DAC mode set" << std::endl;
+        core_log_info("Cyclic DAC mode set");
         dac_.data.set_cyclic(true);
         break;
     default:
@@ -283,7 +287,7 @@ void Device::set_dac_playback_mode(DacPlaybackMode mode) {
 }
 
 void Device::set_dac_operation_state(DacOperationState) {
-    std::cout << "DAC operation state changing is not supported yet" << std::endl;
+    core_log_warning("DAC operation state changing is not supported yet");
 }
 
 void Device::reset_statistics() {

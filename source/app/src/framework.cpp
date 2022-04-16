@@ -6,6 +6,7 @@
 #include <memory>
 
 #include <core/lazy_static.hpp>
+#include <core/log.hpp>
 
 #include <device.hpp>
 #include <handlers.hpp>
@@ -14,8 +15,7 @@
 using namespace core;
 
 void init_device(MaybeUninit<Device> &mem) {
-    std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
-
+    core_log_info("LazyStatic: Device::init()");
     mem.init_in_place(make_device_channel(), max_message_length());
 }
 
@@ -31,7 +31,7 @@ void framework_init() {
 
 void framework_record_init(Record &record) {
     const auto name = record.name();
-    std::cout << "Initializing record '" << name << "'" << std::endl;
+    core_log_debug("Init record: {}", name);
 
     if (name == "ao0") {
         auto &ao_record = dynamic_cast<OutputValueRecord<int32_t> &>(record);
@@ -78,6 +78,7 @@ void framework_record_init(Record &record) {
         specific_record.set_handler(std::make_unique<StatsResetHandler>(*DEVICE));
 
     } else {
+        core_log_fatal("Unexpected record: {}", name);
         core_unimplemented();
     }
 }
