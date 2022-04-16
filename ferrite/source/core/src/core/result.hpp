@@ -26,72 +26,63 @@ struct Err final {
 
 template <typename T, typename E>
 struct [[nodiscard]] Result final {
-    std::variant<E, T> variant;
+private:
+    std::variant<E, T> variant_;
 
-    constexpr explicit Result(const T &t) : variant(std::in_place_index<1>, t) {}
-    constexpr explicit Result(const E &e) : variant(std::in_place_index<0>, e) {}
-    constexpr explicit Result(T &&t) : variant(std::in_place_index<1>, std::move(t)) {}
-    constexpr explicit Result(E &&e) : variant(std::in_place_index<0>, std::move(e)) {}
+public:
+    constexpr Result(const Ok<T> &t) : variant_(std::in_place_index<1>, std::move(t.value)) {}
+    constexpr Result(const Err<E> &e) : variant_(std::in_place_index<0>, std::move(e.value)) {}
+    constexpr Result(Ok<T> &&t) : variant_(std::in_place_index<1>, std::move(t.value)) {}
+    constexpr Result(Err<E> &&e) : variant_(std::in_place_index<0>, std::move(e.value)) {}
 
-    constexpr Result(const Ok<T> &t) : variant(std::in_place_index<1>, std::move(t.value)) {}
-    constexpr Result(const Err<E> &e) : variant(std::in_place_index<0>, std::move(e.value)) {}
-    constexpr Result(Ok<T> &&t) : variant(std::in_place_index<1>, std::move(t.value)) {}
-    constexpr Result(Err<E> &&e) : variant(std::in_place_index<0>, std::move(e.value)) {}
-
-    constexpr Result(const Result &r) = default;
-    constexpr Result(Result &&r) = default;
-    constexpr Result &operator=(const Result &r) = default;
-    constexpr Result &operator=(Result &&r) = default;
+    constexpr Result(const Result &) = default;
+    constexpr Result(Result &&) = default;
+    constexpr Result &operator=(const Result &) = default;
+    constexpr Result &operator=(Result &&) = default;
 
     constexpr bool is_ok() const {
-        return this->variant.index() == 1;
+        return this->variant_.index() == 1;
     }
     constexpr bool is_err() const {
-        return this->variant.index() == 0;
+        return this->variant_.index() == 0;
     }
 
     constexpr const T &ok() const {
-        return std::get<1>(this->variant);
+        return std::get<1>(this->variant_);
     }
     constexpr const E &err() const {
-        return std::get<0>(this->variant);
+        return std::get<0>(this->variant_);
     }
     constexpr T &ok() {
-        return std::get<1>(this->variant);
+        return std::get<1>(this->variant_);
     }
     constexpr E &err() {
-        return std::get<0>(this->variant);
+        return std::get<0>(this->variant_);
     }
 
-    T expect(const std::string &message) {
+    T unwrap() {
         if (this->is_err()) {
             if constexpr (Printable<E>) {
-                core_panic("{}: {}", message, this->err());
+                core_panic("Result is Err({})", this->err());
             } else {
-                core_panic("{}", message);
+                core_panic("Result is Err");
             }
         }
         return std::move(this->ok());
     }
-    E expect_err(const std::string &message) {
+    E unwrap_err() {
         if (this->is_ok()) {
             if constexpr (Printable<T>) {
-                core_panic("{}: {}", message, this->ok());
+                core_panic("Result is Ok({})", this->ok());
             } else {
-                core_panic("{}", message);
+                core_panic("Result is Ok");
             }
         }
         return std::move(this->err());
     }
-    T unwrap() {
-        return this->expect("Result::Ok is expected");
-    }
-    E unwrap_err() {
-        return this->expect_err("Result::Err is expected");
-    }
 
     constexpr bool operator==(const Result &other) const {
-        return this->variant == other.variant;
+        return this->variant_ == other.variant_;
     }
     constexpr bool operator==(const Ok<T> &other) const {
         return this->is_ok() && this->ok() == other.value;
@@ -100,7 +91,7 @@ struct [[nodiscard]] Result final {
         return this->is_err() && this->err() == other.value;
     }
     constexpr bool operator!=(const Result &other) const {
-        return this->variant != other.variant;
+        return this->variant_ != other.variant_;
     }
     constexpr bool operator!=(const Ok<T> &other) const {
         return !this->is_ok() || this->ok() != other.value;

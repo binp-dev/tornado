@@ -68,7 +68,7 @@ Result<std::monostate, io::Error> RpmsgChannel::stream_write_exact(std::span<con
     int write_len = ::write(this->fd_, data.data(), data.size());
     if (write_len <= 0) {
         return Err(io::Error{io::ErrorKind::Other, "Write error"});
-    } else if (write_len != safe_cast<int>(data.size())) {
+    } else if (write_len != cast_int<int>(data.size()).unwrap()) {
         return Err(io::Error{io::ErrorKind::UnexpectedEof, "Cannot write full message"});
     }
     return Ok(std::monostate{});

@@ -338,9 +338,9 @@ class Vector(_BasicVector, _ArrayBase):
         ]
         store_src = [
             f"{self._cpp_store_func_decl('stream', 'src')} {{",
-            f"    auto len_opt = core::safe_cast<{self._size_type.cpp_type()}>(src.size());",
-            f"    if (!len_opt.has_value()) {{ return {err(io_error(ErrorKind.INVALID_DATA))}; }}",
-            *indent(try_unwrap(self._size_type.cpp_store("stream", "len_opt.value()"))),
+            f"    auto len_opt = core::cast_int<{self._size_type.cpp_type()}>(src.size());",
+            f"    if (len_opt.is_none()) {{ return {err(io_error(ErrorKind.INVALID_DATA))}; }}",
+            *indent(try_unwrap(self._size_type.cpp_store("stream", "len_opt.some()"))),
             *indent([
                 [
                     f"for (size_t i = 0; i < src.size(); ++i) {{",
@@ -412,9 +412,9 @@ class String(_BasicVector):
         ]
         store_src = [
             f"{store_decl} {{",
-            f"    auto len_opt = core::safe_cast<{self._size_type.cpp_type()}>(src.size());",
-            f"    if (!len_opt.has_value()) {{ return {err(io_error(ErrorKind.INVALID_DATA))}; }}",
-            *indent(try_unwrap(self._size_type.cpp_store("stream", "len_opt.value()"))),
+            f"    auto len_opt = core::cast_int<{self._size_type.cpp_type()}>(src.size());",
+            f"    if (len_opt.is_none()) {{ return {err(io_error(ErrorKind.INVALID_DATA))}; }}",
+            *indent(try_unwrap(self._size_type.cpp_store("stream", "len_opt.some()"))),
             *indent(try_unwrap(stream_write("stream", "src.data()", f"src.length()"))),
             f"    return {ok()};",
             f"}}",

@@ -18,6 +18,7 @@ set(SRC
     "src/core/mutex.hpp"
     "src/core/panic.hpp"
     "src/core/panic.cpp"
+    "src/core/option.hpp"
     "src/core/result.hpp"
     "src/core/collections/slice.hpp"
     "src/core/collections/vec.hpp"
