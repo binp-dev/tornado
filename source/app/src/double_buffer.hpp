@@ -33,10 +33,10 @@ public:
         return swapped_.load();
     }
 
-    [[nodiscard]] bool write_array_exact(const T *data, size_t len) override {
+    [[nodiscard]] bool write_array_exact(std::span<const T> data) override {
         auto write_buffer_guard = write_buffer_.lock();
         write_buffer_guard->clear();
-        if (write_buffer_guard->write_array_exact(data, len)) {
+        if (write_buffer_guard->write_array_exact(data)) {
             swapped_.store(false);
             return true;
         } else {

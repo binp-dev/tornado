@@ -102,7 +102,7 @@ public:
     void set_din_callback(std::function<void()> &&callback);
 
     void init_dac(size_t max_len);
-    void write_dac(const double *data, size_t len);
+    void write_dac(std::span<const double> data);
 
     void init_adc(uint8_t index, size_t max_size);
     void set_adc_callback(size_t index, std::function<void()> &&callback);

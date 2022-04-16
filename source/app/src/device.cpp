@@ -61,7 +61,7 @@ void Device::recv_loop() {
 
                     // Write chunk to queue.
                     auto data_guard = adc.data.lock();
-                    core_assert(data_guard->write_array_exact(tmp.data(), tmp.size()));
+                    core_assert(data_guard->write_array_exact(tmp));
                     tmp.clear();
                     adc.tmp_buf = std::move(tmp);
 
@@ -212,8 +212,8 @@ void Device::init_dac(const size_t max_size) {
     dac_.data.reserve(max_size);
 }
 
-void Device::write_dac(const double *data, const size_t len) {
-    core_assert(dac_.data.write_array_exact(data, len));
+void Device::write_dac(std::span<const double> data) {
+    core_assert(dac_.data.write_array_exact(data));
     send_ready_.notify_one();
     if (dac_.sync_ioc_request_flag) {
         dac_.ioc_requested.store(false);
