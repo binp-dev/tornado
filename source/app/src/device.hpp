@@ -43,8 +43,8 @@ private:
     };
 
     struct AdcEntry {
-        Mutex<VecDeque<double>> data;
-        Vec<double> tmp_buf;
+        core::Mutex<core::VecDeque<double>> data;
+        core::Vec<double> tmp_buf;
         std::atomic<point_t> last_value{0};
 
         size_t max_size;
@@ -54,7 +54,7 @@ private:
 
     struct DacEntry {
         DoubleBuffer<double> data;
-        Vec<double> tmp_buf;
+        core::Vec<double> tmp_buf;
 
         std::atomic<size_t> mcu_requested_count{0};
 
@@ -102,7 +102,7 @@ public:
     void set_din_callback(std::function<void()> &&callback);
 
     void init_dac(size_t max_len);
-    void write_dac(const double *data, size_t len);
+    void write_dac(std::span<const double> data);
 
     void init_adc(uint8_t index, size_t max_size);
     void set_adc_callback(size_t index, std::function<void()> &&callback);
