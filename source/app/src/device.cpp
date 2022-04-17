@@ -83,10 +83,10 @@ void Device::recv_loop() {
                     send_ready_.notify_one();
                 },
                 [&](ipp::McuMsgDebug &&debug) {
-                    core_log_debug("[device.debug]: {}", debug.message);
+                    core_log_debug("[mcu:debug]: {}", debug.message);
                 },
                 [&](ipp::McuMsgError &&error) {
-                    core_log_error("[device.error] (code {}): {}", uint32_t(error.code), error.message);
+                    core_log_error("[mcu:error] (code {}): {}", uint32_t(error.code), error.message);
                 },
                 [&](auto &&) {
                     core_unimplemented();
