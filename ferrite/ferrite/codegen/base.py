@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Generic, List, Optional, Sequence, Set, TypeVar, Union
+from typing import Any, List, Optional, Sequence, Set, Union
 
 from dataclasses import dataclass
 from enum import Enum
@@ -8,7 +8,7 @@ from random import Random
 from numpy.typing import DTypeLike
 
 from ferrite.codegen.utils import indent
-from ferrite.codegen.macros import io_read_type, io_result_type, io_write_type, monostate, stream_read, stream_write, try_unwrap
+from ferrite.codegen.macros import io_read_type, io_result_type, io_write_type, ok, stream_read, stream_write, try_unwrap
 
 
 @dataclass
@@ -200,13 +200,13 @@ class Type:
                     f"{load_decl} {{",
                     f"    {self.cpp_type()} value = {self.cpp_object(self.default())};",
                     *indent(try_unwrap(stream_read("stream", "&value", self.size()))),
-                    f"    return Ok(value);",
+                    f"    return {ok('value')};",
                     f"}}",
                 ],
                 [
                     f"{store_decl} {{",
                     *indent(try_unwrap(stream_write("stream", "&value", self.size()))),
-                    f"    return Ok({monostate()});",
+                    f"    return {ok()};",
                     f"}}",
                 ],
             ],
@@ -281,8 +281,8 @@ class Type:
                     *["    " + self.cpp_object(self.random(rng)) + "," for _ in range(CONTEXT.test_attempts)],
                     f"}};",
                     f"",
-                    f"VecDeque<uint8_t> stream;",
-                    f"Vec<uint8_t> buffer;",
+                    f"core::VecDeque<uint8_t> stream;",
+                    f"core::Vec<uint8_t> buffer;",
                     f"for (size_t k = 0; k < {CONTEXT.test_attempts}; ++k) {{",
                     *indent([
                         f"const {self.cpp_type()} src = srcs[k];",
@@ -291,7 +291,7 @@ class Type:
                         f"ASSERT_EQ(stream.size(), {self.cpp_size('src')});",
                         f"",
                         f"buffer.clear();",
-                        f"ASSERT_EQ(stream.view().read_into_stream(buffer, std::nullopt), Ok(stream.size()));",
+                        f"ASSERT_EQ(stream.view().read_into_stream(buffer, std::nullopt), {ok('stream.size()')});",
                         f"auto *obj = reinterpret_cast<{self.c_type()} *>(buffer.data());",
                         f"ASSERT_EQ({self.c_size('(*obj)')}, {self.cpp_size('src')});",
                         *self.c_test('(*obj)', 'src'),

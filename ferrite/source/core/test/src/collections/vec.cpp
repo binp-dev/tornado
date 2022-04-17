@@ -1,12 +1,13 @@
 #include <core/collections/vec.hpp>
 
-#include <sstream>
 #include <limits>
 #include <array>
 
-#include <core/fmt.hpp>
+#include <core/format.hpp>
 
 #include <gtest/gtest.h>
+
+using namespace core;
 
 TEST(Vec, from_std_vector) {
     std::vector<int32_t> sv{0, 1, 2, 3};
@@ -57,9 +58,7 @@ TEST(Vec, write_array_from) {
 }
 
 TEST(Vec, fmt) {
-    static_assert(is_display_v<Vec<int32_t>>);
-    std::stringstream ss;
+    static_assert(Printable<Vec<int32_t>>);
     Vec<int32_t> vec{0, 1, -1, std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::min()};
-    ss << vec;
-    ASSERT_EQ(ss.str(), "[0, 1, -1, 2147483647, -2147483648]");
+    ASSERT_EQ(core_format("{}", vec), "[0, 1, -1, 2147483647, -2147483648]");
 }

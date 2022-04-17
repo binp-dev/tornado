@@ -6,11 +6,13 @@
 #include <iostream>
 
 #include <core/stream.hpp>
-#include <core/fmt.hpp>
+#include <core/format.hpp>
 
 #include "slice.hpp"
 
-namespace vec_impl {
+namespace core {
+
+namespace _impl {
 
 template <typename T>
 class BasicVec : public std::vector<T> {
@@ -41,15 +43,15 @@ class StreamVec<T, true> :
 public:
     using BasicVec<T>::BasicVec;
 
-    [[nodiscard]] size_t write_array(const T *data, size_t len) override {
+    [[nodiscard]] size_t write_array(std::span<const T> data) override {
         size_t size = this->size();
-        this->resize(size + len);
-        memcpy(this->data() + size, data, sizeof(T) * len);
-        return len;
+        this->resize(size + data.size());
+        memcpy(this->data() + size, data.data(), sizeof(T) * data.size());
+        return data.size();
     }
 
-    [[nodiscard]] bool write_array_exact(const T *data, size_t len) override {
-        assert_eq(this->write_array(data, len), len);
+    [[nodiscard]] bool write_array_exact(std::span<const T> data) override {
+        core_assert_eq(this->write_array(data), data.size());
         return true;
     }
 
@@ -66,7 +68,7 @@ public:
             this->resize(new_cap);
 
             // Read from stream.
-            size_t read_len = stream.read_array(this->data() + size, len);
+            size_t read_len = stream.read_array(std::span(this->data() + size, len));
             this->resize(size + read_len);
             return read_len;
         } else {
@@ -87,18 +89,26 @@ public:
     }
 };
 
-} // namespace vec_impl
+} // namespace _impl
 
 template <typename T>
-class Vec final : public vec_impl::StreamVec<T> {
+class Vec final : public _impl::StreamVec<T> {
 public:
-    using vec_impl::StreamVec<T>::StreamVec;
+    using _impl::StreamVec<T>::StreamVec;
 };
 
-template <typename T>
-struct Display<Vec<T>, void> : public std::integral_constant<bool, is_display_v<T>> {};
+template <Printable T>
+struct Print<std::vector<T>> {
+    static void print(std::ostream &os, const std::vector<T> &value) {
+        Print<std::span<const T>>::print(os, std::span(value));
+    }
+};
 
-template <typename T, typename = std::enable_if_t<is_display_v<Vec<T>>, void>>
-std::ostream &operator<<(std::ostream &os, const Vec<T> &value) {
-    return os << value.slice();
-}
+template <Printable T>
+struct Print<Vec<T>> {
+    static void print(std::ostream &os, const Vec<T> &value) {
+        Print<std::vector<T>>::print(os, value);
+    }
+};
+
+} // namespace core

@@ -11,10 +11,7 @@
 #include "array.hpp"
 
 template <typename T>
-class WaveformRecord final :
-    public virtual InputArrayRecord<T>,
-    public EpicsInputArrayRecord<T, waveformRecord>
-{
+class WaveformRecord final : public virtual InputArrayRecord<T>, public EpicsInputArrayRecord<T, waveformRecord> {
 public:
     explicit WaveformRecord(waveformRecord *raw) : EpicsInputArrayRecord<T, waveformRecord>(raw) {}
 };

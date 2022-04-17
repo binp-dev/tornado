@@ -1,99 +1,61 @@
 #pragma once
 
+#include <span>
 #include <functional>
 #include <type_traits>
 
 #include <core/assert.hpp>
-#include <core/fmt.hpp>
+#include <core/format.hpp>
+
+namespace core {
 
 template <typename T>
 class Slice;
 
-namespace slice_impl {
+namespace _impl {
 
-// Replace with std::span in C++20
 template <typename T>
-class BasicSlice {
+class BasicSlice : public std::span<T> {
+public:
+    using std::span<T>::span;
+
 private:
-    T *ptr_ = nullptr;
-    size_t size_ = 0;
+    void assign_this(const std::span<T> &span) {
+        static_cast<std::span<T> &>(*this) = span;
+    }
 
 public:
-    BasicSlice() = default;
-    BasicSlice(T *ptr, size_t size) : ptr_(ptr), size_(size) {}
-
-    T *data() {
-        return ptr_;
-    }
-    const T *data() const {
-        return ptr_;
-    }
-
-    [[nodiscard]] size_t size() const {
-        return size_;
-    }
-    [[nodiscard]] bool empty() const {
-        return size_ == 0;
-    }
-
-    T &operator[](size_t i) {
-        assert_true(i < size_);
-        return ptr_[i];
-    }
-    const T &operator[](size_t i) const {
-        assert_true(i < size_);
-        return ptr_[i];
-    }
-
-    operator ::Slice<const T>() const {
-        return ::Slice{ptr_, size_};
+    operator Slice<const T>() const {
+        return Slice<const T>(*this);
     }
 
     [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_back() {
-        if (empty()) {
+        if (this->empty()) {
             return std::nullopt;
         }
-        size_ -= 1;
-        return std::ref(ptr_[size_]);
+        auto ret = std::ref(this->back());
+        assign_this(this->subspan(0, this->size() - 1));
+        return ret;
     }
     [[nodiscard]] std::optional<std::reference_wrapper<T>> pop_front() {
-        if (empty()) {
+        if (this->empty()) {
             return std::nullopt;
         }
-        auto ret = std::ref(*ptr_);
-        ptr_ += 1;
-        size_ -= 1;
+        auto ret = std::ref(this->front());
+        assign_this(this->subspan(1, this->size() - 1));
         return ret;
     }
 
     size_t skip_back(size_t count) {
-        size_t skip = std::min(count, size_);
-        size_ -= skip;
+        size_t skip = std::min(count, this->size());
+        assign_this(this->subspan(0, this->size() - skip));
         return skip;
     }
 
     size_t skip_front(size_t count) {
-        size_t skip = std::min(count, size_);
-        ptr_ += skip;
-        size_ -= skip;
+        size_t skip = std::min(count, this->size());
+        assign_this(this->subspan(skip, this->size() - skip));
         return skip;
-    }
-
-public:
-    using iterator = T *;
-    using const_iterator = const T *;
-
-    [[nodiscard]] iterator begin() {
-        return ptr_;
-    }
-    [[nodiscard]] iterator end() {
-        return ptr_ + size_;
-    }
-    [[nodiscard]] const_iterator begin() const {
-        return ptr_;
-    }
-    [[nodiscard]] const_iterator end() const {
-        return ptr_ + size_;
     }
 };
 
@@ -113,50 +75,58 @@ class StreamSlice<T, true> :
 public:
     using BasicSlice<T>::BasicSlice;
 
-    [[nodiscard]] bool read_array_exact(T *data, size_t len) override {
-        if (len > this->size()) {
+    [[nodiscard]] bool read_array_exact(std::span<T> data) override {
+        if (data.size() > this->size()) {
             return false;
         }
-        memcpy(data, this->data(), sizeof(T) * len);
-        assert_eq(this->skip_front(len), len);
+        memcpy(data.data(), this->data(), sizeof(T) * data.size());
+        core_assert_eq(this->skip_front(data.size()), data.size());
         return true;
     }
 
-    size_t read_array(T *data, size_t len) override {
-        size_t read_len = std::min(this->size(), len);
-        assert_true(read_array_exact(data, read_len));
+    size_t read_array(std::span<T> data) override {
+        size_t read_len = std::min(this->size(), data.size());
+        core_assert(read_array_exact(data.subspan(0, read_len)));
         return read_len;
     }
 
     size_t read_array_into(WriteArray<T> &stream, std::optional<size_t> len) override {
-        size_t write_len = stream.write_array(this->data(), len.value_or(this->size()));
-        assert_eq(this->skip_front(write_len), write_len);
+        size_t write_len = stream.write_array(this->subspan(0, len.value_or(this->size())));
+        core_assert_eq(this->skip_front(write_len), write_len);
         return write_len;
     }
 };
 
-} // namespace slice_impl
+} // namespace _impl
 
 template <typename T>
-class Slice final : public slice_impl::StreamSlice<T> {
+class Slice final : public _impl::StreamSlice<T> {
 public:
-    using slice_impl::StreamSlice<T>::StreamSlice;
+    using _impl::StreamSlice<T>::StreamSlice;
 };
 
-template <typename T>
-struct Display<Slice<T>, void> : public std::integral_constant<bool, is_display_v<T>> {};
+template <Printable T>
+struct Print<std::span<T>> {
+    static void print(std::ostream &os, const std::span<T> &value) {
+        auto it = value.begin();
+        os << "[";
+        if (it != value.end()) {
+            Print<T>::print(os, *it);
+            ++it;
+        }
+        for (; it != value.end(); ++it) {
+            os << ", ";
+            Print<T>::print(os, *it);
+        }
+        os << "]";
+    }
+};
 
-template <typename T, typename = std::enable_if_t<is_display_v<Slice<T>>, void>>
-std::ostream &operator<<(std::ostream &os, const Slice<T> &value) {
-    auto it = value.begin();
-    os << "[";
-    if (it != value.end()) {
-        os << *it;
-        ++it;
+template <Printable T>
+struct Print<Slice<T>> {
+    static void print(std::ostream &os, const Slice<T> &value) {
+        Print<std::span<T>>::print(os, value);
     }
-    for (; it != value.end(); ++it) {
-        os << ", " << *it;
-    }
-    os << "]";
-    return os;
-}
+};
+
+} // namespace core

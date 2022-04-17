@@ -21,9 +21,9 @@ public:
     RpmsgChannel(RpmsgChannel &&other);
     RpmsgChannel &operator=(RpmsgChannel &&other);
 
-    static Result<RpmsgChannel, io::Error> create(const std::string &dev);
+    static core::Result<RpmsgChannel, core::io::Error> create(const std::string &dev);
 
-    virtual Result<size_t, io::Error> stream_write(const uint8_t *data, size_t len) override;
-    virtual Result<std::monostate, io::Error> stream_write_exact(const uint8_t *data, size_t len) override;
-    virtual Result<size_t, io::Error> stream_read(uint8_t *data, size_t len) override;
+    virtual core::Result<size_t, core::io::Error> stream_write(std::span<const uint8_t> data) override;
+    virtual core::Result<std::monostate, core::io::Error> stream_write_exact(std::span<const uint8_t> data) override;
+    virtual core::Result<size_t, core::io::Error> stream_read(std::span<uint8_t> data) override;
 };

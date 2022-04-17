@@ -12,6 +12,8 @@
 #include <core/panic.hpp>
 #include <framework.hpp>
 
+using BaseRecord = EpicsRecord<biRecord>;
+
 bool BiRecord::value() const {
     return this->raw()->rval != 0;
 }
@@ -22,13 +24,13 @@ void BiRecord::set_value(bool value) {
 
 static long record_bi_init(biRecord *raw) {
     auto record = std::make_unique<BiRecord>(raw);
-    EpicsRecord::set_private_data((dbCommon *)raw, std::move(record));
-    framework_record_init(*EpicsRecord::get_private_data((dbCommon *)raw));
+    BaseRecord::set_private_data(raw, std::move(record));
+    framework_record_init(*BaseRecord::get_private_data(raw));
     return 0;
 }
 
 static long record_bi_get_ioint_info(int cmd, biRecord *raw, IOSCANPVT *ppvt) {
-    auto *record = EpicsRecord::get_private_data((dbCommon *)raw);
+    auto *record = BaseRecord::get_private_data(raw);
     ScanList scan_list;
     *ppvt = scan_list.raw();
     record->set_scan_list(std::move(scan_list));
@@ -36,7 +38,7 @@ static long record_bi_get_ioint_info(int cmd, biRecord *raw, IOSCANPVT *ppvt) {
 }
 
 static long record_bi_read(biRecord *raw) {
-    EpicsRecord::get_private_data((dbCommon *)raw)->process();
+    BaseRecord::get_private_data(raw)->process();
     return 0;
 }
 
@@ -61,6 +63,7 @@ struct BiRecordCallbacks bi_record_handler = {
     reinterpret_cast<DEVSUPFUN>(record_bi_init),
     reinterpret_cast<DEVSUPFUN>(record_bi_get_ioint_info),
     reinterpret_cast<DEVSUPFUN>(record_bi_read),
-    reinterpret_cast<DEVSUPFUN>(record_bi_linconv)};
+    reinterpret_cast<DEVSUPFUN>(record_bi_linconv),
+};
 
 epicsExportAddress(dset, bi_record_handler);

@@ -6,7 +6,7 @@ from random import Random
 from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source, declare_variable
 from ferrite.codegen.primitive import Pointer
 from ferrite.codegen.utils import indent, list_join
-from ferrite.codegen.macros import io_read_type, io_result_type, io_write_type, monostate, try_unwrap
+from ferrite.codegen.macros import OK, io_read_type, io_result_type, io_write_type, monostate, ok, try_unwrap
 
 
 class Field:
@@ -159,7 +159,7 @@ class Struct(Type):
                 ], [""])
             ),
             f"",
-            f"    return Ok({self.cpp_type()}{{",
+            f"    return {OK}({self.cpp_type()}{{",
             *indent([f"std::move(field_{i})," for i, f in enumerate(self.fields)], 2),
             f"    }});",
             f"}}",
@@ -169,7 +169,7 @@ class Struct(Type):
         return [
             f"{io_result_type()} {self.cpp_type()}::store({io_write_type()} &stream) const {{",
             *indent(list_join([try_unwrap(f.type.cpp_store('stream', f.name.snake())) for f in self.fields], [""])),
-            f"    return Ok({monostate()});",
+            f"    return {ok()};",
             f"}}",
         ]
 

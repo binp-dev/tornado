@@ -8,6 +8,7 @@
 
 #include <core/result.hpp>
 
+using namespace core;
 
 inline constexpr auto TIMEOUT = std::chrono::milliseconds(100);
 
@@ -39,7 +40,7 @@ Result<std::monostate, std::string> try_send(void *socket, const uint8_t *data, 
     }
 }
 
-Result<size_t, std::string> try_recv(void *socket, void *data, size_t max_length) {
+Result<size_t, std::string> try_recv(void *socket, uint8_t *data, size_t max_length) {
     zmq_pollitem_t pollitem = {socket, 0, ZMQ_POLLIN, 0};
     int ready = zmq_poll(&pollitem, 1, TIMEOUT.count());
     if (ready > 0) {
@@ -123,7 +124,7 @@ TEST(ZmqTest, channel) {
         ASSERT_TRUE(try_send(socket, (const uint8_t *)src, 6).is_ok());
 
         char dst[10];
-        auto rr = channel.stream_read((uint8_t *)dst, 10);
+        auto rr = channel.stream_read(std::span((uint8_t *)dst, 10));
         ASSERT_TRUE(rr.is_ok()) << rr.err().message;
         ASSERT_EQ(rr, Ok<size_t>(6)) << rr.ok();
         ASSERT_EQ(strcmp(src, dst), 0);
@@ -131,7 +132,7 @@ TEST(ZmqTest, channel) {
 
     { // Send
         const char *src = "World";
-        ASSERT_TRUE(channel.stream_write_exact((const uint8_t *)src, 6).is_ok());
+        ASSERT_TRUE(channel.stream_write_exact(std::span((const uint8_t *)src, 6)).is_ok());
 
         char dst[10];
         ASSERT_EQ(try_recv(socket, (uint8_t *)dst, 10), Ok<size_t>(6));

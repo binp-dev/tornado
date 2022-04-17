@@ -2,38 +2,23 @@
 
 #include "panic.hpp"
 
-#include <sstream>
+#define core_assert(value) \
+    do { \
+        if (!(value)) [[unlikely]] { \
+            core_panic("Assertion failed: {} is false", #value); \
+        } \
+    } while (0)
 
-#define assert_true(value) do { \
-    if (__builtin_expect(!(value), 0)) { \
-        std::stringstream ss; \
-        ss << "Assertion failed: " << #value << " is false"; \
-        panic(ss.str()); \
-    } \
-} while(0)
+#define core_assert_eq(left, right) \
+    do { \
+        if (!((left) == (right))) [[unlikely]] { \
+            core_panic("Assertion failed: expected {} == {}, but got {} != {}", #left, #right, (left), (right)); \
+        } \
+    } while (0)
 
-#define assert_false(value) do { \
-    if (__builtin_expect((value), 0)) { \
-        std::stringstream ss; \
-        ss << "Assertion failed: " << #value << " is true"; \
-        panic(ss.str()); \
-    } \
-} while(0)
-
-#define assert_eq(left, right) do { \
-    if (__builtin_expect(!((left) == (right)), 0)) { \
-        std::stringstream ss; \
-        ss << "Assertion failed: expected " << #left << " == " << #right \
-            << ", but got " << (left) << " != " << (right); \
-        panic(ss.str()); \
-    } \
-} while(0)
-
-#define assert_ne(left, right) do { \
-    if (__builtin_expect(!((left) != (right)), 0)) { \
-        std::stringstream ss; \
-        ss << "Assertion failed: expected " << #left << " != " << #right \
-            << ", but got " << (left) << " == " << (right); \
-        panic(ss.str()); \
-    } \
-} while(0)
+#define core_assert_ne(left, right) \
+    do { \
+        if (!((left) != (right))) [[unlikely]] { \
+            core_panic("Assertion failed: expected {} != {}, but got {} == {}", #left, #right, (left), (right)); \
+        } \
+    } while (0)

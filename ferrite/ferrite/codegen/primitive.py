@@ -10,7 +10,7 @@ import numpy as np
 from numpy.typing import DTypeLike
 
 from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source
-from ferrite.codegen.macros import ErrorKind, io_error, monostate, stream_read, stream_write, try_unwrap
+from ferrite.codegen.macros import ErrorKind, err, io_error, ok, stream_read, stream_write, try_unwrap
 from ferrite.codegen.utils import ceil_to_power_of_2, indent, is_power_of_2
 
 
@@ -118,7 +118,7 @@ class Int(Type):
         return [
             f"// Check that narrowing conversion is safe",
             f"if ({err_cond}) {{",
-            f"    return Err({io_error(ErrorKind.INVALID_DATA)});",
+            f"    return {err(io_error(ErrorKind.INVALID_DATA))};",
             f"}}",
         ]
 
@@ -201,14 +201,14 @@ class Int(Type):
                     f"    {self.cpp_type()} value = 0;",
                     *indent(try_unwrap(stream_read("stream", "&value", self.size()))),
                     *indent(self._extend_sign("value") if self.signed else []),
-                    f"    return Ok(value);",
+                    f"    return {ok('value')};",
                     f"}}",
                 ],
                 [
                     f"{store_decl} {{",
                     *indent(self._check_bounds("value")),
                     *indent(try_unwrap(stream_write("stream", "&value", self.size()))),
-                    f"    return Ok({monostate()});",
+                    f"    return {ok()};",
                     f"}}",
                 ],
             ],

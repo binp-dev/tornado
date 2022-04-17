@@ -4,14 +4,15 @@
 
 #include <core/assert.hpp>
 
+using namespace core;
 
 namespace zmq_helper {
 
 void ContextDestroyer::operator()(void *context) const {
-    assert_eq(zmq_ctx_destroy(context), 0);
+    core_assert_eq(zmq_ctx_destroy(context), 0);
 }
 void SocketCloser::operator()(void *socket) const {
-    assert_eq(zmq_close(socket), 0);
+    core_assert_eq(zmq_close(socket), 0);
 }
 
 static const ContextDestroyer CONTEXT_DESTROYER{};
@@ -39,7 +40,6 @@ Result<ZmqChannel, io::Error> ZmqChannel::create(const std::string &host) {
     }
     auto socket = zmq_helper::guard_socket(raw_socket);
 
-    // std::cout << "ZmqChannel(host='" << host << "')" << std::endl;
     if (zmq_connect(socket.get(), host.c_str()) != 0) {
         return Err(io::Error{io::ErrorKind::Other, "Error connecting ZMQ socket"});
     }
@@ -48,16 +48,16 @@ Result<ZmqChannel, io::Error> ZmqChannel::create(const std::string &host) {
 }
 
 
-Result<size_t, io::Error> ZmqChannel::stream_write(const uint8_t *data, size_t len) {
-    auto res = stream_write_exact(data, len);
+Result<size_t, io::Error> ZmqChannel::stream_write(std::span<const uint8_t> data) {
+    auto res = stream_write_exact(data);
     if (res.is_ok()) {
-        return Ok(len);
+        return Ok(data.size());
     } else {
         return Err(res.unwrap_err());
     }
 }
 
-Result<std::monostate, io::Error> ZmqChannel::stream_write_exact(const uint8_t *data, size_t len) {
+Result<std::monostate, io::Error> ZmqChannel::stream_write_exact(std::span<const uint8_t> data) {
     zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLOUT, 0};
     int count = zmq_poll(&pollitem, 1, timeout.has_value() ? timeout.value().count() : -1);
     if (count > 0) {
@@ -70,13 +70,13 @@ Result<std::monostate, io::Error> ZmqChannel::stream_write_exact(const uint8_t *
         return Err(io::Error{io::ErrorKind::Other, "Poll error"});
     }
 
-    if (zmq_send(this->socket_.get(), data, len, !timeout ? 0 : ZMQ_NOBLOCK) <= 0) {
+    if (zmq_send(this->socket_.get(), data.data(), data.size(), !timeout ? 0 : ZMQ_NOBLOCK) <= 0) {
         return Err(io::Error{io::ErrorKind::Other, "Error send"});
     }
     return Ok(std::monostate{});
 }
-Result<size_t, io::Error> ZmqChannel::stream_read(uint8_t *data, size_t len) {
-    if (len == 0) {
+Result<size_t, io::Error> ZmqChannel::stream_read(std::span<uint8_t> data) {
+    if (data.size() == 0) {
         return Ok<size_t>(0);
     }
     if (this->msg_read_ == 0) {
@@ -92,7 +92,7 @@ Result<size_t, io::Error> ZmqChannel::stream_read(uint8_t *data, size_t len) {
             return Err(io::Error{io::ErrorKind::Other, "Poll error"});
         }
 
-        assert_eq(zmq_msg_init(&this->last_msg_), 0);
+        core_assert_eq(zmq_msg_init(&this->last_msg_), 0);
         int ret = zmq_msg_recv(&this->last_msg_, this->socket_.get(), ZMQ_NOBLOCK);
         if (ret <= 0) {
             return Err(io::Error{io::ErrorKind::Other, "Error receive"});
@@ -101,8 +101,8 @@ Result<size_t, io::Error> ZmqChannel::stream_read(uint8_t *data, size_t len) {
 
     size_t msg_len = zmq_msg_size(&this->last_msg_);
     const uint8_t *msg_data = static_cast<const uint8_t *>(zmq_msg_data(&this->last_msg_));
-    size_t read_len = std::min(msg_len - this->msg_read_, len);
-    memcpy(data, msg_data + this->msg_read_, read_len);
+    size_t read_len = std::min(msg_len - this->msg_read_, data.size());
+    memcpy(data.data(), msg_data + this->msg_read_, read_len);
     this->msg_read_ += read_len;
     if (this->msg_read_ >= msg_len) {
         zmq_msg_close(&this->last_msg_);

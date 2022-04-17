@@ -1,3 +1,5 @@
+#include "panic.hpp"
+
 #include <iostream>
 #include <string>
 #include <regex>
@@ -11,6 +13,8 @@
 
 #include <cxxabi.h>
 
+namespace core {
+
 /// NOTE: Must subject to [constant initialization](https://en.cppreference.com/w/cpp/language/constant_initialization).
 using PanicHook = std::atomic<void (*)()>;
 static PanicHook panic_hook;
@@ -19,7 +23,9 @@ void set_panic_hook(void (*hook)()) {
     panic_hook.store(hook);
 }
 
-static void print_backtrace() {
+namespace _impl {
+
+void print_backtrace() {
     static const size_t MAX_SIZE = 64;
     void *array[MAX_SIZE];
     const size_t size = backtrace(array, MAX_SIZE);
@@ -59,17 +65,13 @@ static void print_backtrace() {
     free(symbols);
 }
 
-[[noreturn]] void __panic_with_location(const char *func, const char *file, size_t line, const std::string &message = "") {
-    print_backtrace();
-    if (!message.empty()) {
-        std::cout << message;
-    } else {
-        std::cout << "Thread panicked";
-    }
-    std::cout << " in " << func << ", at " << file << ":" << line << std::endl;
-
+[[noreturn]] void panic() {
     if (panic_hook != nullptr) {
-        panic_hook.load();
+        panic_hook.load()();
     }
     std::abort();
 }
+
+} // namespace _impl
+
+} // namespace core

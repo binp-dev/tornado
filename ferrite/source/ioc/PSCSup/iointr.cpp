@@ -6,7 +6,7 @@
 void ScanList::destroy() {
     if (ioscan_list_ != nullptr) {
         // FIXME: Find a way to deinitialize IOSCANPVT
-        panic("IOSCANPVT resource leak");
+        core_panic("IOSCANPVT resource leak");
     }
 }
 
@@ -34,7 +34,7 @@ const IOSCANPVT &ScanList::raw() const {
 }
 
 void ScanList::scan() {
-    assert_true(ioscan_list_ != nullptr);
+    core_assert(ioscan_list_ != nullptr);
     // Runs record scanning in separate EPICS thread.
     // TODO: In case of performance issues consider using `scanIoImmediate` instead.
     scanIoRequest(ioscan_list_);

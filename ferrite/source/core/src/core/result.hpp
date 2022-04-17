@@ -1,159 +1,153 @@
 #pragma once
 
 #include <variant>
-#include <sstream>
 
-#include "fmt.hpp"
 #include "panic.hpp"
+#include "format.hpp"
 
+namespace core {
 
 template <typename T>
 struct Ok final {
     T value;
 
-    explicit Ok(const T &t) : value(t) {}
-    explicit Ok(T &&t) : value(std::move(t)) {}
+    constexpr explicit Ok(const T &t) : value(t) {}
+    constexpr explicit Ok(T &&t) : value(std::move(t)) {}
 };
 
 template <typename E>
 struct Err final {
     E value;
 
-    explicit Err(const E &e) : value(e) {}
-    explicit Err(E &&e) : value(std::move(e)) {}
+    constexpr explicit Err(const E &e) : value(e) {}
+    constexpr explicit Err(E &&e) : value(std::move(e)) {}
 };
 
 
 template <typename T, typename E>
 struct [[nodiscard]] Result final {
-    std::variant<E, T> variant;
+private:
+    std::variant<E, T> variant_;
 
-    explicit Result(const T &t) : variant(std::in_place_index<1>, t) {}
-    explicit Result(const E &e) : variant(std::in_place_index<0>, e) {}
-    explicit Result(T &&t) : variant(std::in_place_index<1>, std::move(t)) {}
-    explicit Result(E &&e) : variant(std::in_place_index<0>, std::move(e)) {}
+public:
+    constexpr Result(const Ok<T> &t) : variant_(std::in_place_index<1>, std::move(t.value)) {}
+    constexpr Result(const Err<E> &e) : variant_(std::in_place_index<0>, std::move(e.value)) {}
+    constexpr Result(Ok<T> &&t) : variant_(std::in_place_index<1>, std::move(t.value)) {}
+    constexpr Result(Err<E> &&e) : variant_(std::in_place_index<0>, std::move(e.value)) {}
 
-    Result(const Ok<T> &t) : variant(std::in_place_index<1>, std::move(t.value)) {}
-    Result(const Err<E> &e) : variant(std::in_place_index<0>, std::move(e.value)) {}
-    Result(Ok<T> &&t) : variant(std::in_place_index<1>, std::move(t.value)) {}
-    Result(Err<E> &&e) : variant(std::in_place_index<0>, std::move(e.value)) {}
+    constexpr Result(const Result &) = default;
+    constexpr Result(Result &&) = default;
+    constexpr Result &operator=(const Result &) = default;
+    constexpr Result &operator=(Result &&) = default;
 
-    Result(const Result &r) = default;
-    Result(Result &&r) = default;
-    Result &operator=(const Result &r) = default;
-    Result &operator=(Result &&r) = default;
-
-    bool is_ok() const {
-        return this->variant.index() == 1;
+    constexpr bool is_ok() const {
+        return this->variant_.index() == 1;
     }
-    bool is_err() const {
-        return this->variant.index() == 0;
+    constexpr bool is_err() const {
+        return this->variant_.index() == 0;
     }
 
-    const T &ok() const {
-        return std::get<1>(this->variant);
+    constexpr const T &ok() const {
+        return std::get<1>(this->variant_);
     }
-    const E &err() const {
-        return std::get<0>(this->variant);
+    constexpr const E &err() const {
+        return std::get<0>(this->variant_);
     }
-    T &ok() {
-        return std::get<1>(this->variant);
+    constexpr T &ok() {
+        return std::get<1>(this->variant_);
     }
-    E &err() {
-        return std::get<0>(this->variant);
+    constexpr E &err() {
+        return std::get<0>(this->variant_);
     }
 
-    T expect(const std::string message) {
+    T unwrap() {
         if (this->is_err()) {
-            std::stringstream ss;
-            ss << message;
-            if constexpr (is_display_v<E>) {
-                ss << ": Result::Err(" << this->err() << ")";
+            if constexpr (Printable<E>) {
+                core_panic("Result is Err({})", this->err());
+            } else {
+                core_panic("Result is Err");
             }
-            panic(ss.str());
         }
         return std::move(this->ok());
     }
-    E expect_err(const std::string message) {
+    E unwrap_err() {
         if (this->is_ok()) {
-            std::stringstream ss;
-            ss << message;
-            if constexpr (is_display_v<T>) {
-                ss << ": Result::Ok(" << this->ok() << ")";
+            if constexpr (Printable<T>) {
+                core_panic("Result is Ok({})", this->ok());
+            } else {
+                core_panic("Result is Ok");
             }
-            panic(ss.str());
         }
         return std::move(this->err());
     }
-    T unwrap() {
-        return this->expect("Result is Err");
-    }
-    E unwrap_err() {
-        return this->expect_err("Result is Ok");
-    }
 
-    bool operator==(const Result &other) const {
-        return this->variant == other.variant;
+    constexpr bool operator==(const Result &other) const {
+        return this->variant_ == other.variant_;
     }
-    bool operator==(const Ok<T> &other) const {
+    constexpr bool operator==(const Ok<T> &other) const {
         return this->is_ok() && this->ok() == other.value;
     }
-    bool operator==(const Err<E> &other) const {
+    constexpr bool operator==(const Err<E> &other) const {
         return this->is_err() && this->err() == other.value;
     }
-    bool operator!=(const Result &other) const {
-        return this->variant != other.variant;
+    constexpr bool operator!=(const Result &other) const {
+        return this->variant_ != other.variant_;
     }
-    bool operator!=(const Ok<T> &other) const {
+    constexpr bool operator!=(const Ok<T> &other) const {
         return !this->is_ok() || this->ok() != other.value;
     }
-    bool operator!=(const Err<E> &other) const {
+    constexpr bool operator!=(const Err<E> &other) const {
         return !this->is_err() || this->err() != other.value;
     }
 };
 
-#define try_unwrap(res) \
+template <typename T>
+struct Print<Ok<T>> {
+    static void print(std::ostream &os, const Ok<T> &ok) {
+        os << "Ok(";
+        if constexpr (Printable<T>) {
+            os << ok.value;
+        }
+        os << ")";
+    }
+};
+
+template <typename E>
+struct Print<Err<E>> {
+    static void print(std::ostream &os, const Err<E> &err) {
+        os << "Err(";
+        if constexpr (Printable<E>) {
+            os << err.value;
+        }
+        os << ")";
+    }
+};
+
+template <typename T, typename E>
+struct Print<Result<T, E>> {
+    static void print(std::ostream &os, const Result<T, E> &res) {
+        os << "Result::";
+        if (res.is_ok()) {
+            os << "Ok(";
+            if constexpr (Printable<T>) {
+                os << res.ok();
+            }
+        } else {
+            os << "Err(";
+            if constexpr (Printable<E>) {
+                os << res.err();
+            }
+        }
+        os << ")";
+    }
+};
+
+} // namespace core
+
+#define core_try_unwrap(res) \
     { \
         auto tmp = std::move(res); \
         if (tmp.is_err()) { \
-            return Err(std::move(tmp.err())); \
+            return ::core::Err(std::move(tmp.err())); \
         } \
     }
-
-template <typename T>
-std::ostream &operator<<(std::ostream &os, const Ok<T> &ok) {
-    os << "Ok(";
-    if constexpr (is_display_v<T>) {
-        os << ok.value;
-    }
-    os << ")";
-    return os;
-}
-
-template <typename E>
-std::ostream &operator<<(std::ostream &os, const Err<E> &err) {
-    os << "Err(";
-    if constexpr (is_display_v<E>) {
-        os << err.value;
-    }
-    os << ")";
-    return os;
-}
-
-template <typename T, typename E>
-std::ostream &operator<<(std::ostream &os, const Result<T, E> &res) {
-    os << "Result::";
-    if (res.is_ok()) {
-        os << "Ok(";
-        if constexpr (is_display_v<T>) {
-            os << res.ok();
-        }
-    } else {
-        os << "Err(";
-        if constexpr (is_display_v<E>) {
-            os << res.err();
-        }
-    }
-    os << ")";
-    return os;
-}

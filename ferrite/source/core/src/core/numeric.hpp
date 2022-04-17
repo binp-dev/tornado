@@ -3,6 +3,8 @@
 #include <type_traits>
 #include <cstdlib>
 
+namespace core {
+
 // Got from https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
 template <typename T>
 T next_power_of_two(T v) {
@@ -14,3 +16,5 @@ T next_power_of_two(T v) {
     v++;
     return v;
 }
+
+} // namespace core

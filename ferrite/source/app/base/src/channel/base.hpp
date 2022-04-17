@@ -12,9 +12,9 @@
 #include <core/result.hpp>
 
 class Channel :
-    public virtual io::StreamRead,
-    public virtual io::StreamWrite,
-    public virtual io::StreamWriteExact //
+    public virtual core::io::StreamRead,
+    public virtual core::io::StreamWrite,
+    public virtual core::io::StreamWriteExact //
 {
 public:
     std::optional<std::chrono::milliseconds> timeout = std::nullopt;

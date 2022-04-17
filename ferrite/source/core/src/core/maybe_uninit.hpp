@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <utility>
 
+namespace core {
+
 /// Type which size and alignment are identical to `T` but it can be uninitialized.
 /// MaybeUninit<T> is POD for any `T`.
 template <typename T>
@@ -23,3 +25,5 @@ struct MaybeUninit {
         new (&assume_init()) T(std::forward<Args>(args)...);
     }
 } __attribute__((aligned(alignof(T))));
+
+} // namespace core

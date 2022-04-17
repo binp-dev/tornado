@@ -1,15 +1,31 @@
 #pragma once
 
-#include <string>
+#include "format.hpp"
 
-void set_panic_hook(void(*hook)());
+namespace core {
 
-[[noreturn]] void __panic_with_location(const char *func, const char *file, size_t line, const std::string &message = "");
+void set_panic_hook(void (*hook)());
 
-#define panic(...) __panic_with_location(__FUNCTION__, __FILE__, __LINE__, ##__VA_ARGS__)
+namespace _impl {
 
-#define unimplemented(...) panic("Unimplemented" __VA_ARGS__)
+void print_backtrace();
+[[noreturn]] void panic();
 
-#define unreachable() \
-    __builtin_unreachable(); \
-    panic("Unreachable code reached")
+} // namespace _impl
+} // namespace core
+
+#define core_panic(...) \
+    do { \
+        ::core::_impl::print_backtrace(); \
+        core_println("Thread panicked in {}, at {}:{}", __FUNCTION__, __FILE__, __LINE__); \
+        core_println(__VA_ARGS__); \
+        ::core::_impl::panic(); \
+    } while (false)
+
+#define core_unimplemented(...) core_panic("Unimplemented. " __VA_ARGS__)
+
+#define core_unreachable(...) \
+    do { \
+        __builtin_unreachable(); \
+        core_panic("Unreachable code reached. " __VA_ARGS__); \
+    } while (false)

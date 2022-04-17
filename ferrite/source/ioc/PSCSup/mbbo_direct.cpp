@@ -12,19 +12,21 @@
 #include <core/panic.hpp>
 #include <framework.hpp>
 
+using BaseRecord = EpicsRecord<mbboDirectRecord>;
+
 uint32_t MbboDirectRecord::value() const {
     return this->raw()->rval;
 }
 
 static long record_mbbo_direct_init(mbboDirectRecord *raw) {
     auto record = std::make_unique<MbboDirectRecord>(raw);
-    EpicsRecord::set_private_data((dbCommon *)raw, std::move(record));
-    framework_record_init(*EpicsRecord::get_private_data((dbCommon *)raw));
+    BaseRecord::set_private_data(raw, std::move(record));
+    framework_record_init(*BaseRecord::get_private_data(raw));
     return 0;
 }
 
 static long record_mbbo_direct_write(mbboDirectRecord *raw) {
-    EpicsRecord::get_private_data((dbCommon *)raw)->process();
+    BaseRecord::get_private_data(raw)->process();
     return 0;
 }
 
@@ -43,7 +45,7 @@ struct AaiRecordCallbacks mbbo_direct_record_handler = {
     nullptr,
     reinterpret_cast<DEVSUPFUN>(record_mbbo_direct_init),
     nullptr,
-    reinterpret_cast<DEVSUPFUN>(record_mbbo_direct_write)
+    reinterpret_cast<DEVSUPFUN>(record_mbbo_direct_write),
 };
 
 epicsExportAddress(dset, mbbo_direct_record_handler);

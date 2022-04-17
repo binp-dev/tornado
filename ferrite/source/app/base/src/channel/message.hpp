@@ -14,8 +14,8 @@ class MessageChannel final {
 private:
     std::unique_ptr<Channel> raw_;
 
-    Vec<uint8_t> send_buffer_;
-    VecDeque<uint8_t> recv_buffer_;
+    core::Vec<uint8_t> send_buffer_;
+    core::VecDeque<uint8_t> recv_buffer_;
 
     size_t max_len_;
 
@@ -33,8 +33,8 @@ public:
         return *raw_;
     }
 
-    Result<std::monostate, io::Error> send(const OutMsg &message, std::optional<std::chrono::milliseconds> timeout);
-    Result<InMsg, io::Error> receive(std::optional<std::chrono::milliseconds> timeout);
+    core::Result<std::monostate, core::io::Error> send(const OutMsg &message, std::optional<std::chrono::milliseconds> timeout);
+    core::Result<InMsg, core::io::Error> receive(std::optional<std::chrono::milliseconds> timeout);
 };
 
 #include "message.hxx"
