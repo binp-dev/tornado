@@ -1,5 +1,5 @@
 /*!
- * @brief Драйвер для платы ЦАП/АЦП Tornado.
+ * @brief Driver for Tornado DAC/ADC board.
  */
 
 #pragma once

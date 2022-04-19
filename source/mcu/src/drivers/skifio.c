@@ -17,11 +17,6 @@
 
 #include <utils/crc.h>
 
-//#define _SKIFIO_LOG_SPI
-
-#ifdef _SKIFIO_LOG_SPI
-#include <hal/log.h>
-#endif // _SKIFIO_LOG_SPI
 
 #define SPI_BAUD_RATE 25000000
 
@@ -116,7 +111,7 @@ typedef struct {
 static SkifioGlobalState GS;
 
 #ifdef _SKIFIO_DEBUG
-_SkifioDebugInfo _SKIFIO_DEBUG_INFO;
+_SkifioDebugInfo _SKIFIO_DEBUG_INFO = {0};
 #endif
 
 
@@ -315,32 +310,16 @@ hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in) {
     // Transfer data
     hal_spi_byte tx4[XFER_LEN] = {0};
     hal_spi_byte rx4[XFER_LEN] = {0};
-#ifdef _SKIFIO_LOG_SPI
-    char data_buf[3 * XFER_LEN + 1] = {'\0'};
-#endif // _SKIFIO_LOG_SPI
     for (size_t i = 0; i < XFER_LEN; ++i) {
         tx4[i] = (hal_spi_byte)tx[i];
-#ifdef _SKIFIO_LOG_SPI
-        snprintf(data_buf + 3 * i, 4, "%02lx ", tx4[i]);
-#endif // _SKIFIO_LOG_SPI
     }
-#ifdef _SKIFIO_LOG_SPI
-    hal_log_info("Tx: %s", data_buf);
-#endif // _SKIFIO_LOG_SPI
     st = hal_spi_xfer(SPI_DEV_ID, tx4, rx4, XFER_LEN, HAL_WAIT_FOREVER);
     if (st != HAL_SUCCESS) {
         return st;
     }
-
     for (size_t i = 0; i < XFER_LEN; ++i) {
         rx[i] = (uint8_t)rx4[i];
-#ifdef _SKIFIO_LOG_SPI
-        snprintf(data_buf + 3 * i, 4, "%02lx ", rx4[i]);
-#endif // _SKIFIO_LOG_SPI
     }
-#ifdef _SKIFIO_LOG_SPI
-    hal_log_info("Rx: %s", data_buf);
-#endif // _SKIFIO_LOG_SPI
 
     // Load ADC values
     const size_t in_data_len = SKIFIO_ADC_CHANNEL_COUNT * 4;
@@ -349,7 +328,7 @@ hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in) {
     // Load and check CRC
     calc_crc = calculate_crc16(rx, in_data_len);
     uint16_t in_crc = 0;
-    memcpy(&in_crc, tx + in_data_len, 2);
+    memcpy(&in_crc, rx + in_data_len, 2);
     if (calc_crc != in_crc) {
         // CRC mismatch
         return HAL_INVALID_DATA;
