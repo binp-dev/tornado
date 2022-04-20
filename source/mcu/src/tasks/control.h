@@ -16,16 +16,25 @@
 #define DAC_BUFFER_SIZE 1024
 #define ADC_BUFFER_SIZE 384
 
+typedef struct {
+    RB_STATIC_DATA(data, DAC_BUFFER_SIZE);
+} _ControlDacBufferData;
+
+typedef struct {
+    RB_STATIC_DATA(data, ADC_BUFFER_SIZE);
+} _ControlAdcBufferData;
 
 typedef struct {
     bool running;
     RingBuffer buffer;
+    _ControlDacBufferData buffer_data;
     point_t last_point;
     size_t counter;
 } ControlDac;
 
 typedef struct {
     RingBuffer buffers[ADC_COUNT];
+    _ControlAdcBufferData buffers_data[ADC_COUNT];
     size_t counter;
 } ControlAdc;
 

@@ -8,12 +8,12 @@ void control_init(Control *self, Statistics *stats) {
     self->dio.out = 0;
 
     self->dac.running = false;
-    hal_assert_retcode(rb_init(&self->dac.buffer, DAC_BUFFER_SIZE));
+    hal_assert_retcode(rb_init(&self->dac.buffer, self->dac.buffer_data.data, DAC_BUFFER_SIZE));
     self->dac.last_point = 0x7fff;
     self->dac.counter = 0;
 
     for (size_t i = 0; i < ADC_COUNT; ++i) {
-        hal_assert_retcode(rb_init(&self->adc.buffers[i], ADC_BUFFER_SIZE));
+        hal_assert_retcode(rb_init(&self->adc.buffers[i], self->adc.buffers_data[i].data, ADC_BUFFER_SIZE));
     }
     self->adc.counter = 0;
 

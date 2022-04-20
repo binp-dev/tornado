@@ -9,16 +9,21 @@
 
 #include <common/config.h>
 
+#define _RB_STATIC_DATA_SIZE(len) (sizeof(point_t) * (len) + 1)
+
+#define RB_STATIC_DATA(name, len) uint8_t name[_RB_STATIC_DATA_SIZE(len)]
+
 /// Ring buffer structure.
 typedef struct {
-    StreamBufferHandle_t stream_buffer;
+    StaticStreamBuffer_t info;
+    StreamBufferHandle_t handle;
     size_t capacity;
 } RingBuffer;
 
 
 /// Initialize ring buffer aloocating memory.
 /// @param len Max number of points that could be stored within.
-hal_retcode rb_init(RingBuffer *self, size_t len);
+hal_retcode rb_init(RingBuffer *self, uint8_t *static_data, size_t len);
 
 /// Deinitialize previously initialized ring buffer deallocating its memory.
 hal_retcode rb_deinit(RingBuffer *self);

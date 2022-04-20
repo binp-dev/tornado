@@ -34,6 +34,7 @@ set(SRC
     "${ProjDirPath}/src/main.c"
     
     "${ProjDirPath}/src/device/FreeRTOSConfig.h"
+    "${ProjDirPath}/src/device/freertos_impl.c"
     "${ProjDirPath}/src/device/rpmsg_config.h"
     "${ProjDirPath}/src/device/rsc_table.c"
     "${ProjDirPath}/src/device/rsc_table.h"
