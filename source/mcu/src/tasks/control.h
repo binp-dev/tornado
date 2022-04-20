@@ -14,7 +14,7 @@
 #include "config.h"
 
 #define DAC_BUFFER_SIZE 1024
-#define ADC_BUFFER_SIZE 256
+#define ADC_BUFFER_SIZE 384
 
 
 typedef struct {
