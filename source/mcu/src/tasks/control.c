@@ -3,17 +3,37 @@
 #include <hal/assert.h>
 #include <hal/math.h>
 
+#define RB_STRUCT DacRingBuffer
+#define RB_PREFIX dac_rb
+#define RB_ITEM point_t
+#define RB_CAPACITY DAC_BUFFER_SIZE
+#include <utils/ringbuf.inl>
+#undef RB_STRUCT
+#undef RB_PREFIX
+#undef RB_ITEM
+#undef RB_CAPACITY
+
+#define RB_STRUCT AdcRingBuffer
+#define RB_PREFIX adc_rb
+#define RB_ITEM point_t
+#define RB_CAPACITY ADC_BUFFER_SIZE
+#include <utils/ringbuf.inl>
+#undef RB_STRUCT
+#undef RB_PREFIX
+#undef RB_ITEM
+#undef RB_CAPACITY
+
 void control_init(Control *self, Statistics *stats) {
     self->dio.in = 0;
     self->dio.out = 0;
 
     self->dac.running = false;
-    hal_assert_retcode(rb_init(&self->dac.buffer, self->dac.buffer_data.data, DAC_BUFFER_SIZE));
+    hal_assert_retcode(dac_rb_init(&self->dac.buffer));
     self->dac.last_point = 0x7fff;
     self->dac.counter = 0;
 
     for (size_t i = 0; i < ADC_COUNT; ++i) {
-        hal_assert_retcode(rb_init(&self->adc.buffers[i], self->adc.buffers_data[i].data, ADC_BUFFER_SIZE));
+        hal_assert_retcode(adc_rb_init(&self->adc.buffers[i]));
     }
     self->adc.counter = 0;
 
@@ -24,10 +44,10 @@ void control_init(Control *self, Statistics *stats) {
 }
 
 void control_deinit(Control *self) {
-    hal_assert_retcode(rb_deinit(&self->dac.buffer));
+    hal_assert_retcode(dac_rb_deinit(&self->dac.buffer));
 
     for (size_t i = 0; i < ADC_COUNT; ++i) {
-        hal_assert_retcode(rb_deinit(&self->adc.buffers[i]));
+        hal_assert_retcode(adc_rb_deinit(&self->adc.buffers[i]));
     }
 }
 
@@ -122,7 +142,7 @@ static void control_task(void *param) {
         // Fetch next DAC value from buffer
         int32_t dac_value = self->dac.last_point;
         if (self->dac.running) {
-            if (rb_read(&self->dac.buffer, &dac_value, 1) == 1) {
+            if (dac_rb_read(&self->dac.buffer, &dac_value, 1) == 1) {
                 self->dac.last_point = dac_value;
                 // Decrement DAC notification counter.
                 if (self->dac.counter > 0) {
@@ -159,7 +179,7 @@ static void control_task(void *param) {
                 value_stats_update(&adc_stats->value, value);
 
                 // Push ADC point to buffer.
-                if (rb_write(&self->adc.buffers[i], &value, 1) != 1) {
+                if (adc_rb_write(&self->adc.buffers[i], &value, 1) != 1) {
                     self->stats->adcs[i].lost_full += 1;
                 }
             }

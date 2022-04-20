@@ -81,13 +81,13 @@ static void write_adc_message(Rpmsg *self, void *user_data, IppMcuMsg *basic_mes
     message->index = (uint8_t)index;
     message->points.len = (uint16_t)SIZE;
     // It must be guaranteed that ADC buffer contains at least `ADC_MSG_MAX_POINTS` points.
-    hal_assert(rb_read(&self->control->adc.buffers[index], message->points.data, SIZE) == SIZE);
+    hal_assert(adc_rb_read(&self->control->adc.buffers[index], message->points.data, SIZE) == SIZE);
 }
 
 static void rpmsg_send_adcs(Rpmsg *self) {
     for (size_t i = 0; i < ADC_COUNT; ++i) {
-        RingBuffer *rb = &self->control->adc.buffers[i];
-        while (rb_occupied(rb) >= ADC_MSG_MAX_POINTS) {
+        AdcRingBuffer *rb = &self->control->adc.buffers[i];
+        while (adc_rb_occupied(rb) >= ADC_MSG_MAX_POINTS) {
             rpmsg_send_message(self, write_adc_message, (void *)&i);
         }
     }
@@ -96,9 +96,9 @@ static void rpmsg_send_adcs(Rpmsg *self) {
 static void rpmsg_discard_adcs(Rpmsg *self) {
     static const size_t SIZE = ADC_MSG_MAX_POINTS;
     for (size_t i = 0; i < ADC_COUNT; ++i) {
-        RingBuffer *rb = &self->control->adc.buffers[i];
-        while (rb_occupied(rb) >= SIZE) {
-            hal_assert(rb_skip(rb, SIZE) == SIZE);
+        AdcRingBuffer *rb = &self->control->adc.buffers[i];
+        while (adc_rb_occupied(rb) >= SIZE) {
+            hal_assert(adc_rb_skip(rb, SIZE) == SIZE);
         }
     }
 }
@@ -112,7 +112,7 @@ static void write_dac_req_message(Rpmsg *self, void *user_data, IppMcuMsg *messa
 static void rpmsg_send_dac_request(Rpmsg *self) {
     static const size_t SIZE = DAC_MSG_MAX_POINTS;
 
-    size_t vacant = rb_vacant(&self->control->dac.buffer);
+    size_t vacant = dac_rb_vacant(&self->control->dac.buffer);
     size_t requested = hal_atomic_size_load(&self->dac_requested);
     size_t req_count_raw = 0;
     if (requested <= vacant) {
@@ -183,7 +183,7 @@ static void set_dout(Rpmsg *self, SkifioDout value) {
 }
 
 static void write_dac(Rpmsg *self, const point_t *data, size_t len) {
-    size_t wlen = rb_write(&self->control->dac.buffer, data, len);
+    size_t wlen = dac_rb_write(&self->control->dac.buffer, data, len);
     self->stats->dac.lost_full += len - wlen;
 
     // Safely decrement requested points counter.

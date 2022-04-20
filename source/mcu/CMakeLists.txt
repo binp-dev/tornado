@@ -44,10 +44,11 @@ set(SRC
     "${ProjDirPath}/src/device/clock_config.c"
     "${ProjDirPath}/src/device/clock_config.h"
 
-    "${ProjDirPath}/src/utils/ringbuf.c"
-    "${ProjDirPath}/src/utils/ringbuf.h"
+    "${ProjDirPath}/src/utils/macros.h"
     "${ProjDirPath}/src/utils/crc.c"
     "${ProjDirPath}/src/utils/crc.h"
+    "${ProjDirPath}/src/utils/ringbuf.h"
+    "${ProjDirPath}/src/utils/ringbuf.inl"
 
     "${ProjDirPath}/src/drivers/skifio.c"
     "${ProjDirPath}/src/drivers/skifio.h"
@@ -130,7 +131,7 @@ if(NOT DEFINED IPP)
 endif()
 
 # Generate sync internally
-add_definitions("-DGENERATE_SYNC")
+#add_definitions("-DGENERATE_SYNC")
 
 # Link common code
 add_subdirectory("../common" "common" EXCLUDE_FROM_ALL)

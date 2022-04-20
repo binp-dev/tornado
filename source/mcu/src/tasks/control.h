@@ -7,7 +7,6 @@
 #include <semphr.h>
 
 #include <common/config.h>
-#include <utils/ringbuf.h>
 #include <drivers/skifio.h>
 #include <tasks/stats.h>
 
@@ -16,25 +15,35 @@
 #define DAC_BUFFER_SIZE 1024
 #define ADC_BUFFER_SIZE 384
 
-typedef struct {
-    RB_STATIC_DATA(data, DAC_BUFFER_SIZE);
-} _ControlDacBufferData;
+#define RB_STRUCT DacRingBuffer
+#define RB_PREFIX dac_rb
+#define RB_ITEM point_t
+#define RB_CAPACITY DAC_BUFFER_SIZE
+#include <utils/ringbuf.h>
+#undef RB_STRUCT
+#undef RB_PREFIX
+#undef RB_ITEM
+#undef RB_CAPACITY
 
-typedef struct {
-    RB_STATIC_DATA(data, ADC_BUFFER_SIZE);
-} _ControlAdcBufferData;
+#define RB_STRUCT AdcRingBuffer
+#define RB_PREFIX adc_rb
+#define RB_ITEM point_t
+#define RB_CAPACITY ADC_BUFFER_SIZE
+#include <utils/ringbuf.h>
+#undef RB_STRUCT
+#undef RB_PREFIX
+#undef RB_ITEM
+#undef RB_CAPACITY
 
 typedef struct {
     bool running;
-    RingBuffer buffer;
-    _ControlDacBufferData buffer_data;
+    DacRingBuffer buffer;
     point_t last_point;
     size_t counter;
 } ControlDac;
 
 typedef struct {
-    RingBuffer buffers[ADC_COUNT];
-    _ControlAdcBufferData buffers_data[ADC_COUNT];
+    AdcRingBuffer buffers[ADC_COUNT];
     size_t counter;
 } ControlAdc;
 
