@@ -5,7 +5,7 @@ from random import Random
 from dataclasses import dataclass
 
 import numpy as np
-from numpy.typing import NDArray
+from numpy.typing import NDArray, DTypeLike
 
 from ferrite.codegen.base import CONTEXT, Include, Location, Name, Type, Source
 from ferrite.codegen.primitive import Char, Int
@@ -26,49 +26,93 @@ class _ItemBase(Type):
 
 class _ArrayBase(_ItemBase):
 
+    def _is_np(self) -> bool:
+        return self.item.trivial or (isinstance(self.item, _ArrayBase) and self.item._is_np())
+
+    def np_dtype(self) -> DTypeLike:
+        if self._is_np():
+            return self.item.np_dtype()
+        else:
+            raise NotImplementedError()
+
+    def pyi_np_dtype(self) -> str:
+        if self._is_np():
+            return self.item.pyi_np_dtype()
+        else:
+            raise NotImplementedError()
+
     def _load_array(self, data: bytes, size: int) -> List[Any] | NDArray[Any]:
         item_size = self.item.size()
         assert len(data) == item_size * size
-        if not self.item.trivial:
+        if not self._is_np():
             array = []
             for i in range(size):
                 array.append(self.item.load(data[(i * item_size):((i + 1) * item_size)]))
             return array
         else:
-            return np.frombuffer(data, self.item.np_dtype(), size)
+            return np.frombuffer(data, self.np_dtype(), size)
 
     def _store_array(self, array: List[Any] | NDArray[Any]) -> bytes:
-        if not self.item.trivial:
+        if not self._is_np():
             assert isinstance(array, list)
             data = b''
             for item in array:
                 data += self.item.store(item)
             return data
         else:
-            assert isinstance(array, np.ndarray) and array.dtype == self.item.np_dtype()
-            return array.tobytes()
+            assert isinstance(array, np.ndarray) and array.dtype == self.np_dtype()
+            return array.copy(order='C').tobytes()
 
     def _random_array(self, rng: Random, size: int) -> List[Any] | NDArray[Any]:
         array = [self.item.random(rng) for _ in range(size)]
-        if not self.item.trivial:
+        if not self._is_np():
             return array
         else:
-            return np.array(array, dtype=self.item.np_dtype())
+            return np.array(array, dtype=self.np_dtype())
 
     def is_instance(self, value: List[Any] | NDArray[Any]) -> bool:
-        if not self.item.trivial:
+        if not self._is_np():
             return isinstance(value, list)
         else:
-            return isinstance(value, np.ndarray) and value.dtype == self.item.np_dtype()
+            return isinstance(value, np.ndarray) and value.dtype == self.np_dtype()
+
+    def c_len(self, obj: str) -> str:
+        raise NotImplementedError()
+
+    def c_test(self, obj: str, src: str) -> List[str]:
+        d = CONTEXT.iter_depth
+        CONTEXT.iter_depth += 1
+        try:
+            return [
+                f"ASSERT_EQ({self.c_len(obj)}, {src}.size());",
+                f"for (size_t i{d} = 0; i{d} < {src}.size(); ++i{d}) {{",
+                *indent(self.item.c_test(f"{obj}.data[i{d}]", f"{src}[i{d}]")),
+                f"}}",
+            ]
+        finally:
+            CONTEXT.iter_depth -= 1
+
+    def cpp_test(self, dst: str, src: str) -> List[str]:
+        d = CONTEXT.iter_depth
+        CONTEXT.iter_depth += 1
+        try:
+            return [
+                f"ASSERT_EQ({dst}.size(), {src}.size());",
+                f"for (size_t i{d} = 0; i{d} < {src}.size(); ++i{d}) {{",
+                *indent(self.item.cpp_test(f"{dst}[i{d}]", f"{src}[i{d}]")),
+                f"}}",
+            ]
+        finally:
+            CONTEXT.iter_depth -= 1
 
     def pyi_type(self) -> str:
-        if not self.item.trivial:
+        if not self._is_np():
             return f"List[{self.item.pyi_type()}]"
         else:
-            return f"NDArray[{self.item.pyi_np_dtype()}]"
+            return f"NDArray[{self.pyi_np_dtype()}]"
 
     def pyi_source(self) -> Optional[Source]:
-        if not self.item.trivial:
+        if not self._is_np():
             imports = [["from typing import List"]]
         else:
             imports = [["import numpy as np"], ["from numpy.typing import NDArray"]]
@@ -192,21 +236,8 @@ class Array(_ArrayBase):
         assert self.len == len(value)
         return f"{self.cpp_type()}{{{', '.join([self.item.cpp_object(v) for v in value])}}}"
 
-    def c_test(self, obj: str, src: str) -> List[str]:
-        return [
-            f"ASSERT_EQ(size_t({self.len}), {src}.size());",
-            f"for (size_t i = 0; i < {src}.size(); ++i) {{",
-            *["    " + s for s in self.item.c_test(f"{obj}.data[i]", f"{src}[i]")],
-            f"}}",
-        ]
-
-    def cpp_test(self, dst: str, src: str) -> List[str]:
-        return [
-            f"ASSERT_EQ({dst}.size(), {src}.size());",
-            f"for (size_t i = 0; i < {src}.size(); ++i) {{",
-            *indent(self.item.cpp_test(f"{dst}[i]", f"{src}[i]")),
-            f"}}",
-        ]
+    def c_len(self, obj: str) -> str:
+        return f"size_t({self.len})"
 
 
 @dataclass
@@ -264,21 +295,8 @@ class _BasicVector(_ItemBase):
     def cpp_store(self, stream: str, dst: str) -> str:
         return self._cpp_store_func(stream, dst)
 
-    def c_test(self, obj: str, src: str) -> List[str]:
-        return [
-            f"ASSERT_EQ({obj}.len, {src}.size());",
-            f"for (size_t i = 0; i < {src}.size(); ++i) {{",
-            *indent(self.item.c_test(f"{obj}.data[i]", f"{src}[i]")),
-            f"}}",
-        ]
-
-    def cpp_test(self, dst: str, src: str) -> List[str]:
-        return [
-            f"ASSERT_EQ({dst}.size(), {src}.size());",
-            f"for (size_t i = 0; i < {src}.size(); ++i) {{",
-            *indent(self.item.cpp_test(f"{dst}[i]", f"{src}[i]")),
-            f"}}",
-        ]
+    def c_len(self, obj: str) -> str:
+        return f"{obj}.len"
 
 
 class Vector(_BasicVector, _ArrayBase):

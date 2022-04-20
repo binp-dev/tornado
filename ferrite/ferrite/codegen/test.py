@@ -13,11 +13,13 @@ from ferrite.codegen.generate import generate_and_write
 empty = Struct(Name(["empty", "struct"]), [])
 
 all_: List[Type] = [
+    empty,
     Array(Int(24), 5),
     Vector(Int(24)),
     Vector(Int(64)),
     String(),
-    empty,
+    Vector(Array(Int(32), 2)),
+    Vector(Array(Int(24, signed=True), 3)),
     Struct(Name(["value", "struct"]), [
         Field("value", Int(32)),
     ]),

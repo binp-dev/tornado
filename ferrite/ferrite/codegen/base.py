@@ -14,6 +14,7 @@ from ferrite.codegen.macros import io_read_type, io_result_type, io_write_type, 
 @dataclass
 class Context:
     prefix: Optional[str] = None
+    iter_depth: int = 0
     test_attempts: int = 1
 
 
