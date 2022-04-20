@@ -45,12 +45,12 @@ class FakeDev:
             return (volts / (self.config.adc_step_uv * 1e-6) * 256).astype(np.int32)
 
         # Takes DAC values and returns new ADC values for all channels
-        async def transfer(self, dac: NDArray[np.float64]) -> List[NDArray[np.float64]]:
+        async def transfer(self, dac: NDArray[np.float64]) -> NDArray[np.float64]:
             raise NotImplementedError()
 
-        async def transfer_codes(self, dac_codes: NDArray[np.int32]) -> List[NDArray[np.int32]]:
+        async def transfer_codes(self, dac_codes: NDArray[np.int32]) -> NDArray[np.int32]:
             adcs = await self.transfer(self.dac_codes_to_volts(dac_codes))
-            return [self.adc_volts_to_codes(adc_codes) for adc_codes in adcs]
+            return self.adc_volts_to_codes(adcs)
 
     def __init__(self, ioc: Ioc, config: Config, handler: FakeDev.Handler) -> None:
         self.ioc = ioc
@@ -63,8 +63,7 @@ class FakeDev:
 
     async def _sample_chunk(self, dac: NDArray[np.int32]) -> None:
         adcs = await self.handler.transfer_codes(dac)
-        for i, adc in enumerate(adcs):
-            await _send_msg(self.socket, McuMsg.AdcData(i, adc))
+        await _send_msg(self.socket, McuMsg.AdcData(adcs))
         await _send_msg(self.socket, McuMsg.DacRequest(len(dac)))
 
     async def _recv_msg(self) -> None:

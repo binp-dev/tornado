@@ -12,6 +12,10 @@
 
 #include "config.h"
 
+typedef struct {
+    point_t points[ADC_COUNT];
+} AdcArray;
+
 #define DAC_BUFFER_SIZE 1024
 #define ADC_BUFFER_SIZE 384
 
@@ -27,7 +31,7 @@
 
 #define RB_STRUCT AdcRingBuffer
 #define RB_PREFIX adc_rb
-#define RB_ITEM point_t
+#define RB_ITEM AdcArray
 #define RB_CAPACITY ADC_BUFFER_SIZE
 #include <utils/ringbuf.h>
 #undef RB_STRUCT
@@ -43,7 +47,7 @@ typedef struct {
 } ControlDac;
 
 typedef struct {
-    AdcRingBuffer buffers[ADC_COUNT];
+    AdcRingBuffer buffer;
     size_t counter;
 } ControlAdc;
 

@@ -15,7 +15,7 @@
 
 #define RB_STRUCT AdcRingBuffer
 #define RB_PREFIX adc_rb
-#define RB_ITEM point_t
+#define RB_ITEM AdcArray
 #define RB_CAPACITY ADC_BUFFER_SIZE
 #include <utils/ringbuf.inl>
 #undef RB_STRUCT
@@ -32,9 +32,7 @@ void control_init(Control *self, Statistics *stats) {
     self->dac.last_point = 0x7fff;
     self->dac.counter = 0;
 
-    for (size_t i = 0; i < ADC_COUNT; ++i) {
-        hal_assert_retcode(adc_rb_init(&self->adc.buffers[i]));
-    }
+    hal_assert_retcode(adc_rb_init(&self->adc.buffer));
     self->adc.counter = 0;
 
     self->sync = NULL;
@@ -45,10 +43,7 @@ void control_init(Control *self, Statistics *stats) {
 
 void control_deinit(Control *self) {
     hal_assert_retcode(dac_rb_deinit(&self->dac.buffer));
-
-    for (size_t i = 0; i < ADC_COUNT; ++i) {
-        hal_assert_retcode(adc_rb_deinit(&self->adc.buffers[i]));
-    }
+    hal_assert_retcode(adc_rb_deinit(&self->adc.buffer));
 }
 
 void control_set_sync(Control *self, ControlSync *sync) {
@@ -171,18 +166,19 @@ static void control_task(void *param) {
             hal_assert_retcode(ret);
 
             // Handle ADCs
+            AdcArray adcs = {{0}};
             for (size_t i = 0; i < ADC_COUNT; ++i) {
                 point_t value = input.adcs[i];
-                volatile AdcStats *adc_stats = &self->stats->adcs[i];
+                adcs.points[i] = value;
 
                 // Update ADC value statistics
-                value_stats_update(&adc_stats->value, value);
-
-                // Push ADC point to buffer.
-                if (adc_rb_write(&self->adc.buffers[i], &value, 1) != 1) {
-                    self->stats->adcs[i].lost_full += 1;
-                }
+                value_stats_update(&self->stats->adc.values[i], value);
             }
+            // Push ADC point to buffer.
+            if (adc_rb_write(&self->adc.buffer, &adcs, 1) != 1) {
+                self->stats->adc.lost_full += 1;
+            }
+
             // Decrement ADC notification counter.
             if (self->adc.counter > 0) {
                 self->adc.counter -= 1;

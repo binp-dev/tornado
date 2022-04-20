@@ -4,6 +4,9 @@
 
 
 void rpmsg_init(Rpmsg *self, Control *control, Statistics *stats) {
+    // The layouts of `AdcArray` and `IppArray6Int32` must be the same.
+    hal_assert(sizeof(*(AdcArray *)NULL) == sizeof(*(IppArray6Int32 *)NULL));
+
     self->alive = false;
 
     self->send_sem = xSemaphoreCreateBinary();
@@ -73,33 +76,27 @@ static void rpmsg_send_message(Rpmsg *self, void (*write_message)(Rpmsg *, void 
 }
 
 static void write_adc_message(Rpmsg *self, void *user_data, IppMcuMsg *basic_message) {
-    size_t index = *(const size_t *)user_data;
     static const size_t SIZE = ADC_MSG_MAX_POINTS;
 
     basic_message->type = IPP_MCU_MSG_ADC_DATA;
     IppMcuMsgAdcData *message = &basic_message->adc_data;
-    message->index = (uint8_t)index;
-    message->points.len = (uint16_t)SIZE;
+    message->points_arrays.len = (uint16_t)SIZE;
     // It must be guaranteed that ADC buffer contains at least `ADC_MSG_MAX_POINTS` points.
-    hal_assert(adc_rb_read(&self->control->adc.buffers[index], message->points.data, SIZE) == SIZE);
+    hal_assert(adc_rb_read(&self->control->adc.buffer, (AdcArray *)message->points_arrays.data, SIZE) == SIZE);
 }
 
 static void rpmsg_send_adcs(Rpmsg *self) {
-    for (size_t i = 0; i < ADC_COUNT; ++i) {
-        AdcRingBuffer *rb = &self->control->adc.buffers[i];
-        while (adc_rb_occupied(rb) >= ADC_MSG_MAX_POINTS) {
-            rpmsg_send_message(self, write_adc_message, (void *)&i);
-        }
+    AdcRingBuffer *rb = &self->control->adc.buffer;
+    while (adc_rb_occupied(rb) >= ADC_MSG_MAX_POINTS) {
+        rpmsg_send_message(self, write_adc_message, NULL);
     }
 }
 
 static void rpmsg_discard_adcs(Rpmsg *self) {
     static const size_t SIZE = ADC_MSG_MAX_POINTS;
-    for (size_t i = 0; i < ADC_COUNT; ++i) {
-        AdcRingBuffer *rb = &self->control->adc.buffers[i];
-        while (adc_rb_occupied(rb) >= SIZE) {
-            hal_assert(adc_rb_skip(rb, SIZE) == SIZE);
-        }
+    AdcRingBuffer *rb = &self->control->adc.buffer;
+    while (adc_rb_occupied(rb) >= SIZE) {
+        hal_assert(adc_rb_skip(rb, SIZE) == SIZE);
     }
 }
 
