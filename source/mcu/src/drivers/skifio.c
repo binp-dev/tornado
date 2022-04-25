@@ -20,10 +20,7 @@
 
 #define SPI_BAUD_RATE 25000000
 
-// On startup first transfers are corrupted sometimes.
-// TODO: Investigate why this happen.
-// To mitigate this issue we skip a few first samples.
-#define FIRST_SAMPLES_TO_SKIP 256
+#define FIRST_SAMPLES_TO_SKIP 1
 #define READY_DELAY_NS 0
 
 #define SPI_DEV_ID 0
