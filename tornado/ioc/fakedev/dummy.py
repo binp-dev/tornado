@@ -19,7 +19,7 @@ from tornado.ioc.fakedev.base import FakeDev
 class Handler(FakeDev.Handler):
     time: float = 0.0
 
-    async def transfer(self, dac: NDArray[np.float64]) -> List[NDArray[np.float64]]:
+    async def transfer(self, dac: NDArray[np.float64]) -> NDArray[np.float64]:
         adc_mag = dac / self.config.dac_max_abs_v * self.config.adc_max_abs_v
         time = self.time + np.arange(len(dac), dtype=np.float64) / self.config.sample_freq_hz
         value = 0.5 * adc_mag * np.cos(np.e * time) + 0.5 * self.config.adc_max_abs_v * np.cos(np.pi * time)
@@ -28,7 +28,7 @@ class Handler(FakeDev.Handler):
         await asyncio.sleep(delay)
         self.time += delay
 
-        return [dac] + [value] * (self.config.adc_count - 1)
+        return np.stack([dac] + [value] * (self.config.adc_count - 1)).transpose()
 
 
 def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:

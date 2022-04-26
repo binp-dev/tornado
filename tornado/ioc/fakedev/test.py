@@ -63,7 +63,7 @@ class Handler(FakeDev.Handler):
         self.dac = Handler.Waveform()
         self.adcs = [Handler.Waveform() for _ in range(self.config.adc_count + 1)]
 
-    async def transfer(self, dac: NDArray[np.float64]) -> List[NDArray[np.float64]]:
+    async def transfer(self, dac: NDArray[np.float64]) -> NDArray[np.float64]:
         self.dac.push(dac)
 
         adcs = [dac / self.config.dac_max_abs_v * self.config.adc_max_abs_v]
@@ -76,7 +76,7 @@ class Handler(FakeDev.Handler):
         for adc, chunk in zip(self.adcs, adcs):
             adc.push(chunk)
 
-        return adcs
+        return np.stack(adcs).transpose()
 
 
 async def async_run(config: Config, handler: Handler) -> None:
@@ -118,7 +118,7 @@ async def async_run(config: Config, handler: Handler) -> None:
 
     async def run_check(config: Config) -> None:
         dac_mag = config.dac_max_abs_v
-        attempts = 64
+        attempts = 256
         timeout = 10.0
 
         async def check_attempts(check: Callable[[], Awaitable[None]]) -> None:

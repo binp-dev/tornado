@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import List
+from typing import List, Generator
 
 import asyncio
 from dataclasses import dataclass
+from contextlib import contextmanager
 
 import numpy as np
 from numpy.typing import NDArray
@@ -20,16 +21,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-async def _send_msg(socket: azmq.Socket, msg: McuMsg.Variant) -> None:
-    await socket.send(McuMsg(msg).store())
-
-
-async def _recv_msg(socket: azmq.Socket) -> AppMsg:
-    data = await socket.recv()
-    assert isinstance(data, bytes)
-    return AppMsg.load(data)
-
-
 class FakeDev:
     REQUEST_SIZE: int = 1024
 
@@ -45,30 +36,38 @@ class FakeDev:
             return (volts / (self.config.adc_step_uv * 1e-6) * 256).astype(np.int32)
 
         # Takes DAC values and returns new ADC values for all channels
-        async def transfer(self, dac: NDArray[np.float64]) -> List[NDArray[np.float64]]:
+        async def transfer(self, dac: NDArray[np.float64]) -> NDArray[np.float64]:
             raise NotImplementedError()
 
-        async def transfer_codes(self, dac_codes: NDArray[np.int32]) -> List[NDArray[np.int32]]:
+        async def transfer_codes(self, dac_codes: NDArray[np.int32]) -> NDArray[np.int32]:
             adcs = await self.transfer(self.dac_codes_to_volts(dac_codes))
-            return [self.adc_volts_to_codes(adc_codes) for adc_codes in adcs]
+            return self.adc_volts_to_codes(adcs)
 
     def __init__(self, ioc: Ioc, config: Config, handler: FakeDev.Handler) -> None:
         self.ioc = ioc
 
         self.context = azmq.Context()
-        self.socket = self.context.socket(zmq.PAIR)
+        self.recv_socket = self.context.socket(zmq.PAIR)
+        self.send_socket = self.context.socket(zmq.PAIR)
 
         self.config = config
         self.handler = handler
 
+    async def _send_msg(self, msg: McuMsg.Variant) -> None:
+        await self.send_socket.send(McuMsg(msg).store())
+
+    async def _recv_msg(self) -> AppMsg:
+        data = await self.recv_socket.recv()
+        assert isinstance(data, bytes)
+        return AppMsg.load(data)
+
     async def _sample_chunk(self, dac: NDArray[np.int32]) -> None:
         adcs = await self.handler.transfer_codes(dac)
-        for i, adc in enumerate(adcs):
-            await _send_msg(self.socket, McuMsg.AdcData(i, adc))
-        await _send_msg(self.socket, McuMsg.DacRequest(len(dac)))
+        await self._send_msg(McuMsg.AdcData(adcs))
+        await self._send_msg(McuMsg.DacRequest(len(dac)))
 
-    async def _recv_msg(self) -> None:
-        base_msg = await _recv_msg(self.socket)
+    async def _recv_and_handle_msg(self) -> None:
+        base_msg = await self._recv_msg()
         msg = base_msg.variant
         if isinstance(msg, AppMsg.DacData):
             await self._sample_chunk(msg.points)
@@ -83,21 +82,27 @@ class FakeDev:
             raise RuntimeError(f"Unexpected message type")
 
     async def loop(self) -> None:
-        assert isinstance((await _recv_msg(self.socket)).variant, AppMsg.Connect)
+        assert isinstance((await self._recv_msg()).variant, AppMsg.Connect)
         logger.info("IOC connected signal")
-        await _send_msg(self.socket, McuMsg.Debug("Hello from MCU!"))
+        await self._send_msg(McuMsg.Debug("Hello from MCU!"))
 
-        await _send_msg(self.socket, McuMsg.DacRequest(FakeDev.REQUEST_SIZE))
+        await self._send_msg(McuMsg.DacRequest(FakeDev.REQUEST_SIZE))
         while True:
             try:
-                await asyncio.wait_for(self._recv_msg(), self.config.keep_alive_max_delay_ms * 1e-3)
+                await asyncio.wait_for(self._recv_and_handle_msg(), self.config.keep_alive_max_delay_ms * 1e-3)
             except asyncio.TimeoutError:
                 logger.error("Keep-alive timeout reached")
                 raise
 
+    @contextmanager
+    def _bind_sockets(self) -> Generator[None, None, None]:
+        recv = self.recv_socket.bind("tcp://127.0.0.1:8321")
+        send = self.send_socket.bind("tcp://127.0.0.1:8322")
+        with recv, send:
+            yield None
+
     async def run(self) -> None:
-        self.socket.bind("tcp://127.0.0.1:8321")
-        with self.ioc:
+        with self._bind_sockets(), self.ioc:
             await asyncio.sleep(1.0)
             logger.debug("Fakedev started")
             await self.loop()

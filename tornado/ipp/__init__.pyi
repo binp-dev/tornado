@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-import numpy as np
-from numpy.typing import NDArray
-
 from pathlib import Path
 
 
 def generate(path: Path) -> None:
     ...
+
+
+from dataclasses import dataclass
+import numpy as np
+from numpy.typing import NDArray
 
 
 @dataclass
@@ -134,8 +135,7 @@ class McuMsgDacRequest:
 @dataclass
 class McuMsgAdcData:
 
-    index: int
-    points: NDArray[np.int32]
+    points_arrays: NDArray[np.int32]
 
     @staticmethod
     def load(data: bytes) -> McuMsgAdcData:

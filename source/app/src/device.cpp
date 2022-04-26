@@ -42,35 +42,37 @@ void Device::recv_loop() {
                     }
                 },
                 [&](ipp::McuMsgAdcData &&adc_msg) {
-                    auto &adc = adcs_[adc_msg.index];
-                    const auto &points = adc_msg.points;
-                    // Remember last value.
-                    if (points.size() > 0) {
-                        adc.last_value.store(points.back());
-                    }
+                    const auto &points_arrays = adc_msg.points_arrays;
+                    for (size_t i = 0; i < ADC_COUNT; ++i) {
+                        auto &adc = adcs_[i];
+                        // Remember last value.
+                        if (points_arrays.size() > 0) {
+                            adc.last_value.store(points_arrays.back()[i]);
+                        }
 
-                    // Convert codes to voltage.
-                    Vec<double> tmp = std::move(adc.tmp_buf);
-                    std::transform(
-                        points.begin(),
-                        points.end(),
-                        std::back_inserter(tmp),
-                        [&](point_t code) {
-                            return adc_code_to_volt(code);
-                        } //
-                    );
+                        // Convert codes to voltage.
+                        Vec<double> tmp = std::move(adc.tmp_buf);
+                        std::transform(
+                            points_arrays.begin(),
+                            points_arrays.end(),
+                            std::back_inserter(tmp),
+                            [&](std::array<point_t, ADC_COUNT> codes) {
+                                return adc_code_to_volt(codes[i]);
+                            } //
+                        );
 
-                    // Write chunk to queue.
-                    auto data_guard = adc.data.lock();
-                    core_assert(data_guard->write_array_exact(tmp));
-                    tmp.clear();
-                    adc.tmp_buf = std::move(tmp);
+                        // Write chunk to queue.
+                        auto data_guard = adc.data.lock();
+                        core_assert(data_guard->write_array_exact(tmp));
+                        tmp.clear();
+                        adc.tmp_buf = std::move(tmp);
 
-                    // Notify.
-                    if (data_guard->size() >= adc.max_size && !adc.ioc_notified.load()) {
-                        core_assert(adc.notify);
-                        adc.ioc_notified.store(true);
-                        adc.notify();
+                        // Notify.
+                        if (data_guard->size() >= adc.max_size && !adc.ioc_notified.load()) {
+                            core_assert(adc.notify);
+                            adc.ioc_notified.store(true);
+                            adc.notify();
+                        }
                     }
                 },
                 [&](ipp::McuMsgDacRequest &&dac_req_msg) {

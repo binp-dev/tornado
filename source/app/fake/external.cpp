@@ -7,5 +7,5 @@ size_t max_message_length() {
 }
 
 std::unique_ptr<Channel> make_device_channel() {
-    return std::make_unique<ZmqChannel>(std::move(ZmqChannel::create("tcp://127.0.0.1:8321").unwrap()));
+    return std::make_unique<ZmqChannel>(std::move(ZmqChannel::create("127.0.0.1", 8321, 8322).unwrap()));
 }

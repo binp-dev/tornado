@@ -20,6 +20,7 @@
 
 #define SPI_BAUD_RATE 25000000
 
+#define FIRST_SAMPLES_TO_SKIP 1
 #define READY_DELAY_NS 0
 
 #define SPI_DEV_ID 0
@@ -106,6 +107,7 @@ typedef struct {
     SemaphoreHandle_t smp_rdy_sem;
     volatile SkifioDinCallback din_callback;
     void *volatile din_user_data;
+    volatile size_t sample_skip_counter;
 } SkifioGlobalState;
 
 static SkifioGlobalState GS;
@@ -116,13 +118,17 @@ _SkifioDebugInfo _SKIFIO_DEBUG_INFO = {0};
 
 
 static void smp_rdy_handler(void *user_data, HalGpioBlockIndex block, HalGpioPinMask mask) {
-#ifdef _SKIFIO_DEBUG
-    _SKIFIO_DEBUG_INFO.intr_count += 1;
-#endif
     BaseType_t hptw = pdFALSE;
 
-    // Notify target task
-    xSemaphoreGiveFromISR(GS.smp_rdy_sem, &hptw);
+    if (GS.sample_skip_counter == 0) {
+#ifdef _SKIFIO_DEBUG
+        _SKIFIO_DEBUG_INFO.intr_count += 1;
+#endif
+        // Notify target task
+        xSemaphoreGiveFromISR(GS.smp_rdy_sem, &hptw);
+    } else {
+        GS.sample_skip_counter -= 1;
+    }
 
     // Yield to higher priority task
     portYIELD_FROM_ISR(hptw);
@@ -245,6 +251,8 @@ hal_retcode skifio_init() {
 
     GS.din_callback = NULL;
     GS.din_user_data = NULL;
+
+    GS.sample_skip_counter = FIRST_SAMPLES_TO_SKIP;
 
     init_ctrl_pins();
     init_dio_pins();

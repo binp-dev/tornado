@@ -43,9 +43,9 @@ void stats_reset(Statistics *self) {
     self->dac.lost_empty = 0;
     self->dac.lost_full = 0;
 
+    self->adc.lost_full = 0;
     for (size_t i = 0; i < ADC_COUNT; ++i) {
-        self->adcs[i].lost_full = 0;
-        value_stats_reset(&self->adcs[i].value);
+        value_stats_reset(&self->adc.values[i]);
     }
 }
 
@@ -53,30 +53,30 @@ void stats_print(Statistics *self) {
     hal_log_info("");
 
     // Number of 10 kHz sync signals captured.
-    hal_log_info("clock_count: %d", self->clock_count);
+    hal_log_info("clock_count: %ld", (uint32_t)self->clock_count);
     // Number of SkifIO `SMP_RDY` signals captured.
-    hal_log_info("sample_count: %d", self->sample_count);
+    hal_log_info("sample_count: %ld", (uint32_t)self->sample_count);
     // Maximum number of `SMP_RDY` per SkifIO communication session.
     // If it isn't equal to `1` that means that we lose some signals.
-    hal_log_info("max_intrs_per_sample: %d", self->max_intrs_per_sample);
+    hal_log_info("max_intrs_per_sample: %ld", self->max_intrs_per_sample);
 
     // Count of CRC16 mismatches in SkifIO communication.
-    hal_log_info("crc_error_count: %d", self->crc_error_count);
+    hal_log_info("crc_error_count: %ld", self->crc_error_count);
 
     hal_log_info("dac:");
     // Number of points lost because the DAC buffer was empty.
-    hal_log_info("    lost_empty: %d", self->dac.lost_empty);
+    hal_log_info("    lost_empty: %ld", self->dac.lost_empty);
     // Number of points lost because the DAC buffer was full.
-    hal_log_info("    lost_full: %d", self->dac.lost_full);
+    hal_log_info("    lost_full: %ld", self->dac.lost_full);
     // IOC sent more points than were requested.
-    hal_log_info("    req_exceed: %d", self->dac.req_exceed);
+    hal_log_info("    req_exceed: %ld", self->dac.req_exceed);
 
+    hal_log_info("adc:");
+    // Number of points lost because the ADC buffer was full.
+    hal_log_info("    lost_full: %ld", self->adc.lost_full);
     for (size_t i = 0; i < ADC_COUNT; ++i) {
-        hal_log_info("adc%d:", i);
-        // Number of points lost because the ADC buffer was full.
-        hal_log_info("    lost_full: %d", self->adcs[i].lost_full);
-        hal_log_info("    value_metrics:");
-        value_stats_print(&self->adcs[i].value, "        ");
+        hal_log_info("    channel %d:", i);
+        value_stats_print(&self->adc.values[i], "        ");
     }
 }
 
