@@ -118,7 +118,7 @@ async def async_run(config: Config, handler: Handler) -> None:
 
     async def run_check(config: Config) -> None:
         dac_mag = config.dac_max_abs_v
-        attempts = 64
+        attempts = 256
         timeout = 10.0
 
         async def check_attempts(check: Callable[[], Awaitable[None]]) -> None:
