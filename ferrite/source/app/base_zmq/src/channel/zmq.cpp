@@ -3,48 +3,60 @@
 #include <cstring>
 
 #include <core/assert.hpp>
+#include <core/log.hpp>
 
 using namespace core;
 
-namespace zmq_helper {
+namespace zmq {
 
-void ContextDestroyer::operator()(void *context) const {
+void destroy_context(void *context) {
     core_assert_eq(zmq_ctx_destroy(context), 0);
 }
-void SocketCloser::operator()(void *socket) const {
+void close_socket(void *socket) {
     core_assert_eq(zmq_close(socket), 0);
 }
 
-static const ContextDestroyer CONTEXT_DESTROYER{};
-static const SocketCloser SOCKET_CLOSER{};
-
-ContextGuard guard_context(void *context) {
-    return ContextGuard(context, CONTEXT_DESTROYER);
+Context guard_context(void *context) {
+    return Context(context, destroy_context);
 }
-SocketGuard guard_socket(void *socket) {
-    return SocketGuard(socket, SOCKET_CLOSER);
+Socket guard_socket(void *socket) {
+    return Socket(socket, close_socket);
 }
 
-} // namespace zmq_helper
+} // namespace zmq
 
-Result<ZmqChannel, io::Error> ZmqChannel::create(const std::string &host) {
+Result<ZmqChannel, io::Error> ZmqChannel::create(const std::string &host, uint16_t send_port, uint16_t recv_port) {
     void *raw_context = zmq_ctx_new();
     if (raw_context == nullptr) {
         return Err(io::Error{io::ErrorKind::Other, "Cannot create ZMQ context"});
     }
-    auto context = zmq_helper::guard_context(raw_context);
+    auto context = zmq::guard_context(raw_context);
 
-    void *raw_socket = zmq_socket(context.get(), ZMQ_PAIR);
-    if (raw_socket == nullptr) {
-        return Err(io::Error{io::ErrorKind::Other, "Cannot create ZMQ socket"});
+    auto make_socket = [](zmq::Context &context, const std::string &host, uint32_t port) -> Result<zmq::Socket, io::Error> {
+        void *raw_socket = zmq_socket(context.get(), ZMQ_PAIR);
+        if (raw_socket == nullptr) {
+            return Err(io::Error{io::ErrorKind::Other, "Cannot create ZMQ socket"});
+        }
+        auto socket = zmq::guard_socket(raw_socket);
+
+        std::string url = core_format("tcp://{}:{}", host, port);
+        if (zmq_connect(socket.get(), url.c_str()) != 0) {
+            return Err(io::Error{io::ErrorKind::Other, "Error connecting ZMQ socket"});
+        }
+
+        return Ok(std::move(socket));
+    };
+
+    auto send_socket = make_socket(context, host, send_port);
+    if (send_socket.is_err()) {
+        return Err(send_socket.unwrap_err());
     }
-    auto socket = zmq_helper::guard_socket(raw_socket);
-
-    if (zmq_connect(socket.get(), host.c_str()) != 0) {
-        return Err(io::Error{io::ErrorKind::Other, "Error connecting ZMQ socket"});
+    auto recv_socket = make_socket(context, host, recv_port);
+    if (recv_socket.is_err()) {
+        return Err(recv_socket.unwrap_err());
     }
 
-    return Ok(ZmqChannel(host, std::move(context), std::move(socket)));
+    return Ok(ZmqChannel(host, std::move(context), send_socket.unwrap(), recv_socket.unwrap()));
 }
 
 
@@ -58,7 +70,9 @@ Result<size_t, io::Error> ZmqChannel::stream_write(std::span<const uint8_t> data
 }
 
 Result<std::monostate, io::Error> ZmqChannel::stream_write_exact(std::span<const uint8_t> data) {
-    zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLOUT, 0};
+    auto &socket = this->send_socket_;
+
+    zmq_pollitem_t pollitem = {socket.get(), 0, ZMQ_POLLOUT, 0};
     int count = zmq_poll(&pollitem, 1, timeout.has_value() ? timeout.value().count() : -1);
     if (count > 0) {
         if (!(pollitem.revents & ZMQ_POLLOUT)) {
@@ -70,8 +84,9 @@ Result<std::monostate, io::Error> ZmqChannel::stream_write_exact(std::span<const
         return Err(io::Error{io::ErrorKind::Other, "Poll error"});
     }
 
-    if (zmq_send(this->socket_.get(), data.data(), data.size(), !timeout ? 0 : ZMQ_NOBLOCK) <= 0) {
-        return Err(io::Error{io::ErrorKind::Other, "Error send"});
+    auto ret = zmq_send(socket.get(), data.data(), data.size(), !timeout ? 0 : ZMQ_NOBLOCK);
+    if (ret <= 0) {
+        return Err(io::Error{io::ErrorKind::Other, core_format("Error send: {}", ret)});
     }
     return Ok(std::monostate{});
 }
@@ -80,7 +95,9 @@ Result<size_t, io::Error> ZmqChannel::stream_read(std::span<uint8_t> data) {
         return Ok<size_t>(0);
     }
     if (this->msg_read_ == 0) {
-        zmq_pollitem_t pollitem = {this->socket_.get(), 0, ZMQ_POLLIN, 0};
+        auto &socket = this->recv_socket_;
+
+        zmq_pollitem_t pollitem = {socket.get(), 0, ZMQ_POLLIN, 0};
         int count = zmq_poll(&pollitem, 1, timeout.has_value() ? timeout.value().count() : -1);
         if (count > 0) {
             if (!(pollitem.revents & ZMQ_POLLIN)) {
@@ -93,7 +110,7 @@ Result<size_t, io::Error> ZmqChannel::stream_read(std::span<uint8_t> data) {
         }
 
         core_assert_eq(zmq_msg_init(&this->last_msg_), 0);
-        int ret = zmq_msg_recv(&this->last_msg_, this->socket_.get(), ZMQ_NOBLOCK);
+        int ret = zmq_msg_recv(&this->last_msg_, socket.get(), ZMQ_NOBLOCK);
         if (ret <= 0) {
             return Err(io::Error{io::ErrorKind::Other, "Error receive"});
         }

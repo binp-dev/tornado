@@ -15,7 +15,7 @@ template <typename T>
 struct Print {};
 
 template <typename T>
-concept Printable = requires(std::ostream &stream, T value) {
+concept Printable = requires(std::ostream &stream, const T &value) {
     Print<T>::print(stream, value);
 };
 

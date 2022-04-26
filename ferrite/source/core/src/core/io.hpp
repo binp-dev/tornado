@@ -73,7 +73,7 @@ public:
 
 template <>
 struct Print<io::ErrorKind> {
-    inline static void print(std::ostream &o, io::ErrorKind &ek) {
+    inline static void print(std::ostream &o, const io::ErrorKind &ek) {
         switch (ek) {
         case io::ErrorKind::NotFound:
             o << "Not Found";

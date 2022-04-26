@@ -6,6 +6,7 @@
 #include <zmq.h>
 #include <gtest/gtest.h>
 
+#include <core/assert.hpp>
 #include <core/result.hpp>
 
 using namespace core;
@@ -60,12 +61,12 @@ Result<size_t, std::string> try_recv(void *socket, uint8_t *data, size_t max_len
 TEST(ZmqTest, sockets) {
     void *ctx = zmq_ctx_new();
     ASSERT_NE(ctx, nullptr);
-    zmq_helper::ContextGuard ctx_guard = zmq_helper::guard_context(ctx);
+    zmq::Context ctx_guard = zmq::guard_context(ctx);
 
     // one
     void *one = zmq_socket(ctx, ZMQ_PAIR);
     ASSERT_NE(one, nullptr);
-    zmq_helper::SocketGuard one_guard = zmq_helper::guard_socket(one);
+    zmq::Socket one_guard = zmq::guard_socket(one);
     auto rp = try_random<uint16_t>(5000, 6000, [&one](uint16_t port) {
         std::string addr = "tcp://127.0.0.1:" + std::to_string(port);
         return zmq_bind(one, addr.c_str()) == 0;
@@ -76,7 +77,7 @@ TEST(ZmqTest, sockets) {
     // two
     void *two = zmq_socket(ctx, ZMQ_PAIR);
     ASSERT_NE(two, nullptr);
-    zmq_helper::SocketGuard two_guard = zmq_helper::guard_socket(two);
+    zmq::Socket two_guard = zmq::guard_socket(two);
     std::string addr = "tcp://127.0.0.1:" + std::to_string(port);
     ASSERT_EQ(zmq_connect(two, addr.c_str()), 0);
 
@@ -102,26 +103,30 @@ TEST(ZmqTest, sockets) {
 TEST(ZmqTest, channel) {
     void *ctx = zmq_ctx_new();
     ASSERT_NE(ctx, nullptr);
-    zmq_helper::ContextGuard ctx_guard = zmq_helper::guard_context(ctx);
+    zmq::Context ctx_guard = zmq::guard_context(ctx);
 
-    void *socket = zmq_socket(ctx, ZMQ_PAIR);
-    ASSERT_NE(socket, nullptr);
-    zmq_helper::SocketGuard socket_guard = zmq_helper::guard_socket(socket);
-    auto rp = try_random<uint16_t>(5000, 6000, [&socket](uint16_t port) {
-        std::string addr = "tcp://127.0.0.1:" + std::to_string(port);
-        return zmq_bind(socket, addr.c_str()) == 0;
-    });
-    ASSERT_TRUE(bool(rp));
-    uint16_t port = *rp;
+    auto make_socket = [&]() -> std::pair<zmq::Socket, uint16_t> {
+        void *socket = zmq_socket(ctx, ZMQ_PAIR);
+        core_assert_ne(socket, nullptr);
+        zmq::Socket socket_guard = zmq::guard_socket(socket);
+        auto port = try_random<uint16_t>(5000, 6000, [&socket](uint16_t port) {
+            std::string addr = "tcp://127.0.0.1:" + std::to_string(port);
+            return zmq_bind(socket, addr.c_str()) == 0;
+        });
+        core_assert(port.has_value());
+        return std::make_pair(std::move(socket_guard), port.value());
+    };
+    auto [send_socket, recv_port] = make_socket();
+    auto [recv_socket, send_port] = make_socket();
 
-    auto cr = ZmqChannel::create("tcp://127.0.0.1:" + std::to_string(port));
+    auto cr = ZmqChannel::create("127.0.0.1", send_port, recv_port);
     ASSERT_TRUE(cr.is_ok()) << cr.err().message;
     ZmqChannel channel = cr.unwrap();
     channel.timeout = TIMEOUT;
 
     { // Receive
         const char *src = "Hello";
-        ASSERT_TRUE(try_send(socket, (const uint8_t *)src, 6).is_ok());
+        ASSERT_TRUE(try_send(send_socket.get(), (const uint8_t *)src, 6).is_ok());
 
         char dst[10];
         auto rr = channel.stream_read(std::span((uint8_t *)dst, 10));
@@ -135,7 +140,7 @@ TEST(ZmqTest, channel) {
         ASSERT_TRUE(channel.stream_write_exact(std::span((const uint8_t *)src, 6)).is_ok());
 
         char dst[10];
-        ASSERT_EQ(try_recv(socket, (uint8_t *)dst, 10), Ok<size_t>(6));
+        ASSERT_EQ(try_recv(recv_socket.get(), (uint8_t *)dst, 10), Ok<size_t>(6));
         ASSERT_EQ(strcmp(src, dst), 0);
     }
 }

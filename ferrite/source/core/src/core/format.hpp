@@ -93,12 +93,12 @@ consteval std::optional<Error> check_format_str(const std::string_view str) {
 
 template <typename... Ts>
 void print_unchecked(std::ostream &stream, const std::string_view str, Ts &&...args) {
-    [[maybe_unused]] auto arg_to_string = [](auto arg) {
+    [[maybe_unused]] auto arg_to_string = [](auto &&arg) {
         std::stringstream ss;
-        Print<std::remove_reference_t<decltype(arg)>>::print(ss, arg);
+        Print<std::remove_cvref_t<decltype(arg)>>::print(ss, arg);
         return ss.str();
     };
-    std::vector<std::string> printed_args{arg_to_string(args)...};
+    std::vector<std::string> printed_args{arg_to_string(std::forward<Ts>(args))...};
     size_t arg = 0;
     bool opened = false;
     bool closed = false;

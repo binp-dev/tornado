@@ -143,11 +143,3 @@ struct Print<Result<T, E>> {
 };
 
 } // namespace core
-
-#define core_try_unwrap(res) \
-    { \
-        auto tmp = std::move(res); \
-        if (tmp.is_err()) { \
-            return ::core::Err(std::move(tmp.err())); \
-        } \
-    }
