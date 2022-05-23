@@ -295,7 +295,8 @@ if __name__ == "__main__":
 
     end_tasks = [
         "host.all.test",
-        "imx8mn.all.build",
+        "arm.all.build",
+        "aarch64.all.build",
     ]
 
     base_dir = Path.cwd()

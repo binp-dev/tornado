@@ -6,23 +6,14 @@ from ferrite.components.freertos import Freertos
 from ferrite.components.platforms.base import AppPlatform, McuPlatform, Platform
 from ferrite.components.toolchain import Target, CrossToolchain
 from ferrite.components.mcu import McuDeployer
+from ferrite.components.platforms.gnu import ArmAppToolchain
 from ferrite.remote.base import Device
 
 
-class Imx7AppToolchain(CrossToolchain):
+class Imx7AppToolchain(ArmAppToolchain):
 
     def __init__(self, target_dir: Path) -> None:
-        super().__init__(
-            name="imx7",
-            target=Target("arm", "linux", "gnueabihf"),
-            target_dir=target_dir,
-            dir_name="gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf",
-            archive="gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz",
-            urls=[
-                "https://gitlab.inp.nsk.su/psc/storage/-/raw/master/toolchains/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz",
-                "http://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/arm-linux-gnueabihf/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf.tar.xz",
-            ],
-        )
+        super().__init__("imx7", target_dir)
 
 
 class Imx7McuToolchain(CrossToolchain):

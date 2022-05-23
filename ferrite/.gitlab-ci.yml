@@ -62,17 +62,31 @@ host.app_test.build:
     paths:
       - target/app_test
 
-imx8mn.app_toolchain.download:
+arm.toolchain.download:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.app_toolchain.download
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.toolchain.download
+  artifacts:
+    paths:
+      - target/toolchain_gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf
+  cache:
+    - *global_cache
+    - key: "arm.toolchain.download:2d7f1739"
+      paths:
+        - target/toolchain_gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf
+
+aarch64.toolchain.download:
+  stage: "0"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.toolchain.download
   artifacts:
     paths:
       - target/toolchain_gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu
   cache:
     - *global_cache
-    - key: "imx8mn.app_toolchain.download:f93a1603"
+    - key: "aarch64.toolchain.download:f93a1603"
       paths:
         - target/toolchain_gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu
 
@@ -103,13 +117,24 @@ host.app_test.run:
   needs:
     - host.app_test.build
 
-imx8mn.app.build:
+arm.app.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.app.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.app.build
   needs:
-    - imx8mn.app_toolchain.download
+    - arm.toolchain.download
+  artifacts:
+    paths:
+      - target/app
+
+aarch64.app.build:
+  stage: "1"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.app.build
+  needs:
+    - aarch64.toolchain.download
   artifacts:
     paths:
       - target/app
@@ -122,13 +147,21 @@ host.codegen.test:
   needs:
     - host.codegen.build
 
-imx8mn.all.build:
+arm.all.build:
   stage: "2"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture imx8mn.all.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.all.build
   needs:
-    - imx8mn.app.build
+    - arm.app.build
+
+aarch64.all.build:
+  stage: "2"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.all.build
+  needs:
+    - aarch64.app.build
 
 host.all.test:
   stage: "3"

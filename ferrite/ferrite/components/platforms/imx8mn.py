@@ -6,23 +6,14 @@ from ferrite.components.freertos import Freertos
 from ferrite.components.platforms.base import AppPlatform, McuPlatform, Platform
 from ferrite.components.toolchain import Target, CrossToolchain
 from ferrite.components.mcu import McuDeployer
+from ferrite.components.platforms.gnu import Aarch64AppToolchain
 from ferrite.remote.base import Device
 
 
-class Imx8mnAppToolchain(CrossToolchain):
+class Imx8mnAppToolchain(Aarch64AppToolchain):
 
     def __init__(self, target_dir: Path) -> None:
-        super().__init__(
-            name="imx8mn",
-            target=Target("aarch64", "none", "linux", "gnu"),
-            target_dir=target_dir,
-            dir_name="gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu",
-            archive="gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu.tar.xz",
-            urls=[
-                "https://gitlab.inp.nsk.su/psc/storage/-/raw/master/toolchains/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu.tar.xz",
-                "https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu.tar.xz",
-            ],
-        )
+        super().__init__("imx8mn", target_dir)
 
 
 class Imx8mnMcuToolchain(CrossToolchain):
