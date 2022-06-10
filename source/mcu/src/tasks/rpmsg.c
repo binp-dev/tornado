@@ -152,10 +152,6 @@ static void rpmsg_send_task(void *param) {
     }
 }
 
-static void read_hello_world(Rpmsg *self, void *user_data, const IppAppMsg *str) {
-    hal_assert(strncmp((const char *)str, "hello world!", 13) == 0);
-}
-
 static void connect(Rpmsg *self) {
     hal_atomic_size_store(&self->dac_requested, 0);
     control_dac_start(self->control);
@@ -235,10 +231,6 @@ static void rpmsg_recv_task(void *param) {
     hal_io_rpmsg_init(&RPMSG_CHANNEL);
 #endif
     hal_log_info("RPMSG channel created");
-
-    // Receive `hello world!` message
-    rpmsg_recv_message(self, read_hello_world, NULL, false, HAL_WAIT_FOREVER);
-    hal_log_info("`hello world!` received");
 
     for (;;) {
         // Receive message

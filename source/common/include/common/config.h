@@ -16,7 +16,7 @@
 
 typedef int32_t point_t;
 
-#define RPMSG_MAX_APP_MSG_LEN 256
+#define RPMSG_MAX_APP_MSG_LEN 496
 #define RPMSG_MAX_MCU_MSG_LEN 496
 
 #define _dac_msg_max_points_by_len(len) \
