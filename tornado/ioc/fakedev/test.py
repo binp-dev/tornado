@@ -76,7 +76,8 @@ class Handler(FakeDev.Handler):
         for adc, chunk in zip(self.adcs, adcs):
             adc.push(chunk)
 
-        return np.stack(adcs).transpose()
+        result: NDArray[np.float64] = np.stack(adcs).transpose()
+        return result
 
 
 async def async_run(config: Config, handler: Handler) -> None:
