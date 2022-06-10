@@ -1,52 +1,74 @@
 from __future__ import annotations
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from pathlib import Path
 
-from ferrite.components.app import AppBase
+from ferrite.components.app import AppBase, AppBaseHost, AppBaseCross
 from ferrite.components.toolchain import Toolchain, HostToolchain, CrossToolchain
 
 from tornado.components.ipp import Ipp
 
 
-class App(AppBase):
+class AppCommon(AppBase):
+
+    def __init__(
+        self,
+        src_dir: Path,
+        ferrite_source_dir: Path,
+        build_dir: Path,
+        toolchain: Toolchain,
+        ipp: Ipp,
+        **kwargs: Any,
+    ):
+        super().__init__(
+            src_dir,
+            build_dir,
+            toolchain,
+            target="app",
+            opts=[
+                f"-DFERRITE={ferrite_source_dir}",
+                f"-DIPP={ipp.gen_dir}",
+            ],
+            deps=[ipp.generate_task],
+            **kwargs
+        )
+        self.ipp = ipp
+
+
+class AppReal(AppCommon, AppBaseCross):
 
     def __init__(
         self,
         source_dir: Path,
         ferrite_source_dir: Path,
         target_dir: Path,
-        toolchain: Toolchain,
+        toolchain: CrossToolchain,
         ipp: Ipp,
     ):
-        src_dir = source_dir / "app"
-        lib_src_dir = ferrite_source_dir / "app"
-        build_dir = target_dir / f"app_{toolchain.name}"
-
-        opts: List[str] = [
-            f"-DAPP_LIB_DIR={lib_src_dir}",
-            f"-DIPP_GEN_DIR={ipp.gen_dir}",
-        ]
-        if isinstance(toolchain, HostToolchain):
-            target = "app_fakedev"
-            opts.append("-DAPP_FAKEDEV=1")
-        if isinstance(toolchain, CrossToolchain):
-            target = "app"
-            opts.append("-DAPP_MAIN=1")
-
         super().__init__(
-            src_dir,
-            build_dir,
+            source_dir / "app" / "real",
+            ferrite_source_dir,
+            target_dir / f"app_{toolchain.name}",
             toolchain,
-            opts=opts,
-            deps=[ipp.generate_task],
-            target=target,
-            cmake_toolchain_path=(lib_src_dir / "armgcc.cmake"),
-            disable_conan=isinstance(toolchain, CrossToolchain),
+            ipp,
+            cmake_toolchain_path=(ferrite_source_dir / "app" / "cmake" / "toolchain.cmake"),
         )
-        self._lib_src_dir = lib_src_dir
-        self.ipp = ipp
 
-    @property
-    def lib_src_dir(self) -> Path:
-        return self._lib_src_dir
+
+class AppFake(AppCommon, AppBaseHost):
+
+    def __init__(
+        self,
+        source_dir: Path,
+        ferrite_source_dir: Path,
+        target_dir: Path,
+        toolchain: HostToolchain,
+        ipp: Ipp,
+    ):
+        super().__init__(
+            source_dir / "app" / "fake",
+            ferrite_source_dir,
+            target_dir / f"app_fakedev",
+            toolchain,
+            ipp,
+        )

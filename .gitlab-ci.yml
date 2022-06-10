@@ -43,7 +43,7 @@ host.ipp.generate:
     - poetry run python -u -m tornado.manage --no-deps --no-capture host.ipp.generate
   artifacts:
     paths:
-      - target/ipp_generated
+      - target/ipp
 
 host.epics_base.clone:
   stage: "0"
@@ -52,12 +52,12 @@ host.epics_base.clone:
     - poetry run python -u -m tornado.manage --no-deps --no-capture host.epics_base.clone
   artifacts:
     paths:
-      - target/epics_base_7.0.4.1_src
+      - target/epics_base_7.0.6.1_src
   cache:
     - *global_cache
-    - key: "host.epics_base.clone:a1a70a21"
+    - key: "host.epics_base.clone:a1b50a23"
       paths:
-        - target/epics_base_7.0.4.1_src
+        - target/epics_base_7.0.6.1_src
 
 device.mcu_toolchain.download:
   stage: "0"
@@ -66,12 +66,12 @@ device.mcu_toolchain.download:
     - poetry run python -u -m tornado.manage --no-deps --no-capture device.mcu_toolchain.download
   artifacts:
     paths:
-      - target/toolchain_gcc-arm-none-eabi-9-2020-q2-update
+      - target/toolchain_gcc-arm-none-eabi-10-2020-q4-major
   cache:
     - *global_cache
-    - key: "device.mcu_toolchain.download:ebbf11e3"
+    - key: "device.mcu_toolchain.download:e97411a3"
       paths:
-        - target/toolchain_gcc-arm-none-eabi-9-2020-q2-update
+        - target/toolchain_gcc-arm-none-eabi-10-2020-q4-major
 
 device.freertos.clone:
   stage: "0"
@@ -80,12 +80,12 @@ device.freertos.clone:
     - poetry run python -u -m tornado.manage --no-deps --no-capture device.freertos.clone
   artifacts:
     paths:
-      - target/mcuxpresso_sdk_2.9.x-var01
+      - target/mcuxpresso_sdk_2.10.x-var01
   cache:
     - *global_cache
-    - key: "device.freertos.clone:dcfe0c26"
+    - key: "device.freertos.clone:e8070c4e"
       paths:
-        - target/mcuxpresso_sdk_2.9.x-var01
+        - target/mcuxpresso_sdk_2.10.x-var01
 
 device.app_toolchain.download:
   stage: "0"
@@ -94,12 +94,12 @@ device.app_toolchain.download:
     - poetry run python -u -m tornado.manage --no-deps --no-capture device.app_toolchain.download
   artifacts:
     paths:
-      - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
+      - target/toolchain_gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu
   cache:
     - *global_cache
-    - key: "device.app_toolchain.download:f68a15dd"
+    - key: "device.app_toolchain.download:f93a1603"
       paths:
-        - target/toolchain_gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu
+        - target/toolchain_gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu
 
 host.ipp.build:
   stage: "1"
@@ -110,7 +110,7 @@ host.ipp.build:
     - host.ipp.generate
   artifacts:
     paths:
-      - target/ipp_host
+      - target/ipp_test
 
 host.epics_base.build:
   stage: "1"
@@ -121,14 +121,14 @@ host.epics_base.build:
     - host.epics_base.clone
   artifacts:
     paths:
-      - target/epics_base_7.0.4.1_build_host
-      - target/epics_base_7.0.4.1_install_host
+      - target/epics_base_7.0.6.1_build_host
+      - target/epics_base_7.0.6.1_install_host
   cache:
     - *global_cache
-    - key: "host.epics_base.build:a91afc"
+    - key: "host.epics_base.build:1331b00"
       paths:
-        - target/epics_base_7.0.4.1_build_host
-        - target/epics_base_7.0.4.1_install_host
+        - target/epics_base_7.0.6.1_build_host
+        - target/epics_base_7.0.6.1_install_host
 
 host.app.build:
   stage: "1"
@@ -139,7 +139,7 @@ host.app.build:
     - host.ipp.generate
   artifacts:
     paths:
-      - target/app_host
+      - target/app_fakedev
 
 device.mcu.build:
   stage: "1"
@@ -174,11 +174,11 @@ host.ipp.test:
   needs:
     - host.ipp.build
 
-host.ioc.build:
+host.ioc_fakedev.build:
   stage: "2"
   script:
     - poetry install
-    - poetry run python -u -m tornado.manage --no-deps --no-capture host.ioc.build
+    - poetry run python -u -m tornado.manage --no-deps --no-capture host.ioc_fakedev.build
   needs:
     - host.app.build
     - host.epics_base.build
@@ -197,23 +197,23 @@ device.epics_base.build:
     - host.epics_base.build
   artifacts:
     paths:
-      - target/epics_base_7.0.4.1_build_imx8mn
-      - target/epics_base_7.0.4.1_install_imx8mn
+      - target/epics_base_7.0.6.1_build_imx8mn
+      - target/epics_base_7.0.6.1_install_imx8mn
   cache:
     - *global_cache
-    - key: "device.epics_base.build:6c101c42"
+    - key: "device.epics_base.build:6ca61c46"
       paths:
-        - target/epics_base_7.0.4.1_build_imx8mn
-        - target/epics_base_7.0.4.1_install_imx8mn
+        - target/epics_base_7.0.6.1_build_imx8mn
+        - target/epics_base_7.0.6.1_install_imx8mn
 
-host.ioc.test_fakedev:
+host.ioc_fakedev.test:
   stage: "3"
   script:
     - poetry install
-    - poetry run python -u -m tornado.manage --no-deps --no-capture host.ioc.test_fakedev
+    - poetry run python -u -m tornado.manage --no-deps --no-capture host.ioc_fakedev.test
   needs:
     - host.epics_base.build
-    - host.ioc.build
+    - host.ioc_fakedev.build
 
 device.ioc.build:
   stage: "3"
@@ -235,7 +235,7 @@ host.all.test:
     - poetry install
     - poetry run python -u -m tornado.manage --no-deps --no-capture host.all.test
   needs:
-    - host.ioc.test_fakedev
+    - host.ioc_fakedev.test
     - host.ipp.test
 
 device.all.build:

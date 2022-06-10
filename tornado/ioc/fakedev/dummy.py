@@ -1,46 +1,42 @@
 from __future__ import annotations
 from typing import List
 
-import math
-import time
 from pathlib import Path
+from dataclasses import dataclass
+
+import numpy as np
+from numpy.typing import NDArray
+
+import asyncio
 
 from ferrite.utils.epics.ioc import make_ioc
-import ferrite.utils.epics.ca as ca
 
+from tornado.common.config import read_common_config
 from tornado.ioc.fakedev.base import FakeDev
 
 
-def assert_eq(a: float, b: float, eps: float = 1e-3) -> None:
-    if abs(a - b) > eps:
-        raise AssertionError(f"abs({a} - {b}) < {eps}")
-
-
+@dataclass
 class Handler(FakeDev.Handler):
+    time: float = 0.0
 
-    def __init__(self) -> None:
-        self.mag = 0.0
-        self.time = 0.0
+    async def transfer(self, dac: NDArray[np.float64]) -> NDArray[np.float64]:
+        adc_mag = dac / self.config.dac_max_abs_v * self.config.adc_max_abs_v
+        time = self.time + np.arange(len(dac), dtype=np.float64) / self.config.sample_freq_hz
+        value = 0.5 * adc_mag * np.cos(np.e * time) + 0.5 * self.config.adc_max_abs_v * np.cos(np.pi * time)
 
-    def step(self, dt: float) -> None:
-        self.time += dt
+        delay = len(dac) / self.config.sample_freq_hz
+        await asyncio.sleep(delay)
+        self.time += delay
 
-    def write_dac(self, voltage: float) -> None:
-        self.mag = 0.5 * voltage
-
-    def read_adcs(self) -> List[float]:
-        value = self.mag * math.cos(0.2718 * self.time) + 5.0 * math.cos(0.3141 * self.time)
-        return [value] * 6
+        return np.stack([dac] + [value] * (self.config.adc_count - 1)).transpose()
 
 
-def run(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
+def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
 
-    prefix = epics_base_dir / "bin" / arch
     ioc = make_ioc(ioc_dir, arch)
-    handler = Handler()
 
-    with FakeDev(prefix, ioc, handler):
-        while True:
-            delay = 0.1
-            time.sleep(delay)
-            handler.step(delay)
+    config = read_common_config(source_dir)
+    handler = Handler(config)
+    device = FakeDev(ioc, config, handler)
+
+    asyncio.run(device.run(), debug=True)

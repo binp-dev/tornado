@@ -1,103 +1,108 @@
-# type: ignore
 from __future__ import annotations
-from typing import Any, List, Optional
+from typing import List, Generator
+
+import asyncio
+from dataclasses import dataclass
+from contextlib import contextmanager
+
+import numpy as np
+from numpy.typing import NDArray
 
 import zmq
-from threading import Thread
-from pathlib import Path
+import zmq.asyncio as azmq
 
 from ferrite.utils.epics.ioc import Ioc
-from ferrite.codegen.variant import VariantValue
-import ferrite.utils.epics.ca as ca
 
 from tornado.ipp import AppMsg, McuMsg
+from tornado.common.config import Config
 
+import logging
 
-def dac_code_to_volt(code: int) -> float:
-    return (code - 32767) * (315.7445 * 1e-6)
-
-
-def adc_volt_to_code(voltage: float) -> int:
-    return round(voltage / (346.8012 * 1e-6) * 256)
-
-
-def _send_msg(socket: zmq.Socket, msg: bytes) -> None:
-    any_msg = None
-    for i, f in enumerate(McuMsg.variants):
-        if f.type.is_instance(msg):
-            any_msg = McuMsg(i, msg)
-            break
-    assert any_msg is not None
-    socket.send(any_msg.store())
-
-
-def _recv_msg(socket: zmq.Socket) -> VariantValue:
-    return AppMsg.load(socket.recv())
+logger = logging.getLogger(__name__)
 
 
 class FakeDev:
+    REQUEST_SIZE: int = 1024
 
+    @dataclass
     class Handler:
+        config: Config
 
-        def write_dac(self, voltage: float) -> None:
+        def dac_codes_to_volts(self, codes: NDArray[np.int32]) -> NDArray[np.float64]:
+            array: NDArray[np.float64] = codes.astype(np.float64)
+            return (array - self.config.dac_code_shift) * (self.config.dac_step_uv * 1e-6)
+
+        def adc_volts_to_codes(self, volts: NDArray[np.float64]) -> NDArray[np.int32]:
+            return (volts / (self.config.adc_step_uv * 1e-6) * 256).astype(np.int32)
+
+        # Takes DAC values and returns new ADC values for all channels
+        async def transfer(self, dac: NDArray[np.float64]) -> NDArray[np.float64]:
             raise NotImplementedError()
 
-        def read_adcs(self) -> List[float]:
-            raise NotImplementedError()
+        async def transfer_codes(self, dac_codes: NDArray[np.int32]) -> NDArray[np.int32]:
+            adcs = await self.transfer(self.dac_codes_to_volts(dac_codes))
+            return self.adc_volts_to_codes(adcs)
 
-        def write_dac_code(self, code: int) -> None:
-            self.write_dac(dac_code_to_volt(code))
-
-        def read_adc_codes(self) -> List[int]:
-            return [adc_volt_to_code(v) for v in self.read_adcs()]
-
-    def __init__(self, prefix: Path, ioc: Ioc, handler: FakeDev.Handler) -> None:
-        self.prefix = prefix
-        self.ca_repeater = ca.Repeater(prefix)
+    def __init__(self, ioc: Ioc, config: Config, handler: FakeDev.Handler) -> None:
         self.ioc = ioc
 
-        self.context = zmq.Context()
-        self.socket: zmq.Socket = self.context.socket(zmq.PAIR)
+        self.context = azmq.Context()
+        self.recv_socket = self.context.socket(zmq.PAIR)
+        self.send_socket = self.context.socket(zmq.PAIR)
 
+        self.config = config
         self.handler = handler
-        self.done = True
-        self.thread = Thread(target=lambda: self._dev_loop())
 
-    def _dev_loop(self) -> None:
-        assert _recv_msg(self.socket).variant.is_instance_of(AppMsg.Start)
-        print("Received start signal")
-        _send_msg(self.socket, McuMsg.Debug("Hello from MCU!"))
+    async def _send_msg(self, msg: McuMsg.Variant) -> None:
+        await self.send_socket.send(McuMsg(msg).store())
 
-        poller = zmq.Poller()
-        poller.register(self.socket, zmq.POLLIN)
+    async def _recv_msg(self) -> AppMsg:
+        data = await self.recv_socket.recv()
+        assert isinstance(data, bytes)
+        return AppMsg.load(data)
 
-        while not self.done:
-            evts = poller.poll(100)
-            if len(evts) == 0:
-                continue
-            msg = AppMsg.load(self.socket.recv())
-            if msg.variant.is_instance_of(AppMsg.DacSet):
-                self.handler.write_dac_code(msg.variant.value)
-            elif msg.variant.is_instance_of(AppMsg.AdcReq):
-                adcs = self.handler.read_adc_codes()
-                _send_msg(self.socket, McuMsg.AdcVal(adcs))
+    async def _sample_chunk(self, dac: NDArray[np.int32]) -> None:
+        adcs = await self.handler.transfer_codes(dac)
+        await self._send_msg(McuMsg.AdcData(adcs))
+        await self._send_msg(McuMsg.DacRequest(len(dac)))
+
+    async def _recv_and_handle_msg(self) -> None:
+        base_msg = await self._recv_msg()
+        msg = base_msg.variant
+        if isinstance(msg, AppMsg.DacData):
+            await self._sample_chunk(msg.points)
+        elif isinstance(msg, AppMsg.DacMode):
+            if msg.enable:
+                logger.debug("Start Dac")
             else:
-                raise Exception("Unexpected message type")
+                logger.debug("Stop Dac")
+        elif isinstance(msg, AppMsg.KeepAlive):
+            pass
+        else:
+            raise RuntimeError(f"Unexpected message type")
 
-    def __enter__(self) -> None:
-        self.socket.bind("tcp://127.0.0.1:8321")
+    async def loop(self) -> None:
+        assert isinstance((await self._recv_msg()).variant, AppMsg.Connect)
+        logger.info("IOC connected signal")
+        await self._send_msg(McuMsg.Debug("Hello from MCU!"))
 
-        self.ca_repeater.__enter__()
-        self.ioc.__enter__()
+        await self._send_msg(McuMsg.DacRequest(FakeDev.REQUEST_SIZE))
+        while True:
+            try:
+                await asyncio.wait_for(self._recv_and_handle_msg(), self.config.keep_alive_max_delay_ms * 1e-3)
+            except asyncio.TimeoutError:
+                logger.error("Keep-alive timeout reached")
+                raise
 
-        self.done = False
-        self.thread.start()
+    @contextmanager
+    def _bind_sockets(self) -> Generator[None, None, None]:
+        recv = self.recv_socket.bind("tcp://127.0.0.1:8321")
+        send = self.send_socket.bind("tcp://127.0.0.1:8322")
+        with recv, send:
+            yield None
 
-    def __exit__(self, *args: Any) -> None:
-        self.done = True
-        self.thread.join()
-
-        self.ioc.__exit__(*args)
-        self.ca_repeater.__exit__(*args)
-
-        self.socket.close()
+    async def run(self) -> None:
+        with self._bind_sockets(), self.ioc:
+            await asyncio.sleep(1.0)
+            logger.debug("Fakedev started")
+            await self.loop()

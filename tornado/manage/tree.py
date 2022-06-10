@@ -11,13 +11,13 @@ from ferrite.components.platforms.base import Platform
 from ferrite.components.platforms.imx8mn import Imx8mnPlatform
 
 from tornado.components.ipp import Ipp
-from tornado.components.app import App
+from tornado.components.app import AppReal, AppFake
 from tornado.components.epics.app_ioc import AppIocHost, AppIocCross
 from tornado.components.mcu import Mcu
 from tornado.components.all_ import AllHost, AllCross
 
 
-class TornadoHostComponents(ComponentGroup):
+class _HostComponents(ComponentGroup):
 
     def __init__(
         self,
@@ -28,28 +28,29 @@ class TornadoHostComponents(ComponentGroup):
     ) -> None:
         self.toolchain = toolchain
         self.epics_base = EpicsBaseHost(target_dir, toolchain)
-        self.ipp = Ipp(source_dir, target_dir, toolchain)
-        self.app = App(source_dir, ferrite_source_dir, target_dir, toolchain, self.ipp)
-        self.ioc = AppIocHost(
-            [ferrite_source_dir / "ioc", source_dir / "ioc"],
+        self.ipp = Ipp(source_dir, ferrite_source_dir, target_dir, toolchain)
+        self.app = AppFake(source_dir, ferrite_source_dir, target_dir, toolchain, self.ipp)
+        self.ioc_fakedev = AppIocHost(
+            source_dir,
+            ferrite_source_dir,
             target_dir,
             self.epics_base,
             self.app,
         )
-        self.all = AllHost(self.epics_base, self.ipp, self.app, self.ioc)
+        self.all = AllHost(self.epics_base, self.ipp, self.app, self.ioc_fakedev)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
         return self.__dict__
 
 
-class TornadoCrossComponents(ComponentGroup):
+class _CrossComponents(ComponentGroup):
 
     def __init__(
         self,
         source_dir: Path,
         ferrite_source_dir: Path,
         target_dir: Path,
-        host_components: TornadoHostComponents,
+        host_components: _HostComponents,
         platform: Platform,
     ) -> None:
         self.app_toolchain = platform.app.toolchain
@@ -60,7 +61,7 @@ class TornadoCrossComponents(ComponentGroup):
             self.app_toolchain,
             host_components.epics_base,
         )
-        self.app = App(
+        self.app = AppReal(
             source_dir,
             ferrite_source_dir,
             target_dir,
@@ -68,7 +69,8 @@ class TornadoCrossComponents(ComponentGroup):
             host_components.ipp,
         )
         self.ioc = AppIocCross(
-            [ferrite_source_dir / "ioc", source_dir / "ioc"],
+            source_dir,
+            ferrite_source_dir,
             target_dir,
             self.epics_base,
             self.app,
@@ -89,9 +91,9 @@ class TornadoCrossComponents(ComponentGroup):
 
 
 @dataclass
-class TornadoComponents(ComponentGroup):
-    host: TornadoHostComponents
-    cross: Dict[str, TornadoCrossComponents]
+class _Components(ComponentGroup):
+    host: _HostComponents
+    cross: Dict[str, _CrossComponents]
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
         return {
@@ -100,26 +102,26 @@ class TornadoComponents(ComponentGroup):
         }
 
 
-def make_components(base_dir: Path, ferrite_dir: Path, target_dir: Path) -> TornadoComponents:
+def make_components(base_dir: Path, ferrite_dir: Path, target_dir: Path) -> ComponentGroup:
     source_dir = base_dir / "source"
     assert source_dir.exists()
 
     ferrite_source_dir = ferrite_dir / "source"
     assert ferrite_source_dir.exists()
 
-    host = TornadoHostComponents(
+    host = _HostComponents(
         source_dir,
         ferrite_source_dir,
         target_dir,
         HostToolchain(),
     )
-    device = TornadoCrossComponents(
+    device = _CrossComponents(
         source_dir,
         ferrite_source_dir,
         target_dir,
         host,
         Imx8mnPlatform(target_dir),
     )
-    tree = TornadoComponents(host, {"device": device})
+    tree = _Components(host, {"device": device})
     tree._update_names()
     return tree

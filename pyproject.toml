@@ -7,12 +7,15 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.9"
+pydantic = "^1.9.0"
+pyzmq = "^23.0.0b1"
+numpy = "^1.22.3"
 ferrite = { path = "ferrite", develop = true }
 
 [tool.poetry.dev-dependencies]
 toml = "^0.10.2"
 yapf = "^0.32.0"
-mypy = "^0.931"
+mypy = "^0.942"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -23,11 +26,13 @@ based_on_style = "yapf"
 column_limit = 128
 indent_width = 4
 continuation_indent_width = 4
+spaces_before_comment = 1
 continuation_align_style = "space"
 dedent_closing_brackets = true
 coalesce_brackets = true
 allow_split_before_dict_value = false
 indent_dictionary_value = false
+each_dict_entry_on_separate_line = false
 
 [tool.mypy]
 mypy_path = "ferrite"

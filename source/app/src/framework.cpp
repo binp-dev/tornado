@@ -1,38 +1,28 @@
-#include "framework.hpp"
+#include <framework.hpp>
 
 #include <iostream>
 #include <string>
 #include <type_traits>
 #include <memory>
 
+#include <core/convert.hpp>
 #include <core/lazy_static.hpp>
-#include <core/mutex.hpp>
+#include <core/log.hpp>
+
 #include <device.hpp>
 #include <handlers.hpp>
+#include <external.hpp>
 
-#ifdef FAKEDEV
-#include <channel/zmq.hpp>
-#else // FAKEDEV
-#include <channel/rpmsg.hpp>
-#endif // FAKEDEV
+using namespace core;
 
 void init_device(MaybeUninit<Device> &mem) {
-    std::cout << "DEVICE(:LazyStatic).init()" << std::endl;
-
-    const size_t message_max_length = 256;
-    DeviceChannel channel = DeviceChannel(
-#ifdef FAKEDEV
-        std::make_unique<ZmqChannel>(std::move(ZmqChannel::create("tcp://127.0.0.1:8321").unwrap())),
-#else // FAKEDEV
-        std::make_unique<RpmsgChannel>(std::move(RpmsgChannel::create("/dev/ttyRPMSG0").unwrap())),
-#endif // FAKEDEV
-        message_max_length);
-    mem.init_in_place(std::move(channel));
+    core_log_info("LazyStatic: Device::init()");
+    mem.init_in_place(make_device_channel(), max_message_length());
 }
 
-/// We use LazyStatic to initialize global Device without global constructor. 
+/// We use LazyStatic to initialize global Device without global constructor.
+/// NOTE: Must subject to [constant initialization](https://en.cppreference.com/w/cpp/language/constant_initialization).
 LazyStatic<Device, init_device> DEVICE = {};
-static_assert(std::is_pod_v<decltype(DEVICE)>);
 
 
 void framework_init() {
@@ -42,32 +32,55 @@ void framework_init() {
 
 void framework_record_init(Record &record) {
     const auto name = record.name();
-    std::cout << "Initializing record '" << name << "'" << std::endl;
+    core_log_debug("Init record: {}", name);
 
     if (name == "ao0") {
-        auto &ao_record = dynamic_cast<OutputValueRecord<int32_t> &>(record);
-        ao_record.set_handler(std::make_unique<DacHandler>(*DEVICE));
+        core::downcast<OutputValueRecord<int32_t>>(record).unwrap().get().set_handler( //
+            std::make_unique<DacHandler>(*DEVICE));
 
     } else if (name.rfind("ai", 0) == 0) { // name.startswith("ai")
         const auto index_str = name.substr(2);
         uint8_t index = std::stoi(std::string(index_str));
-        auto &ai_record = dynamic_cast<InputValueRecord<int32_t> &>(record);
-        ai_record.set_handler(std::make_unique<AdcHandler>(*DEVICE, index));
+        core::downcast<InputValueRecord<int32_t>>(record).unwrap().get().set_handler( //
+            std::make_unique<AdcHandler>(*DEVICE, index));
 
     } else if (name == "do0") {
-        auto &do_record = dynamic_cast<OutputValueRecord<uint32_t> &>(record);
-        do_record.set_handler(std::make_unique<DoutHandler>(*DEVICE));
+        core::downcast<OutputValueRecord<uint32_t>>(record).unwrap().get().set_handler( //
+            std::make_unique<DoutHandler>(*DEVICE));
 
     } else if (name == "di0") {
-        auto &di_record = dynamic_cast<InputValueRecord<uint32_t> &>(record);
-        di_record.set_handler(std::make_unique<DinHandler>(*DEVICE));
+        core::downcast<InputValueRecord<uint32_t>>(record).unwrap().get().set_handler( //
+            std::make_unique<DinHandler>(*DEVICE));
 
-    } else if (name == "scan_freq") {
-        auto &sf_record = dynamic_cast<OutputValueRecord<int32_t> &>(record);
-        sf_record.set_handler(std::make_unique<ScanFreqHandler>(*DEVICE));
+    } else if (name.rfind("aai", 0) == 0) { // name.startswith("aai")
+        const auto index_str = name.substr(3);
+        uint8_t index = std::stoi(std::string(index_str));
+        auto &current_record = core::downcast<InputArrayRecord<double>>(record).unwrap().get();
+        current_record.set_handler(std::make_unique<AdcWfHandler>(*DEVICE, current_record, index));
+
+    } else if (name == "aao0") {
+        auto &current_record = core::downcast<OutputArrayRecord<double>>(record).unwrap().get();
+        current_record.set_handler(std::make_unique<DacWfHandler>(*DEVICE, current_record));
+
+    } else if (name == "aao0_request") {
+        core::downcast<InputValueRecord<bool>>(record).unwrap().get().set_handler( //
+            std::make_unique<WfReqHandler>(*DEVICE));
+
+    } else if (name == "aao0_cyclic") {
+        core::downcast<OutputValueRecord<bool>>(record).unwrap().get().set_handler( //
+            std::make_unique<DacPlaybackModeHandler>(*DEVICE));
+
+    } else if (name == "aao0_running") {
+        core::downcast<OutputValueRecord<bool>>(record).unwrap().get().set_handler( //
+            std::make_unique<DacOpStateHandler>(*DEVICE));
+
+    } else if (name == "stats_reset") {
+        core::downcast<OutputValueRecord<bool>>(record).unwrap().get().set_handler( //
+            std::make_unique<StatsResetHandler>(*DEVICE));
 
     } else {
-        unimplemented();
+        core_log_fatal("Unexpected record: {}", name);
+        core_unimplemented();
     }
 }
 
