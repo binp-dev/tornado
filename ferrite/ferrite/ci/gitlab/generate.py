@@ -30,20 +30,28 @@ class Variables:
         return lines
 
 
+CacheKey = Union[str, List[str]]
+
+
 @dataclass
 class Cache:
     name: str
-    patterns: List[Tuple[List[str], List[str]]]
+    patterns: List[Tuple[CacheKey, List[str]]]
 
     def text(self) -> List[str]:
         lines = []
         if len(self.patterns) > 0:
             lines.append(f"cache: &{self.name}")
-            for keys, paths in self.patterns:
+            for key, paths in self.patterns:
+                if isinstance(key, str):
+                    lines.extend([f"  - key: {key}"])
+                else:
+                    lines.extend([
+                        "  - key:",
+                        "      files:",
+                        *[f"        - {k}" for k in key],
+                    ])
                 lines.extend([
-                    "  - key:",
-                    "      files:",
-                    *[f"        - {k}" for k in keys],
                     "    paths:",
                     *[f"      - {p}" for p in paths],
                 ])
@@ -257,12 +265,15 @@ def default_variables() -> Variables:
 
 def default_cache(lock_deps: bool = False) -> Cache:
     if not lock_deps:
-        poetry = (["pyproject.toml"], ["poetry.lock", ".venv/"])
+        poetry = [(["pyproject.toml"], ["poetry.lock", ".venv/"])]
     else:
-        poetry = (["pyproject.toml", "poetry.lock"], [".venv/"])
+        poetry = [(["pyproject.toml", "poetry.lock"], [".venv/"])]
+
+    rust = [("cargo", ["target/cargo"])]
 
     return Cache("global_cache", [
-        poetry,
+        *poetry,
+        *rust,
     ])
 
 

@@ -13,6 +13,9 @@ cache: &global_cache
     paths:
       - poetry.lock
       - .venv/
+  - key: cargo
+    paths:
+      - target/cargo
 
 stages:
   - "-1"
@@ -168,13 +171,7 @@ host.rust_test.build:
     - host.rustup.install
   artifacts:
     paths:
-      - target/cargo
       - target/rust_test
-  cache:
-    - *global_cache
-    - key: "host.rust_test.build:1f2e04c3"
-      paths:
-        - target/cargo
 
 arm.app.build:
   stage: "1"
@@ -196,13 +193,7 @@ arm.rust_test.build:
     - arm.rustup.install
   artifacts:
     paths:
-      - target/cargo
       - target/rust_test
-  cache:
-    - *global_cache
-    - key: "arm.rust_test.build:1f2e04c3"
-      paths:
-        - target/cargo
 
 aarch64.app.build:
   stage: "1"
@@ -224,13 +215,7 @@ aarch64.rust_test.build:
     - aarch64.rustup.install
   artifacts:
     paths:
-      - target/cargo
       - target/rust_test
-  cache:
-    - *global_cache
-    - key: "aarch64.rust_test.build:1f2e04c3"
-      paths:
-        - target/cargo
 
 host.codegen.test:
   stage: "2"
@@ -247,6 +232,7 @@ host.rust_test.test:
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.rust_test.test
   needs:
     - host.rust_test.build
+    - host.rustup.install
 
 arm.all.build:
   stage: "2"

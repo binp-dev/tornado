@@ -74,7 +74,7 @@ class Cargo(Component):
             return self.owner.deps + [self.owner.toolchain.install_task]
 
         def artifacts(self) -> List[Artifact]:
-            return [Artifact(self.owner.home_dir, cached=True), Artifact(self.owner.build_dir)]
+            return [Artifact(self.owner.build_dir)]
 
     def __init__(
         self,
@@ -123,7 +123,7 @@ class CargoWithTest(Cargo):
             self.owner.test(capture=ctx.capture)
 
         def dependencies(self) -> List[Task]:
-            return self.owner.deps + [self.owner.build_task]
+            return self.owner.deps + [self.owner.build_task, self.owner.toolchain.install_task]
 
     def __init__(
         self,

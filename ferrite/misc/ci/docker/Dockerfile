@@ -23,5 +23,6 @@ RUN pip3 install \
     rm -rf /root/.cache/pip
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o rustup_install.sh && \
-    sh rustup_install.sh -y --profile minimal && \
+    sh rustup_install.sh -y --profile minimal --default-toolchain none && \
     rm rustup_install.sh
+ENV PATH "$PATH:/root/.cargo/bin"
