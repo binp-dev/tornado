@@ -7,6 +7,7 @@ from ferrite.components.platforms.base import AppPlatform, McuPlatform, Platform
 from ferrite.components.toolchain import Target, CrossToolchain
 from ferrite.components.mcu import McuDeployer
 from ferrite.components.platforms.gnu import ArmAppToolchain
+from ferrite.components.rust import Rustup
 from ferrite.remote.base import Device
 
 
@@ -14,6 +15,16 @@ class Imx7AppToolchain(ArmAppToolchain):
 
     def __init__(self, target_dir: Path) -> None:
         super().__init__("imx7", target_dir)
+
+
+class Imx7AppRustup(Rustup):
+
+    def __init__(self, target_dir: Path) -> None:
+        super().__init__(
+            "imx7",
+            Target("arm", "unknown", "linux", "gnueabihf"),
+            target_dir,
+        )
 
 
 class Imx7McuToolchain(CrossToolchain):
@@ -58,5 +69,5 @@ class Imx7Platform(Platform):
     def __init__(self, target_dir: Path) -> None:
         super().__init__(
             McuPlatform(Imx7McuToolchain(target_dir), Imx7Freertos(target_dir), Imx7McuDeployer()),
-            AppPlatform(Imx7AppToolchain(target_dir)),
+            AppPlatform(Imx7AppToolchain(target_dir), Imx7AppRustup(target_dir)),
         )

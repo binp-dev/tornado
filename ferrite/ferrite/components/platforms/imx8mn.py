@@ -7,6 +7,7 @@ from ferrite.components.platforms.base import AppPlatform, McuPlatform, Platform
 from ferrite.components.toolchain import Target, CrossToolchain
 from ferrite.components.mcu import McuDeployer
 from ferrite.components.platforms.gnu import Aarch64AppToolchain
+from ferrite.components.rust import Rustup
 from ferrite.remote.base import Device
 
 
@@ -14,6 +15,16 @@ class Imx8mnAppToolchain(Aarch64AppToolchain):
 
     def __init__(self, target_dir: Path) -> None:
         super().__init__("imx8mn", target_dir)
+
+
+class Imx8mnAppRustup(Rustup):
+
+    def __init__(self, target_dir: Path) -> None:
+        super().__init__(
+            "imx8mn",
+            Target("aarch64", "unknown", "linux", "gnu"),
+            target_dir,
+        )
 
 
 class Imx8mnMcuToolchain(CrossToolchain):
@@ -53,5 +64,5 @@ class Imx8mnPlatform(Platform):
     def __init__(self, target_dir: Path) -> None:
         super().__init__(
             McuPlatform(Imx8mnMcuToolchain(target_dir), Imx8mnFreertos(target_dir), Imx8mnMcuDeployer()),
-            AppPlatform(Imx8mnAppToolchain(target_dir)),
+            AppPlatform(Imx8mnAppToolchain(target_dir), Imx8mnAppRustup(target_dir)),
         )
