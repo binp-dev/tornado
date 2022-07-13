@@ -13,14 +13,15 @@ RUN dpkg --add-architecture i386 && \
         perl \
         tar \
         gzip \
-        libgtest-dev \
-        libzmq3-dev \
+        curl \
     && \
     apt-get clean
 
 RUN pip3 install \
         poetry \
-        conan \
-        pyzmq \
     && \
     rm -rf /root/.cache/pip
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o rustup_install.sh && \
+    sh rustup_install.sh -y --profile minimal && \
+    rm rustup_install.sh

@@ -2,4 +2,4 @@
 
 cd "$(dirname "$0")"
 
-docker build -t agerasev/debian-psc .
+docker build -t agerasev/debian-psc:0.3 .
