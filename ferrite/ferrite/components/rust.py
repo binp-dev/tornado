@@ -1,6 +1,5 @@
 from __future__ import annotations
-from json import tool
-from typing import Dict, List, Optional
+from typing import Dict, List, Any
 
 import re
 from pathlib import Path
@@ -123,16 +122,10 @@ class CargoWithTest(Cargo):
             self.owner.test(capture=ctx.capture)
 
         def dependencies(self) -> List[Task]:
-            return self.owner.deps + [self.owner.build_task, self.owner.toolchain.install_task]
+            return [self.owner.build_task, self.owner.toolchain.install_task]
 
-    def __init__(
-        self,
-        src_dir: Path,
-        build_dir: Path,
-        toolchain: HostRustup,
-        deps: List[Task] = [],
-    ) -> None:
-        super().__init__(src_dir, build_dir, toolchain, deps=deps)
+    def __init__(self, *args: Any, **kws: Any) -> None:
+        super().__init__(*args, **kws)
 
         self.test_task = self.TestTask(self)
 
@@ -148,4 +141,36 @@ class CargoWithTest(Cargo):
         return {
             **super().tasks(),
             "test": self.test_task,
+        }
+
+
+class CargoBin(Cargo):
+
+    @dataclass
+    class RunTask(Task):
+        owner: CargoBin
+
+        def run(self, ctx: Context) -> None:
+            self.owner.run(capture=ctx.capture)
+
+        def dependencies(self) -> List[Task]:
+            return [self.owner.build_task, self.owner.toolchain.install_task]
+
+    def __init__(self, *args: Any, **kws: Any) -> None:
+        super().__init__(*args, **kws)
+
+        self.run_task = self.RunTask(self)
+
+    def run(self, capture: bool = False) -> None:
+        run(
+            ["cargo", "run"],
+            cwd=self.src_dir,
+            add_env=self._env(),
+            quiet=capture,
+        )
+
+    def tasks(self) -> Dict[str, Task]:
+        return {
+            **super().tasks(),
+            "run": self.run_task,
         }

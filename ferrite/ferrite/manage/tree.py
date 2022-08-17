@@ -7,10 +7,9 @@ from ferrite.components.base import Component, ComponentGroup
 from ferrite.components.core import CoreTest
 from ferrite.components.toolchain import CrossToolchain, HostToolchain, Target
 from ferrite.components.codegen import CodegenExample
-from ferrite.components.app import AppBaseTest, AppExample
 from ferrite.components.all_ import AllCross, AllHost
 from ferrite.components.platforms.gnu import ArmAppToolchain, Aarch64AppToolchain
-from ferrite.components.rust import HostRustup, Rustup, Cargo, CargoWithTest
+from ferrite.components.rust import HostRustup, Rustup, CargoBin, CargoWithTest
 
 
 class _HostComponents(ComponentGroup):
@@ -24,9 +23,9 @@ class _HostComponents(ComponentGroup):
         self.rustup = HostRustup(target_dir)
         self.core_test = CoreTest(source_dir, target_dir, toolchain)
         self.codegen = CodegenExample(source_dir, target_dir, toolchain)
-        self.app_test = AppBaseTest(source_dir, target_dir, toolchain)
-        self.rust_test = CargoWithTest(source_dir / "app" / "rust_test", target_dir / "rust_test", self.rustup)
-        self.all = AllHost(self.core_test, self.codegen, self.app_test, self.rust_test)
+        self.app_test = CargoWithTest(source_dir / "app/base", target_dir / "app", self.rustup)
+        self.app_example = CargoBin(source_dir / "app/example", target_dir / "app", self.rustup)
+        self.all = AllHost(self.codegen, self.app_test, self.app_example)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
         return self.__dict__
@@ -43,9 +42,8 @@ class _CrossComponents(ComponentGroup):
     ) -> None:
         self.toolchain = toolchain
         self.rustup = rustup
-        self.app = AppExample(source_dir, target_dir, self.toolchain)
-        self.rust_test = Cargo(source_dir / "app" / "rust_test", target_dir / "rust_test", self.rustup)
-        self.all = AllCross(self.app, self.rust_test)
+        self.app_example = CargoBin(source_dir / "app/example", target_dir / "app", self.rustup)
+        self.all = AllCross(self.app_example)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
         return self.__dict__

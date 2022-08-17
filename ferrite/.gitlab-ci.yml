@@ -38,15 +38,6 @@ mypy:
     - poetry run mypy -p ferrite
   allow_failure: true
 
-host.core_test.build:
-  stage: "0"
-  script:
-    - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.core_test.build
-  artifacts:
-    paths:
-      - target/core_test
-
 host.codegen.generate:
   stage: "0"
   script:
@@ -55,15 +46,6 @@ host.codegen.generate:
   artifacts:
     paths:
       - target/codegen
-
-host.app_test.build:
-  stage: "0"
-  script:
-    - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_test.build
-  artifacts:
-    paths:
-      - target/app_test
 
 host.rustup.install:
   stage: "0"
@@ -79,20 +61,6 @@ host.rustup.install:
       paths:
         - target/rustup
 
-arm.toolchain.download:
-  stage: "0"
-  script:
-    - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.toolchain.download
-  artifacts:
-    paths:
-      - target/toolchain_gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf
-  cache:
-    - *global_cache
-    - key: "arm.toolchain.download:2d7f1739"
-      paths:
-        - target/toolchain_gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf
-
 arm.rustup.install:
   stage: "0"
   script:
@@ -106,20 +74,6 @@ arm.rustup.install:
     - key: "arm.rustup.install:2556056a"
       paths:
         - target/rustup
-
-aarch64.toolchain.download:
-  stage: "0"
-  script:
-    - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.toolchain.download
-  artifacts:
-    paths:
-      - target/toolchain_gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu
-  cache:
-    - *global_cache
-    - key: "aarch64.toolchain.download:f93a1603"
-      paths:
-        - target/toolchain_gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu
 
 aarch64.rustup.install:
   stage: "0"
@@ -135,14 +89,6 @@ aarch64.rustup.install:
       paths:
         - target/rustup
 
-host.core_test.run:
-  stage: "1"
-  script:
-    - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.core_test.run
-  needs:
-    - host.core_test.build
-
 host.codegen.build:
   stage: "1"
   script:
@@ -154,68 +100,49 @@ host.codegen.build:
     paths:
       - target/codegen_test
 
-host.app_test.run:
+host.app_test.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_test.run
-  needs:
-    - host.app_test.build
-
-host.rust_test.build:
-  stage: "1"
-  script:
-    - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.rust_test.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_test.build
   needs:
     - host.rustup.install
   artifacts:
     paths:
-      - target/rust_test
+      - target/app
 
-arm.app.build:
+host.app_example.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.app.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_example.build
   needs:
-    - arm.toolchain.download
+    - host.rustup.install
   artifacts:
     paths:
       - target/app
 
-arm.rust_test.build:
+arm.app_example.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.rust_test.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.app_example.build
   needs:
     - arm.rustup.install
   artifacts:
     paths:
-      - target/rust_test
-
-aarch64.app.build:
-  stage: "1"
-  script:
-    - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.app.build
-  needs:
-    - aarch64.toolchain.download
-  artifacts:
-    paths:
       - target/app
 
-aarch64.rust_test.build:
+aarch64.app_example.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.rust_test.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.app_example.build
   needs:
     - aarch64.rustup.install
   artifacts:
     paths:
-      - target/rust_test
+      - target/app
 
 host.codegen.test:
   stage: "2"
@@ -225,13 +152,22 @@ host.codegen.test:
   needs:
     - host.codegen.build
 
-host.rust_test.test:
+host.app_test.test:
   stage: "2"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.rust_test.test
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_test.test
   needs:
-    - host.rust_test.build
+    - host.app_test.build
+    - host.rustup.install
+
+host.app_example.run:
+  stage: "2"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_example.run
+  needs:
+    - host.app_example.build
     - host.rustup.install
 
 arm.all.build:
@@ -240,8 +176,7 @@ arm.all.build:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.all.build
   needs:
-    - arm.app.build
-    - arm.rust_test.build
+    - arm.app_example.build
 
 aarch64.all.build:
   stage: "2"
@@ -249,8 +184,7 @@ aarch64.all.build:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.all.build
   needs:
-    - aarch64.app.build
-    - aarch64.rust_test.build
+    - aarch64.app_example.build
 
 host.all.test:
   stage: "3"
@@ -258,7 +192,14 @@ host.all.test:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.all.test
   needs:
-    - host.app_test.run
+    - host.app_test.test
     - host.codegen.test
-    - host.core_test.run
-    - host.rust_test.test
+
+host.all.run:
+  stage: "3"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.all.run
+  needs:
+    - host.app_example.run
+    - host.codegen.test
