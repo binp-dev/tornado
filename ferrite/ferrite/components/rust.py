@@ -161,6 +161,9 @@ class CargoBin(Cargo):
 
         self.run_task = self.RunTask(self)
 
+    def bin_dir(self) -> Path:
+        return self.build_dir / str(self.toolchain.target)
+
     def run(self, capture: bool = False) -> None:
         run(
             ["cargo", "run"],

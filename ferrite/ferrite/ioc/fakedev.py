@@ -1,19 +1,19 @@
 from __future__ import annotations
 from typing import List
 
+from pathlib import Path
 import asyncio
+from asyncio import StreamReader, StreamWriter, Task, CancelledError
 
 
-class TestServer:
+class FakedevTest:
 
-    def __init__(self, host: str, port: int) -> None:
-        self.loop = asyncio.new_event_loop()
-        self.test_task: asyncio.Task[None] | None = None
-        self.server = self.loop.run_until_complete(asyncio.start_server(self._test, host, port))
+    def __init__(self) -> None:
+        self.conn_task: Task[None] | None = None
 
-    async def _test(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        assert self.test_task is None
-        self.test_task = asyncio.current_task()
+    async def connect(self, reader: StreamReader, writer: StreamWriter) -> None:
+        assert self.conn_task is None
+        self.conn_task = asyncio.current_task()
 
         recv_msg = b"Hello, Fakedev!"
         recv_buf = await reader.read(len(recv_msg))
@@ -25,19 +25,23 @@ class TestServer:
         await writer.drain()
         print(f"F -> A: {send_msg!r}")
 
-        self.server.close()
-
-    def wait(self) -> None:
+    async def connect_once(self, reader: StreamReader, writer: StreamWriter) -> None:
         try:
-            self.loop.run_until_complete(self.server.serve_forever())
-        except asyncio.CancelledError:
-            pass
-        else:
-            raise RuntimeError("asyncio.CancelledError hasn't been caught")
+            await self.connect(reader, writer)
+        finally:
+            self.server.close()
 
-        assert self.test_task is not None
-        self.loop.run_until_complete(self.test_task)
+    async def run(self, app_bin: Path) -> None:
+        self.server = await asyncio.start_server(self.connect_once, "localhost", 4884)
+
+        process = await asyncio.create_subprocess_exec(app_bin)
+        assert await process.wait() == 0
+
+        await self.server.wait_closed()
+
+        assert self.conn_task is not None
+        await self.conn_task
 
 
-def test() -> None:
-    TestServer("localhost", 4884).wait()
+def test(app_bin: Path) -> None:
+    asyncio.run(FakedevTest().run(app_bin))

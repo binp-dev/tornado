@@ -11,16 +11,6 @@ from ferrite.components.rust import CargoBin
 from ferrite.ioc.fakedev import test as fakedev_test
 
 
-def gather(*fns: Callable[[], None]) -> None:
-    ps = []
-    for fn in fns:
-        p = Process(target=fn)
-        p.start()
-        ps.append(p)
-    for p in ps:
-        p.join()
-
-
 class Fakedev(Component):
 
     @dataclass
@@ -41,12 +31,7 @@ class Fakedev(Component):
         self.test_task = self.TestTask(self)
 
     def test(self) -> None:
-
-        def run_app() -> None:
-            sleep(1.0)
-            self.app.run()
-
-        gather(fakedev_test, run_app)
+        fakedev_test(self.app.bin_dir() / "debug/ferrite-app-example")
 
     def tasks(self) -> Dict[str, Task]:
         return {"test": self.test_task}
