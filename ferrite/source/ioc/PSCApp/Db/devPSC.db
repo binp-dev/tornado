@@ -1,1 +1,15 @@
-# You need to overwrite this file
+record(ai, "ai")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "I/O Intr")
+}
+record(ao, "ao")
+{
+    field(DTYP, "devsup")
+}
+#record(aai, "aai") {
+#    field(DTYP, "devsup")
+#    field(NELM, 10000)
+#    field(FTVL, "DOUBLE")
+#    field(SCAN, "1 second")
+#}

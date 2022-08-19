@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include <callback.h>
@@ -12,8 +13,8 @@
 
 #include "_interface.h"
 
-static void process_callback(void *data) {
-    dbCommon *rec = (dbCommon *)data;
+static void process_callback(epicsCallback *callback) {
+    dbCommon *rec = (dbCommon *)callback->user;
     struct typed_rset *rset = (struct typed_rset *)rec->rset;
     rset->process(rec);
 }
@@ -29,7 +30,7 @@ void fer_epics_record_init(dbCommon *rec, FerEpicsRecordType type, FerEpicsVar *
 
     callbackSetCallback(process_callback, &dpvt->process);
     callbackSetUser((void *)rec, &dpvt->process);
-    callbackSetPriority(priorityLow, &dpvt->process);
+    callbackSetPriority(priorityMedium, &dpvt->process);
 
     assert(rec->dpvt == NULL);
     rec->dpvt = dpvt;
@@ -78,12 +79,10 @@ void fer_epics_record_request_proc(dbCommon *rec) {
 
 void fer_epics_record_process(dbCommon *rec) {
     if (!rec->pact) {
-        dbScanLock(rec);
         rec->pact = true;
         fer_var_proc_start((FerVar *)rec);
     } else {
         rec->pact = false;
-        dbScanUnlock(rec);
     }
 }
 

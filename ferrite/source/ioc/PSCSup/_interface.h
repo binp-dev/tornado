@@ -13,8 +13,8 @@ typedef enum FerVarKind {
 
 /// Direction of the variable.
 typedef enum FerVarDir {
-    FER_VAR_DIR_INPUT = 0,
-    FER_VAR_DIR_OUTPUT,
+    FER_VAR_DIR_READ = 0,
+    FER_VAR_DIR_WRITE,
 } FerVarDir;
 
 /// Scalar value type.
@@ -58,6 +58,12 @@ void fer_var_request_proc(FerVar *var);
 extern void fer_var_proc_start(FerVar *var);
 /// Notify that asynchronous variable processing complete.
 void fer_var_proc_done(FerVar *var);
+
+/// Lock variable.
+/// Following operations require variable to be locked.
+void fer_var_lock(FerVar *var);
+/// Unlock variable.
+void fer_var_unlock(FerVar *var);
 
 /// Variable name.
 const char *fer_var_name(FerVar *var);

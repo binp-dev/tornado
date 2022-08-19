@@ -8,11 +8,11 @@
 #include "_array_record.h"
 #include "_record.h"
 
-static long record_aai_init(aaiRecord *rec) {
+static long init(aaiRecord *rec) {
     FerEpicsVarArray *var_info = (FerEpicsVarArray *)malloc(sizeof(FerEpicsVarArray));
     var_info->base.type = (FerVarType){
         FER_VAR_KIND_ARRAY,
-        FER_VAR_DIR_INPUT,
+        FER_VAR_DIR_WRITE,
         fer_epics_convert_scalar_type((menuFtype)rec->ftvl),
         rec->nelm,
     };
@@ -23,12 +23,12 @@ static long record_aai_init(aaiRecord *rec) {
     return 0;
 }
 
-static long record_aai_get_ioint_info(int cmd, aaiRecord *rec, IOSCANPVT *ppvt) {
+static long get_ioint_info(int cmd, aaiRecord *rec, IOSCANPVT *ppvt) {
     *ppvt = fer_epics_record_ioscan_create((dbCommon *)rec);
     return 0;
 }
 
-static long record_aai_read(aaiRecord *rec) {
+static long read(aaiRecord *rec) {
     fer_epics_record_process((dbCommon *)rec);
     return 0;
 }
@@ -39,16 +39,16 @@ struct AaiRecordCallbacks {
     DEVSUPFUN init;
     DEVSUPFUN init_record;
     DEVSUPFUN get_ioint_info;
-    DEVSUPFUN read_aai;
+    DEVSUPFUN read;
 };
 
 struct AaiRecordCallbacks aai_record_handler = {
     5,
     NULL,
     NULL,
-    (DEVSUPFUN)record_aai_init,
-    (DEVSUPFUN)record_aai_get_ioint_info,
-    (DEVSUPFUN)record_aai_read,
+    (DEVSUPFUN)init,
+    (DEVSUPFUN)get_ioint_info,
+    (DEVSUPFUN)read,
 };
 
 epicsExportAddress(dset, aai_record_handler);

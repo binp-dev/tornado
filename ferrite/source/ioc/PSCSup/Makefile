@@ -18,6 +18,7 @@ devPSC_SRCS += \
 	_record.c \
 	_array_record.c \
 	ai.c \
+	ao.c \
 	aai.c
 
 # Link with the libraries

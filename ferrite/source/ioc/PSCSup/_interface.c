@@ -1,14 +1,7 @@
 #include "_interface.h"
 
-#include <aaiRecord.h>
-#include <aaoRecord.h>
-#include <aiRecord.h>
-#include <aoRecord.h>
-#include <biRecord.h>
-#include <boRecord.h>
-#include <mbbiDirectRecord.h>
-#include <mbboDirectRecord.h>
-#include <waveformRecord.h>
+#include <dbCommon.h>
+#include <dbLock.h>
 
 #include "_array_record.h"
 #include "_record.h"
@@ -19,6 +12,13 @@ void fer_var_request_proc(FerVar *var) {
 
 void fer_var_proc_done(FerVar *var) {
     fer_epics_record_proc_done((dbCommon *)var);
+}
+
+void fer_var_lock(FerVar *var) {
+    dbScanLock((dbCommon *)var);
+}
+void fer_var_unlock(FerVar *var) {
+    dbScanUnlock((dbCommon *)var);
 }
 
 const char *fer_var_name(FerVar *var) {
@@ -34,7 +34,7 @@ void *fer_var_data(FerVar *var) {
 }
 
 size_t fer_var_array_len(FerVar *var) {
-    (size_t)(*fer_epics_record_var_array_info((dbCommon *)var)->len_ptr);
+    return (size_t)(*fer_epics_record_var_array_info((dbCommon *)var)->len_ptr);
 }
 
 void fer_var_array_set_len(FerVar *var, size_t new_size) {

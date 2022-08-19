@@ -38,14 +38,17 @@ def epics_arch_by_target(target: Target) -> str:
 
 
 # Milliseconds from the start of the epoch
-def _tree_mod_time(path: Path) -> int:
-    max_time = 0.0
-    for dirpath, dirnames, filenames in os.walk(path):
-        max_time = max([
-            max_time,
-            os.path.getmtime(dirpath),
-            *[os.path.getmtime(os.path.join(dirpath, fn)) for fn in filenames],
-        ])
+def _mod_time(path: Path) -> int:
+    if path.is_dir():
+        max_time = 0.0
+        for dirpath, dirnames, filenames in os.walk(path):
+            max_time = max([
+                max_time,
+                os.path.getmtime(dirpath),
+                *[os.path.getmtime(os.path.join(dirpath, fn)) for fn in filenames],
+            ])
+    else:
+        max_time = os.path.getmtime(path)
     return int(1000 * max_time)
 
 
@@ -59,7 +62,7 @@ class _BuildInfo(pydantic.BaseModel):
     def from_paths(base_dir: Path, dep_paths: List[Path]) -> _BuildInfo:
         return _BuildInfo(
             build_dir=str(base_dir),
-            dep_mod_times={str(path): _tree_mod_time(path) for path in dep_paths},
+            dep_mod_times={str(path): _mod_time(path) for path in dep_paths},
         )
 
     @staticmethod
