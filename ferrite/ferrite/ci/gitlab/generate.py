@@ -310,7 +310,6 @@ if __name__ == "__main__":
 
     end_tasks = [
         "host.all.test",
-        "host.all.run",
         "arm.all.build",
         "aarch64.all.build",
     ]

@@ -23,6 +23,7 @@ stages:
   - "1"
   - "2"
   - "3"
+  - "4"
 
 yapf:
   stage: "-1"
@@ -61,33 +62,47 @@ host.rustup.install:
       paths:
         - target/rustup
 
-arm.rustup.install:
+host.epics_base.clone:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.rustup.install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.epics_base.clone
   artifacts:
     paths:
-      - target/rustup
+      - target/epics_base_7.0.6.1_src
   cache:
     - *global_cache
-    - key: "arm.rustup.install:2556056a"
+    - key: "host.epics_base.clone:a1b50a23"
       paths:
-        - target/rustup
+        - target/epics_base_7.0.6.1_src
 
-aarch64.rustup.install:
+arm.gcc.download:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.rustup.install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.gcc.download
   artifacts:
     paths:
-      - target/rustup
+      - target/toolchain_gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf
   cache:
     - *global_cache
-    - key: "aarch64.rustup.install:2556056a"
+    - key: "arm.gcc.download:2d7f1739"
       paths:
-        - target/rustup
+        - target/toolchain_gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf
+
+aarch64.gcc.download:
+  stage: "0"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.gcc.download
+  artifacts:
+    paths:
+      - target/toolchain_gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu
+  cache:
+    - *global_cache
+    - key: "aarch64.gcc.download:f93a1603"
+      paths:
+        - target/toolchain_gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu
 
 host.codegen.build:
   stage: "1"
@@ -100,49 +115,66 @@ host.codegen.build:
     paths:
       - target/codegen_test
 
-host.app_test.build:
+host.app.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_test.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app.build
   needs:
     - host.rustup.install
   artifacts:
     paths:
       - target/app
 
-host.app_example.build:
+host.epics_base.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_example.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.epics_base.build
   needs:
-    - host.rustup.install
+    - host.epics_base.clone
   artifacts:
     paths:
-      - target/app
+      - target/epics_base_7.0.6.1_build_host
+      - target/epics_base_7.0.6.1_install_host
+  cache:
+    - *global_cache
+    - key: "host.epics_base.build:1331b00"
+      paths:
+        - target/epics_base_7.0.6.1_build_host
+        - target/epics_base_7.0.6.1_install_host
 
-arm.app_example.build:
+arm.rustup.install:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.app_example.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.rustup.install
   needs:
-    - arm.rustup.install
+    - arm.gcc.download
   artifacts:
     paths:
-      - target/app
+      - target/rustup
+  cache:
+    - *global_cache
+    - key: "arm.rustup.install:2556056a"
+      paths:
+        - target/rustup
 
-aarch64.app_example.build:
+aarch64.rustup.install:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.app_example.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.rustup.install
   needs:
-    - aarch64.rustup.install
+    - aarch64.gcc.download
   artifacts:
     paths:
-      - target/app
+      - target/rustup
+  cache:
+    - *global_cache
+    - key: "aarch64.rustup.install:2556056a"
+      paths:
+        - target/rustup
 
 host.codegen.test:
   stage: "2"
@@ -152,54 +184,148 @@ host.codegen.test:
   needs:
     - host.codegen.build
 
-host.app_test.test:
+host.app.test:
   stage: "2"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_test.test
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app.test
   needs:
-    - host.app_test.build
+    - host.app.build
     - host.rustup.install
 
-host.app_example.run:
+host.ioc_example.build:
   stage: "2"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app_example.run
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.ioc_example.build
   needs:
-    - host.app_example.build
-    - host.rustup.install
+    - host.app.build
+    - host.epics_base.build
+  artifacts:
+    paths:
+      - target/ioc_host/ioc_build_host
+      - target/ioc_host/ioc_install_host
 
-arm.all.build:
+arm.epics_base.build:
   stage: "2"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.all.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.epics_base.build
   needs:
-    - arm.app_example.build
+    - arm.gcc.download
+    - host.epics_base.build
+  artifacts:
+    paths:
+      - target/epics_base_7.0.6.1_build_arm
+      - target/epics_base_7.0.6.1_install_arm
+  cache:
+    - *global_cache
+    - key: "arm.epics_base.build:c63e1a04"
+      paths:
+        - target/epics_base_7.0.6.1_build_arm
+        - target/epics_base_7.0.6.1_install_arm
 
-aarch64.all.build:
+arm.app.build:
   stage: "2"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.all.build
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.app.build
   needs:
-    - aarch64.app_example.build
+    - arm.rustup.install
+  artifacts:
+    paths:
+      - target/app
+
+aarch64.epics_base.build:
+  stage: "2"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.epics_base.build
+  needs:
+    - aarch64.gcc.download
+    - host.epics_base.build
+  artifacts:
+    paths:
+      - target/epics_base_7.0.6.1_build_aarch64
+      - target/epics_base_7.0.6.1_install_aarch64
+  cache:
+    - *global_cache
+    - key: "aarch64.epics_base.build:976d1c56"
+      paths:
+        - target/epics_base_7.0.6.1_build_aarch64
+        - target/epics_base_7.0.6.1_install_aarch64
+
+aarch64.app.build:
+  stage: "2"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.app.build
+  needs:
+    - aarch64.rustup.install
+  artifacts:
+    paths:
+      - target/app
+
+host.fakedev.test:
+  stage: "3"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.fakedev.test
+  needs:
+    - host.ioc_example.build
+
+arm.ioc_example.build:
+  stage: "3"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.ioc_example.build
+  needs:
+    - arm.app.build
+    - arm.epics_base.build
+    - arm.gcc.download
+  artifacts:
+    paths:
+      - target/ioc_arm/ioc_build_arm
+      - target/ioc_arm/ioc_install_arm
+
+aarch64.ioc_example.build:
+  stage: "3"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.ioc_example.build
+  needs:
+    - aarch64.app.build
+    - aarch64.epics_base.build
+    - aarch64.gcc.download
+  artifacts:
+    paths:
+      - target/ioc_aarch64/ioc_build_aarch64
+      - target/ioc_aarch64/ioc_install_aarch64
 
 host.all.test:
-  stage: "3"
+  stage: "4"
   script:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.all.test
   needs:
-    - host.app_test.test
+    - host.app.test
     - host.codegen.test
+    - host.fakedev.test
 
-host.all.run:
-  stage: "3"
+arm.all.build:
+  stage: "4"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.all.run
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.all.build
   needs:
-    - host.app_example.run
-    - host.codegen.test
+    - arm.epics_base.build
+    - arm.ioc_example.build
+
+aarch64.all.build:
+  stage: "4"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.all.build
+  needs:
+    - aarch64.epics_base.build
+    - aarch64.ioc_example.build

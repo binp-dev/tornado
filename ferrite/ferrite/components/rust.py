@@ -16,7 +16,11 @@ class Rustup(Toolchain):
 
         def __init__(self, owner: Rustup) -> None:
             super().__init__()
-            self.owner = owner
+            self._owner = owner
+
+        @property
+        def owner(self) -> Rustup:
+            return self._owner
 
         def run(self, ctx: Context) -> None:
             self.owner.install(capture=ctx.capture)
@@ -61,6 +65,22 @@ class HostRustup(Rustup):
 
 
 class CrossRustup(Rustup):
+
+    class InstallTask(Rustup.InstallTask):
+
+        def __init__(self, owner: CrossRustup) -> None:
+            self._cross_owner = owner
+            super().__init__(owner)
+
+        @property
+        def owner(self) -> CrossRustup:
+            return self._cross_owner
+
+        def dependencies(self) -> List[Task]:
+            return [
+                *super().dependencies(),
+                self.owner.gcc.download_task,
+            ]
 
     def __init__(self, postfix: str, target: Target, target_dir: Path, gcc: CrossToolchain):
         super().__init__(postfix, target, target_dir)
