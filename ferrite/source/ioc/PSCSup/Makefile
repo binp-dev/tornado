@@ -14,6 +14,9 @@ INCLUDES += \
 # Library Source files
 devPSC_SRCS += \
 	devPSC.c \
+	_interface.c \
+	_record.c \
+	_array_record.c \
 	ai.c \
 	aai.c
 

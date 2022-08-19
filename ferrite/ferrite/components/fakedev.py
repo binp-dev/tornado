@@ -1,37 +1,42 @@
 from __future__ import annotations
-from typing import Callable, Dict, List
+from typing import Dict, List
 
 from dataclasses import dataclass
-from pathlib import Path
-from multiprocessing import Process
-from time import sleep
 
 from ferrite.components.base import Component, Task, Context
-from ferrite.components.rust import CargoBin
-from ferrite.ioc.fakedev import test as fakedev_test
+from ferrite.components.epics.app_ioc import AppIocExample
+import ferrite.ioc.fakedev as fakedev
 
 
 class Fakedev(Component):
 
     @dataclass
-    class TestTask(Task):
+    class BaseTask(Task):
         owner: Fakedev
+
+        def dependencies(self) -> List[Task]:
+            return [self.owner.app_ioc.build_task]
+
+    class TestTask(BaseTask):
 
         def run(self, ctx: Context) -> None:
             self.owner.test()
 
-        def dependencies(self) -> List[Task]:
-            return [self.owner.app.build_task]
+    class RunTask(BaseTask):
 
-    def __init__(
-        self,
-        app: CargoBin,
-    ):
-        self.app = app
+        def run(self, ctx: Context) -> None:
+            self.owner.run()
+
+    def __init__(self, app_ioc: AppIocExample):
+        self.app_ioc = app_ioc
         self.test_task = self.TestTask(self)
+        self.run_task = self.RunTask(self)
 
     def test(self) -> None:
-        fakedev_test(self.app.bin_dir() / "debug/ferrite-app-example")
+        fakedev.test(self.app_ioc.app.bin_dir / "app-example")
+
+    def run(self) -> None:
+        fakedev.run(self.app_ioc.install_path, self.app_ioc.arch)
 
     def tasks(self) -> Dict[str, Task]:
-        return {"test": self.test_task}
+        return {"test": self.test_task, "run": self.run_task}

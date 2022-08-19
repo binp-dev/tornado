@@ -75,6 +75,16 @@ class Cargo(Component):
         def artifacts(self) -> List[Artifact]:
             return [Artifact(self.owner.build_dir)]
 
+    @dataclass
+    class TestTask(Task):
+        owner: Cargo
+
+        def run(self, ctx: Context) -> None:
+            self.owner.test(capture=ctx.capture)
+
+        def dependencies(self) -> List[Task]:
+            return [self.owner.build_task, self.owner.toolchain.install_task]
+
     def __init__(
         self,
         src_dir: Path,
@@ -92,6 +102,7 @@ class Cargo(Component):
         self.home_dir = self.toolchain.target_dir / "cargo"
 
         self.build_task = self.BuildTask(self)
+        self.test_task = self.TestTask(self)
 
     def _env(self) -> Dict[str, str]:
         return {
@@ -100,6 +111,10 @@ class Cargo(Component):
             "CARGO_TARGET_DIR": str(self.build_dir),
         }
 
+    @property
+    def bin_dir(self) -> Path:
+        return self.build_dir / str(self.toolchain.target) / "debug"
+
     def build(self, capture: bool = False) -> None:
         run(
             ["cargo", "build", f"--target={self.toolchain.target}"],
@@ -107,27 +122,6 @@ class Cargo(Component):
             add_env=self._env(),
             quiet=capture,
         )
-
-    def tasks(self) -> Dict[str, Task]:
-        return {"build": self.build_task}
-
-
-class CargoWithTest(Cargo):
-
-    @dataclass
-    class TestTask(Task):
-        owner: CargoWithTest
-
-        def run(self, ctx: Context) -> None:
-            self.owner.test(capture=ctx.capture)
-
-        def dependencies(self) -> List[Task]:
-            return [self.owner.build_task, self.owner.toolchain.install_task]
-
-    def __init__(self, *args: Any, **kws: Any) -> None:
-        super().__init__(*args, **kws)
-
-        self.test_task = self.TestTask(self)
 
     def test(self, capture: bool = False) -> None:
         run(
@@ -139,41 +133,6 @@ class CargoWithTest(Cargo):
 
     def tasks(self) -> Dict[str, Task]:
         return {
-            **super().tasks(),
+            "build": self.build_task,
             "test": self.test_task,
-        }
-
-
-class CargoBin(Cargo):
-
-    @dataclass
-    class RunTask(Task):
-        owner: CargoBin
-
-        def run(self, ctx: Context) -> None:
-            self.owner.run(capture=ctx.capture)
-
-        def dependencies(self) -> List[Task]:
-            return [self.owner.build_task, self.owner.toolchain.install_task]
-
-    def __init__(self, *args: Any, **kws: Any) -> None:
-        super().__init__(*args, **kws)
-
-        self.run_task = self.RunTask(self)
-
-    def bin_dir(self) -> Path:
-        return self.build_dir / str(self.toolchain.target)
-
-    def run(self, capture: bool = False) -> None:
-        run(
-            ["cargo", "run"],
-            cwd=self.src_dir,
-            add_env=self._env(),
-            quiet=capture,
-        )
-
-    def tasks(self) -> Dict[str, Task]:
-        return {
-            **super().tasks(),
-            "run": self.run_task,
         }

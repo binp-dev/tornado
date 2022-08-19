@@ -5,7 +5,7 @@
 #include <epicsExport.h>
 #include <recGbl.h>
 
-#include "_array.h"
+#include "_array_record.h"
 #include "_record.h"
 
 static long record_aai_init(aaiRecord *rec) {

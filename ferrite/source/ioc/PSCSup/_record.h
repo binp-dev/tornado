@@ -53,7 +53,7 @@ FerEpicsVar *fer_epics_record_var_info(dbCommon *rec);
 IOSCANPVT fer_epics_record_ioscan_create(dbCommon *rec);
 
 /// Request record processing
-void fer_epics_recore_request_proc(dbCommon *rec);
+void fer_epics_record_request_proc(dbCommon *rec);
 /// Process record.
 void fer_epics_record_process(dbCommon *rec);
 /// Notify that process is done.

@@ -1,4 +1,4 @@
-#include "_array.h"
+#include "_array_record.h"
 
 FerEpicsVarArray *fer_epics_record_var_array_info(dbCommon *rec) {
     FerEpicsVar *var_info = fer_epics_record_var_info(rec);

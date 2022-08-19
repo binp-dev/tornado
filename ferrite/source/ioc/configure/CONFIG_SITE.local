@@ -1,7 +1,2 @@
-# Paths to an application.
-CORE_SRC =
-APP_BASE_SRC =
-APP_BUILD_DIR =
-
 # The only architecture to build for 
 APP_ARCH =

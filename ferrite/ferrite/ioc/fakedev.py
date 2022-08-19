@@ -5,6 +5,9 @@ from pathlib import Path
 import asyncio
 from asyncio import StreamReader, StreamWriter, Task, CancelledError
 
+from ferrite.utils.epics.ioc import make_ioc
+from time import sleep
+
 
 class FakedevTest:
 
@@ -45,3 +48,10 @@ class FakedevTest:
 
 def test(app_bin: Path) -> None:
     asyncio.run(FakedevTest().run(app_bin))
+
+
+def run(ioc_dir: Path, arch: str) -> None:
+    ioc = make_ioc(ioc_dir, arch)
+    with ioc:
+        while True:
+            sleep(1.0)

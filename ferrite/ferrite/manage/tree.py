@@ -10,7 +10,10 @@ from ferrite.components.codegen import CodegenExample
 from ferrite.components.fakedev import Fakedev
 from ferrite.components.all_ import AllCross, AllHost
 from ferrite.components.platforms.gnu import ArmAppToolchain, Aarch64AppToolchain
-from ferrite.components.rust import HostRustup, Rustup, CargoBin, CargoWithTest
+from ferrite.components.rust import HostRustup, Rustup, Cargo
+from ferrite.components.app import AppBase
+from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
+from ferrite.components.epics.app_ioc import AppIocExample
 
 
 class _HostComponents(ComponentGroup):
@@ -20,14 +23,15 @@ class _HostComponents(ComponentGroup):
         source_dir: Path,
         target_dir: Path,
     ) -> None:
-        toolchain = HostToolchain()
+        self.toolchain = HostToolchain()
+        self.epics_base = EpicsBaseHost(target_dir, self.toolchain)
         self.rustup = HostRustup(target_dir)
-        self.core_test = CoreTest(source_dir, target_dir, toolchain)
-        self.codegen = CodegenExample(source_dir, target_dir, toolchain)
-        self.app_test = CargoWithTest(source_dir / "app/base", target_dir / "app", self.rustup)
-        self.app_example = CargoBin(source_dir / "app/example", target_dir / "app", self.rustup)
-        self.fakedev = Fakedev(self.app_example)
-        self.all = AllHost(self.codegen, self.app_test, self.app_example, self.fakedev)
+        self.core_test = CoreTest(source_dir, target_dir, self.toolchain)
+        self.codegen = CodegenExample(source_dir, target_dir, self.toolchain)
+        self.app = AppBase(source_dir / "app", target_dir / "app", self.rustup)
+        self.ioc_example = AppIocExample([source_dir / "ioc"], target_dir / "ioc", self.epics_base, self.app)
+        self.fakedev = Fakedev(self.ioc_example)
+        self.all = AllHost(self.epics_base, self.codegen, self.app, self.ioc_example, self.fakedev)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
         return self.__dict__
@@ -44,8 +48,8 @@ class _CrossComponents(ComponentGroup):
     ) -> None:
         self.toolchain = toolchain
         self.rustup = rustup
-        self.app_example = CargoBin(source_dir / "app/example", target_dir / "app", self.rustup)
-        self.all = AllCross(self.app_example)
+        self.app = AppBase(source_dir / "app", target_dir / "app", self.rustup)
+        self.all = AllCross(self.app)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
         return self.__dict__

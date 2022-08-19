@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [[bin]]
-name = "ferrite-app-example"
+name = "app-example"
 path = "src/main.rs"
 
 [dependencies]

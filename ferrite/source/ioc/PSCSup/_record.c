@@ -34,7 +34,7 @@ void fer_epics_record_init(dbCommon *rec, FerEpicsRecordType type, FerEpicsVar *
     assert(rec->dpvt == NULL);
     rec->dpvt = dpvt;
 
-    fer_app_var_init((FerVar *)rec);
+    fer_var_init((FerVar *)rec);
 }
 
 void fer_epics_record_deinit(dbCommon *rec) {
@@ -69,7 +69,7 @@ IOSCANPVT fer_epics_record_ioscan_create(dbCommon *rec) {
     return ioscan_list;
 }
 
-void fer_epics_recore_request_proc(dbCommon *rec) {
+void fer_epics_record_request_proc(dbCommon *rec) {
     FerEpicsRecordDpvt *dpvt = fer_epics_record_dpvt(rec);
     if (dpvt->ioscan_list != NULL) {
         scanIoRequest(dpvt->ioscan_list);
