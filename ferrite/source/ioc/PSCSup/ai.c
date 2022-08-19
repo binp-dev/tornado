@@ -1,15 +1,23 @@
 #include <stdlib.h>
 
-#include <devSup.h>
-#include <recGbl.h>
-#include <epicsExport.h>
 #include <aiRecord.h>
+#include <devSup.h>
+#include <epicsExport.h>
+#include <recGbl.h>
 
-#include "_common.h"
-#include "_interface.h"
+#include "_record.h"
 
 static long record_ai_init(aiRecord *rec) {
-    fer_epics_record_init((dbCommon *)rec);
+    FerEpicsVar *var_info = (FerEpicsVar *)malloc(sizeof(FerEpicsVar));
+    var_info->type = (FerVarType){
+        FER_VAR_KIND_SCALAR,
+        FER_VAR_DIR_INPUT,
+        FER_VAR_SCALAR_TYPE_I32,
+        1,
+    };
+    var_info->data = (void *)(&rec->rval);
+
+    fer_epics_record_init((dbCommon *)rec, FER_EPICS_RECORD_TYPE_AI, var_info);
     return 0;
 }
 

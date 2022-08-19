@@ -3,5 +3,14 @@ name = "ferrite-app-example"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "app"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[[bin]]
+name = "ferrite-app-example"
+path = "src/main.rs"
+
 [dependencies]
 base = { package = "ferrite-app-base", path = "../base" }

@@ -1,21 +1,21 @@
 #pragma once
 
-#include <stdlib.h>
+#include <stddef.h>
 
 /// Opaque variable.
-typedef struct FerAppVar FerAppVar;
-
-/// Direction of the variable.
-typedef enum FerVarDir {
-    FER_VAR_DIR_READ = 0,
-    FER_VAR_DIR_WRITE,
-} FerVarDir;
+typedef struct FerVar FerVar;
 
 /// Kind of variable.
 typedef enum FerVarKind {
     FER_VAR_KIND_SCALAR = 0,
     FER_VAR_KIND_ARRAY,
 } FerVarKind;
+
+/// Direction of the variable.
+typedef enum FerVarDir {
+    FER_VAR_DIR_INPUT = 0,
+    FER_VAR_DIR_OUTPUT,
+} FerVarDir;
 
 /// Scalar value type.
 typedef enum FerVarScalarType {
@@ -33,39 +33,49 @@ typedef enum FerVarScalarType {
     FER_VAR_SCALAR_TYPE_F64,
 } FerVarScalarType;
 
+/// Variable type.
+typedef struct FerVarType {
+    /// Kind of the variable.
+    FerVarKind kind;
+    /// Direction of the variable.
+    FerVarDir dir;
+    /// Type of scalars in the variable if it contains scalars.
+    FerVarScalarType scalar_type;
+    /// Maximum number of items in the variable if it is array.
+    size_t array_max_len;
+} FerVarType;
+
 /// Initialize application.
 extern void fer_app_init();
 /// All initialization complete, safe to start operating.
 extern void fer_app_start();
 
 /// Initialize variable.
-extern void fer_var_init(FerAppVar *var);
+extern void fer_var_init(FerVar *var);
 /// Request record processing.
-void fer_var_proc_request(FerAppVar *var);
+void fer_var_request_proc(FerVar *var);
 /// Asynchronous variable processing start.
-extern void fer_var_proc_start(FerAppVar *var);
+extern void fer_var_proc_start(FerVar *var);
 /// Notify that asynchronous variable processing complete.
-void fer_var_proc_done(FerAppVar *var);
+void fer_var_proc_done(FerVar *var);
 
 /// Variable name.
-const char *fer_var_name(FerAppVar *var);
-
-/// Direction of the variable.
-FerVarDir fer_var_dir(FerAppVar *var);
-/// Kind of the variable.
-FerVarKind fer_var_kind(FerAppVar *var);
-/// Type of scalars in the variable if it contains scalars.
-FerVarScalarType fer_var_scal_type(FerAppVar *var);
-/// Maximum number of items in the variable if it is array.
-size_t fer_var_array_max_size(FerAppVar *var);
+const char *fer_var_name(FerVar *var);
+/// Variable type information.
+FerVarType fer_var_type(FerVar *var);
 
 /// Raw variable data that must be interpreted according to variable type.
-void *fer_var_data(FerAppVar *var);
+void *fer_var_data(FerVar *var);
 /// Current number of items in variable.
 /// Always less or equal than `fer_var_array_max_size`.
 /// Variable must be an array.
-size_t fer_var_array_size(FerAppVar *var);
+size_t fer_var_array_len(FerVar *var);
 /// Set new number of items in variable.
 /// Must be less or equal than `fer_var_array_max_size`.
 /// Variable must be an array.
-size_t fer_var_array_set_size(FerAppVar *var, size_t new_size);
+void fer_var_array_set_len(FerVar *var, size_t new_size);
+
+/// Get user data.
+void *fer_var_user_data(FerVar *var);
+/// Set user data.
+void fer_var_set_user_data(FerVar *var, void *user_data);
