@@ -5,15 +5,16 @@ from pathlib import Path
 
 from ferrite.components.base import Component, ComponentGroup
 from ferrite.components.core import CoreTest
+from ferrite.components.platforms.base import AppPlatform
 from ferrite.components.toolchain import CrossToolchain, HostToolchain, Target
 from ferrite.components.codegen import CodegenExample
 from ferrite.components.fakedev import Fakedev
 from ferrite.components.all_ import AllCross, AllHost
-from ferrite.components.platforms.gnu import ArmAppToolchain, Aarch64AppToolchain
-from ferrite.components.rust import HostRustup, Rustup, Cargo
+from ferrite.components.platforms.arm import Aarch64AppPlatform, ArmAppPlatform, ArmAppToolchain, Aarch64AppToolchain
+from ferrite.components.rust import HostRustup, CrossRustup
 from ferrite.components.app import AppBase
 from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
-from ferrite.components.epics.app_ioc import AppIocExample
+from ferrite.components.epics.ioc_example import IocHostExample, IocCrossExample
 
 
 class _HostComponents(ComponentGroup):
@@ -24,12 +25,12 @@ class _HostComponents(ComponentGroup):
         target_dir: Path,
     ) -> None:
         self.toolchain = HostToolchain()
-        self.epics_base = EpicsBaseHost(target_dir, self.toolchain)
         self.rustup = HostRustup(target_dir)
+        self.epics_base = EpicsBaseHost(target_dir, self.toolchain)
         self.core_test = CoreTest(source_dir, target_dir, self.toolchain)
         self.codegen = CodegenExample(source_dir, target_dir, self.toolchain)
         self.app = AppBase(source_dir / "app", target_dir / "app", self.rustup)
-        self.ioc_example = AppIocExample([source_dir / "ioc"], target_dir / "ioc", self.epics_base, self.app)
+        self.ioc_example = IocHostExample(source_dir, target_dir, self.epics_base, self.app)
         self.fakedev = Fakedev(self.ioc_example)
         self.all = AllHost(self.epics_base, self.codegen, self.app, self.ioc_example, self.fakedev)
 
@@ -43,13 +44,15 @@ class _CrossComponents(ComponentGroup):
         self,
         source_dir: Path,
         target_dir: Path,
-        toolchain: CrossToolchain,
-        rustup: Rustup,
+        platform: AppPlatform,
+        host_components: _HostComponents,
     ) -> None:
-        self.toolchain = toolchain
-        self.rustup = rustup
+        self.gcc = platform.gcc
+        self.rustup = platform.rustup
+        self.epics_base = EpicsBaseCross(target_dir, self.gcc, host_components.epics_base)
         self.app = AppBase(source_dir / "app", target_dir / "app", self.rustup)
-        self.all = AllCross(self.app)
+        self.ioc_example = IocCrossExample(source_dir, target_dir, self.epics_base, self.app)
+        self.all = AllCross(self.epics_base, self.app, self.ioc_example)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:
         return self.__dict__
@@ -67,15 +70,15 @@ class _Components(ComponentGroup):
         self.arm = _CrossComponents(
             source_dir,
             target_dir,
-            ArmAppToolchain("arm", target_dir),
-            Rustup("arm", Target.from_str("armv7-unknown-linux-gnueabihf"), target_dir),
+            ArmAppPlatform("arm", target_dir),
+            self.host,
         )
 
         self.aarch64 = _CrossComponents(
             source_dir,
             target_dir,
-            Aarch64AppToolchain("aarch64", target_dir),
-            Rustup("aarch64", Target.from_str("aarch64-unknown-linux-gnu"), target_dir),
+            Aarch64AppPlatform("aarch64", target_dir),
+            self.host,
         )
 
     def components(self) -> Dict[str, Component | ComponentGroup]:

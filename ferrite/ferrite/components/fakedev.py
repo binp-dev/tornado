@@ -4,7 +4,7 @@ from typing import Dict, List
 from dataclasses import dataclass
 
 from ferrite.components.base import Component, Task, Context
-from ferrite.components.epics.app_ioc import AppIocExample
+from ferrite.components.epics.ioc_example import IocHostExample
 import ferrite.ioc.fakedev as fakedev
 
 
@@ -27,7 +27,7 @@ class Fakedev(Component):
         def run(self, ctx: Context) -> None:
             self.owner.run()
 
-    def __init__(self, app_ioc: AppIocExample):
+    def __init__(self, app_ioc: IocHostExample):
         self.app_ioc = app_ioc
         self.test_task = self.TestTask(self)
         self.run_task = self.RunTask(self)

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 from ferrite.utils.run import run, capture
 from ferrite.components.base import Artifact, Component, Task, Context
-from ferrite.components.toolchain import Target, Toolchain
+from ferrite.components.toolchain import Target, Toolchain, CrossToolchain
 
 
 class Rustup(Toolchain):
@@ -60,6 +60,13 @@ class HostRustup(Rustup):
         super().__init__("host", target, target_dir)
 
 
+class CrossRustup(Rustup):
+
+    def __init__(self, postfix: str, target: Target, target_dir: Path, gcc: CrossToolchain):
+        super().__init__(postfix, target, target_dir)
+        self.gcc = gcc
+
+
 class Cargo(Component):
 
     @dataclass
@@ -105,11 +112,16 @@ class Cargo(Component):
         self.test_task = self.TestTask(self)
 
     def _env(self) -> Dict[str, str]:
-        return {
+        env = {
             **self.toolchain.env(),
             "CARGO_HOME": str(self.home_dir),
             "CARGO_TARGET_DIR": str(self.build_dir),
         }
+        if isinstance(self.toolchain, CrossRustup):
+            target_uu = str(self.toolchain.target).upper().replace("-", "_")
+            linker_path = self.toolchain.gcc.path / "bin" / f"{self.toolchain.gcc.target}-gcc"
+            env.update({f"CARGO_TARGET_{target_uu}_LINKER": str(linker_path)})
+        return env
 
     @property
     def bin_dir(self) -> Path:

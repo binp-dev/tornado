@@ -8,16 +8,16 @@ from ferrite.utils.files import substitute
 from ferrite.components.base import Context, Task
 from ferrite.components.app import AppBase
 from ferrite.components.epics.epics_base import AbstractEpicsBase
-from ferrite.components.epics.ioc import AbstractIoc, IocHost
+from ferrite.components.epics.ioc import AbstractIoc, IocCross, IocHost
 
 
-class AppIoc(AbstractIoc):
+class AbstractAppIoc(AbstractIoc):
 
     class BuildTask(AbstractIoc.BuildTask):
 
         def __init__(
             self,
-            owner: AppIoc,
+            owner: AbstractAppIoc,
             deps: List[Task],
             app_lib_name: str = "libapp.so",
         ):
@@ -29,7 +29,7 @@ class AppIoc(AbstractIoc):
             self.app_lib_path = self.owner.app.bin_dir / self.app_lib_name
 
         @property
-        def owner(self) -> AppIoc:
+        def owner(self) -> AbstractAppIoc:
             return self._app_owner
 
         def _dep_paths(self) -> List[Path]:
@@ -67,7 +67,7 @@ class AppIoc(AbstractIoc):
         deps.append(self.app.build_task)
         return deps
 
-    def _make_build_task(self) -> AppIoc.BuildTask:
+    def _make_build_task(self) -> AbstractAppIoc.BuildTask:
         return self.BuildTask(self, deps=self._build_deps())
 
     def __init__(
@@ -85,9 +85,3 @@ class AppIoc(AbstractIoc):
             target_dir,
             epics_base,
         )
-
-
-class AppIocExample(AppIoc, IocHost):
-
-    class BuildTask(AppIoc.BuildTask, IocHost.BuildTask):
-        pass
