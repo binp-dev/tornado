@@ -1,4 +1,7 @@
-pub mod sys;
+mod sys;
+pub mod variable;
+
+pub use sys::export;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
