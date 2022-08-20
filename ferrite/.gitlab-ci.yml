@@ -48,6 +48,12 @@ host.codegen.generate:
     paths:
       - target/codegen
 
+host.toolchain.install:
+  stage: "0"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.toolchain.install
+
 host.rustup.install:
   stage: "0"
   script:
@@ -76,33 +82,61 @@ host.epics_base.clone:
       paths:
         - target/epics_base_7.0.6.1_src
 
-arm.gcc.download:
+arm.gcc.install:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.gcc.download
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.gcc.install
   artifacts:
     paths:
       - target/toolchain_gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf
   cache:
     - *global_cache
-    - key: "arm.gcc.download:2d7f1739"
+    - key: "arm.gcc.install:2d7f1739"
       paths:
         - target/toolchain_gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf
 
-aarch64.gcc.download:
+arm.rustup.install:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.gcc.download
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.rustup.install
+  artifacts:
+    paths:
+      - target/rustup
+  cache:
+    - *global_cache
+    - key: "arm.rustup.install:2556056a"
+      paths:
+        - target/rustup
+
+aarch64.gcc.install:
+  stage: "0"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.gcc.install
   artifacts:
     paths:
       - target/toolchain_gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu
   cache:
     - *global_cache
-    - key: "aarch64.gcc.download:f93a1603"
+    - key: "aarch64.gcc.install:f93a1603"
       paths:
         - target/toolchain_gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu
+
+aarch64.rustup.install:
+  stage: "0"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.rustup.install
+  artifacts:
+    paths:
+      - target/rustup
+  cache:
+    - *global_cache
+    - key: "aarch64.rustup.install:2556056a"
+      paths:
+        - target/rustup
 
 host.codegen.build:
   stage: "1"
@@ -111,6 +145,7 @@ host.codegen.build:
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.codegen.build
   needs:
     - host.codegen.generate
+    - host.toolchain.install
   artifacts:
     paths:
       - target/codegen_test
@@ -122,6 +157,7 @@ host.app.build:
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app.build
   needs:
     - host.rustup.install
+    - host.toolchain.install
   artifacts:
     paths:
       - target/app
@@ -133,6 +169,7 @@ host.epics_base.build:
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.epics_base.build
   needs:
     - host.epics_base.clone
+    - host.toolchain.install
   artifacts:
     paths:
       - target/epics_base_7.0.6.1_build_host
@@ -144,37 +181,29 @@ host.epics_base.build:
         - target/epics_base_7.0.6.1_build_host
         - target/epics_base_7.0.6.1_install_host
 
-arm.rustup.install:
+arm.app.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.rustup.install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.app.build
   needs:
-    - arm.gcc.download
+    - arm.gcc.install
+    - arm.rustup.install
   artifacts:
     paths:
-      - target/rustup
-  cache:
-    - *global_cache
-    - key: "arm.rustup.install:2556056a"
-      paths:
-        - target/rustup
+      - target/app
 
-aarch64.rustup.install:
+aarch64.app.build:
   stage: "1"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.rustup.install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.app.build
   needs:
-    - aarch64.gcc.download
+    - aarch64.gcc.install
+    - aarch64.rustup.install
   artifacts:
     paths:
-      - target/rustup
-  cache:
-    - *global_cache
-    - key: "aarch64.rustup.install:2556056a"
-      paths:
-        - target/rustup
+      - target/app
 
 host.codegen.test:
   stage: "2"
@@ -201,6 +230,7 @@ host.ioc_example.build:
   needs:
     - host.app.build
     - host.epics_base.build
+    - host.toolchain.install
   artifacts:
     paths:
       - target/ioc_host/ioc_build_host
@@ -212,7 +242,7 @@ arm.epics_base.build:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.epics_base.build
   needs:
-    - arm.gcc.download
+    - arm.gcc.install
     - host.epics_base.build
   artifacts:
     paths:
@@ -225,24 +255,13 @@ arm.epics_base.build:
         - target/epics_base_7.0.6.1_build_arm
         - target/epics_base_7.0.6.1_install_arm
 
-arm.app.build:
-  stage: "2"
-  script:
-    - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.app.build
-  needs:
-    - arm.rustup.install
-  artifacts:
-    paths:
-      - target/app
-
 aarch64.epics_base.build:
   stage: "2"
   script:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.epics_base.build
   needs:
-    - aarch64.gcc.download
+    - aarch64.gcc.install
     - host.epics_base.build
   artifacts:
     paths:
@@ -254,17 +273,6 @@ aarch64.epics_base.build:
       paths:
         - target/epics_base_7.0.6.1_build_aarch64
         - target/epics_base_7.0.6.1_install_aarch64
-
-aarch64.app.build:
-  stage: "2"
-  script:
-    - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.app.build
-  needs:
-    - aarch64.rustup.install
-  artifacts:
-    paths:
-      - target/app
 
 host.fakedev.test:
   stage: "3"
@@ -282,7 +290,7 @@ arm.ioc_example.build:
   needs:
     - arm.app.build
     - arm.epics_base.build
-    - arm.gcc.download
+    - arm.gcc.install
   artifacts:
     paths:
       - target/ioc_arm/ioc_build_arm
@@ -296,7 +304,7 @@ aarch64.ioc_example.build:
   needs:
     - aarch64.app.build
     - aarch64.epics_base.build
-    - aarch64.gcc.download
+    - aarch64.gcc.install
   artifacts:
     paths:
       - target/ioc_aarch64/ioc_build_aarch64
