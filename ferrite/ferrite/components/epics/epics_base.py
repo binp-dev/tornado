@@ -19,8 +19,12 @@ class AbstractEpicsBase(AbstractEpicsProject):
 
     class BuildTask(AbstractEpicsProject.BuildTask):
 
-        def __init__(self, deps: List[Task]):
-            super().__init__(deps=deps, cached=True)
+        def __init__(self) -> None:
+            super().__init__(cached=True)
+
+        @property
+        def owner(self) -> AbstractEpicsBase:
+            raise NotImplementedError()
 
         def _configure_common(self) -> None:
             defs = [
@@ -84,9 +88,9 @@ class EpicsBaseHost(AbstractEpicsBase):
 
     class BuildTask(AbstractEpicsBase.BuildTask):
 
-        def __init__(self, owner: EpicsBaseHost, deps: List[Task]):
+        def __init__(self, owner: EpicsBaseHost):
             self._owner = owner
-            super().__init__(deps=deps)
+            super().__init__()
 
         @property
         def owner(self) -> EpicsBaseHost:
@@ -97,6 +101,12 @@ class EpicsBaseHost(AbstractEpicsBase):
                 [("^(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", "\\1")],
                 self.build_dir / "configure/CONFIG_SITE",
             )
+
+        def dependencies(self) -> List[Task]:
+            return [
+                *super().dependencies(),
+                self.owner.repo.clone_task,
+            ]
 
     def __init__(self, target_dir: Path, toolchain: HostToolchain):
 
@@ -119,10 +129,10 @@ class EpicsBaseHost(AbstractEpicsBase):
             cached=True,
         )
 
-        self._build_task = self.BuildTask(self, deps=[self.repo.clone_task])
+        self._build_task = self.BuildTask(self)
 
     @property
-    def build_task(self) -> EpicsBaseHost.BuildTask:
+    def build_task(self) -> BuildTask:
         return self._build_task
 
     @property
@@ -140,9 +150,9 @@ class EpicsBaseCross(AbstractEpicsBase):
 
     class BuildTask(AbstractEpicsBase.BuildTask):
 
-        def __init__(self, owner: EpicsBaseCross, deps: List[Task]):
+        def __init__(self, owner: EpicsBaseCross):
             self._owner = owner
-            super().__init__(deps=deps)
+            super().__init__()
 
         @property
         def owner(self) -> EpicsBaseCross:
@@ -185,14 +195,19 @@ class EpicsBaseCross(AbstractEpicsBase):
                 ignore=allow_patterns("*.pl", "*.py"),
             )
 
+        def dependencies(self) -> List[Task]:
+            return [
+                *super().dependencies(),
+                self.owner.host_base.build_task,
+            ]
+
     class DeployTask(AbstractEpicsProject.DeployTask):
 
-        def __init__(self, owner: EpicsBaseCross, deploy_path: PurePosixPath, deps: List[Task]):
+        def __init__(self, owner: EpicsBaseCross, deploy_path: PurePosixPath):
             self._owner = owner
 
             super().__init__(
                 deploy_path,
-                deps=deps,
                 blacklist=[
                     "*.a",
                     "include/*",
@@ -204,35 +219,27 @@ class EpicsBaseCross(AbstractEpicsBase):
         def owner(self) -> EpicsBaseCross:
             return self._owner
 
+        def dependencies(self) -> List[Task]:
+            return [
+                *super().dependencies(),
+                self.owner.build_task,
+            ]
+
     def __init__(self, target_dir: Path, toolchain: CrossToolchain, host_base: EpicsBaseHost):
 
         self._toolchain = toolchain
 
-        super().__init__(
-            target_dir,
-            host_base.build_path,
-            host_base.prefix,
-        )
+        super().__init__(target_dir, host_base.build_path, host_base.prefix)
 
         self.host_base = host_base
 
         self.deploy_path = PurePosixPath("/opt/epics_base")
 
-        self._build_task = self.BuildTask(
-            self,
-            deps=[
-                self.toolchain.download_task,
-                self.host_base.build_task,
-            ],
-        )
-        self.deploy_task = self.DeployTask(
-            self,
-            self.deploy_path,
-            [self.build_task],
-        )
+        self._build_task = self.BuildTask(self)
+        self.deploy_task = self.DeployTask(self, self.deploy_path)
 
     @property
-    def build_task(self) -> EpicsBaseCross.BuildTask:
+    def build_task(self) -> BuildTask:
         return self._build_task
 
     @property

@@ -7,20 +7,16 @@ from dataclasses import dataclass, field
 
 from ferrite.utils.run import run, capture
 from ferrite.components.base import Artifact, Component, Task, Context
-from ferrite.components.toolchain import Target, Toolchain, CrossToolchain
+from ferrite.components.toolchain import CrossToolchain, HostToolchain, Target, Toolchain
 
 
 class Rustup(Toolchain):
 
-    class InstallTask(Task):
+    class InstallTask(Toolchain.InstallTask):
 
         def __init__(self, owner: Rustup) -> None:
             super().__init__()
-            self._owner = owner
-
-        @property
-        def owner(self) -> Rustup:
-            return self._owner
+            self.owner = owner
 
         def run(self, ctx: Context) -> None:
             self.owner.install(capture=ctx.capture)
@@ -28,11 +24,20 @@ class Rustup(Toolchain):
         def artifacts(self) -> List[Artifact]:
             return [Artifact(self.owner.path, cached=True)]
 
-    def __init__(self, postfix: str, target: Target, target_dir: Path):
+    def __init__(self, postfix: str, target: Target, target_dir: Path, gcc: Toolchain):
+        self._install_task = self.InstallTask(self)
         super().__init__(f"rustup_{postfix}", target, cached=True)
         self.target_dir = target_dir
         self.path = target_dir / "rustup"
-        self.install_task = self.InstallTask(self)
+        self._gcc = gcc
+
+    @property
+    def install_task(self) -> InstallTask:
+        return self._install_task
+
+    @property
+    def gcc(self) -> Toolchain:
+        return self._gcc
 
     def env(self) -> Dict[str, str]:
         return {
@@ -56,35 +61,31 @@ class HostRustup(Rustup):
 
     _target_pattern: re.Pattern[str] = re.compile(r"^Default host:\s+(\S+)$", re.MULTILINE)
 
-    def __init__(self, target_dir: Path):
+    def __init__(self, target_dir: Path, gcc: HostToolchain):
         info = capture(["rustup", "show"])
         match = re.search(self._target_pattern, info)
         assert match is not None, f"Cannot detect rustup host toolchain:\n{info}"
         target = Target.from_str(match[1])
-        super().__init__("host", target, target_dir)
+        super().__init__("host", target, target_dir, gcc)
 
 
 class CrossRustup(Rustup):
 
-    class InstallTask(Rustup.InstallTask):
-
-        def __init__(self, owner: CrossRustup) -> None:
-            self._cross_owner = owner
-            super().__init__(owner)
-
-        @property
-        def owner(self) -> CrossRustup:
-            return self._cross_owner
-
-        def dependencies(self) -> List[Task]:
-            return [
-                *super().dependencies(),
-                self.owner.gcc.download_task,
-            ]
-
     def __init__(self, postfix: str, target: Target, target_dir: Path, gcc: CrossToolchain):
-        super().__init__(postfix, target, target_dir)
-        self.gcc = gcc
+        self._cross_gcc = gcc
+        super().__init__(postfix, target, target_dir, gcc)
+
+    @property
+    def gcc(self) -> CrossToolchain:
+        return self._cross_gcc
+
+    def env(self) -> Dict[str, str]:
+        target_uu = str(self.target).upper().replace("-", "_")
+        linker_path = self.gcc.path / "bin" / f"{self.gcc.target}-gcc"
+        return {
+            **super().env(),
+            f"CARGO_TARGET_{target_uu}_LINKER": str(linker_path),
+        }
 
 
 class Cargo(Component):
@@ -97,7 +98,11 @@ class Cargo(Component):
             self.owner.build(capture=ctx.capture)
 
         def dependencies(self) -> List[Task]:
-            return self.owner.deps + [self.owner.toolchain.install_task]
+            return [
+                *self.owner.deps,
+                self.owner.toolchain.install_task,
+                self.owner.toolchain.gcc.install_task,
+            ]
 
         def artifacts(self) -> List[Artifact]:
             return [Artifact(self.owner.build_dir)]
@@ -132,16 +137,11 @@ class Cargo(Component):
         self.test_task = self.TestTask(self)
 
     def _env(self) -> Dict[str, str]:
-        env = {
+        return {
             **self.toolchain.env(),
             "CARGO_HOME": str(self.home_dir),
             "CARGO_TARGET_DIR": str(self.build_dir),
         }
-        if isinstance(self.toolchain, CrossRustup):
-            target_uu = str(self.toolchain.target).upper().replace("-", "_")
-            linker_path = self.toolchain.gcc.path / "bin" / f"{self.toolchain.gcc.target}-gcc"
-            env.update({f"CARGO_TARGET_{target_uu}_LINKER": str(linker_path)})
-        return env
 
     @property
     def bin_dir(self) -> Path:

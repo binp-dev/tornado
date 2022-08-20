@@ -32,8 +32,8 @@ class ArmAppRustup(CrossRustup):
 class ArmAppPlatform(AppPlatform):
 
     def __init__(self, name: str, target_dir: Path) -> None:
-        self.gcc = ArmAppToolchain(name, target_dir)
-        self.rustup = ArmAppRustup(name, target_dir, self.gcc)
+        gcc = ArmAppToolchain(name, target_dir)
+        super().__init__(gcc, ArmAppRustup(name, target_dir, gcc))
 
 
 class Aarch64AppToolchain(CrossToolchain):
@@ -61,5 +61,5 @@ class Aarch64AppRustup(CrossRustup):
 class Aarch64AppPlatform(AppPlatform):
 
     def __init__(self, name: str, target_dir: Path) -> None:
-        self.gcc = Aarch64AppToolchain(name, target_dir)
-        self.rustup = Aarch64AppRustup(name, target_dir, self.gcc)
+        gcc = Aarch64AppToolchain(name, target_dir)
+        super().__init__(gcc, Aarch64AppRustup(name, target_dir, gcc))

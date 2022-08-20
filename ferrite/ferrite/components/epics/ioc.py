@@ -7,7 +7,7 @@ import time
 from pathlib import Path, PurePosixPath
 
 from ferrite.utils.files import substitute
-from ferrite.components.base import Task, FinalTask, Context
+from ferrite.components.base import Task, Context
 from ferrite.components.toolchain import HostToolchain, CrossToolchain
 from ferrite.components.epics.base import AbstractEpicsProject
 from ferrite.components.epics.epics_base import AbstractEpicsBase, EpicsBaseCross, EpicsBaseHost
@@ -18,13 +18,9 @@ class AbstractIoc(AbstractEpicsProject):
 
     class BuildTask(AbstractEpicsProject.BuildTask):
 
-        def __init__(
-            self,
-            owner: AbstractIoc,
-            deps: List[Task],
-        ):
+        def __init__(self, owner: AbstractIoc):
             self._owner = owner
-            super().__init__(deps=deps, clean=True)
+            super().__init__(clean=True)
             self.epics_base_dir = self.owner.epics_base.build_path
 
         @property
@@ -61,11 +57,11 @@ class AbstractIoc(AbstractEpicsProject):
                 ignore=shutil.ignore_patterns("Makefile"),
             )
 
-    def _build_deps(self) -> List[Task]:
-        return [self.epics_base.build_task]
-
-    def _make_build_task(self) -> AbstractIoc.BuildTask:
-        return self.BuildTask(self, deps=self._build_deps())
+        def dependencies(self) -> List[Task]:
+            return [
+                *super().dependencies(),
+                self.owner.epics_base.build_task,
+            ]
 
     def __init__(
         self,
@@ -84,7 +80,11 @@ class AbstractIoc(AbstractEpicsProject):
         self._epics_base = epics_base
         super().__init__(target_dir, src_dir, name)
         self.ioc_dirs = ioc_dirs
-        self.build_task = self._make_build_task()
+        self._build_task = self.BuildTask(self)
+
+    @property
+    def build_task(self) -> BuildTask:
+        return self._build_task
 
     @property
     def epics_base(self) -> AbstractEpicsBase:
@@ -109,7 +109,6 @@ class IocHost(AbstractIoc):
     ):
         self._epics_base_host = epics_base
         super().__init__(name, ioc_dirs, target_dir, epics_base)
-        self.build_task = self._make_build_task()
 
     @property
     def epics_base(self) -> EpicsBaseHost:
@@ -138,10 +137,9 @@ class IocCross(AbstractIoc):
             owner: IocCross,
             deploy_dir: PurePosixPath,
             epics_deploy_path: PurePosixPath,
-            deps: List[Task],
         ):
             self._owner = owner
-            super().__init__(deploy_dir, deps)
+            super().__init__(deploy_dir)
             self.epics_deploy_path = epics_deploy_path
 
         @property
@@ -164,7 +162,7 @@ class IocCross(AbstractIoc):
                 text = re.sub(r'(epicsEnvSet\("EPICS_BASE",)[^\n]+', f'\\1"{self.epics_deploy_path}")', text)
                 ctx.device.store_mem(text, self.deploy_path / "iocBoot" / ioc_name / "envPaths")
 
-    class RunTask(FinalTask):
+    class RunTask(Task):
 
         def __init__(self, owner: IocCross):
             super().__init__()
@@ -186,17 +184,10 @@ class IocCross(AbstractIoc):
                     pass
 
         def dependencies(self) -> List[Task]:
-            assert isinstance(self.owner.epics_base, EpicsBaseCross)
             return [
                 self.owner.epics_base.deploy_task,
                 self.owner.deploy_task,
             ]
-
-    def _build_deps(self) -> List[Task]:
-        return [
-            self.toolchain.download_task,
-            *super()._build_deps(),
-        ]
 
     def __init__(
         self,
@@ -214,7 +205,6 @@ class IocCross(AbstractIoc):
             self,
             self.deploy_path,
             self.epics_base.deploy_path,
-            [self.build_task],
         )
         self.run_task = self.RunTask(self)
 

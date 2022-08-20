@@ -21,11 +21,10 @@ class Cmake(Component):
             self.owner.build(jobs=ctx.jobs, capture=ctx.capture)
 
         def dependencies(self) -> List[Task]:
-            deps: List[Task] = []
-            if isinstance(self.owner.toolchain, CrossToolchain):
-                deps.append(self.owner.toolchain.download_task)
-            deps.extend(self.owner.deps)
-            return deps
+            return [
+                *self.owner.deps,
+                self.owner.toolchain.install_task,
+            ]
 
         def artifacts(self) -> List[Artifact]:
             return [Artifact(self.owner.build_dir)]

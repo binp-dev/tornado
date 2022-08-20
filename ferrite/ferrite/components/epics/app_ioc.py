@@ -8,7 +8,7 @@ from ferrite.utils.files import substitute
 from ferrite.components.base import Context, Task
 from ferrite.components.app import AppBase
 from ferrite.components.epics.epics_base import AbstractEpicsBase
-from ferrite.components.epics.ioc import AbstractIoc, IocCross, IocHost
+from ferrite.components.epics.ioc import AbstractIoc
 
 
 class AbstractAppIoc(AbstractIoc):
@@ -18,11 +18,10 @@ class AbstractAppIoc(AbstractIoc):
         def __init__(
             self,
             owner: AbstractAppIoc,
-            deps: List[Task],
             app_lib_name: str = "libapp.so",
         ):
             self._app_owner = owner
-            super().__init__(owner, deps=deps)
+            super().__init__(owner)
 
             self.app_build_dir = self.owner.app.build_dir
             self.app_lib_name = app_lib_name
@@ -62,13 +61,11 @@ class AbstractAppIoc(AbstractIoc):
             # Copy App shared lib to the IOC even if IOC wasn't built.
             self._store_app_lib()
 
-    def _build_deps(self) -> List[Task]:
-        deps = super()._build_deps()
-        deps.append(self.app.build_task)
-        return deps
-
-    def _make_build_task(self) -> AbstractAppIoc.BuildTask:
-        return self.BuildTask(self, deps=self._build_deps())
+        def dependencies(self) -> List[Task]:
+            return [
+                *super().dependencies(),
+                self.owner.app.build_task,
+            ]
 
     def __init__(
         self,

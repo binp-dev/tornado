@@ -6,12 +6,13 @@ from pathlib import Path
 from ferrite.components.base import Component, ComponentGroup
 from ferrite.components.core import CoreTest
 from ferrite.components.platforms.base import AppPlatform
-from ferrite.components.toolchain import CrossToolchain, HostToolchain, Target
+from ferrite.components.platforms.host import HostAppPlatform
+from ferrite.components.toolchain import HostToolchain
 from ferrite.components.codegen import CodegenExample
 from ferrite.components.fakedev import Fakedev
 from ferrite.components.all_ import AllCross, AllHost
-from ferrite.components.platforms.arm import Aarch64AppPlatform, ArmAppPlatform, ArmAppToolchain, Aarch64AppToolchain
-from ferrite.components.rust import HostRustup, CrossRustup
+from ferrite.components.platforms.arm import Aarch64AppPlatform, ArmAppPlatform
+from ferrite.components.rust import HostRustup
 from ferrite.components.app import AppBase
 from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 from ferrite.components.epics.ioc_example import IocHostExample, IocCrossExample
@@ -23,9 +24,10 @@ class _HostComponents(ComponentGroup):
         self,
         source_dir: Path,
         target_dir: Path,
+        platform: HostAppPlatform,
     ) -> None:
-        self.toolchain = HostToolchain()
-        self.rustup = HostRustup(target_dir)
+        self.toolchain = platform.gcc
+        self.rustup = platform.rustup
         self.epics_base = EpicsBaseHost(target_dir, self.toolchain)
         self.core_test = CoreTest(source_dir, target_dir, self.toolchain)
         self.codegen = CodegenExample(source_dir, target_dir, self.toolchain)
@@ -65,7 +67,11 @@ class _Components(ComponentGroup):
         source_dir: Path,
         target_dir: Path,
     ):
-        self.host = _HostComponents(source_dir, target_dir)
+        self.host = _HostComponents(
+            source_dir,
+            target_dir,
+            HostAppPlatform(target_dir),
+        )
 
         self.arm = _CrossComponents(
             source_dir,

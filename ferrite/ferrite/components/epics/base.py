@@ -92,7 +92,6 @@ class AbstractEpicsProject(Component):
 
     @dataclass
     class BuildTask(Task):
-        deps: List[Task]
         clean: bool = False
         cached: bool = False
 
@@ -170,7 +169,7 @@ class AbstractEpicsProject(Component):
             self._install()
 
         def dependencies(self) -> List[Task]:
-            return self.deps
+            return [self.owner.toolchain.install_task]
 
         def artifacts(self) -> List[Artifact]:
             return [
@@ -181,7 +180,6 @@ class AbstractEpicsProject(Component):
     @dataclass
     class DeployTask(Task):
         deploy_path: PurePosixPath
-        deps: List[Task]
         blacklist: List[str] = field(default_factory=lambda: [])
 
         @property
@@ -207,7 +205,7 @@ class AbstractEpicsProject(Component):
             self._post(ctx)
 
         def dependencies(self) -> List[Task]:
-            return self.deps
+            return [self.owner.build_task]
 
     def __init__(self, target_dir: Path, src_path: Path, prefix: str) -> None:
         super().__init__()
@@ -224,4 +222,8 @@ class AbstractEpicsProject(Component):
 
     @property
     def toolchain(self) -> Toolchain:
-        raise NotImplementedError
+        raise NotImplementedError()
+
+    @property
+    def build_task(self) -> BuildTask:
+        raise NotImplementedError()

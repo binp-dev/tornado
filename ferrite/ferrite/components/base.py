@@ -48,10 +48,10 @@ class Task:
         return []
 
 
-class FinalTask(Task):
+class EmptyTask(Task):
 
-    def __init__(self) -> None:
-        super().__init__()
+    def run(self, ctx: Context) -> None:
+        pass
 
 
 class TaskList(Task):

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from ferrite.utils.run import capture
 from ferrite.utils.net import download_alt
-from ferrite.components.base import Artifact, Component, Task, Context
+from ferrite.components.base import Artifact, Component, EmptyTask, Task, Context
 from ferrite.remote.base import Device
 
 import logging
@@ -49,23 +49,39 @@ class Target:
 
 @dataclass
 class Toolchain(Component):
+
     name: str
     target: Target
     cached: bool = False
 
+    class InstallTask(Task):
+        pass
+
+    @property
+    def install_task(self) -> InstallTask:
+        raise NotImplementedError()
+
 
 class HostToolchain(Toolchain):
 
+    class InstallTask(Toolchain.InstallTask, EmptyTask):
+        pass
+
     def __init__(self) -> None:
         super().__init__("host", Target.from_str(capture(["gcc", "-dumpmachine"])))
+        self._install_task = self.InstallTask()
+
+    @property
+    def install_task(self) -> InstallTask:
+        return self._install_task
 
     def tasks(self) -> Dict[str, Task]:
-        return {}
+        return {"install": self.install_task}
 
 
 class CrossToolchain(Toolchain):
 
-    class DownloadTask(Task):
+    class InstallTask(Toolchain.InstallTask):
 
         def __init__(self, owner: CrossToolchain) -> None:
             super().__init__()
@@ -99,8 +115,12 @@ class CrossToolchain(Toolchain):
         self.path = target_dir / f"toolchain_{self.dir_name}"
         self.deploy_path = PurePosixPath("/opt/toolchain")
 
-        self.download_task = self.DownloadTask(self)
+        self._install_task = self.InstallTask(self)
         self.deploy_task = self.DeployTask(self)
+
+    @property
+    def install_task(self) -> InstallTask:
+        return self._install_task
 
     def download(self) -> bool:
         if self.path.exists():
@@ -142,6 +162,6 @@ class CrossToolchain(Toolchain):
 
     def tasks(self) -> Dict[str, Task]:
         return {
-            "download": self.download_task,
+            "install": self.install_task,
             "deploy": self.deploy_task,
         }
