@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 
-from ferrite.components.freertos import Freertos
-from ferrite.components.platforms.base import AppPlatform, McuPlatform, Platform
-from ferrite.components.toolchain import Target, CrossToolchain
+from ferrite.components.compiler import Target, GccCross
 from ferrite.components.mcu import McuDeployer
+from ferrite.components.freertos import Freertos
+from ferrite.components.platforms.base import McuPlatform, Platform
 from ferrite.components.platforms.arm import ArmAppPlatform
 from ferrite.remote.base import Device
 
@@ -16,7 +16,7 @@ class Imx7AppPlatform(ArmAppPlatform):
         super().__init__("imx7", target_dir)
 
 
-class Imx7McuToolchain(CrossToolchain):
+class Imx7McuToolchain(GccCross):
 
     def __init__(self, target_dir: Path) -> None:
         super().__init__(

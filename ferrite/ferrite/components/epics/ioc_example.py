@@ -44,7 +44,7 @@ class IocCrossExample(AbstractAppIoc, IocCross):
 
         super().__init__(
             [source_dir / "ioc"],
-            target_dir / f"ioc_{epics_base.toolchain.name}",
+            target_dir / f"ioc_{epics_base.cc.name}",
             epics_base,
             app,
         )

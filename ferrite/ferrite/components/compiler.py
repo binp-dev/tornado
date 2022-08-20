@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, List, overload
+from typing import Dict, List, Literal, overload
 
 import shutil
 from pathlib import Path, PurePosixPath
@@ -48,7 +48,7 @@ class Target:
 
 
 @dataclass
-class Toolchain(Component):
+class Compiler(Component):
 
     name: str
     target: Target
@@ -62,14 +62,25 @@ class Toolchain(Component):
         raise NotImplementedError()
 
 
-class HostToolchain(Toolchain):
+@dataclass
+class Gcc(Compiler):
+    BinType = Literal["gcc", "g++"]
 
-    class InstallTask(Toolchain.InstallTask, EmptyTask):
+    def bin(self, name: BinType) -> Path:
+        raise NotImplementedError()
+
+
+class GccHost(Gcc):
+
+    class InstallTask(Gcc.InstallTask, EmptyTask):
         pass
 
     def __init__(self) -> None:
         super().__init__("host", Target.from_str(capture(["gcc", "-dumpmachine"])))
         self._install_task = self.InstallTask()
+
+    def bin(self, name: Gcc.BinType) -> Path:
+        return Path("/usr/bin") / name
 
     @property
     def install_task(self) -> InstallTask:
@@ -79,11 +90,11 @@ class HostToolchain(Toolchain):
         return {"install": self.install_task}
 
 
-class CrossToolchain(Toolchain):
+class GccCross(Gcc):
 
-    class InstallTask(Toolchain.InstallTask):
+    class InstallTask(Gcc.InstallTask):
 
-        def __init__(self, owner: CrossToolchain) -> None:
+        def __init__(self, owner: GccCross) -> None:
             super().__init__()
             self.owner = owner
 
@@ -95,7 +106,7 @@ class CrossToolchain(Toolchain):
 
     class DeployTask(Task):
 
-        def __init__(self, owner: CrossToolchain) -> None:
+        def __init__(self, owner: GccCross) -> None:
             super().__init__()
             self.owner = owner
 
@@ -117,6 +128,9 @@ class CrossToolchain(Toolchain):
 
         self._install_task = self.InstallTask(self)
         self.deploy_task = self.DeployTask(self)
+
+    def bin(self, name: Gcc.BinType) -> Path:
+        return self.path / "bin" / f"{self.target}-{name}"
 
     @property
     def install_task(self) -> InstallTask:

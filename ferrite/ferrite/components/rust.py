@@ -3,18 +3,18 @@ from typing import Dict, List, Any
 
 import re
 from pathlib import Path
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ferrite.utils.run import run, capture
 from ferrite.components.base import Artifact, Component, Task, Context
-from ferrite.components.toolchain import CrossToolchain, HostToolchain, Target, Toolchain
+from ferrite.components.compiler import Compiler, Gcc, GccCross, GccHost, Target
 
 
-class Rustup(Toolchain):
+class Rustc(Compiler):
 
-    class InstallTask(Toolchain.InstallTask):
+    class InstallTask(Compiler.InstallTask):
 
-        def __init__(self, owner: Rustup) -> None:
+        def __init__(self, owner: Rustc) -> None:
             super().__init__()
             self.owner = owner
 
@@ -24,20 +24,20 @@ class Rustup(Toolchain):
         def artifacts(self) -> List[Artifact]:
             return [Artifact(self.owner.path, cached=True)]
 
-    def __init__(self, postfix: str, target: Target, target_dir: Path, gcc: Toolchain):
+    def __init__(self, postfix: str, target: Target, target_dir: Path, cc: Gcc):
         self._install_task = self.InstallTask(self)
-        super().__init__(f"rustup_{postfix}", target, cached=True)
+        super().__init__(f"rustc_{postfix}", target, cached=True)
         self.target_dir = target_dir
         self.path = target_dir / "rustup"
-        self._gcc = gcc
+        self._cc = cc
 
     @property
     def install_task(self) -> InstallTask:
         return self._install_task
 
     @property
-    def gcc(self) -> Toolchain:
-        return self._gcc
+    def cc(self) -> Gcc:
+        return self._cc
 
     def env(self) -> Dict[str, str]:
         return {
@@ -57,34 +57,34 @@ class Rustup(Toolchain):
         return {"install": self.install_task}
 
 
-class HostRustup(Rustup):
+class RustcHost(Rustc):
 
     _target_pattern: re.Pattern[str] = re.compile(r"^Default host:\s+(\S+)$", re.MULTILINE)
 
-    def __init__(self, target_dir: Path, gcc: HostToolchain):
+    def __init__(self, target_dir: Path, cc: GccHost):
         info = capture(["rustup", "show"])
         match = re.search(self._target_pattern, info)
-        assert match is not None, f"Cannot detect rustup host toolchain:\n{info}"
+        assert match is not None, f"Cannot detect rustup host rustc:\n{info}"
         target = Target.from_str(match[1])
-        super().__init__("host", target, target_dir, gcc)
+        super().__init__("host", target, target_dir, cc)
 
 
-class CrossRustup(Rustup):
+class RustcCross(Rustc):
 
-    def __init__(self, postfix: str, target: Target, target_dir: Path, gcc: CrossToolchain):
-        self._cross_gcc = gcc
-        super().__init__(postfix, target, target_dir, gcc)
+    def __init__(self, postfix: str, target: Target, target_dir: Path, cc: GccCross):
+        self._cc_cross = cc
+        super().__init__(postfix, target, target_dir, cc)
 
     @property
-    def gcc(self) -> CrossToolchain:
-        return self._cross_gcc
+    def cc(self) -> GccCross:
+        return self._cc_cross
 
     def env(self) -> Dict[str, str]:
         target_uu = str(self.target).upper().replace("-", "_")
-        linker_path = self.gcc.path / "bin" / f"{self.gcc.target}-gcc"
+        linker = self.cc.bin("gcc")
         return {
             **super().env(),
-            f"CARGO_TARGET_{target_uu}_LINKER": str(linker_path),
+            f"CARGO_TARGET_{target_uu}_LINKER": str(linker),
         }
 
 
@@ -100,8 +100,8 @@ class Cargo(Component):
         def dependencies(self) -> List[Task]:
             return [
                 *self.owner.deps,
-                self.owner.toolchain.install_task,
-                self.owner.toolchain.gcc.install_task,
+                self.owner.rustc.install_task,
+                self.owner.rustc.cc.install_task,
             ]
 
         def artifacts(self) -> List[Artifact]:
@@ -115,41 +115,41 @@ class Cargo(Component):
             self.owner.test(capture=ctx.capture)
 
         def dependencies(self) -> List[Task]:
-            return [self.owner.build_task, self.owner.toolchain.install_task]
+            return [self.owner.build_task, self.owner.rustc.install_task]
 
     def __init__(
         self,
         src_dir: Path,
         build_dir: Path,
-        toolchain: Rustup,
+        rustc: Rustc,
         deps: List[Task] = [],
     ) -> None:
         super().__init__()
 
         self.src_dir = src_dir
         self.build_dir = build_dir
-        self.toolchain = toolchain
+        self.rustc = rustc
         self.deps = deps
 
-        self.home_dir = self.toolchain.target_dir / "cargo"
+        self.home_dir = self.rustc.target_dir / "cargo"
 
         self.build_task = self.BuildTask(self)
         self.test_task = self.TestTask(self)
 
     def _env(self) -> Dict[str, str]:
         return {
-            **self.toolchain.env(),
+            **self.rustc.env(),
             "CARGO_HOME": str(self.home_dir),
             "CARGO_TARGET_DIR": str(self.build_dir),
         }
 
     @property
     def bin_dir(self) -> Path:
-        return self.build_dir / str(self.toolchain.target) / "debug"
+        return self.build_dir / str(self.rustc.target) / "debug"
 
     def build(self, capture: bool = False) -> None:
         run(
-            ["cargo", "build", f"--target={self.toolchain.target}"],
+            ["cargo", "build", f"--target={self.rustc.target}"],
             cwd=self.src_dir,
             add_env=self._env(),
             quiet=capture,

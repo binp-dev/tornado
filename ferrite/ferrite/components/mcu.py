@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ferrite.components.base import Artifact, Component, Task, Context, TaskWrapper
 from ferrite.components.cmake import Cmake
-from ferrite.components.toolchain import CrossToolchain
+from ferrite.components.compiler import GccCross
 from ferrite.components.freertos import Freertos
 from ferrite.remote.base import Device
 from ferrite.remote.tasks import RebootTask
@@ -45,7 +45,7 @@ class McuBase(Cmake):
         name: str,
         src_dir: Path,
         target_dir: Path,
-        toolchain: CrossToolchain,
+        cc: GccCross,
         freertos: Freertos,
         deployer: McuDeployer,
         target: str,
@@ -53,12 +53,10 @@ class McuBase(Cmake):
         envs: Dict[str, str] = {},
         deps: List[Task] = [],
     ):
-        toolchain = toolchain
-
         super().__init__(
             src_dir,
             target_dir / name,
-            toolchain,
+            cc,
             target=target,
             opts=[
                 "-DCMAKE_TOOLCHAIN_FILE={}".format(freertos.path / "tools/cmake_toolchain_files/armgcc.cmake"),
@@ -67,7 +65,7 @@ class McuBase(Cmake):
             ],
             envs={
                 "FREERTOS_DIR": str(freertos.path),
-                "ARMGCC_DIR": str(toolchain.path),
+                "ARMGCC_DIR": str(cc.path),
                 **envs,
             },
             deps=[

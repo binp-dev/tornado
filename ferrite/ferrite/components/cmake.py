@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from ferrite.utils.run import run
 from ferrite.components.base import Artifact, Component, Task, Context
-from ferrite.components.toolchain import CrossToolchain, Toolchain
+from ferrite.components.compiler import Gcc
 
 
 @dataclass
@@ -23,7 +23,7 @@ class Cmake(Component):
         def dependencies(self) -> List[Task]:
             return [
                 *self.owner.deps,
-                self.owner.toolchain.install_task,
+                self.owner.cc.install_task,
             ]
 
         def artifacts(self) -> List[Artifact]:
@@ -31,7 +31,7 @@ class Cmake(Component):
 
     src_dir: Path
     build_dir: Path
-    toolchain: Toolchain
+    cc: Gcc
     target: str # FIXME: Rename to `cmake_target`
     opts: List[str] = field(default_factory=list)
     envs: Dict[str, str] = field(default_factory=dict)

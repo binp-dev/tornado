@@ -48,23 +48,23 @@ host.codegen.generate:
     paths:
       - target/codegen
 
-host.toolchain.install:
+host.gcc.install:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.toolchain.install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.gcc.install
 
-host.rustup.install:
+host.rustc.install:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.rustup.install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture host.rustc.install
   artifacts:
     paths:
       - target/rustup
   cache:
     - *global_cache
-    - key: "host.rustup.install:2556056a"
+    - key: "host.rustc.install:2556056a"
       paths:
         - target/rustup
 
@@ -96,17 +96,17 @@ arm.gcc.install:
       paths:
         - target/toolchain_gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf
 
-arm.rustup.install:
+arm.rustc.install:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.rustup.install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.rustc.install
   artifacts:
     paths:
       - target/rustup
   cache:
     - *global_cache
-    - key: "arm.rustup.install:2556056a"
+    - key: "arm.rustc.install:2556056a"
       paths:
         - target/rustup
 
@@ -124,17 +124,17 @@ aarch64.gcc.install:
       paths:
         - target/toolchain_gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu
 
-aarch64.rustup.install:
+aarch64.rustc.install:
   stage: "0"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.rustup.install
+    - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.rustc.install
   artifacts:
     paths:
       - target/rustup
   cache:
     - *global_cache
-    - key: "aarch64.rustup.install:2556056a"
+    - key: "aarch64.rustc.install:2556056a"
       paths:
         - target/rustup
 
@@ -145,7 +145,7 @@ host.codegen.build:
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.codegen.build
   needs:
     - host.codegen.generate
-    - host.toolchain.install
+    - host.gcc.install
   artifacts:
     paths:
       - target/codegen_test
@@ -156,8 +156,8 @@ host.app.build:
     - poetry install
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app.build
   needs:
-    - host.rustup.install
-    - host.toolchain.install
+    - host.gcc.install
+    - host.rustc.install
   artifacts:
     paths:
       - target/app
@@ -169,7 +169,7 @@ host.epics_base.build:
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.epics_base.build
   needs:
     - host.epics_base.clone
-    - host.toolchain.install
+    - host.gcc.install
   artifacts:
     paths:
       - target/epics_base_7.0.6.1_build_host
@@ -188,7 +188,7 @@ arm.app.build:
     - poetry run python -u -m ferrite.manage --no-deps --no-capture arm.app.build
   needs:
     - arm.gcc.install
-    - arm.rustup.install
+    - arm.rustc.install
   artifacts:
     paths:
       - target/app
@@ -200,7 +200,7 @@ aarch64.app.build:
     - poetry run python -u -m ferrite.manage --no-deps --no-capture aarch64.app.build
   needs:
     - aarch64.gcc.install
-    - aarch64.rustup.install
+    - aarch64.rustc.install
   artifacts:
     paths:
       - target/app
@@ -220,7 +220,7 @@ host.app.test:
     - poetry run python -u -m ferrite.manage --no-deps --no-capture host.app.test
   needs:
     - host.app.build
-    - host.rustup.install
+    - host.rustc.install
 
 host.ioc_example.build:
   stage: "2"
@@ -230,7 +230,7 @@ host.ioc_example.build:
   needs:
     - host.app.build
     - host.epics_base.build
-    - host.toolchain.install
+    - host.gcc.install
   artifacts:
     paths:
       - target/ioc_host/ioc_build_host

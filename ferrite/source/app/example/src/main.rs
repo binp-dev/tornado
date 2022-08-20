@@ -5,7 +5,7 @@ use std::{
 };
 
 fn main() -> io::Result<()> {
-    let mut stream = TcpStream::connect("localhost:4884")?;
+    let mut stream = TcpStream::connect("127.0.0.1:4884")?;
 
     let send_msg = b"Hello, Fakedev!";
     stream.write_all(send_msg)?;

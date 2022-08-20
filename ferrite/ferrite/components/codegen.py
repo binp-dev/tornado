@@ -4,11 +4,10 @@ from typing import Callable, Dict, List
 import shutil
 from pathlib import Path
 from dataclasses import dataclass
-from ferrite.components.cmake import Cmake
 
 from ferrite.components.base import Artifact, Component, Task, Context
 from ferrite.components.conan import CmakeRunnableWithConan
-from ferrite.components.toolchain import HostToolchain, Toolchain
+from ferrite.components.compiler import GccHost, Gcc
 
 
 class Codegen(Component):
@@ -30,7 +29,7 @@ class Codegen(Component):
         self,
         assets_dir: Path,
         target_dir: Path,
-        toolchain: Toolchain,
+        cc: Gcc,
         prefix: str,
         generate: Callable[[Path], None],
     ):
@@ -38,7 +37,7 @@ class Codegen(Component):
 
         self.assets_dir = assets_dir
         self.gen_dir = target_dir / self.prefix
-        self.build_dir = target_dir / f"{self.prefix}_{toolchain.name}"
+        self.build_dir = target_dir / f"{self.prefix}_{cc.name}"
         self.test_dir = target_dir / f"{self.prefix}_test"
 
         self.generate = generate
@@ -57,14 +56,14 @@ class CodegenWithTest(Codegen):
         assets_dir: Path,
         ferrite_source_dir: Path,
         target_dir: Path,
-        toolchain: HostToolchain,
+        cc: GccHost,
         prefix: str,
         generate: Callable[[Path], None],
     ):
         super().__init__(
             assets_dir,
             target_dir,
-            toolchain,
+            cc,
             prefix,
             generate,
         )
@@ -72,7 +71,7 @@ class CodegenWithTest(Codegen):
         self.cmake = CmakeRunnableWithConan(
             self.gen_dir / "test",
             self.test_dir,
-            toolchain,
+            cc,
             target=f"{self.prefix}_test",
             opts=[f"-DFERRITE={ferrite_source_dir}"],
             deps=[self.generate_task],
@@ -94,7 +93,7 @@ class CodegenExample(CodegenWithTest):
         self,
         source_dir: Path,
         target_dir: Path,
-        toolchain: HostToolchain,
+        cc: GccHost,
     ):
         from ferrite.codegen.test import generate
 
@@ -102,7 +101,7 @@ class CodegenExample(CodegenWithTest):
             source_dir / "codegen",
             source_dir,
             target_dir,
-            toolchain,
+            cc,
             "codegen",
             generate,
         )

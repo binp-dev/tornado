@@ -8,7 +8,7 @@ from pathlib import Path, PurePosixPath
 
 from ferrite.utils.files import substitute
 from ferrite.components.base import Task, Context
-from ferrite.components.toolchain import HostToolchain, CrossToolchain
+from ferrite.components.compiler import GccHost, GccCross
 from ferrite.components.epics.base import AbstractEpicsProject
 from ferrite.components.epics.epics_base import AbstractEpicsBase, EpicsBaseCross, EpicsBaseHost
 from ferrite.utils.epics.ioc_remote import IocRemoteRunner
@@ -115,8 +115,8 @@ class IocHost(AbstractIoc):
         return self._epics_base_host
 
     @property
-    def toolchain(self) -> HostToolchain:
-        return self.epics_base.toolchain
+    def cc(self) -> GccHost:
+        return self.epics_base.cc
 
 
 class IocCross(AbstractIoc):
@@ -213,8 +213,8 @@ class IocCross(AbstractIoc):
         return self._epics_base_cross
 
     @property
-    def toolchain(self) -> CrossToolchain:
-        return self.epics_base.toolchain
+    def cc(self) -> GccCross:
+        return self.epics_base.cc
 
     def tasks(self) -> Dict[str, Task]:
         tasks = super().tasks()

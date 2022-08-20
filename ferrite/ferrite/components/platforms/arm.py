@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ferrite.components.toolchain import Target, CrossToolchain
-from ferrite.components.rust import CrossRustup
+from ferrite.components.compiler import Target, GccCross
+from ferrite.components.rust import RustcCross
 from ferrite.components.platforms.base import AppPlatform
 
 
-class ArmAppToolchain(CrossToolchain):
+class ArmAppToolchain(GccCross):
 
     def __init__(self, name: str, target_dir: Path) -> None:
         super().__init__(
@@ -23,9 +23,9 @@ class ArmAppToolchain(CrossToolchain):
         )
 
 
-class ArmAppRustup(CrossRustup):
+class ArmAppRustc(RustcCross):
 
-    def __init__(self, postfix: str, target_dir: Path, gcc: CrossToolchain):
+    def __init__(self, postfix: str, target_dir: Path, gcc: GccCross):
         super().__init__(postfix, Target.from_str("armv7-unknown-linux-gnueabihf"), target_dir, gcc)
 
 
@@ -33,10 +33,10 @@ class ArmAppPlatform(AppPlatform):
 
     def __init__(self, name: str, target_dir: Path) -> None:
         gcc = ArmAppToolchain(name, target_dir)
-        super().__init__(gcc, ArmAppRustup(name, target_dir, gcc))
+        super().__init__(gcc, ArmAppRustc(name, target_dir, gcc))
 
 
-class Aarch64AppToolchain(CrossToolchain):
+class Aarch64AppToolchain(GccCross):
 
     def __init__(self, name: str, target_dir: Path) -> None:
         super().__init__(
@@ -52,9 +52,9 @@ class Aarch64AppToolchain(CrossToolchain):
         )
 
 
-class Aarch64AppRustup(CrossRustup):
+class Aarch64AppRustc(RustcCross):
 
-    def __init__(self, postfix: str, target_dir: Path, gcc: CrossToolchain):
+    def __init__(self, postfix: str, target_dir: Path, gcc: GccCross):
         super().__init__(postfix, Target.from_str("aarch64-unknown-linux-gnu"), target_dir, gcc)
 
 
@@ -62,4 +62,4 @@ class Aarch64AppPlatform(AppPlatform):
 
     def __init__(self, name: str, target_dir: Path) -> None:
         gcc = Aarch64AppToolchain(name, target_dir)
-        super().__init__(gcc, Aarch64AppRustup(name, target_dir, gcc))
+        super().__init__(gcc, Aarch64AppRustc(name, target_dir, gcc))

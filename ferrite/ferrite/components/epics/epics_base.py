@@ -7,7 +7,7 @@ from pathlib import Path, PurePosixPath
 from ferrite.utils.files import substitute, allow_patterns
 from ferrite.components.base import Task
 from ferrite.components.git import RepoList, RepoSource
-from ferrite.components.toolchain import HostToolchain, CrossToolchain
+from ferrite.components.compiler import GccHost, GccCross
 from ferrite.components.epics.base import AbstractEpicsProject
 
 import logging
@@ -108,12 +108,12 @@ class EpicsBaseHost(AbstractEpicsBase):
                 self.owner.repo.clone_task,
             ]
 
-    def __init__(self, target_dir: Path, toolchain: HostToolchain):
+    def __init__(self, target_dir: Path, cc: GccHost):
 
         self.version = "7.0.6.1"
         prefix = f"epics_base_{self.version}"
 
-        self._toolchain = toolchain
+        self._cc = cc
         super().__init__(
             target_dir,
             target_dir / f"{prefix}_src",
@@ -136,8 +136,8 @@ class EpicsBaseHost(AbstractEpicsBase):
         return self._build_task
 
     @property
-    def toolchain(self) -> HostToolchain:
-        return self._toolchain
+    def cc(self) -> GccHost:
+        return self._cc
 
     def tasks(self) -> Dict[str, Task]:
         return {
@@ -159,7 +159,7 @@ class EpicsBaseCross(AbstractEpicsBase):
             return self._owner
 
         def _configure_toolchain(self) -> None:
-            toolchain = self.owner.toolchain
+            cc = self.owner.cc
 
             host_arch = self.owner.host_base.arch
             cross_arch = self.owner.arch
@@ -174,8 +174,8 @@ class EpicsBaseCross(AbstractEpicsBase):
             )
             substitute(
                 [
-                    ("^(\\s*GNU_TARGET\\s*=).*$", f"\\1 {str(toolchain.target)}"),
-                    ("^(\\s*GNU_DIR\\s*=).*$", f"\\1 {toolchain.path}"),
+                    ("^(\\s*GNU_TARGET\\s*=).*$", f"\\1 {str(cc.target)}"),
+                    ("^(\\s*GNU_DIR\\s*=).*$", f"\\1 {cc.path}"),
                 ],
                 self.build_dir / f"configure/os/CONFIG_SITE.{host_arch}.{cross_arch}",
             )
@@ -225,9 +225,9 @@ class EpicsBaseCross(AbstractEpicsBase):
                 self.owner.build_task,
             ]
 
-    def __init__(self, target_dir: Path, toolchain: CrossToolchain, host_base: EpicsBaseHost):
+    def __init__(self, target_dir: Path, cc: GccCross, host_base: EpicsBaseHost):
 
-        self._toolchain = toolchain
+        self._cc = cc
 
         super().__init__(target_dir, host_base.build_path, host_base.prefix)
 
@@ -243,8 +243,8 @@ class EpicsBaseCross(AbstractEpicsBase):
         return self._build_task
 
     @property
-    def toolchain(self) -> CrossToolchain:
-        return self._toolchain
+    def cc(self) -> GccCross:
+        return self._cc
 
     def tasks(self) -> Dict[str, Task]:
         return {

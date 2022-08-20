@@ -10,7 +10,7 @@ import pydantic
 from ferrite.utils.run import capture, run
 from ferrite.components.base import Context
 from ferrite.components.cmake import Cmake, CmakeRunnable
-from ferrite.components.toolchain import Toolchain, HostToolchain, CrossToolchain
+from ferrite.components.compiler import Gcc, GccHost, GccCross
 
 
 @dataclass
@@ -90,11 +90,11 @@ def make_conanfile(base_dir: Path, vars: Dict[str, str] = {}) -> Conanfile:
 
 class ConanProfile:
 
-    def __init__(self, toolchain: Toolchain):
-        self.toolchain = toolchain
+    def __init__(self, cc: Gcc):
+        self.cc = cc
 
     def generate(self) -> str:
-        tc = self.toolchain
+        tc = self.cc
 
         if tc.target.isa == "x86_64":
             arch = "x86_64"
@@ -110,12 +110,12 @@ class ConanProfile:
         else:
             raise RuntimeError(f"Unsupported os '{tc.target.api}'")
 
-        if isinstance(tc, HostToolchain):
+        if isinstance(tc, GccHost):
             tc_prefix = ""
-        elif isinstance(tc, CrossToolchain):
+        elif isinstance(tc, GccCross):
             tc_prefix = f"{tc.path}/bin/{tc.target}-"
         else:
-            raise RuntimeError(f"Unsupported toolchain type '{type(tc).__name__}'")
+            raise RuntimeError(f"Unsupported cc type '{type(tc).__name__}'")
 
         ver = capture([f"{tc_prefix}gcc", "-dumpversion"]).split(".")
         version = ".".join(ver[:min(len(ver), 2)])
@@ -130,7 +130,7 @@ class ConanProfile:
             f"build_type=Release",
         ]
 
-        if isinstance(tc, CrossToolchain):
+        if isinstance(tc, GccCross):
             content += [
                 f"[env]",
                 f"CONAN_CMAKE_FIND_ROOT_PATH={tc.path}",
@@ -157,7 +157,7 @@ class CmakeWithConan(Cmake):
         self.create_build_dir()
 
         profile_path = self.build_dir / "profile.conan"
-        ConanProfile(self.toolchain).save(profile_path)
+        ConanProfile(self.cc).save(profile_path)
 
         conanfile_path = self.build_dir / "conanfile.txt"
         try:

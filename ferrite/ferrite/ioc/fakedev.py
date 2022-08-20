@@ -35,7 +35,7 @@ class FakedevTest:
             self.server.close()
 
     async def run(self, app_bin: Path) -> None:
-        self.server = await asyncio.start_server(self.connect_once, "localhost", 4884)
+        self.server = await asyncio.start_server(self.connect_once, "127.0.0.1", 4884)
 
         process = await asyncio.create_subprocess_exec(app_bin)
         assert await process.wait() == 0

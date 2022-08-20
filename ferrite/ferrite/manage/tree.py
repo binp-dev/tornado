@@ -7,12 +7,10 @@ from ferrite.components.base import Component, ComponentGroup
 from ferrite.components.core import CoreTest
 from ferrite.components.platforms.base import AppPlatform
 from ferrite.components.platforms.host import HostAppPlatform
-from ferrite.components.toolchain import HostToolchain
 from ferrite.components.codegen import CodegenExample
 from ferrite.components.fakedev import Fakedev
 from ferrite.components.all_ import AllCross, AllHost
 from ferrite.components.platforms.arm import Aarch64AppPlatform, ArmAppPlatform
-from ferrite.components.rust import HostRustup
 from ferrite.components.app import AppBase
 from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 from ferrite.components.epics.ioc_example import IocHostExample, IocCrossExample
@@ -26,12 +24,12 @@ class _HostComponents(ComponentGroup):
         target_dir: Path,
         platform: HostAppPlatform,
     ) -> None:
-        self.toolchain = platform.gcc
-        self.rustup = platform.rustup
-        self.epics_base = EpicsBaseHost(target_dir, self.toolchain)
-        self.core_test = CoreTest(source_dir, target_dir, self.toolchain)
-        self.codegen = CodegenExample(source_dir, target_dir, self.toolchain)
-        self.app = AppBase(source_dir / "app", target_dir / "app", self.rustup)
+        self.gcc = platform.gcc
+        self.rustc = platform.rustc
+        self.epics_base = EpicsBaseHost(target_dir, self.gcc)
+        self.core_test = CoreTest(source_dir, target_dir, self.gcc)
+        self.codegen = CodegenExample(source_dir, target_dir, self.gcc)
+        self.app = AppBase(source_dir / "app", target_dir / "app", self.rustc)
         self.ioc_example = IocHostExample(source_dir, target_dir, self.epics_base, self.app)
         self.fakedev = Fakedev(self.ioc_example)
         self.all = AllHost(self.epics_base, self.codegen, self.app, self.ioc_example, self.fakedev)
@@ -50,9 +48,9 @@ class _CrossComponents(ComponentGroup):
         host_components: _HostComponents,
     ) -> None:
         self.gcc = platform.gcc
-        self.rustup = platform.rustup
+        self.rustc = platform.rustc
         self.epics_base = EpicsBaseCross(target_dir, self.gcc, host_components.epics_base)
-        self.app = AppBase(source_dir / "app", target_dir / "app", self.rustup)
+        self.app = AppBase(source_dir / "app", target_dir / "app", self.rustc)
         self.ioc_example = IocCrossExample(source_dir, target_dir, self.epics_base, self.app)
         self.all = AllCross(self.epics_base, self.app, self.ioc_example)
 

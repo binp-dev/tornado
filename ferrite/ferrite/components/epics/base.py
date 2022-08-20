@@ -11,7 +11,7 @@ import pydantic
 
 from ferrite.utils.run import capture, run
 from ferrite.components.base import Artifact, Component, Task, Context
-from ferrite.components.toolchain import Target, Toolchain
+from ferrite.components.compiler import Target, Gcc
 
 import logging
 
@@ -38,7 +38,7 @@ def epics_arch_by_target(target: Target) -> str:
 
 
 # Milliseconds from the start of the epoch
-def _mod_time(path: Path) -> int:
+def _tree_mod_time(path: Path) -> int:
     if path.is_dir():
         max_time = 0.0
         for dirpath, dirnames, filenames in os.walk(path):
@@ -62,7 +62,7 @@ class _BuildInfo(pydantic.BaseModel):
     def from_paths(base_dir: Path, dep_paths: List[Path]) -> _BuildInfo:
         return _BuildInfo(
             build_dir=str(base_dir),
-            dep_mod_times={str(path): _mod_time(path) for path in dep_paths},
+            dep_mod_times={str(path): _tree_mod_time(path) for path in dep_paths},
         )
 
     @staticmethod
@@ -169,7 +169,7 @@ class AbstractEpicsProject(Component):
             self._install()
 
         def dependencies(self) -> List[Task]:
-            return [self.owner.toolchain.install_task]
+            return [self.owner.cc.install_task]
 
         def artifacts(self) -> List[Artifact]:
             return [
@@ -213,15 +213,15 @@ class AbstractEpicsProject(Component):
         self.prefix = prefix
 
         self.src_path = src_path
-        self.build_path = target_dir / f"{prefix}_build_{self.toolchain.name}"
-        self.install_path = target_dir / f"{prefix}_install_{self.toolchain.name}"
+        self.build_path = target_dir / f"{prefix}_build_{self.cc.name}"
+        self.install_path = target_dir / f"{prefix}_install_{self.cc.name}"
 
     @property
     def arch(self) -> str:
-        return epics_arch_by_target(self.toolchain.target)
+        return epics_arch_by_target(self.cc.target)
 
     @property
-    def toolchain(self) -> Toolchain:
+    def cc(self) -> Gcc:
         raise NotImplementedError()
 
     @property

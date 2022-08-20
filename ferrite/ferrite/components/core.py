@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ferrite.components.cmake import CmakeRunnable
 from ferrite.components.conan import CmakeWithConan
-from ferrite.components.toolchain import Toolchain
+from ferrite.components.compiler import Gcc
 
 
 class CoreTest(CmakeWithConan, CmakeRunnable):
@@ -13,11 +13,11 @@ class CoreTest(CmakeWithConan, CmakeRunnable):
         self,
         source_dir: Path,
         target_dir: Path,
-        toolchain: Toolchain,
+        cc: Gcc,
     ):
         super().__init__(
             source_dir / "core" / "test",
             target_dir / "core_test",
-            toolchain,
+            cc,
             target="core_test",
         )
