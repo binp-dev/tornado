@@ -13,7 +13,7 @@ pub use super::import::{
     FerVarDir as Dir, FerVarKind as Kind, FerVarScalarType as ScalarType, FerVarType as Type,
 };
 
-pub struct Var {
+pub(crate) struct Var {
     ptr: *mut FerVar,
 }
 
@@ -57,18 +57,18 @@ impl Var {
         fer_var_array_set_len(self.ptr, new_size)
     }
 
-    pub unsafe fn user_data(&self) -> *const c_void {
-        fer_var_user_data(self.ptr)
+    pub unsafe fn user_data(&self) -> *const UserData {
+        fer_var_user_data(self.ptr) as *const UserData
     }
-    pub unsafe fn user_data_mut(&mut self) -> *mut c_void {
-        fer_var_user_data(self.ptr)
+    pub unsafe fn user_data_mut(&mut self) -> *mut UserData {
+        fer_var_user_data(self.ptr) as *mut UserData
     }
-    unsafe fn set_user_data(&mut self, user_data: *mut c_void) {
-        fer_var_set_user_data(self.ptr, user_data)
+    unsafe fn set_user_data(&mut self, user_data: *mut UserData) {
+        fer_var_set_user_data(self.ptr, user_data as *mut c_void)
     }
 }
 
-pub struct VarLock {
+pub(crate) struct VarLock {
     var_cell: UnsafeCell<Var>,
 }
 
@@ -92,7 +92,7 @@ impl VarLock {
     }
 }
 
-pub struct VarGuard<'a> {
+pub(crate) struct VarGuard<'a> {
     var: &'a mut Var,
 }
 
@@ -120,3 +120,7 @@ impl<'a> Drop for VarGuard<'a> {
         unsafe { self.var.unlock() };
     }
 }
+
+pub(crate) struct UserData {}
+
+unsafe impl Send for UserData {}

@@ -1,6 +1,9 @@
 use super::{import::*, var::Var};
 use crate::variable::{registry, AnyVariable};
-use std::panic::{self, PanicInfo};
+use std::{
+    collections::HashMap,
+    panic::{self, PanicInfo},
+};
 
 #[no_mangle]
 pub extern "C" fn fer_app_init() {
@@ -12,9 +15,14 @@ pub extern "C" fn fer_app_init() {
     }))
 }
 
+extern "Rust" {
+    pub fn ferrite_app_main(variables: HashMap<String, AnyVariable>);
+}
+
 #[no_mangle]
 pub extern "C" fn fer_app_start() {
     println!("fer_app_start()");
+    unsafe { ferrite_app_main(registry::take()) };
 }
 
 #[no_mangle]
@@ -23,6 +31,7 @@ pub extern "C" fn fer_var_init(ptr: *mut FerVar) {
     println!("fer_var_init({})", var.name());
     registry::add_variable(var);
 }
+
 #[no_mangle]
 pub extern "C" fn fer_var_proc_start(ptr: *mut FerVar) {
     println!("fer_var_proc_start({:?})", ptr);

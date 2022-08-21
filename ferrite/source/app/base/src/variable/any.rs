@@ -12,7 +12,7 @@ pub struct AnyVariable {
 }
 
 impl AnyVariable {
-    pub unsafe fn new(raw: sys::Var) -> Self {
+    pub(crate) unsafe fn new(raw: sys::Var) -> Self {
         let raw_lock = sys::VarLock::new(raw);
         let raw_type = raw_lock.lock().type_();
         Self {
