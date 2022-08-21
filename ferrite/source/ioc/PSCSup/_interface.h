@@ -57,6 +57,7 @@ extern void fer_var_init(FerVar *var);
 /// Request record processing.
 void fer_var_req_proc(FerVar *var);
 /// Asynchronous variable processing start.
+/// NOTE: Variable passed to this function is automatically locked during the call.
 extern void fer_var_proc_start(FerVar *var);
 /// Notify that asynchronous variable processing complete.
 void fer_var_proc_done(FerVar *var);

@@ -3,6 +3,7 @@ use crate::variable::{registry, AnyVariable};
 use std::{
     collections::HashMap,
     panic::{self, PanicInfo},
+    thread,
 };
 
 extern "Rust" {
@@ -11,7 +12,6 @@ extern "Rust" {
 
 #[no_mangle]
 pub extern "C" fn fer_app_init() {
-    println!("fer_app_init()");
     let old_hook = panic::take_hook();
     panic::set_hook(Box::new(move |info: &PanicInfo| {
         old_hook(info);
@@ -21,8 +21,9 @@ pub extern "C" fn fer_app_init() {
 
 #[no_mangle]
 pub extern "C" fn fer_app_start() {
-    println!("fer_app_start()");
-    unsafe { ferrite_app_main(registry::take()) };
+    thread::spawn(move || {
+        unsafe { ferrite_app_main(registry::take()) };
+    });
 }
 
 #[no_mangle]
@@ -30,7 +31,6 @@ pub extern "C" fn fer_var_init(ptr: *mut FerVar) {
     let mut raw = Var::from_ptr(ptr);
     unsafe { raw.init() };
     let var = unsafe { AnyVariable::new(raw) };
-    println!("fer_var_init({})", var.name());
     registry::add_variable(var);
 }
 

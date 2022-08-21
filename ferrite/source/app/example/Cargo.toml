@@ -15,3 +15,4 @@ path = "src/main.rs"
 [dependencies]
 base = { package = "ferrite-app-base", path = "../base" }
 macro_rules_attribute = "0.1.2"
+futures = "0.3.23"

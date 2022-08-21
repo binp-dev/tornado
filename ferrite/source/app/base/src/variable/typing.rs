@@ -1,4 +1,4 @@
-use crate::sys;
+use crate::raw;
 use std::any::TypeId;
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -8,10 +8,10 @@ pub enum Direction {
 }
 
 impl Direction {
-    pub(crate) fn from_raw(raw_dir: sys::var::Dir) -> Self {
+    pub(crate) fn from_raw(raw_dir: raw::var::Dir) -> Self {
         match raw_dir {
-            sys::var::Dir::Read => Direction::Read,
-            sys::var::Dir::Write => Direction::Write,
+            raw::var::Dir::Read => Direction::Read,
+            raw::var::Dir::Write => Direction::Write,
         }
     }
 }
@@ -35,43 +35,43 @@ pub enum ScalarType {
 }
 
 impl ScalarType {
-    pub(crate) fn from_raw(raw_scal_type: sys::var::ScalarType) -> Self {
+    pub(crate) fn from_raw(raw_scal_type: raw::var::ScalarType) -> Self {
         match raw_scal_type {
-            sys::var::ScalarType::None => ScalarType::Unknown,
-            sys::var::ScalarType::U8 => ScalarType::Int {
+            raw::var::ScalarType::None => ScalarType::Unknown,
+            raw::var::ScalarType::U8 => ScalarType::Int {
                 width: 1,
                 signed: false,
             },
-            sys::var::ScalarType::I8 => ScalarType::Int {
+            raw::var::ScalarType::I8 => ScalarType::Int {
                 width: 1,
                 signed: true,
             },
-            sys::var::ScalarType::U16 => ScalarType::Int {
+            raw::var::ScalarType::U16 => ScalarType::Int {
                 width: 2,
                 signed: false,
             },
-            sys::var::ScalarType::I16 => ScalarType::Int {
+            raw::var::ScalarType::I16 => ScalarType::Int {
                 width: 2,
                 signed: true,
             },
-            sys::var::ScalarType::U32 => ScalarType::Int {
+            raw::var::ScalarType::U32 => ScalarType::Int {
                 width: 4,
                 signed: false,
             },
-            sys::var::ScalarType::I32 => ScalarType::Int {
+            raw::var::ScalarType::I32 => ScalarType::Int {
                 width: 4,
                 signed: true,
             },
-            sys::var::ScalarType::U64 => ScalarType::Int {
+            raw::var::ScalarType::U64 => ScalarType::Int {
                 width: 8,
                 signed: false,
             },
-            sys::var::ScalarType::I64 => ScalarType::Int {
+            raw::var::ScalarType::I64 => ScalarType::Int {
                 width: 8,
                 signed: true,
             },
-            sys::var::ScalarType::F32 => ScalarType::Float { width: 4 },
-            sys::var::ScalarType::F64 => ScalarType::Float { width: 8 },
+            raw::var::ScalarType::F32 => ScalarType::Float { width: 4 },
+            raw::var::ScalarType::F64 => ScalarType::Float { width: 8 },
         }
     }
 
@@ -112,12 +112,12 @@ pub enum VariableType {
 }
 
 impl VariableType {
-    pub(crate) fn from_raw(raw_type: sys::var::Type) -> Self {
+    pub(crate) fn from_raw(raw_type: raw::var::Type) -> Self {
         match raw_type.kind {
-            sys::var::Kind::Scalar => VariableType::Scalar {
+            raw::var::Kind::Scalar => VariableType::Scalar {
                 scal_type: ScalarType::from_raw(raw_type.scalar_type),
             },
-            sys::var::Kind::Array => VariableType::Array {
+            raw::var::Kind::Array => VariableType::Array {
                 scal_type: ScalarType::from_raw(raw_type.scalar_type),
                 max_len: raw_type.array_max_len,
             },

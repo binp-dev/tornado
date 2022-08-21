@@ -1,11 +1,10 @@
 use super::import::*;
-use futures::task::AtomicWaker;
 use std::{
+    cell::Cell,
     cell::UnsafeCell,
     ffi::CStr,
     ops::{Deref, DerefMut},
     os::raw::c_void,
-    sync::atomic::{AtomicBool, Ordering},
     task::Waker,
 };
 
@@ -24,33 +23,31 @@ impl Var {
         Self { ptr }
     }
     pub unsafe fn init(&mut self) {
-        let ud = Box::new(UserData::default());
-        self.set_user_data(Box::into_raw(ud));
+        let ps = Box::new(ProcState::default());
+        self.set_user_data(Box::into_raw(ps) as *mut c_void);
     }
 
-    pub unsafe fn request_proc(&mut self) {
-        let ud = &*self.user_data();
-        if !ud.requested.swap(true, Ordering::SeqCst) {
+    pub unsafe fn req_proc(&mut self) {
+        let ps = self.proc_state_mut();
+        if !ps.requested {
+            ps.requested = true;
             fer_var_req_proc(self.ptr);
         }
     }
     pub unsafe fn proc_start(&mut self) {
-        let ud = &*self.user_data();
-        if !ud.processing.swap(true, Ordering::SeqCst) {
-            ud.waker.wake();
+        let ps = self.proc_state_mut();
+        if !ps.processing {
+            ps.processing = true;
+            ps.try_wake();
         } else {
             panic!("Variable is already processing");
         }
     }
     pub unsafe fn proc_done(&mut self) {
-        let ud = &*self.user_data();
-        ud.requested.store(false, Ordering::SeqCst);
-        ud.processing.store(false, Ordering::SeqCst);
+        let ps = self.proc_state_mut();
+        ps.requested = false;
+        ps.processing = false;
         fer_var_proc_done(self.ptr);
-    }
-    pub unsafe fn set_waker(&mut self, waker: &Waker) {
-        let ud = &*self.user_data();
-        ud.waker.register(waker);
     }
 
     unsafe fn lock(&mut self) {
@@ -80,14 +77,17 @@ impl Var {
         fer_var_array_set_len(self.ptr, new_size)
     }
 
-    pub unsafe fn user_data(&self) -> *const UserData {
-        fer_var_user_data(self.ptr) as *const UserData
+    pub unsafe fn proc_state(&self) -> &ProcState {
+        &*(self.user_data() as *const ProcState)
     }
-    pub unsafe fn user_data_mut(&mut self) -> *mut UserData {
-        fer_var_user_data(self.ptr) as *mut UserData
+    unsafe fn proc_state_mut(&mut self) -> &mut ProcState {
+        &mut *(self.user_data() as *mut ProcState)
     }
-    unsafe fn set_user_data(&mut self, user_data: *mut UserData) {
-        fer_var_set_user_data(self.ptr, user_data as *mut c_void)
+    unsafe fn user_data(&self) -> *mut c_void {
+        fer_var_user_data(self.ptr)
+    }
+    unsafe fn set_user_data(&mut self, user_data: *mut c_void) {
+        fer_var_set_user_data(self.ptr, user_data)
     }
 }
 
@@ -144,11 +144,25 @@ impl<'a> Drop for VarGuard<'a> {
     }
 }
 
-#[derive(Default, Debug)]
-pub(crate) struct UserData {
-    pub requested: AtomicBool,
-    pub processing: AtomicBool,
-    pub waker: AtomicWaker,
+#[derive(Default)]
+pub(crate) struct ProcState {
+    pub requested: bool,
+    pub processing: bool,
+    waker: Cell<Option<Waker>>,
 }
 
-unsafe impl Send for UserData {}
+impl ProcState {
+    pub fn set_waker(&self, waker: &Waker) {
+        self.waker.replace(Some(waker.clone()));
+    }
+    pub fn clean_waker(&self) {
+        self.waker.take();
+    }
+    pub fn try_wake(&self) {
+        if let Some(waker) = self.waker.take() {
+            waker.wake();
+        }
+    }
+}
+
+unsafe impl Send for ProcState {}

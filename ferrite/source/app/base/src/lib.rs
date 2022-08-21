@@ -1,24 +1,33 @@
-mod sys;
+mod raw;
 pub mod variable;
 
-pub use sys::export;
+pub use raw::export;
+pub use variable::{
+    AnyVariable, ReadArrayVariable, ReadVariable, VariableType, WriteArrayVariable, WriteVariable,
+};
+
+use std::collections::HashMap;
 
 #[macro_export]
 macro_rules! entry_point {
     (
         $(#[$fn_meta:meta])*
-        $fn_vis:vis fn $fn_name:ident($( $arg_name:ident : $arg_type:ty ),* $(,)?)
+        $fn_vis:vis fn $fn_name:ident(mut $arg_name:ident : $arg_type:ty $(,)?)
         $fn_body:block
     ) => (
         $(#[$fn_meta])*
-        $fn_vis fn $fn_name($( $arg_name : $arg_type, )*)
+        $fn_vis fn $fn_name(mut $arg_name : $arg_type)
         $fn_body
 
         #[no_mangle]
-        pub extern "Rust" fn ferrite_app_main(registry: ::std::collections::HashMap<::std::string::String, $crate::variable::AnyVariable>) {
-            $fn_name(registry)
+        pub extern "Rust" fn ferrite_app_main(ctx: $crate::Context) {
+            $fn_name(ctx)
         }
     );
+}
+
+pub struct Context {
+    pub registry: HashMap<String, AnyVariable>,
 }
 
 pub fn add(left: usize, right: usize) -> usize {

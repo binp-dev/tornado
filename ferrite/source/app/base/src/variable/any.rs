@@ -1,19 +1,19 @@
 use super::{
-    type_::{Direction, VariableType},
+    typing::{Direction, VariableType},
     ReadArrayVariable, ReadVariable, WriteArrayVariable, WriteVariable,
 };
-use crate::sys;
+use crate::raw;
 use std::any::TypeId;
 
 pub struct AnyVariable {
-    raw: sys::VarLock,
+    raw: raw::VarLock,
     type_: VariableType,
     dir: Direction,
 }
 
 impl AnyVariable {
-    pub(crate) unsafe fn new(raw: sys::Var) -> Self {
-        let raw_lock = sys::VarLock::new(raw);
+    pub(crate) unsafe fn new(raw: raw::Var) -> Self {
+        let raw_lock = raw::VarLock::new(raw);
         let raw_type = raw_lock.lock().type_();
         Self {
             raw: raw_lock,

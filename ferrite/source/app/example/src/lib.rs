@@ -1,12 +1,30 @@
-use base::{entry_point, variable::AnyVariable};
+use base::{entry_point, Context};
+use futures::executor::block_on;
 use macro_rules_attribute::apply;
-use std::collections::HashMap;
 
 pub use base::export;
 
 #[apply(entry_point)]
-fn app_main(registry: HashMap<String, AnyVariable>) {
-    for name in registry.keys() {
-        println!("{}", name);
-    }
+fn app_main(mut ctx: Context) {
+    let mut ai = ctx
+        .registry
+        .remove("ai")
+        .unwrap()
+        .downcast_write::<i32>()
+        .unwrap();
+    let mut ao = ctx
+        .registry
+        .remove("ao")
+        .unwrap()
+        .downcast_read::<i32>()
+        .unwrap();
+    assert!(ctx.registry.is_empty());
+
+    block_on(async {
+        loop {
+            let x = ao.read_next().await;
+            println!("x = {}", x);
+            ai.write(x).await;
+        }
+    });
 }
