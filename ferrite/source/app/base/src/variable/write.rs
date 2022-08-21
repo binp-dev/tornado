@@ -7,41 +7,44 @@ use std::{
 };
 
 pub struct WriteVariable<T: Copy> {
-    raw: raw::VarLock,
+    raw: raw::Variable,
     _phantom: PhantomData<T>,
 }
 
 impl<T: Copy> WriteVariable<T> {
-    pub(crate) unsafe fn from_raw(raw: raw::Var) -> Self {
+    pub(crate) fn from_raw(raw: raw::Variable) -> Self {
         Self {
-            raw: raw::VarLock::new(raw),
+            raw,
             _phantom: PhantomData,
         }
     }
 
-    pub fn write(&mut self, val: T) -> WriteFuture<'_, T> {
-        WriteFuture { var: self, val }
+    pub fn write(&mut self, value: T) -> WriteFuture<'_, T> {
+        WriteFuture { owner: self, value }
     }
 }
 
 pub struct WriteFuture<'a, T: Copy> {
-    var: &'a mut WriteVariable<T>,
-    val: T,
+    owner: &'a mut WriteVariable<T>,
+    value: T,
 }
 
 impl<'a, T: Copy> Future for WriteFuture<'a, T> {
     type Output = ();
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-        let mut guard = unsafe { self.var.raw.lock() };
-        let ps = unsafe { guard.proc_state() };
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        let val = self.value;
+        let mut guard = self.owner.raw.lock_mut();
+        let ps = guard.proc_state();
         ps.set_waker(cx.waker());
         if !ps.processing {
-            unsafe { guard.req_proc() };
+            unsafe { guard.request_proc() };
             return Poll::Pending;
         }
-        unsafe { *(guard.data_mut() as *mut T) = self.val };
-        unsafe { guard.proc_done() };
+        unsafe { *(guard.data_mut_ptr() as *mut T) = val };
+        unsafe { guard.complete_proc() };
         Poll::Ready(())
     }
 }
+
+impl<'a, T: Copy> Unpin for WriteFuture<'a, T> {}

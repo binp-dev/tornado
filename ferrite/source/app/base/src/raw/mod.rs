@@ -1,5 +1,5 @@
 pub mod export;
 mod import;
-pub mod var;
+pub mod variable;
 
-pub(crate) use var::{Var, VarGuard, VarLock};
+pub(crate) use variable::{Variable, VariableUnprotected};

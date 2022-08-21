@@ -1,4 +1,7 @@
-use super::{import::*, var::Var};
+use super::{
+    import::*,
+    variable::{Variable, VariableUnprotected},
+};
 use crate::variable::{registry, AnyVariable};
 use std::{
     collections::HashMap,
@@ -28,15 +31,17 @@ pub extern "C" fn fer_app_start() {
 
 #[no_mangle]
 pub extern "C" fn fer_var_init(ptr: *mut FerVar) {
-    let mut raw = Var::from_ptr(ptr);
-    unsafe { raw.init() };
-    let var = unsafe { AnyVariable::new(raw) };
-    registry::add_variable(var);
+    let mut unvar = unsafe { VariableUnprotected::from_ptr(ptr) };
+    unvar.init();
+    let any_var = AnyVariable::new(unsafe { Variable::new(unvar) });
+    registry::add_variable(any_var);
 }
 
 #[no_mangle]
 pub extern "C" fn fer_var_proc_start(ptr: *mut FerVar) {
     // No need for lock here - variable is already locked during this call.
-    let mut raw = Var::from_ptr(ptr);
-    unsafe { raw.proc_start() };
+    unsafe {
+        let mut unvar = VariableUnprotected::from_ptr(ptr);
+        unvar.start_proc();
+    }
 }
