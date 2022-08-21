@@ -3,6 +3,7 @@ pub mod registry;
 pub mod type_;
 
 pub use any::AnyVariable;
+pub use type_::VariableType;
 
 use crate::sys;
 use std::marker::PhantomData;

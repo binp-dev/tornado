@@ -47,7 +47,7 @@ pub struct FerVarType {
 extern "C" {
     pub fn fer_app_exit();
 
-    pub fn fer_var_request_proc(var: *mut FerVar);
+    pub fn fer_var_req_proc(var: *mut FerVar);
     pub fn fer_var_proc_done(var: *mut FerVar);
     pub fn fer_var_lock(var: *mut FerVar);
     pub fn fer_var_unlock(var: *mut FerVar);

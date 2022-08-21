@@ -29,6 +29,13 @@ impl AnyVariable {
             .to_owned()
     }
 
+    pub fn direction(&self) -> Direction {
+        self.dir
+    }
+    pub fn type_(&self) -> VariableType {
+        self.type_
+    }
+
     pub fn downcast_read<T: Copy + 'static>(self) -> Option<ReadVariable<T>> {
         match self.dir {
             Direction::Read => match self.type_ {

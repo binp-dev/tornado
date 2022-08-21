@@ -1,11 +1,12 @@
 use super::import::*;
-use atomic_enum::atomic_enum;
 use futures::task::AtomicWaker;
 use std::{
     cell::UnsafeCell,
     ffi::CStr,
     ops::{Deref, DerefMut},
     os::raw::c_void,
+    sync::atomic::{AtomicBool, Ordering},
+    task::Waker,
 };
 
 pub use super::import::{
@@ -23,21 +24,40 @@ impl Var {
         Self { ptr }
     }
     pub unsafe fn init(&mut self) {
-        //let user_data = Box::new(UserData::default());
-        //self.set_user_data(Box::into_raw(user_data));
+        let ud = Box::new(UserData::default());
+        self.set_user_data(Box::into_raw(ud));
     }
 
     pub unsafe fn request_proc(&mut self) {
-        fer_var_request_proc(self.ptr)
+        let ud = &*self.user_data();
+        if !ud.requested.swap(true, Ordering::SeqCst) {
+            fer_var_req_proc(self.ptr);
+        }
+    }
+    pub unsafe fn proc_start(&mut self) {
+        let ud = &*self.user_data();
+        if !ud.processing.swap(true, Ordering::SeqCst) {
+            ud.waker.wake();
+        } else {
+            panic!("Variable is already processing");
+        }
     }
     pub unsafe fn proc_done(&mut self) {
-        fer_var_proc_done(self.ptr)
+        let ud = &*self.user_data();
+        ud.requested.store(false, Ordering::SeqCst);
+        ud.processing.store(false, Ordering::SeqCst);
+        fer_var_proc_done(self.ptr);
     }
+    pub unsafe fn set_waker(&mut self, waker: &Waker) {
+        let ud = &*self.user_data();
+        ud.waker.register(waker);
+    }
+
     unsafe fn lock(&mut self) {
-        fer_var_lock(self.ptr)
+        fer_var_lock(self.ptr);
     }
     unsafe fn unlock(&mut self) {
-        fer_var_unlock(self.ptr)
+        fer_var_unlock(self.ptr);
     }
 
     pub unsafe fn name(&self) -> &CStr {
@@ -124,31 +144,10 @@ impl<'a> Drop for VarGuard<'a> {
     }
 }
 
-#[atomic_enum]
-#[derive(Default, PartialEq, Eq)]
-pub(crate) enum WriteStage {
-    #[default]
-    Idle = 0,
-    Requested,
-    Processing,
-}
-
-#[atomic_enum]
-#[derive(Default, PartialEq, Eq)]
-pub(crate) enum ReadStage {
-    #[default]
-    Idle = 0,
-    Processing,
-}
-
-#[derive(Debug)]
-pub(crate) enum Stage {
-    Read(AtomicReadStage),
-    Write(AtomicWriteStage),
-}
-
+#[derive(Default, Debug)]
 pub(crate) struct UserData {
-    pub stage: Stage,
+    pub requested: AtomicBool,
+    pub processing: AtomicBool,
     pub waker: AtomicWaker,
 }
 

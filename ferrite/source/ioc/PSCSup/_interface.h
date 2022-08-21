@@ -55,7 +55,7 @@ void fer_app_exit();
 /// Initialize variable.
 extern void fer_var_init(FerVar *var);
 /// Request record processing.
-void fer_var_request_proc(FerVar *var);
+void fer_var_req_proc(FerVar *var);
 /// Asynchronous variable processing start.
 extern void fer_var_proc_start(FerVar *var);
 /// Notify that asynchronous variable processing complete.

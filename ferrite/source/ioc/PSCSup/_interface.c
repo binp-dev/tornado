@@ -11,7 +11,7 @@ void fer_app_exit() {
     epicsExit(1);
 }
 
-void fer_var_request_proc(FerVar *var) {
+void fer_var_req_proc(FerVar *var) {
     fer_epics_record_request_proc((dbCommon *)var);
 }
 
@@ -22,6 +22,7 @@ void fer_var_proc_done(FerVar *var) {
 void fer_var_lock(FerVar *var) {
     dbScanLock((dbCommon *)var);
 }
+
 void fer_var_unlock(FerVar *var) {
     dbScanUnlock((dbCommon *)var);
 }
