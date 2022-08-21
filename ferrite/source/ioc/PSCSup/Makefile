@@ -19,7 +19,8 @@ devPSC_SRCS += \
 	_array_record.c \
 	ai.c \
 	ao.c \
-	aai.c
+	aai.c \
+	aao.c
 
 # Link with the libraries
 devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)

@@ -2,6 +2,7 @@ use crate::raw;
 use std::{
     future::Future,
     marker::PhantomData,
+    mem::drop,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -20,19 +21,25 @@ impl<T: Copy> WriteVariable<T> {
     }
 
     pub fn write(&mut self, value: T) -> WriteFuture<'_, T> {
-        WriteFuture { owner: self, value }
+        WriteFuture {
+            owner: self,
+            value,
+            complete: false,
+        }
     }
 }
 
 pub struct WriteFuture<'a, T: Copy> {
     owner: &'a mut WriteVariable<T>,
     value: T,
+    complete: bool,
 }
 
 impl<'a, T: Copy> Future for WriteFuture<'a, T> {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        assert!(!self.complete);
         let val = self.value;
         let mut guard = self.owner.raw.lock_mut();
         let ps = guard.proc_state();
@@ -43,6 +50,8 @@ impl<'a, T: Copy> Future for WriteFuture<'a, T> {
         }
         unsafe { *(guard.data_mut_ptr() as *mut T) = val };
         unsafe { guard.complete_proc() };
+        drop(guard);
+        self.complete = true;
         Poll::Ready(())
     }
 }

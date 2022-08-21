@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from dataclasses import dataclass
 from subprocess import Popen, CalledProcessError
@@ -25,6 +25,7 @@ class Ioc:
     script: Path
     debug: bool = False
     proc: Optional[Popen[str]] = None
+    args: Optional[List[str | Path]] = None
 
     def __enter__(self) -> Ioc:
         self.start()
@@ -37,14 +38,15 @@ class Ioc:
         prefix = []
         if self.debug:
             prefix = ["gdb", "-batch", "-ex", "run", "-ex", "bt", "-args"]
-        self.proc = Popen([*prefix, self.binary, self.script.name], cwd=self.script.parent, text=True)
-        logger.debug("ioc '%s' started")
+        self.args = [*prefix, self.binary, self.script.name]
+        self.proc = Popen(self.args, cwd=self.script.parent, text=True)
+        logger.debug(f"IOC started: {self.args}")
 
     def stop(self) -> None:
-        logger.debug("terminating '%s' ...")
+        logger.debug("Terminating IOC ...")
         assert self.proc is not None
         self.proc.terminate()
-        logger.debug("ioc '%s' terminated")
+        logger.debug(f"IOC terminated: {self.args}")
 
     def wait(self) -> None:
         assert self.proc is not None
