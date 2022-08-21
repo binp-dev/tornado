@@ -21,6 +21,14 @@ impl AnyVariable {
             dir: Direction::from_raw(raw_type.dir),
         }
     }
+
+    pub fn name(&self) -> String {
+        unsafe { self.raw.lock().name() }
+            .to_str()
+            .unwrap()
+            .to_owned()
+    }
+
     pub fn downcast_read<T: Copy + 'static>(self) -> Option<ReadVariable<T>> {
         match self.dir {
             Direction::Read => match self.type_ {

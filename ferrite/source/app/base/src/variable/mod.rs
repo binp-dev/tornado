@@ -1,5 +1,8 @@
 pub mod any;
+pub mod registry;
 pub mod type_;
+
+pub use any::AnyVariable;
 
 use crate::sys;
 use std::marker::PhantomData;

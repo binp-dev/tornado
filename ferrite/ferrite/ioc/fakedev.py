@@ -51,7 +51,5 @@ def test(app_bin: Path) -> None:
 
 
 def run(ioc_dir: Path, arch: str) -> None:
-    ioc = make_ioc(ioc_dir, arch)
-    with ioc:
-        while True:
-            sleep(1.0)
+    with make_ioc(ioc_dir, arch) as ioc:
+        ioc.wait()

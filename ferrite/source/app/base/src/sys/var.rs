@@ -1,8 +1,12 @@
 use super::import::*;
+use lazy_static::lazy_static;
 use std::{
     cell::UnsafeCell,
+    collections::HashMap,
+    ffi::{CStr, CString},
     ops::{Deref, DerefMut},
-    os::raw::{c_char, c_void},
+    os::raw::c_void,
+    sync::Mutex,
 };
 
 pub use super::import::{
@@ -16,7 +20,7 @@ pub struct Var {
 unsafe impl Send for Var {}
 
 impl Var {
-    pub fn from_ptr(ptr: *mut FerVar) -> Self {
+    pub unsafe fn new(ptr: *mut FerVar) -> Self {
         Self { ptr }
     }
 
@@ -26,15 +30,15 @@ impl Var {
     pub unsafe fn proc_done(&mut self) {
         fer_var_proc_done(self.ptr)
     }
-    pub unsafe fn lock(&mut self) {
+    unsafe fn lock(&mut self) {
         fer_var_lock(self.ptr)
     }
-    pub unsafe fn unlock(&mut self) {
+    unsafe fn unlock(&mut self) {
         fer_var_unlock(self.ptr)
     }
 
-    pub unsafe fn name(&self) -> *const c_char {
-        fer_var_name(self.ptr)
+    pub unsafe fn name(&self) -> &CStr {
+        CStr::from_ptr(fer_var_name(self.ptr))
     }
     pub unsafe fn type_(&self) -> Type {
         fer_var_type(self.ptr)
@@ -59,18 +63,18 @@ impl Var {
     pub unsafe fn user_data_mut(&mut self) -> *mut c_void {
         fer_var_user_data(self.ptr)
     }
-    pub unsafe fn set_user_data(&mut self, user_data: *mut c_void) {
+    unsafe fn set_user_data(&mut self, user_data: *mut c_void) {
         fer_var_set_user_data(self.ptr, user_data)
     }
 }
 
-pub struct Lock {
+pub struct VarLock {
     var_cell: UnsafeCell<Var>,
 }
 
-unsafe impl Send for Lock {}
+unsafe impl Send for VarLock {}
 
-impl Lock {
+impl VarLock {
     pub fn new(var: Var) -> Self {
         Self {
             var_cell: UnsafeCell::new(var),
@@ -80,38 +84,38 @@ impl Lock {
         self.var_cell.into_inner()
     }
 
-    pub unsafe fn lock(&self) -> Guard<'_> {
+    pub unsafe fn lock(&self) -> VarGuard<'_> {
         let var_ptr = self.var_cell.get();
-        // Lock before dereference to ensure that there is no mutable aliasing.
+        // VarLock before dereference to ensure that there is no mutable aliasing.
         (*var_ptr).lock();
-        Guard::new(&mut *var_ptr)
+        VarGuard::new(&mut *var_ptr)
     }
 }
 
-pub struct Guard<'a> {
+pub struct VarGuard<'a> {
     var: &'a mut Var,
 }
 
-impl<'a> Guard<'a> {
+impl<'a> VarGuard<'a> {
     fn new(var: &'a mut Var) -> Self {
         Self { var }
     }
 }
 
-impl<'a> Deref for Guard<'a> {
+impl<'a> Deref for VarGuard<'a> {
     type Target = Var;
     fn deref(&self) -> &Var {
         self.var
     }
 }
 
-impl<'a> DerefMut for Guard<'a> {
+impl<'a> DerefMut for VarGuard<'a> {
     fn deref_mut(&mut self) -> &mut Var {
         self.var
     }
 }
 
-impl<'a> Drop for Guard<'a> {
+impl<'a> Drop for VarGuard<'a> {
     fn drop(&mut self) {
         unsafe { self.var.unlock() };
     }

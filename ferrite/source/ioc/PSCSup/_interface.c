@@ -2,9 +2,14 @@
 
 #include <dbCommon.h>
 #include <dbLock.h>
+#include <epicsExit.h>
 
 #include "_array_record.h"
 #include "_record.h"
+
+void fer_app_exit() {
+    epicsExit(1);
+}
 
 void fer_var_request_proc(FerVar *var) {
     fer_epics_record_request_proc((dbCommon *)var);
