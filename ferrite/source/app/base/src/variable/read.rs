@@ -19,23 +19,16 @@ impl<T: Copy> ReadVariable<T> {
         }
     }
 
-    pub fn read_current(&mut self) -> T {
-        unsafe {
-            let guard = self.raw.lock();
-            *(guard.data() as *mut T)
-        }
-    }
-
-    pub fn read_next(&mut self) -> ReadNextFuture<'_, T> {
-        ReadNextFuture { var: self }
+    pub fn read(&mut self) -> ReadFuture<'_, T> {
+        ReadFuture { var: self }
     }
 }
 
-pub struct ReadNextFuture<'a, T: Copy> {
+pub struct ReadFuture<'a, T: Copy> {
     var: &'a mut ReadVariable<T>,
 }
 
-impl<'a, T: Copy> Future for ReadNextFuture<'a, T> {
+impl<'a, T: Copy> Future for ReadFuture<'a, T> {
     type Output = T;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
