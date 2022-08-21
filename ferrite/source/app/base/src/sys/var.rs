@@ -1,12 +1,11 @@
 use super::import::*;
-use lazy_static::lazy_static;
+use atomic_enum::atomic_enum;
+use futures::task::AtomicWaker;
 use std::{
     cell::UnsafeCell,
-    collections::HashMap,
-    ffi::{CStr, CString},
+    ffi::CStr,
     ops::{Deref, DerefMut},
     os::raw::c_void,
-    sync::Mutex,
 };
 
 pub use super::import::{
@@ -20,8 +19,12 @@ pub(crate) struct Var {
 unsafe impl Send for Var {}
 
 impl Var {
-    pub unsafe fn new(ptr: *mut FerVar) -> Self {
+    pub fn from_ptr(ptr: *mut FerVar) -> Self {
         Self { ptr }
+    }
+    pub unsafe fn init(&mut self) {
+        //let user_data = Box::new(UserData::default());
+        //self.set_user_data(Box::into_raw(user_data));
     }
 
     pub unsafe fn request_proc(&mut self) {
@@ -121,6 +124,32 @@ impl<'a> Drop for VarGuard<'a> {
     }
 }
 
-pub(crate) struct UserData {}
+#[atomic_enum]
+#[derive(Default, PartialEq, Eq)]
+pub(crate) enum WriteStage {
+    #[default]
+    Idle = 0,
+    Requested,
+    Processing,
+}
+
+#[atomic_enum]
+#[derive(Default, PartialEq, Eq)]
+pub(crate) enum ReadStage {
+    #[default]
+    Idle = 0,
+    Processing,
+}
+
+#[derive(Debug)]
+pub(crate) enum Stage {
+    Read(AtomicReadStage),
+    Write(AtomicWriteStage),
+}
+
+pub(crate) struct UserData {
+    pub stage: Stage,
+    pub waker: AtomicWaker,
+}
 
 unsafe impl Send for UserData {}

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 pub use base::export;
 
 #[apply(entry_point)]
-fn main(registry: HashMap<String, AnyVariable>) {
+fn app_main(registry: HashMap<String, AnyVariable>) {
     for name in registry.keys() {
         println!("{}", name);
     }

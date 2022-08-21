@@ -1,8 +1,12 @@
-use super::{import::*, var::Var};
+use super::{
+    import::*,
+    var::{ReadStage, Stage, Var, WriteStage},
+};
 use crate::variable::{registry, AnyVariable};
 use std::{
     collections::HashMap,
     panic::{self, PanicInfo},
+    sync::atomic::Ordering,
 };
 
 #[no_mangle]
@@ -27,23 +31,39 @@ pub extern "C" fn fer_app_start() {
 
 #[no_mangle]
 pub extern "C" fn fer_var_init(ptr: *mut FerVar) {
-    let var = unsafe { AnyVariable::new(Var::new(ptr)) };
+    let mut raw = Var::from_ptr(ptr);
+    unsafe { raw.init() };
+    let var = unsafe { AnyVariable::new(raw) };
     println!("fer_var_init({})", var.name());
     registry::add_variable(var);
 }
 
 #[no_mangle]
 pub extern "C" fn fer_var_proc_start(ptr: *mut FerVar) {
-    println!("fer_var_proc_start({:?})", ptr);
-    let var_type = unsafe { fer_var_type(ptr) };
-    assert_eq!(var_type.kind, FerVarKind::Scalar);
-    assert_eq!(var_type.scalar_type, FerVarScalarType::I32);
-    unsafe {
-        let val_ptr = fer_var_data(ptr) as *mut i32;
-        if var_type.dir == FerVarDir::Write {
-            *val_ptr += 1;
+    let raw = Var::from_ptr(ptr);
+    if let Some(user_data) = unsafe { raw.user_data().as_ref() } {
+        match &user_data.stage {
+            Stage::Read(read_stage) => match read_stage.load(Ordering::SeqCst) {
+                ReadStage::Idle => {
+                    read_stage.store(ReadStage::Processing, Ordering::SeqCst);
+                    user_data.waker.wake();
+                }
+                ReadStage::Processing => {
+                    panic!("Read is already processing");
+                }
+            },
+            Stage::Write(write_stage) => match write_stage.load(Ordering::SeqCst) {
+                WriteStage::Idle => {
+                    panic!("Write hasn't been requested");
+                }
+                WriteStage::Requested => {
+                    write_stage.store(WriteStage::Processing, Ordering::SeqCst);
+                    user_data.waker.wake();
+                }
+                WriteStage::Processing => {
+                    panic!("Write is already processing");
+                }
+            },
         }
-        println!("    value: {}", *val_ptr);
-        fer_var_proc_done(ptr);
     }
 }

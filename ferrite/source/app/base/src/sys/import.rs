@@ -8,21 +8,21 @@ pub struct FerVar {
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FerVarKind {
-    Scalar,
+    Scalar = 0,
     Array,
 }
 
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FerVarDir {
-    Read,
+    Read = 0,
     Write,
 }
 
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FerVarScalarType {
-    None,
+    None = 0,
     U8,
     I8,
     U16,
