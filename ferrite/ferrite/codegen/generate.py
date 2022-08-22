@@ -22,8 +22,7 @@ def generate_and_write(types: List[Type], base_path: Path, context: Context) -> 
         setattr(CONTEXT, attr, getattr(context, attr))
 
     c_source = Source(Location.NONE, deps=[ty.c_source() for ty in types])
-    cpp_source = Source(Location.NONE, deps=[ty.cpp_source() for ty in types])
-    test_source = Source(Location.NONE, deps=[ty.test_source() for ty in types])
+    rust_source = Source(Location.NONE, deps=[ty.rust_source() for ty in types])
     pyi_source = Source(Location.NONE, deps=[ty.pyi_source() for ty in types])
 
     files = {
@@ -51,49 +50,12 @@ def generate_and_write(types: List[Type], base_path: Path, context: Context) -> 
             "",
             c_source.make_source(Location.DEFINITION),
         ]),
-        f"include/{context.prefix}.hpp": "\n".join([
-            "#pragma once",
+        f"{context.prefix}.rs": "\n".join([
+            rust_source.make_source(Location.INCLUDES, separator=""),
             "",
-            "#include <span>",
+            rust_source.make_source(Location.DECLARATION),
             "",
-            "#include <core/result.hpp>",
-            "#include <core/io.hpp>",
-            "#include <core/panic.hpp>",
-            cpp_source.make_source(Location.INCLUDES, separator=""),
-            "",
-            f"#include <{context.prefix}.h>",
-            "",
-            f"namespace {context.prefix} {{",
-            "",
-            cpp_source.make_source(Location.DECLARATION),
-            "",
-            f"}} // namespace {context.prefix}",
-        ]),
-        f"src/{context.prefix}.cpp": "\n".join([
-            f"#include <{context.prefix}.hpp>",
-            "",
-            f"namespace {context.prefix} {{",
-            "",
-            cpp_source.make_source(Location.DEFINITION),
-            "",
-            f"}} // namespace {context.prefix}",
-        ]),
-        f"src/{context.prefix}_test.cpp": "\n".join([
-            f"#include <{context.prefix}.hpp>",
-            "",
-            "#include <gtest/gtest.h>",
-            "",
-            "#include <core/collections/vec.hpp>",
-            "#include <core/collections/vec_deque.hpp>",
-            "",
-            f"using namespace {context.prefix};",
-            "",
-            test_source.make_source(Location.TESTS),
-            "",
-            "int main(int argc, char **argv) {",
-            "    testing::InitGoogleTest(&argc, argv);",
-            "    return RUN_ALL_TESTS();",
-            "}",
+            rust_source.make_source(Location.DEFINITION),
         ]),
         f"{context.prefix}.pyi": "\n".join([
             "from __future__ import annotations",

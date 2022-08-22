@@ -10,7 +10,6 @@ from numpy.typing import NDArray, DTypeLike
 from ferrite.codegen.base import CONTEXT, Include, Location, Name, Type, Source
 from ferrite.codegen.primitive import Char, Int
 from ferrite.codegen.utils import indent
-from ferrite.codegen.macros import ErrorKind, err, io_error, ok, stream_read, stream_write, try_unwrap
 
 
 class _ItemBase(Type):
@@ -79,32 +78,6 @@ class _ArrayBase(_ItemBase):
     def c_len(self, obj: str) -> str:
         raise NotImplementedError()
 
-    def c_test(self, obj: str, src: str) -> List[str]:
-        d = CONTEXT.iter_depth
-        CONTEXT.iter_depth += 1
-        try:
-            return [
-                f"ASSERT_EQ({self.c_len(obj)}, {src}.size());",
-                f"for (size_t i{d} = 0; i{d} < {src}.size(); ++i{d}) {{",
-                *indent(self.item.c_test(f"{obj}.data[i{d}]", f"{src}[i{d}]")),
-                f"}}",
-            ]
-        finally:
-            CONTEXT.iter_depth -= 1
-
-    def cpp_test(self, dst: str, src: str) -> List[str]:
-        d = CONTEXT.iter_depth
-        CONTEXT.iter_depth += 1
-        try:
-            return [
-                f"ASSERT_EQ({dst}.size(), {src}.size());",
-                f"for (size_t i{d} = 0; i{d} < {src}.size(); ++i{d}) {{",
-                *indent(self.item.cpp_test(f"{dst}[i{d}]", f"{src}[i{d}]")),
-                f"}}",
-            ]
-        finally:
-            CONTEXT.iter_depth -= 1
-
     def pyi_type(self) -> str:
         if not self._is_np():
             return f"List[{self.item.pyi_type()}]"
@@ -150,91 +123,23 @@ class Array(_ArrayBase):
     def c_type(self) -> str:
         return Name(CONTEXT.prefix, self.name()).camel()
 
-    def cpp_type(self) -> str:
-        return f"std::array<{self.item.cpp_type()}, {self.len}>"
+    def rust_type(self) -> str:
+        if self.len is not None:
+            return f"[{self.item.rust_type()}; {self.len}]"
+        else:
+            return f"[{self.item.rust_type()}]"
 
     def c_source(self) -> Source:
         name = self.c_type()
         return Source(
             Location.DECLARATION,
             [[
-                f"typedef struct __attribute__((packed, aligned(1))) {{",
+                f"typedef struct {{",
                 f"    {self.item.c_type()} data[{self.len}];",
                 f"}} {name};",
             ]],
             deps=[self.item.c_source()],
         )
-
-    def _cpp_source_decl(self) -> Source:
-        return Source(
-            Location.DECLARATION,
-            [
-                [f"{self._cpp_load_func_decl('stream')};"],
-                [f"{self._cpp_store_func_decl('stream', 'src')};"],
-            ],
-            deps=[
-                Include("array"),
-                self.item.cpp_source(),
-            ],
-        )
-
-    def cpp_source(self) -> Source:
-        if self.len is None:
-            raise NotImplementedError()
-
-        load_src = [
-            f"{self._cpp_load_func_decl('stream')} {{",
-            f"    {self.cpp_type()} dst;",
-            *indent([
-                [
-                    f"for (size_t i = 0; i < dst.size(); ++i) {{",
-                    *indent(try_unwrap(self.item.cpp_load("stream"), lambda x: f"dst[i] = {x};")),
-                    f"}}",
-                ],
-                try_unwrap(stream_read(
-                    "stream",
-                    "dst.data()",
-                    self.item.size() * self.len,
-                )),
-            ][self.item.trivial]),
-            f"    return {ok('std::move(dst)')};",
-            f"}}",
-        ]
-        store_src = [
-            f"{self._cpp_store_func_decl('stream', 'src')} {{",
-            *indent([
-                [
-                    f"for (size_t i = 0; i < src.size(); ++i) {{",
-                    *indent(try_unwrap(self.item.cpp_store("stream", "src[i]"))),
-                    f"}}",
-                ],
-                try_unwrap(stream_write(
-                    "stream",
-                    "src.data()",
-                    self.item.size() * self.len,
-                )),
-            ][self.item.trivial]),
-            f"    return {ok()};",
-            f"}}",
-        ]
-        return Source(
-            Location.DEFINITION, [
-                load_src,
-                store_src,
-            ], deps=[
-                self._cpp_source_decl(),
-            ]
-        )
-
-    def cpp_load(self, stream: str) -> str:
-        return self._cpp_load_func(stream)
-
-    def cpp_store(self, stream: str, dst: str) -> str:
-        return self._cpp_store_func(stream, dst)
-
-    def cpp_object(self, value: List[Any]) -> str:
-        assert self.len == len(value)
-        return f"{self.cpp_type()}{{{', '.join([self.item.cpp_object(v) for v in value])}}}"
 
     def c_len(self, obj: str) -> str:
         return f"size_t({self.len})"
@@ -259,12 +164,15 @@ class _BasicVector(_ItemBase):
     def c_type(self) -> str:
         return Name(CONTEXT.prefix, self.name()).camel()
 
+    def rust_type(self) -> str:
+        return f"FlatVec<{self.item.rust_type()}, {self._size_type.rust_type()}>"
+
     def c_source(self) -> Source:
         name = self.c_type()
         return Source(
             Location.DECLARATION,
             [[
-                f"typedef struct __attribute__((packed, aligned(1))) {{",
+                f"typedef struct {{",
                 f"    {self._size_type.c_type()} len;",
                 f"    {self.item.c_type()} data[];",
                 f"}} {name};",
@@ -275,25 +183,22 @@ class _BasicVector(_ItemBase):
             ],
         )
 
+    def rust_source(self) -> Source:
+        return Source(
+            Location.INCLUDES,
+            [["use flatty::FlatVec;"]],
+            deps=[
+                self.item.rust_source(),
+                self._size_type.rust_source(),
+            ],
+        )
+
     def c_size(self, obj: str) -> str:
         return f"((size_t){self.min_size()} + ({obj}.len * {self.item.size()}))"
 
     def _c_size_extent(self, obj: str) -> str:
         item_size = self.item.size()
         return f"((size_t){obj}.len{f' * {item_size}' if item_size != 1 else ''})"
-
-    def _cpp_size_extent(self, obj: str) -> str:
-        item_size = self.item.size()
-        return f"({obj}.size(){f' * {item_size}' if item_size != 1 else ''})"
-
-    def cpp_size(self, obj: str) -> str:
-        return f"({self.min_size()} + {self._cpp_size_extent(obj)})"
-
-    def cpp_load(self, stream: str) -> str:
-        return self._cpp_load_func(stream)
-
-    def cpp_store(self, stream: str, dst: str) -> str:
-        return self._cpp_store_func(stream, dst)
 
     def c_len(self, obj: str) -> str:
         return f"{obj}.len"
@@ -315,76 +220,6 @@ class Vector(_BasicVector, _ArrayBase):
     def random(self, rng: Random) -> List[Any] | NDArray[Any]:
         size = rng.randrange(0, 8)
         return self._random_array(rng, size)
-
-    def cpp_type(self) -> str:
-        return f"std::vector<{self.item.cpp_type()}>"
-
-    def _cpp_source_decl(self) -> Source:
-        return Source(
-            Location.DECLARATION,
-            [
-                [f"{self._cpp_load_func_decl('stream')};"],
-                [f"{self._cpp_store_func_decl('stream', 'src')};"],
-            ],
-            deps=[
-                Include("vector"),
-                Include("core/convert.hpp"),
-                self.item.cpp_source(),
-                self._size_type.cpp_source(),
-            ],
-        )
-
-    def cpp_source(self) -> Source:
-        load_src = [
-            f"{self._cpp_load_func_decl('stream')} {{",
-            *indent(try_unwrap(self._size_type.cpp_load("stream"), lambda l: f"{self._size_type.cpp_type()} len = {l};")),
-            f"    auto dst = {self.cpp_type()}(static_cast<size_t>(len));",
-            *indent([
-                [
-                    f"for (size_t i = 0; i < dst.size(); ++i) {{",
-                    *indent(try_unwrap(self.item.cpp_load("stream"), lambda x: f"dst[i] = {x};")),
-                    f"}}",
-                ],
-                try_unwrap(stream_read(
-                    "stream",
-                    "dst.data()",
-                    f"({self.item.size()} * dst.size())",
-                )),
-            ][self.item.trivial]),
-            f"    return {ok('std::move(dst)')};",
-            f"}}",
-        ]
-        store_src = [
-            f"{self._cpp_store_func_decl('stream', 'src')} {{",
-            f"    auto len_opt = core::cast_int<{self._size_type.cpp_type()}>(src.size());",
-            f"    if (len_opt.is_none()) {{ return {err(io_error(ErrorKind.INVALID_DATA))}; }}",
-            *indent(try_unwrap(self._size_type.cpp_store("stream", "len_opt.some()"))),
-            *indent([
-                [
-                    f"for (size_t i = 0; i < src.size(); ++i) {{",
-                    *indent(try_unwrap(self.item.cpp_store("stream", "src[i]"))),
-                    f"}}",
-                ],
-                try_unwrap(stream_write(
-                    "stream",
-                    "src.data()",
-                    f"({self.item.size()} * src.size())",
-                )),
-            ][self.item.trivial]),
-            f"    return {ok()};",
-            f"}}",
-        ]
-        return Source(
-            Location.DEFINITION, [
-                load_src,
-                store_src,
-            ], deps=[
-                self._cpp_source_decl(),
-            ]
-        )
-
-    def cpp_object(self, value: List[Any]) -> str:
-        return f"{self.cpp_type()}{{{', '.join([self.item.cpp_object(v) for v in value])}}}"
 
 
 class String(_BasicVector):
@@ -413,64 +248,6 @@ class String(_BasicVector):
 
     def is_instance(self, value: Any) -> bool:
         return isinstance(value, str)
-
-    def cpp_type(self) -> str:
-        return "std::string"
-
-    def cpp_source(self) -> Source:
-        load_decl = self._cpp_load_func_decl("stream")
-        store_decl = self._cpp_store_func_decl("stream", "src")
-        load_src = [
-            f"{load_decl} {{",
-            *indent(try_unwrap(self._size_type.cpp_load("stream"), lambda l: f"{self._size_type.cpp_type()} len = {l};")),
-            f"    auto dst = {self.cpp_type()}(static_cast<size_t>(len), '\\0');",
-            *indent(try_unwrap(stream_read("stream", "dst.data()", f"dst.length()"))),
-            f"    return {ok('std::move(dst)')};",
-            f"}}",
-        ]
-        store_src = [
-            f"{store_decl} {{",
-            f"    auto len_opt = core::cast_int<{self._size_type.cpp_type()}>(src.size());",
-            f"    if (len_opt.is_none()) {{ return {err(io_error(ErrorKind.INVALID_DATA))}; }}",
-            *indent(try_unwrap(self._size_type.cpp_store("stream", "len_opt.some()"))),
-            *indent(try_unwrap(stream_write("stream", "src.data()", f"src.length()"))),
-            f"    return {ok()};",
-            f"}}",
-        ]
-        return Source(
-            Location.DEFINITION,
-            [
-                load_src,
-                store_src,
-            ],
-            deps=[
-                Source(
-                    Location.DECLARATION,
-                    [
-                        [f"{load_decl};"],
-                        [f"{store_decl};"],
-                    ],
-                    deps=[
-                        Include("string"),
-                        self._size_type.cpp_source(),
-                    ],
-                )
-            ],
-        )
-
-    def cpp_object(self, value: str) -> str:
-        return f"{self.cpp_type()}(\"{value}\")"
-
-    def c_test(self, obj: str, src: str) -> List[str]:
-        return [
-            f"ASSERT_EQ({obj}.len, {src}.size());",
-            f"EXPECT_EQ(strncmp({obj}.data, {src}.c_str(), {src}.size()), 0);",
-        ]
-
-    def cpp_test(self, dst: str, src: str) -> List[str]:
-        return [
-            f"ASSERT_EQ({dst}, {src});",
-        ]
 
     def pyi_type(self) -> str:
         return f"str"

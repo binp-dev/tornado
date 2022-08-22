@@ -11,15 +11,19 @@ from ferrite.codegen.structure import Field, Struct
 from ferrite.codegen.generate import generate_and_write
 
 empty = Struct(Name(["empty", "struct"]), [])
+array = Array(Int(32), 5)
+struct = Struct(Name(["some", "struct"]), [
+    Field("a", Int(8)),
+    Field("b", Int(16)),
+    Field("c", Array(Float(32), 2)),
+])
 
 all_: List[Type] = [
-    empty,
-    Array(Int(24), 5),
-    Vector(Int(24)),
+    Vector(Int(32)),
     Vector(Int(64)),
     String(),
     Vector(Array(Int(32), 2)),
-    Vector(Array(Int(24, signed=True), 3)),
+    Vector(Array(Int(16, signed=True), 3)),
     Struct(Name(["value", "struct"]), [
         Field("value", Int(32)),
     ]),
@@ -38,43 +42,40 @@ all_: List[Type] = [
     ]),
     Struct(
         Name(["integers", "struct"]), [
-            Field("u8", Int(8)),
-            Field("u16", Int(16)),
-            Field("u24", Int(24)),
-            Field("u32", Int(32)),
-            Field("u48", Int(48)),
-            Field("u56", Int(56)),
-            Field("u64", Int(64)),
-            Field("i8", Int(8, signed=True)),
-            Field("i16", Int(16, signed=True)),
-            Field("i24", Int(24, signed=True)),
-            Field("i32", Int(32, signed=True)),
-            Field("i48", Int(48, signed=True)),
-            Field("i56", Int(56, signed=True)),
-            Field("i64", Int(64, signed=True)),
+            Field("u8_", Int(8)),
+            Field("u16_", Int(16)),
+            Field("u32_", Int(32)),
+            Field("u64_", Int(64)),
+            Field("i8_", Int(8, signed=True)),
+            Field("i16_", Int(16, signed=True)),
+            Field("i32_", Int(32, signed=True)),
+            Field("i64_", Int(64, signed=True)),
         ]
     ),
     Struct(Name(["floats"]), [
-        Field("f32", Float(32)),
-        Field("f64", Float(64)),
+        Field("f32_", Float(32)),
+        Field("f64_", Float(64)),
     ]),
-    Struct(Name(["non", "trivial", "vector", "struct"]), [
-        Field("data", Vector(Int(24, signed=True))),
+    Struct(Name(["vector", "of", "arrays"]), [
+        Field("data", Vector(array)),
+    ]),
+    Struct(Name(["vector", "of", "structs"]), [
+        Field("data", Vector(struct)),
     ]),
     Struct(
         Name(["nested", "struct"]), [
-            Field("u8", Int(8)),
+            Field("u8_", Int(8)),
             Field("one", Struct(Name(["nested", "struct", "one"]), [
-                Field("u8", Int(8)),
-                Field("u24", Int(32)),
+                Field("u8_", Int(8)),
+                Field("u32_", Int(32)),
             ])),
             Field(
                 "two",
                 Struct(
                     Name(["nested", "struct", "two"]), [
-                        Field("u8", Int(8)),
-                        Field("u24", Int(32)),
-                        Field("data", Vector(Int(24))),
+                        Field("u8_", Int(8)),
+                        Field("u32_", Int(32)),
+                        Field("data", Vector(Int(16))),
                     ]
                 )
             ),
@@ -111,8 +112,5 @@ def generate(path: Path) -> None:
     generate_and_write(
         all_,
         path,
-        Context(
-            prefix="codegen",
-            test_attempts=16,
-        ),
+        Context(prefix="codegen",),
     )

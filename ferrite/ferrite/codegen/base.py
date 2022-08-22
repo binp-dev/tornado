@@ -8,14 +8,12 @@ from random import Random
 from numpy.typing import DTypeLike
 
 from ferrite.codegen.utils import indent
-from ferrite.codegen.macros import io_read_type, io_result_type, io_write_type, ok, stream_read, stream_write, try_unwrap
 
 
 @dataclass
 class Context:
     prefix: Optional[str] = None
     iter_depth: int = 0
-    test_attempts: int = 1
 
 
 # FIXME: Remove global context
@@ -67,7 +65,6 @@ class Location(Enum):
     INCLUDES = 1
     DECLARATION = 2
     DEFINITION = 3
-    TESTS = 4
 
 
 class Source:
@@ -170,8 +167,8 @@ class Type:
     def c_type(self) -> str:
         raise self._not_implemented()
 
-    def cpp_type(self) -> str:
-        return self.c_type()
+    def rust_type(self) -> str:
+        raise self._not_implemented()
 
     def pyi_type(self) -> str:
         raise self._not_implemented()
@@ -182,43 +179,8 @@ class Type:
     def c_source(self) -> Optional[Source]:
         return None
 
-    def _cpp_load_func_decl(self, stream: str) -> str:
-        return f"{io_result_type(self.cpp_type())} {Name(self.name(), 'load').snake()}({io_read_type()} &{stream})"
-
-    def _cpp_store_func_decl(self, stream: str, value: str) -> str:
-        return f"{io_result_type()} {Name(self.name(), 'store').snake()}({io_write_type()} &{stream}, const {self.cpp_type()} &{value})"
-
-    def cpp_source(self) -> Optional[Source]:
-        if not self.trivial:
-            raise self._not_implemented()
-
-        load_decl = self._cpp_load_func_decl("stream")
-        store_decl = self._cpp_store_func_decl("stream", "value")
-        return Source(
-            Location.DEFINITION,
-            [
-                [
-                    f"{load_decl} {{",
-                    f"    {self.cpp_type()} value = {self.cpp_object(self.default())};",
-                    *indent(try_unwrap(stream_read("stream", "&value", self.size()))),
-                    f"    return {ok('value')};",
-                    f"}}",
-                ],
-                [
-                    f"{store_decl} {{",
-                    *indent(try_unwrap(stream_write("stream", "&value", self.size()))),
-                    f"    return {ok()};",
-                    f"}}",
-                ],
-            ],
-            deps=[Source(
-                Location.DECLARATION,
-                [
-                    [f"{load_decl};"],
-                    [f"{store_decl};"],
-                ],
-            )],
-        )
+    def rust_source(self) -> Optional[Source]:
+        return None
 
     def pyi_source(self) -> Optional[Source]:
         return None
@@ -226,84 +188,17 @@ class Type:
     def c_size(self, obj: str) -> str:
         return str(self.size())
 
-    def cpp_size(self, obj: str) -> str:
-        return self.c_size(obj)
+    def rust_size(self, obj: str) -> str:
+        if self.sized:
+            return f"<{self.rust_type()} as FlatSized>::SIZE"
+        else:
+            return f"<{self.rust_type()} as FlatBase>::size({obj})"
 
     def _c_size_extent(self, obj: str) -> str:
         raise self._not_implemented()
 
-    def _cpp_size_extent(self, obj: str) -> str:
+    def c_object(self, value: Any) -> str:
         raise self._not_implemented()
 
-    def _cpp_load_func(self, stream: str) -> str:
-        return f"{Name(self.name(), 'load').snake()}({stream})"
-
-    def _cpp_store_func(self, stream: str, value: str) -> str:
-        return f"{Name(self.name(), 'store').snake()}({stream}, {value})"
-
-    def cpp_load(self, stream: str) -> str:
-        if not self.trivial:
-            raise self._not_implemented()
-        return self._cpp_load_func(stream)
-
-    def cpp_store(self, stream: str, value: str) -> str:
-        if not self.trivial:
-            raise self._not_implemented()
-        return self._cpp_store_func(stream, value)
-
-    def cpp_object(self, value: Any) -> str:
+    def rust_object(self, value: Any) -> str:
         raise self._not_implemented()
-
-    def c_test(self, obj: str, src: str) -> List[str]:
-        return self.cpp_test(obj, src)
-
-    def cpp_test(self, dst: str, src: str) -> List[str]:
-        return [f"EXPECT_EQ({dst}, {src});"]
-
-    def _cpp_static_check(self) -> Optional[str]:
-        return f"static_assert(sizeof({self.c_type()}) == size_t({self.size() if self.sized else self.min_size()}));"
-
-    def test_source(self) -> Optional[Source]:
-        if self.trivial:
-            return None
-
-        rng = Random(0xdeadbeef)
-        static_check = self._cpp_static_check()
-        return Source(
-            Location.TESTS,
-            [[
-                f"TEST({Name(CONTEXT.prefix, 'test').camel()}, {self.name().camel()}) {{",
-                *indent([
-                    *([
-                        static_check,
-                        f"",
-                    ] if static_check is not None else []),
-                    f"std::vector<{self.cpp_type()}> srcs = {{",
-                    *["    " + self.cpp_object(self.random(rng)) + "," for _ in range(CONTEXT.test_attempts)],
-                    f"}};",
-                    f"",
-                    f"core::VecDeque<uint8_t> stream;",
-                    f"core::Vec<uint8_t> buffer;",
-                    f"for (size_t k = 0; k < {CONTEXT.test_attempts}; ++k) {{",
-                    *indent([
-                        f"const {self.cpp_type()} src = srcs[k];",
-                        f"",
-                        f"{self.cpp_store('stream', 'src')}.unwrap();",
-                        f"ASSERT_EQ(stream.size(), {self.cpp_size('src')});",
-                        f"",
-                        f"buffer.clear();",
-                        f"ASSERT_EQ(stream.view().read_into_stream(buffer, std::nullopt), {ok('stream.size()')});",
-                        f"auto *obj = reinterpret_cast<{self.c_type()} *>(buffer.data());",
-                        f"ASSERT_EQ({self.c_size('(*obj)')}, {self.cpp_size('src')});",
-                        *self.c_test('(*obj)', 'src'),
-                        f"",
-                        f"const auto dst = {self.cpp_load('stream')}.unwrap();",
-                        f"ASSERT_EQ({self.cpp_size('dst')}, {self.cpp_size('src')});",
-                        *self.cpp_test('dst', 'src'),
-                    ]),
-                    f"}}",
-                ]),
-                f"}}",
-            ]],
-            deps=[ty.test_source() for ty in self.deps()],
-        )

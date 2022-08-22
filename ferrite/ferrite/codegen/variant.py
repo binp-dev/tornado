@@ -4,7 +4,6 @@ from typing import Any, List, Optional, Tuple, Union
 from random import Random
 
 from ferrite.codegen.base import CONTEXT, Include, Location, Name, Type, Source
-from ferrite.codegen.macros import ErrorKind, err, io_error, io_read_type, io_result_type, io_write_type, ok, stream_read, stream_write, try_unwrap
 from ferrite.codegen.primitive import Int, Pointer
 from ferrite.codegen.utils import indent, list_join
 from ferrite.codegen.structure import Field
@@ -23,7 +22,7 @@ class VariantValue:
 
 class Variant(Type):
 
-    def __init__(self, name: Union[Name, str], variants: List[Field], sized: bool | None = None):
+    def __init__(self, name: Name, variants: List[Field], sized: bool | None = None):
         all_variants_sized = all([f.type.sized for f in variants])
         if sized is None:
             sized = all_variants_sized
@@ -46,7 +45,7 @@ class Variant(Type):
             return []
 
     def name(self) -> Name:
-        return Name(self._name)
+        return self._name
 
     def min_size(self) -> int:
         min_sizes = [f.type.min_size() for f in self.variants]
@@ -153,178 +152,10 @@ class Variant(Type):
             f"}}",
         ]
 
-    def _cpp_enum_type(self) -> str:
-        return "TypeId"
-
-    def _cpp_enum_value(self, index: int) -> str:
-        return self.variants[index].name.snake().upper()
-
-    def _cpp_enum_declaration(self) -> List[str]:
-        return [
-            f"enum class {self._cpp_enum_type()} {{",
-            *[f"    {self._cpp_enum_value(i)} = {i}," for i, f in enumerate(self.variants)],
-            f"}};",
-        ]
-
-    def _cpp_size_method_decl(self) -> str:
-        return f"[[nodiscard]] size_t packed_size() const;"
-
-    def _cpp_load_method_decl(self) -> str:
-        return f"static {io_result_type(self.cpp_type())} load({io_read_type()} &stream);"
-
-    def _cpp_store_method_decl(self) -> str:
-        return f"{io_result_type()} store({io_write_type()} &write) const;"
-
-    def _cpp_size_method_impl(self) -> List[str]:
-        return [
-            f"size_t {self.cpp_type()}::packed_size() const {{",
-            *([
-                f"    size_t size = {self._id_type.size()};",
-                f"    switch (static_cast<TypeId>(variant.index())) {{",
-                *list_join([[
-                    f"    case {self._cpp_enum_type()}::{self._cpp_enum_value(i)}:",
-                    f"        size += {f.type.cpp_size(f'std::get<{i}>(variant)')};",
-                    f"        break;",
-                ] for i, f in enumerate(self.variants)]),
-                f"    default:",
-                f"        core_unreachable();",
-                f"    }}",
-                f"    return size;",
-            ] if not self.sized else [
-                f"    return {self.size()};",
-            ]),
-            f"}}",
-        ]
-
-    def _cpp_load_variant(self, ty: Type, stream: str) -> List[str]:
-        lines = []
-        if ty.is_empty():
-            lines += [f"{ty.cpp_type()} tmp;"]
-        else:
-            lines += try_unwrap(ty.cpp_load(stream), lambda x: f"{ty.cpp_type()} tmp = {x};")
-
-        if self.sized:
-            size_diff = self.size() - self._id_type.size() - ty.size()
-            assert size_diff >= 0
-            if size_diff != 0:
-                lines += [
-                    f"uint8_t buf[{size_diff}] = {{0}}; // Padding",
-                    *try_unwrap(stream_read("stream", "buf", size_diff, cast=False)),
-                ]
-
-        lines += [f"return {ok(f'{self.cpp_type()}{{std::move(tmp)}}')};"]
-        return lines
-
-    def _cpp_load_method_impl(self) -> List[str]:
-        return [
-            f"{io_result_type(self.cpp_type())} {self.cpp_type()}::load({io_read_type()} &stream) {{",
-            *indent(try_unwrap(self._id_type.cpp_load("stream"), lambda x: f"auto raw_id = {x};")),
-            f"    if (raw_id >= {len(self.variants)}) {{ return {err(io_error(ErrorKind.INVALID_DATA))}; }}",
-            f"",
-            f"    switch (static_cast<{self._cpp_enum_type()}>(raw_id)) {{",
-            *indent(
-                list_join([[
-                    f"case {self._cpp_enum_type()}::{self._cpp_enum_value(i)}: {{",
-                    *indent(self._cpp_load_variant(f.type, "stream")),
-                    f"}}",
-                ] for i, f in enumerate(self.variants)])
-            ),
-            f"    }}",
-            f"    core_unreachable();",
-            f"}}",
-        ]
-
-    def _cpp_store_variant(self, ty: Type, stream: str, src: str) -> List[str]:
-        lines = []
-        if not ty.is_empty():
-            lines += try_unwrap(ty.cpp_store(stream, src))
-
-        if self.sized:
-            size_diff = self.size() - self._id_type.size() - ty.size()
-            assert size_diff >= 0
-            if size_diff != 0:
-                lines += [
-                    f"uint8_t buf[{size_diff}] = {{0}};",
-                    *try_unwrap(stream_write("stream", "buf", size_diff, cast=False)),
-                ]
-
-        lines += [f"return {ok()};"]
-        return lines
-
-    def _cpp_store_method_impl(self) -> List[str]:
-        return [
-            f"{io_result_type()} {self.cpp_type()}::store({io_write_type()} &stream) const {{",
-            f"    const auto raw_id = static_cast<{self._id_type.cpp_type()}>(variant.index());",
-            *indent(try_unwrap(self._id_type.cpp_store("stream", "raw_id"))),
-            f"",
-            f"    switch (static_cast<{self._cpp_enum_type()}>(raw_id)) {{",
-            *indent(
-                list_join([[
-                    f"case {self._cpp_enum_type()}::{self._cpp_enum_value(i)}: {{",
-                    *indent(self._cpp_store_variant(f.type, "stream", f"std::get<{i}>(variant)")),
-                    f"}}",
-                ] for i, f in enumerate(self.variants)])
-            ),
-            f"    }}",
-            f"    core_unreachable();",
-            f"}}",
-        ]
-
-    def _cpp_declaration(self) -> Source:
-        sections = [self._cpp_enum_declaration()]
-
-        sections.append([
-            f"std::variant<",
-            *[f"    {option.type.cpp_type()}{c}" for option, c in self._variants_with_comma()],
-            f"> variant;",
-        ])
-
-        sections.append([
-            self._cpp_size_method_decl(),
-            self._cpp_load_method_decl(),
-            self._cpp_store_method_decl(),
-        ])
-
-        return Source(
-            Location.DECLARATION,
-            [[
-                f"class {self.cpp_type()} final {{",
-                f"public:",
-                *list_join([indent(lines) for lines in sections], [""]),
-                f"}};",
-            ]],
-            deps=[
-                Include("variant"),
-                *[ty.cpp_source() for ty in self.deps()],
-            ],
-        )
-
-    def _cpp_definition(self) -> Source:
-        items = []
-
-        if not self.is_empty():
-            items.extend([
-                self._cpp_size_method_impl(),
-                self._cpp_load_method_impl(),
-                self._cpp_store_method_impl(),
-            ])
-
-        return Source(
-            Location.DEFINITION,
-            items,
-            deps=[self._cpp_declaration()],
-        )
-
-    def _cpp_static_check(self) -> Optional[str]:
-        if self.sized:
-            return super()._cpp_static_check()
-        else:
-            return None
-
     def c_type(self) -> str:
         return Name(CONTEXT.prefix, self.name()).camel()
 
-    def cpp_type(self) -> str:
+    def rust_type(self) -> str:
         return self.name().camel()
 
     def c_source(self) -> Source:
@@ -346,8 +177,20 @@ class Variant(Type):
             deps=[decl_source],
         )
 
-    def cpp_source(self) -> Source:
-        return self._cpp_definition()
+    def rust_source(self) -> Source:
+        return Source(
+            Location.DECLARATION,
+            [[
+                f"#[make_flat(sized = {'true' if self.sized else 'false'}, enum_type = \"{self._id_type.rust_type()}\")]",
+                f"pub enum {self.rust_type()} {{",
+                *indent([f"{f.name.camel()}({f.type.rust_type()})," for f in self.variants]),
+                f"}}",
+            ]],
+            deps=[
+                Source(Location.INCLUDES, [["use flatty::make_flat;"]]),
+                *[ty.rust_source() for ty in self.deps()],
+            ],
+        )
 
     def c_size(self, obj: str) -> str:
         if self.sized:
@@ -355,57 +198,8 @@ class Variant(Type):
         else:
             return f"{self._c_size_func_name()}(&{obj})"
 
-    def cpp_size(self, obj: str) -> str:
-        return f"{obj}.packed_size()"
-
-    def cpp_load(self, stream: str) -> str:
-        return f"{self.cpp_type()}::load({stream})"
-
-    def cpp_store(self, stream: str, src: str) -> str:
-        return f"{src}.store({stream})"
-
-    def cpp_object(self, value: VariantValue) -> str:
-        assert self.is_instance(value)
-        return "".join([
-            f"{self.cpp_type()}{{",
-            self.variants[value._id].type.cpp_object(value.variant),
-            f"}}",
-        ])
-
-    def c_test(self, obj: str, src: str) -> List[str]:
-        return [
-            f"ASSERT_EQ(static_cast<size_t>({obj}.type), {src}.variant.index());",
-            f"switch ({obj}.type) {{",
-            *list_join([[
-                f"case {self._c_enum_value(i)}:",
-                *([*indent(f.type.c_test(f"{obj}.{f.name.snake()}", f"std::get<{i}>({src}.variant)"))]
-                  if not f.type.is_empty() else []),
-                f"    break;",
-            ] for i, f in enumerate(self.variants)]),
-            f"default:",
-            f"    ASSERT_TRUE(false);",
-            f"    break;",
-            f"}}",
-        ]
-
-    def cpp_test(self, dst: str, src: str) -> List[str]:
-        return [
-            f"ASSERT_EQ({dst}.variant.index(), {src}.variant.index());",
-            f"switch ({dst}.variant.index()) {{",
-            *list_join([[
-                f"case static_cast<size_t>({self._c_enum_value(i)}):",
-                *([*indent(f.type.cpp_test(f"std::get<{i}>({dst}.variant)", f"std::get<{i}>({src}.variant)"))]
-                  if not f.type.is_empty() else []),
-                f"    break;",
-            ] for i, f in enumerate(self.variants)]),
-            f"default:",
-            f"    ASSERT_TRUE(false);",
-            f"    break;",
-            f"}}",
-        ]
-
     def pyi_type(self) -> str:
-        return self.cpp_type()
+        return self.name().camel()
 
     def pyi_source(self) -> Optional[Source]:
         return Source(
