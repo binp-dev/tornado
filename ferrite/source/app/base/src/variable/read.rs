@@ -33,6 +33,8 @@ pub struct ReadFuture<'a, T: Copy> {
     complete: bool,
 }
 
+impl<'a, T: Copy> Unpin for ReadFuture<'a, T> {}
+
 impl<'a, T: Copy> Future for ReadFuture<'a, T> {
     type Output = T;
 
@@ -40,8 +42,8 @@ impl<'a, T: Copy> Future for ReadFuture<'a, T> {
         assert!(!self.complete);
         let mut guard = self.owner.raw.lock_mut();
         let ps = guard.proc_state();
-        ps.set_waker(cx.waker());
         if !ps.processing {
+            ps.set_waker(cx.waker());
             unsafe { guard.request_proc() };
             return Poll::Pending;
         }
@@ -53,4 +55,11 @@ impl<'a, T: Copy> Future for ReadFuture<'a, T> {
     }
 }
 
-impl<'a, T: Copy> Unpin for ReadFuture<'a, T> {}
+impl<'a, T: Copy> Drop for ReadFuture<'a, T> {
+    fn drop(&mut self) {
+        let guard = self.owner.raw.lock();
+        if !self.complete {
+            guard.proc_state().clean_waker();
+        }
+    }
+}

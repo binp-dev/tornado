@@ -100,6 +100,7 @@ impl Variable {
     pub unsafe fn new(var: VariableUnprotected) -> Self {
         Self { var }
     }
+    #[allow(dead_code)]
     pub unsafe fn into_inner(self) -> VariableUnprotected {
         self.var
     }

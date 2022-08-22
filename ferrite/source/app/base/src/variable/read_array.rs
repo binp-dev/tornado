@@ -46,6 +46,8 @@ pub struct ReadInPlaceFuture<'a, T: Copy> {
     owner: Option<&'a mut ReadArrayVariable<T>>,
 }
 
+impl<'a, T: Copy> Unpin for ReadInPlaceFuture<'a, T> {}
+
 impl<'a, T: Copy> Future for ReadInPlaceFuture<'a, T> {
     type Output = ReadArrayGuard<'a, T>;
 
@@ -53,8 +55,8 @@ impl<'a, T: Copy> Future for ReadInPlaceFuture<'a, T> {
         let owner = self.owner.take().unwrap();
         let mut guard = owner.raw.lock_mut();
         let ps = guard.proc_state();
-        ps.set_waker(cx.waker());
         if !ps.processing {
+            ps.set_waker(cx.waker());
             unsafe { guard.request_proc() };
             drop(guard);
             self.owner.replace(owner);
@@ -65,7 +67,13 @@ impl<'a, T: Copy> Future for ReadInPlaceFuture<'a, T> {
     }
 }
 
-impl<'a, T: Copy> Unpin for ReadInPlaceFuture<'a, T> {}
+impl<'a, T: Copy> Drop for ReadInPlaceFuture<'a, T> {
+    fn drop(&mut self) {
+        if let Some(owner) = &self.owner {
+            owner.raw.lock().proc_state().clean_waker();
+        }
+    }
+}
 
 pub struct ReadArrayGuard<'a, T: Copy> {
     owner: &'a mut ReadArrayVariable<T>,

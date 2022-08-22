@@ -3,7 +3,6 @@ use std::{
     future::Future,
     marker::PhantomData,
     mem::{drop, MaybeUninit},
-    ops::Deref,
     pin::Pin,
     slice,
     task::{Context, Poll},
@@ -47,6 +46,8 @@ pub struct WriteInPlaceFuture<'a, T: Copy> {
     owner: Option<&'a mut WriteArrayVariable<T>>,
 }
 
+impl<'a, T: Copy> Unpin for WriteInPlaceFuture<'a, T> {}
+
 impl<'a, T: Copy> Future for WriteInPlaceFuture<'a, T> {
     type Output = WriteArrayGuard<'a, T>;
 
@@ -54,8 +55,8 @@ impl<'a, T: Copy> Future for WriteInPlaceFuture<'a, T> {
         let owner = self.owner.take().unwrap();
         let mut guard = owner.raw.lock_mut();
         let ps = guard.proc_state();
-        ps.set_waker(cx.waker());
         if !ps.processing {
+            ps.set_waker(cx.waker());
             unsafe { guard.request_proc() };
             drop(guard);
             self.owner.replace(owner);
@@ -66,7 +67,13 @@ impl<'a, T: Copy> Future for WriteInPlaceFuture<'a, T> {
     }
 }
 
-impl<'a, T: Copy> Unpin for WriteInPlaceFuture<'a, T> {}
+impl<'a, T: Copy> Drop for WriteInPlaceFuture<'a, T> {
+    fn drop(&mut self) {
+        if let Some(owner) = &self.owner {
+            owner.raw.lock().proc_state().clean_waker();
+        }
+    }
+}
 
 pub struct WriteArrayGuard<'a, T: Copy> {
     owner: &'a mut WriteArrayVariable<T>,

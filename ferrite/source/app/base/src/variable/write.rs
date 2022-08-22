@@ -35,6 +35,8 @@ pub struct WriteFuture<'a, T: Copy> {
     complete: bool,
 }
 
+impl<'a, T: Copy> Unpin for WriteFuture<'a, T> {}
+
 impl<'a, T: Copy> Future for WriteFuture<'a, T> {
     type Output = ();
 
@@ -43,8 +45,8 @@ impl<'a, T: Copy> Future for WriteFuture<'a, T> {
         let val = self.value;
         let mut guard = self.owner.raw.lock_mut();
         let ps = guard.proc_state();
-        ps.set_waker(cx.waker());
         if !ps.processing {
+            ps.set_waker(cx.waker());
             unsafe { guard.request_proc() };
             return Poll::Pending;
         }
@@ -56,4 +58,11 @@ impl<'a, T: Copy> Future for WriteFuture<'a, T> {
     }
 }
 
-impl<'a, T: Copy> Unpin for WriteFuture<'a, T> {}
+impl<'a, T: Copy> Drop for WriteFuture<'a, T> {
+    fn drop(&mut self) {
+        let guard = self.owner.raw.lock();
+        if !self.complete {
+            guard.proc_state().clean_waker();
+        }
+    }
+}

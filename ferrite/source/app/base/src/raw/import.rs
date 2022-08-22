@@ -5,6 +5,7 @@ pub struct FerVar {
     _unused: [u8; 0],
 }
 
+#[allow(dead_code)]
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FerVarKind {
@@ -12,6 +13,7 @@ pub enum FerVarKind {
     Array,
 }
 
+#[allow(dead_code)]
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FerVarDir {
@@ -19,6 +21,7 @@ pub enum FerVarDir {
     Write,
 }
 
+#[allow(dead_code)]
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FerVarScalarType {
