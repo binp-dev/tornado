@@ -17,8 +17,7 @@ static long init(aaoRecord *rec) {
         fer_epics_convert_scalar_type((menuFtype)rec->ftvl),
         rec->nelm,
     };
-    var_info->base.data = (void *)rec->bptr;
-    printf("@ aao->bptr = 0x%p\n", rec->bptr);
+    var_info->base.data = (void *)&rec->bptr;
     var_info->len_ptr = &rec->nord;
 
     fer_epics_record_init((dbCommon *)rec, FER_EPICS_RECORD_TYPE_AAO, (FerEpicsVar *)var_info);
@@ -31,7 +30,6 @@ static long get_ioint_info(int cmd, aaoRecord *rec, IOSCANPVT *ppvt) {
 }
 
 static long write(aaoRecord *rec) {
-    printf("@ aao->bptr = 0x%p\n", rec->bptr);
     fer_epics_record_process((dbCommon *)rec);
     return 0;
 }
