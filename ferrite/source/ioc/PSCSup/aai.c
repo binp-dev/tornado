@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 
 #include <aaiRecord.h>
@@ -17,7 +16,8 @@ static long init(aaiRecord *rec) {
         fer_epics_convert_scalar_type((menuFtype)rec->ftvl),
         rec->nelm,
     };
-    var_info->base.data = (void *)&rec->bptr;
+    var_info->item_size = fer_epics_scalar_type_size((menuFtype)rec->ftvl);
+    var_info->base.data = NULL;
     var_info->len_ptr = &rec->nord;
 
     fer_epics_record_init((dbCommon *)rec, FER_EPICS_RECORD_TYPE_AAI, (FerEpicsVar *)var_info);
@@ -30,6 +30,9 @@ static long get_ioint_info(int cmd, aaiRecord *rec, IOSCANPVT *ppvt) {
 }
 
 static long read(aaiRecord *rec) {
+    FerEpicsVarArray *var_info = (FerEpicsVarArray *)fer_epics_record_var_info((dbCommon *)rec);
+    var_info->base.data = (void *)rec->bptr;
+
     fer_epics_record_process((dbCommon *)rec);
     return 0;
 }

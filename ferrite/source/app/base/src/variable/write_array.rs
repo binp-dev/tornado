@@ -90,7 +90,7 @@ impl<'a, T: Copy> WriteArrayGuard<'a, T> {
         unsafe {
             let raw_unprotected = self.owner.raw.get_unprotected();
             std::slice::from_raw_parts_mut(
-                *(raw_unprotected.data_ptr() as *const *mut MaybeUninit<T>),
+                raw_unprotected.data_ptr() as *mut MaybeUninit<T>,
                 max_len,
             )
         }

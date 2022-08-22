@@ -32,3 +32,26 @@ FerVarScalarType fer_epics_convert_scalar_type(menuFtype ftype) {
         return FER_VAR_SCALAR_TYPE_NONE;
     }
 }
+
+size_t fer_epics_scalar_type_size(menuFtype ftype) {
+    switch (ftype) {
+    case menuFtypeCHAR:
+    case menuFtypeUCHAR:
+        return 1;
+    case menuFtypeSHORT:
+    case menuFtypeUSHORT:
+        return 2;
+    case menuFtypeLONG:
+    case menuFtypeULONG:
+        return 4;
+    case menuFtypeINT64:
+    case menuFtypeUINT64:
+        return 8;
+    case menuFtypeFLOAT:
+        return 4;
+    case menuFtypeDOUBLE:
+        return 8;
+    default:
+        return 0;
+    }
+}

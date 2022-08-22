@@ -75,7 +75,7 @@ FerVarType fer_var_type(FerVar *var);
 
 /// Raw variable data that must be interpreted according to variable type.
 /// + Scalars - pointer to scalar value.
-/// + Arrays - pointer to pointer to array of values.
+/// + Arrays - pointer to the beginning of array of values.
 void *fer_var_data(FerVar *var);
 /// Current number of items in variable.
 /// Always less or equal than `fer_var_array_max_size`.

@@ -89,7 +89,7 @@ impl<'a, T: Copy> ReadArrayGuard<'a, T> {
         unsafe {
             let raw_unprotected = self.owner.raw.get_unprotected();
             std::slice::from_raw_parts(
-                *(raw_unprotected.data_ptr() as *const *const T),
+                raw_unprotected.data_ptr() as *const T,
                 raw_unprotected.array_len(),
             )
         }
