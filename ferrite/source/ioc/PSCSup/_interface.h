@@ -50,7 +50,7 @@ extern void fer_app_init();
 /// All initialization complete, safe to start operating.
 extern void fer_app_start();
 /// Termination request from application.
-void fer_app_exit();
+void fer_app_exit(int code);
 
 /// Initialize variable.
 extern void fer_var_init(FerVar *var);

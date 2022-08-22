@@ -1,4 +1,4 @@
-use std::os::raw::{c_char, c_void};
+use std::os::raw::{c_char, c_int, c_void};
 
 #[repr(C)]
 pub struct FerVar {
@@ -48,7 +48,7 @@ pub struct FerVarType {
 }
 
 extern "C" {
-    pub fn fer_app_exit();
+    pub fn fer_app_exit(code: c_int);
 
     pub fn fer_var_req_proc(var: *mut FerVar);
     pub fn fer_var_proc_done(var: *mut FerVar);

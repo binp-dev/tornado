@@ -5,10 +5,11 @@
 #include <epicsExit.h>
 
 #include "_array_record.h"
+#include "_assert.h"
 #include "_record.h"
 
-void fer_app_exit() {
-    epicsExit(1);
+void fer_app_exit(int code) {
+    epicsExit(code);
 }
 
 void fer_var_req_proc(FerVar *var) {
@@ -44,7 +45,7 @@ size_t fer_var_array_len(FerVar *var) {
 }
 
 void fer_var_array_set_len(FerVar *var, size_t new_size) {
-    assert(new_size <= fer_var_type(var).array_max_len);
+    fer_epics_assert(new_size <= fer_var_type(var).array_max_len);
     *fer_epics_record_var_array_info((dbCommon *)var)->len_ptr = (epicsUInt32)new_size;
 }
 

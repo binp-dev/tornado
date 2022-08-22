@@ -18,14 +18,15 @@ pub extern "C" fn fer_app_init() {
     let old_hook = panic::take_hook();
     panic::set_hook(Box::new(move |info: &PanicInfo| {
         old_hook(info);
-        unsafe { fer_app_exit() };
+        unsafe { fer_app_exit(1) };
     }))
 }
 
 #[no_mangle]
 pub extern "C" fn fer_app_start() {
-    thread::spawn(move || {
-        unsafe { ferrite_app_main(registry::take()) };
+    thread::spawn(move || unsafe {
+        ferrite_app_main(registry::take());
+        fer_app_exit(0);
     });
 }
 

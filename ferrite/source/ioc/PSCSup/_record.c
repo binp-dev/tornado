@@ -1,6 +1,5 @@
 #include "_record.h"
 
-#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +10,7 @@
 #include <dbScan.h>
 #include <recSup.h>
 
+#include "_assert.h"
 #include "_interface.h"
 
 static void process_callback(epicsCallback *callback) {
@@ -21,7 +21,7 @@ static void process_callback(epicsCallback *callback) {
 
 void fer_epics_record_init(dbCommon *rec, FerEpicsRecordType type, FerEpicsVar *var_info) {
     FerEpicsRecordDpvt *dpvt = (FerEpicsRecordDpvt *)malloc(sizeof(FerEpicsRecordDpvt));
-    assert(dpvt != NULL);
+    fer_epics_assert(dpvt != NULL);
 
     dpvt->type = type;
     dpvt->ioscan_list = NULL;
@@ -32,7 +32,7 @@ void fer_epics_record_init(dbCommon *rec, FerEpicsRecordType type, FerEpicsVar *
     callbackSetUser((void *)rec, &dpvt->process);
     callbackSetPriority(priorityMedium, &dpvt->process);
 
-    assert(rec->dpvt == NULL);
+    fer_epics_assert(rec->dpvt == NULL);
     rec->dpvt = dpvt;
 
     fer_var_init((FerVar *)rec);
@@ -51,13 +51,13 @@ void fer_epics_record_deinit(dbCommon *rec) {
 
 FerEpicsRecordDpvt *fer_epics_record_dpvt(dbCommon *rec) {
     FerEpicsRecordDpvt *dpvt = (FerEpicsRecordDpvt *)rec->dpvt;
-    assert(dpvt != NULL);
+    fer_epics_assert(dpvt != NULL);
     return dpvt;
 }
 
 FerEpicsVar *fer_epics_record_var_info(dbCommon *rec) {
     FerEpicsVar *var_info = fer_epics_record_dpvt(rec)->var_info;
-    assert(var_info != NULL);
+    fer_epics_assert(var_info != NULL);
     return var_info;
 }
 

@@ -43,10 +43,13 @@ class Ioc:
         logger.debug(f"IOC started: {self.args}")
 
     def stop(self) -> None:
-        logger.debug("Terminating IOC ...")
-        assert self.proc is not None
-        self.proc.terminate()
-        logger.debug(f"IOC terminated: {self.args}")
+        if self.proc is not None:
+            logger.debug("Terminating IOC ...")
+            self.proc.terminate()
+            logger.debug(f"IOC terminated")
+            self.proc = None
+        else:
+            logger.debug("IOC is already stopped")
 
     def wait(self) -> None:
         assert self.proc is not None
@@ -54,7 +57,7 @@ class Ioc:
             sleep(0.1)
             ret = self.proc.poll()
             if ret is not None:
-                if ret == 0:
-                    break
-                else:
+                self.proc = None
+                if ret != 0:
                     raise CalledProcessError(ret, [self.binary, self.script])
+                break

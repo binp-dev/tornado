@@ -37,7 +37,7 @@ fn app_main(mut ctx: Context) {
             async move {
                 loop {
                     let x = ao.read().await;
-                    println!("x = {}", x);
+                    println!("[ao -> ai]: {}", x);
                     ai.write(x).await;
                 }
             },
@@ -45,7 +45,7 @@ fn app_main(mut ctx: Context) {
                 loop {
                     let mut buf = vec![0; usize::max(aai.max_len(), aao.max_len())];
                     let len = aao.read_to_slice(&mut buf).await.unwrap();
-                    println!("xx(len: {}) = {:?}", len, &buf[..len]);
+                    println!("[aao -> aai]: (len={}){:?}", len, &buf[..len]);
                     aai.write_from_slice(&buf[..len]).await;
                 }
             }

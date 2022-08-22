@@ -1,8 +1,10 @@
 #include "_array_record.h"
 
+#include "_assert.h"
+
 FerEpicsVarArray *fer_epics_record_var_array_info(dbCommon *rec) {
     FerEpicsVar *var_info = fer_epics_record_var_info(rec);
-    assert(var_info->type.kind == FER_VAR_KIND_ARRAY);
+    fer_epics_assert(var_info->type.kind == FER_VAR_KIND_ARRAY);
     return (FerEpicsVarArray *)var_info;
 }
 
