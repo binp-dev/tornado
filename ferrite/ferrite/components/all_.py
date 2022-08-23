@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from ferrite.components.base import Component, Task, TaskWrapper
 from ferrite.components.epics.epics_base import EpicsBaseCross, EpicsBaseHost
-from ferrite.components.codegen import CodegenWithTest
+from ferrite.components.codegen import CodegenExample
 from ferrite.components.app import AppBase
 from ferrite.components.epics.ioc_example import IocHostExample, IocCrossExample
 from ferrite.components.fakedev import Fakedev
@@ -15,7 +15,7 @@ from ferrite.components.fakedev import Fakedev
 class AllHost(Component):
 
     epics_base: EpicsBaseHost
-    codegen: CodegenWithTest
+    codegen: CodegenExample
     app: AppBase
     ioc_example: IocHostExample
     fakedev: Fakedev
@@ -24,14 +24,13 @@ class AllHost(Component):
         self.build_task = TaskWrapper(
             deps=[
                 self.epics_base.build_task,
-                self.codegen.build_task,
+                self.codegen.generate_task,
                 self.app.build_task,
                 self.ioc_example.build_task,
             ],
         )
         self.test_task = TaskWrapper(
             deps=[
-                self.codegen.test_task,
                 self.app.test_task,
                 self.fakedev.test_task,
             ],

@@ -1,17 +1,16 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 from random import Random
 
-from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source, declare_variable
-from ferrite.codegen.primitive import Pointer
-from ferrite.codegen.utils import indent, list_join
+from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source
+from ferrite.codegen.utils import indent, pad_bytes, upper_multiple
 
 
 class Field:
 
-    def __init__(self, name: Union[Name, str], type: Type):
-        self.name = Name(name)
+    def __init__(self, name: Name, type: Type):
+        self.name = name
         self.type = type
 
 
@@ -28,44 +27,53 @@ class StructValue:
 
 class Struct(Type):
 
-    def __init__(self, name: Name, fields: List[Field] = []):
+    def __init__(self, name: Name, fields: List[Field]):
+        align = max([1, *[f.type.align for f in fields]])
+
+        size = 0
         sized = True
         if len(fields) > 0:
             for f in fields[:-1]:
-                assert f.type.sized
-            sized = fields[-1].type.sized
-        super().__init__(sized=sized)
-        self._name = name
+                assert f.type.is_sized()
+                size = upper_multiple(size, f.type.align) + f.type.size
+
+            f = fields[-1]
+            if f.type.is_sized():
+                sized = True
+                size = upper_multiple(size, f.type.align) + f.type.size
+                size = upper_multiple(size, align)
+            else:
+                sized = False
+                min_size = upper_multiple(size, f.type.align) + f.type.min_size
+                del size
+
+        if sized:
+            super().__init__(name, align, size)
+        else:
+            super().__init__(name, align, None, min_size)
+
         self.fields = fields
 
-    def name(self) -> Name:
-        return self._name
-
-    def min_size(self) -> int:
-        if len(self.fields) > 0:
-            return sum([f.type.size() for f in self.fields[:-1]]) + self.fields[-1].type.min_size()
-        else:
-            return 0
-
-    def size(self) -> int:
-        return sum([f.type.size() for f in self.fields])
-
     def load(self, data: bytes) -> StructValue:
+        assert len(data) >= self.min_size
         args = []
-        next_data: Optional[bytes] = data
-        for f in self.fields:
-            ty = f.type
-            assert next_data is not None
-            args.append(ty.load(next_data))
-            next_data = next_data[ty.size():] if ty.sized else None
+        if len(self.fields) > 0:
+            index = 0
+            for i, f in enumerate(self.fields):
+                index = upper_multiple(index, f.type.align)
+                args.append(f.type.load(data[index:]))
+                if i < len(self.fields) - 1:
+                    index += f.type.size
         return self.value(*args)
 
     def store(self, value: StructValue) -> bytes:
-        self.is_instance(value)
+        assert self.is_instance(value)
         data = b""
         for f in self.fields:
-            k = f.name.snake()
-            data += f.type.store(getattr(value, k))
+            data = pad_bytes(data, f.type.align)
+            data += f.type.store(getattr(value, f.name.snake()))
+        if self.is_sized():
+            data = pad_bytes(data, self.align)
         return data
 
     def value(self, *args: Any, **kwargs: Any) -> StructValue:
@@ -94,84 +102,75 @@ class Struct(Type):
     def is_instance(self, value: StructValue) -> bool:
         return value._type is self
 
-    def deps(self) -> List[Type]:
-        return [f.type for f in self.fields]
+    def c_type(self) -> str:
+        return Name(CONTEXT.prefix, self.name).camel()
 
-    def _fields_with_comma(self) -> List[Tuple[Field, str]]:
-        if len(self.fields) > 0:
-            return [(f, ",") for f in self.fields[:-1]] + [(self.fields[-1], "")]
+    def c_size(self, obj: str) -> str:
+        if self.is_sized():
+            return f"((size_t){self.size})"
         else:
-            return []
-
-    def _c_size_func_name(self) -> str:
-        return Name(CONTEXT.prefix, self.name(), "size").snake()
+            return f"{self._c_size_func_name()}(&{obj})"
 
     def _c_size_extent(self, obj: str) -> str:
         return self.fields[-1].type._c_size_extent(f"({obj}.{self.fields[-1].name.snake()})")
 
-    def _c_struct_declaraion(self) -> List[str]:
+    def _c_size_func_name(self) -> str:
+        return Name(CONTEXT.prefix, self.name, "size").snake()
+
+    def _c_struct_decl(self) -> List[str]:
         return [
             f"typedef struct {{",
-            *[f"    {declare_variable(f.type.c_type(), f.name.snake())};" for f in self.fields if not f.type.is_empty()],
+            *[f"    {f.type.c_type()} {f.name.snake()};" for f in self.fields if not f.type.is_empty()],
             f"}} {self.c_type()};",
         ]
 
     def _c_size_decl(self) -> str:
-        return f"size_t {self._c_size_func_name()}({Pointer(self, const=True).c_type()} obj)"
+        return f"size_t {self._c_size_func_name()}(const {self.c_type()} *obj)"
 
-    def _c_size_definition(self) -> List[str]:
+    def _c_size_def(self) -> List[str]:
         return [
             f"{self._c_size_decl()} {{",
-            f"    return {self.min_size()} + {self._c_size_extent('(*obj)')};",
+            f"    return {self.min_size} + {self._c_size_extent('(*obj)')};",
             f"}}",
         ]
-
-    def c_type(self) -> str:
-        return Name(CONTEXT.prefix, self.name()).camel()
-
-    def rust_type(self) -> str:
-        return self.name().camel()
 
     def c_source(self) -> Source:
         decl_source = Source(
             Location.DECLARATION,
             [
-                *([self._c_struct_declaraion()] if not self.is_empty() else []),
-                *([[f"{self._c_size_decl()};"]] if not self.sized else []),
+                *([self._c_struct_decl()] if not self.is_empty() else []),
+                *([[f"{self._c_size_decl()};"]] if not self.is_sized() else []),
             ],
-            deps=[ty.c_source() for ty in self.deps()],
+            deps=[f.type.c_source() for f in self.fields],
         )
         return Source(
             Location.DEFINITION,
             [
-                *([self._c_size_definition()] if not self.sized else []),
+                *([self._c_size_def()] if not self.is_sized() else []),
             ],
             deps=[decl_source],
         )
+
+    def rust_type(self) -> str:
+        return self.name.camel()
 
     def rust_source(self) -> Source:
         return Source(
             Location.DECLARATION,
             [[
-                f"#[make_flat(sized = {'true' if self.sized else 'false'})]",
+                f"#[make_flat(sized = {'true' if self.is_sized() else 'false'})]",
                 f"pub struct {self.rust_type()} {{",
                 *indent([f"pub {f.name.snake()}: {f.type.rust_type()}," for f in self.fields]),
                 f"}}",
             ]],
             deps=[
-                Source(Location.INCLUDES, [["use flatty::make_flat;"]]),
-                *[ty.rust_source() for ty in self.deps()],
+                Source(Location.IMPORT, [["use flatty::make_flat;"]]),
+                *[f.type.rust_source() for f in self.fields],
             ],
         )
 
-    def c_size(self, obj: str) -> str:
-        if self.sized:
-            return f"((size_t){self.size()})"
-        else:
-            return f"{self._c_size_func_name()}(&{obj})"
-
     def pyi_type(self) -> str:
-        return self.name().camel()
+        return self.name.camel()
 
     def pyi_source(self) -> Optional[Source]:
         return Source(
@@ -190,7 +189,7 @@ class Struct(Type):
                 f"        ...",
             ]],
             deps=[
-                Source(Location.INCLUDES, [["from dataclasses import dataclass"]]),
-                *[ty.pyi_source() for ty in self.deps()],
+                Source(Location.IMPORT, [["from dataclasses import dataclass"]]),
+                *[f.type.pyi_source() for f in self.fields],
             ],
         )

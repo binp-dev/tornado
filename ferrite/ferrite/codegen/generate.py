@@ -21,9 +21,9 @@ def generate_and_write(types: List[Type], base_path: Path, context: Context) -> 
             continue
         setattr(CONTEXT, attr, getattr(context, attr))
 
-    c_source = Source(Location.NONE, deps=[ty.c_source() for ty in types])
-    rust_source = Source(Location.NONE, deps=[ty.rust_source() for ty in types])
-    pyi_source = Source(Location.NONE, deps=[ty.pyi_source() for ty in types])
+    c_source = Source(Location.IMPORT, deps=[ty.c_source() for ty in types])
+    rust_source = Source(Location.IMPORT, deps=[ty.rust_source() for ty in types])
+    pyi_source = Source(Location.IMPORT, deps=[ty.pyi_source() for ty in types])
 
     files = {
         f"include/{context.prefix}.h": "\n".join([
@@ -33,7 +33,7 @@ def generate_and_write(types: List[Type], base_path: Path, context: Context) -> 
             "#include <stdint.h>",
             "#include <string.h>",
             "",
-            c_source.make_source(Location.INCLUDES, separator=""),
+            c_source.make_source(Location.IMPORT, separator=""),
             "",
             "#ifdef __cplusplus",
             "extern \"C\" {",
@@ -51,7 +51,7 @@ def generate_and_write(types: List[Type], base_path: Path, context: Context) -> 
             c_source.make_source(Location.DEFINITION),
         ]),
         f"{context.prefix}.rs": "\n".join([
-            rust_source.make_source(Location.INCLUDES, separator=""),
+            rust_source.make_source(Location.IMPORT, separator=""),
             "",
             rust_source.make_source(Location.DECLARATION),
             "",
@@ -60,7 +60,7 @@ def generate_and_write(types: List[Type], base_path: Path, context: Context) -> 
         f"{context.prefix}.pyi": "\n".join([
             "from __future__ import annotations",
             "",
-            pyi_source.make_source(Location.INCLUDES, separator=""),
+            pyi_source.make_source(Location.IMPORT, separator=""),
             "",
             pyi_source.make_source(Location.DECLARATION),
         ]),

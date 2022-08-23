@@ -6,7 +6,6 @@ from pathlib import Path
 from dataclasses import dataclass
 
 from ferrite.components.base import Artifact, Component, Task, Context
-from ferrite.components.conan import CmakeRunnableWithConan
 from ferrite.components.compiler import GccHost, Gcc
 
 
@@ -44,50 +43,10 @@ class Codegen(Component):
         self.generate_task = self.GenerateTask(self, self.generate)
 
     def tasks(self) -> Dict[str, Task]:
-        return {
-            "generate": self.generate_task,
-        }
+        return {"generate": self.generate_task}
 
 
-class CodegenWithTest(Codegen):
-
-    def __init__(
-        self,
-        assets_dir: Path,
-        ferrite_source_dir: Path,
-        target_dir: Path,
-        cc: GccHost,
-        prefix: str,
-        generate: Callable[[Path], None],
-    ):
-        super().__init__(
-            assets_dir,
-            target_dir,
-            cc,
-            prefix,
-            generate,
-        )
-
-        self.cmake = CmakeRunnableWithConan(
-            self.gen_dir / "test",
-            self.test_dir,
-            cc,
-            target=f"{self.prefix}_test",
-            opts=[f"-DFERRITE={ferrite_source_dir}"],
-            deps=[self.generate_task],
-        )
-        self.build_task = self.cmake.build_task
-        self.test_task = self.cmake.run_task
-
-    def tasks(self) -> Dict[str, Task]:
-        return {
-            **super().tasks(),
-            "build": self.build_task,
-            "test": self.test_task,
-        }
-
-
-class CodegenExample(CodegenWithTest):
+class CodegenExample(Codegen):
 
     def __init__(
         self,
@@ -99,7 +58,6 @@ class CodegenExample(CodegenWithTest):
 
         super().__init__(
             source_dir / "codegen",
-            source_dir,
             target_dir,
             cc,
             "codegen",

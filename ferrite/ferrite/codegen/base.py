@@ -1,13 +1,11 @@
 from __future__ import annotations
-from typing import Any, List, Optional, Sequence, Set, Union
+from typing import Any, List, Optional, Sequence, Set, Union, overload
 
 from dataclasses import dataclass
 from enum import Enum
 from random import Random
 
-from numpy.typing import DTypeLike
-
-from ferrite.codegen.utils import indent
+from ferrite.codegen.utils import is_power_of_2
 
 
 @dataclass
@@ -61,10 +59,9 @@ class Name:
 
 
 class Location(Enum):
-    NONE = 0
-    INCLUDES = 1
-    DECLARATION = 2
-    DEFINITION = 3
+    IMPORT = 0
+    DECLARATION = 1
+    DEFINITION = 2
 
 
 class Source:
@@ -101,104 +98,104 @@ class Source:
         return separator.join(self.collect(location))
 
 
-class Include(Source):
-
-    def __init__(self, path: str):
-        super().__init__(Location.INCLUDES, [[f"#include <{path}>"]])
-
-
-def declare_variable(c_type: str, variable: str) -> str:
-    return f"{c_type} {variable}"
-
-
 class Type:
 
-    def __init__(self, sized: bool, trivial: bool = False):
-        if trivial:
-            assert sized
-        self.sized = sized
-        self.trivial = trivial
+    class NotImplemented(NotImplementedError):
 
-    def name(self) -> Name:
-        raise NotImplementedError(type(self).__name__)
+        def __init__(self, owner: Type) -> None:
+            super().__init__(f"{type(owner).__name__}: {owner.name}")
 
-    def _debug_name(self) -> str:
-        try:
-            return self.name().camel()
-        except NotImplementedError:
-            return type(self).__name__
+    @overload
+    def __init__(self, name: Name, align: int, size: int) -> None:
+        ...
 
-    def _not_implemented(self) -> RuntimeError:
-        return NotImplementedError(self._debug_name())
+    @overload
+    def __init__(self, name: Name, align: int, size: None, min_size: int) -> None:
+        ...
 
-    def size(self) -> int:
-        raise self._not_implemented()
+    def __init__(
+        self,
+        name: Name,
+        align: int,
+        size: Optional[int],
+        min_size: Optional[int] = None,
+    ) -> None:
+        assert is_power_of_2(align)
+        self.name = name
+        self.align = align
+        if size is None:
+            assert min_size is not None
+            self._size = None
+            self.min_size = min_size
+        else:
+            assert size % align == 0
+            self._size = size
+            self.min_size = size
 
-    def min_size(self) -> int:
-        return self.size()
+    def is_sized(self) -> bool:
+        return self._size is not None
 
     def is_empty(self) -> bool:
-        return self.sized and self.size() == 0
+        return self._size == 0
 
-    def deps(self) -> List[Type]:
-        return []
+    @property
+    def size(self) -> int:
+        if self._size is not None:
+            return self._size
+        else:
+            raise self.NotImplemented(self)
+
+    # Runtime
 
     def load(self, data: bytes) -> Any:
-        raise self._not_implemented()
+        raise self.NotImplemented(self)
 
     def store(self, value: Any) -> bytes:
-        raise self._not_implemented()
+        raise self.NotImplemented(self)
 
     def default(self) -> Any:
-        raise self._not_implemented()
+        raise self.NotImplemented(self)
 
     def random(self, rng: Random) -> Any:
-        raise self._not_implemented()
+        raise self.NotImplemented(self)
 
     def is_instance(self, value: Any) -> bool:
-        raise self._not_implemented()
+        raise self.NotImplemented(self)
 
     def __instancecheck__(self, value: Any) -> bool:
         return self.is_instance(value)
 
-    def np_dtype(self) -> DTypeLike:
-        raise self._not_implemented()
+    # Generation
 
     def c_type(self) -> str:
-        raise self._not_implemented()
+        raise self.NotImplemented(self)
 
-    def rust_type(self) -> str:
-        raise self._not_implemented()
+    def c_size(self, obj: str) -> str:
+        if self.size is not None:
+            return str(self.size)
+        else:
+            raise self.NotImplemented(self)
 
-    def pyi_type(self) -> str:
-        raise self._not_implemented()
-
-    def pyi_np_dtype(self) -> str:
-        raise self._not_implemented()
+    def _c_size_extent(self, obj: str) -> str:
+        raise self.NotImplemented(self)
 
     def c_source(self) -> Optional[Source]:
         return None
 
-    def rust_source(self) -> Optional[Source]:
-        return None
-
-    def pyi_source(self) -> Optional[Source]:
-        return None
-
-    def c_size(self, obj: str) -> str:
-        return str(self.size())
+    def rust_type(self) -> str:
+        raise self.NotImplemented(self)
 
     def rust_size(self, obj: str) -> str:
-        if self.sized:
+        if self.size is not None:
             return f"<{self.rust_type()} as FlatSized>::SIZE"
         else:
             return f"<{self.rust_type()} as FlatBase>::size({obj})"
 
-    def _c_size_extent(self, obj: str) -> str:
-        raise self._not_implemented()
+    def rust_source(self) -> Optional[Source]:
+        return None
 
-    def c_object(self, value: Any) -> str:
-        raise self._not_implemented()
+    def pyi_type(self) -> str:
+        raise self.NotImplemented(self)
 
-    def rust_object(self, value: Any) -> str:
-        raise self._not_implemented()
+    def pyi_source(self) -> Optional[Source]:
+        return None
