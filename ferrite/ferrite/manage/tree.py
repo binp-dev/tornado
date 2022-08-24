@@ -4,7 +4,6 @@ from typing import Dict
 from pathlib import Path
 
 from ferrite.components.base import Component, ComponentGroup
-from ferrite.components.core import CoreTest
 from ferrite.components.platforms.base import AppPlatform
 from ferrite.components.platforms.host import HostAppPlatform
 from ferrite.components.codegen import CodegenExample
@@ -27,7 +26,6 @@ class _HostComponents(ComponentGroup):
         self.gcc = platform.gcc
         self.rustc = platform.rustc
         self.epics_base = EpicsBaseHost(target_dir, self.gcc)
-        self.core_test = CoreTest(source_dir, target_dir, self.gcc)
         self.codegen = CodegenExample(source_dir, target_dir, self.gcc)
         self.app = AppBase(source_dir / "app", target_dir / "app", self.rustc)
         self.ioc_example = IocHostExample(source_dir, target_dir, self.epics_base, self.app)
