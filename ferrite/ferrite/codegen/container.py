@@ -18,7 +18,7 @@ class _Sequence:
         return flatten([self.item.c_check(f"{var}.data[{i}]", x) for i, x in enumerate(obj)])
 
     def rust_check(self, var: str, obj: List[Any]) -> List[str]:
-        return flatten([self.item.rust_check(f"{var}.data[{i}]", x) for i, x in enumerate(obj)])
+        return flatten([self.item.rust_check(f"(&{var}[{i}])", x) for i, x in enumerate(obj)])
 
     def rust_object(self, obj: List[Any]) -> str:
         return "[" + ", ".join([self.item.rust_object(x) for x in obj]) + "]"

@@ -61,7 +61,7 @@ class Int(Type):
         return [f"codegen_assert_eq({var}, {self._c_literal(obj)});"]
 
     def rust_check(self, var: str, obj: int) -> List[str]:
-        return [f"assert_eq!({var}, {obj});"]
+        return [f"assert_eq!(*{var}, {obj});"]
 
     def rust_object(self, obj: int) -> str:
         return str(obj)
@@ -117,7 +117,7 @@ class Float(Type):
         return [f"codegen_assert_eq({var}, {self._c_literal(obj)});"]
 
     def rust_check(self, var: str, obj: float) -> List[str]:
-        return [f"assert_eq!({var}, {obj});"]
+        return [f"assert_eq!(*{var}, {obj});"]
 
     def rust_object(self, obj: float) -> str:
         return str(obj)
@@ -158,7 +158,7 @@ class Char(Type):
         return [f"codegen_assert_eq({var}, '\\x{self._code(obj):02x}');"]
 
     def rust_check(self, var: str, obj: str) -> List[str]:
-        return [f"assert_eq!({var}, {self._code(obj)});"]
+        return [f"assert_eq!(*{var}, {self._code(obj)});"]
 
     def rust_object(self, obj: str) -> str:
         return str(self._code(obj))

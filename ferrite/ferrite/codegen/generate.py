@@ -26,7 +26,7 @@ def generate_and_write(types: List[Type], base_path: Path, context: Context) -> 
     pyi_source = Source(Location.IMPORT, deps=[ty.pyi_source() for ty in types])
 
     files = {
-        f"c/{context.prefix}.h": "\n".join([
+        f"c/include/{context.prefix}.h": "\n".join([
             "#pragma once",
             ""
             "#include <stdlib.h>",
@@ -45,26 +45,34 @@ def generate_and_write(types: List[Type], base_path: Path, context: Context) -> 
             "}",
             "#endif // __cplusplus",
         ]),
-        f"c/{context.prefix}.c": "\n".join([
+        f"c/src/{context.prefix}.c": "\n".join([
             f"#include <{context.prefix}.h>",
             "",
             c_source.make_source(Location.DEFINITION),
         ]),
-        f"c/test.c": "\n".join([
+        f"c/src/test.c": "\n".join([
             f"#include <{context.prefix}.h>",
+            f"#include \"codegen_assert.h\"",
             "",
             c_source.make_source(Location.TEST),
         ]),
-        f"rust/{context.prefix}.rs": "\n".join([
+        f"rust/src/proto.rs": "\n".join([
+            "use flatty::make_flat;",
             rust_source.make_source(Location.IMPORT, separator=""),
             "",
             rust_source.make_source(Location.DECLARATION),
             "",
             rust_source.make_source(Location.DEFINITION),
         ]),
-        f"rust/test.rs": "\n".join([
+        f"rust/src/tests.rs": "\n".join([
+            "#![allow(unused_variables)]",
+            "",
+            f"//use std::os::raw::c_int;",
             f"use flatty::prelude::*;",
-            f"use crate::{context.prefix}::*;",
+            f"use crate::*;",
+            f"use crate::utils::vec_aligned;",
+            "",
+            rust_source.make_source(Location.IMPORT, separator=""),
             "",
             rust_source.make_source(Location.TEST),
         ]),
@@ -78,8 +86,9 @@ def generate_and_write(types: List[Type], base_path: Path, context: Context) -> 
     }
 
     paths = [
-        Path("c"),
-        Path("rust"),
+        Path("c/include"),
+        Path("c/src"),
+        Path("rust/src"),
     ]
     base_path.mkdir(exist_ok=True)
     for p in paths:

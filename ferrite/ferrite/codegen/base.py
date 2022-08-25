@@ -220,51 +220,63 @@ class Type:
     def _c_test_name(self) -> str:
         return Name(CONTEXT.prefix, self.name, "test").snake()
 
-    def c_test_source(self) -> Source:
-        objs = self._make_test_objects()
-        return Source(
-            Location.TEST, [[
-                f"int {self._c_test_name()}(const uint8_t * const *data) {{",
-                *indent([
-                    f"const {self.c_type()} *obj;",
-                    *flatten(
-                        [[
-                            f"obj = (const {self.c_type()} *)(data[{i}]);",
-                            *self.c_check(f"(*obj)", obj),
-                        ] for i, obj in enumerate(objs)],
-                        sep=[""],
-                    ),
-                ]),
-                f"}}",
-            ]],
-            deps=[self.c_source()]
-        )
+    def c_test_source(self) -> Optional[Source]:
+        if not self.is_empty():
+            objs = self._make_test_objects()
+            return Source(
+                Location.TEST, [[
+                    f"int {self._c_test_name()}(const uint8_t * const *data) {{",
+                    *indent([
+                        f"const {self.c_type()} *obj;",
+                        *flatten(
+                            [[
+                                f"obj = (const {self.c_type()} *)(data[{i}]);",
+                                *self.c_check(f"(*obj)", obj),
+                            ] for i, obj in enumerate(objs)],
+                            sep=[""],
+                        ),
+                    ]),
+                    f"}}",
+                ]],
+                deps=[self.c_source()]
+            )
+        else:
+            return self.c_source()
 
-    def rust_test_source(self) -> Source:
+    def rust_test_source(self) -> Optional[Source]:
         objs = self._make_test_objects()
         return Source(
             Location.TEST, [[
-                f"extern \"C\" {{ fn {self._c_test_name()}(data: *const *const u8) -> c_int; }}",
+                f"//extern \"C\" {{ fn {self._c_test_name()}(data: *const *const u8) -> c_int; }}",
                 f"",
                 f"#[test]",
                 f"fn {self.name.snake()}() {{",
                 *indent([
                     f"let data = vec![",
-                    *indent(['b"' + "".join([f"\\x{b:02x}" for b in self.store(obj)]) + '"' for obj in objs]),
-                    f"]",
+                    *indent([
+                        "vec_aligned(&b\"" + "".join([f"\\x{b:02x}"
+                                                      for b in self.store(obj)]) + f"\"[..], {self.align}),"
+                        for obj in objs
+                    ]),
+                    f"];",
                     "",
                     *flatten(
                         [[
-                            f"let obj = {self.rust_type()}::reinterpret(&data[{i}]);",
-                            *self.rust_check(f"(*obj)", obj),
+                            f"let obj = <{self.rust_type()}>::reinterpret(&data[{i}]).unwrap();",
+                            *self.rust_check(f"obj", obj),
                         ] for i, obj in enumerate(objs)],
                         sep=[""],
                     ),
                     "",
-                    f"let raw_data = data.iter().map(|s| s.as_ptr()).collect::<Vec<_>>();",
-                    f"assert_eq!(unsafe {{ {self._c_test_name()}(raw_data.as_ptr()) }}, 0);",
+                    f"//let raw_data = data.iter().map(|s| s.as_ptr()).collect::<Vec<_>>();",
+                    f"//assert_eq!(unsafe {{ {self._c_test_name()}(raw_data.as_ptr()) }}, 0);",
                 ]),
                 f"}}",
             ]],
-            deps=[self.c_source()]
+            deps=[self.rust_source()]
         )
+
+    def self_test(self) -> None:
+        for obj in self._make_test_objects():
+            data = self.store(obj)
+            assert self.store(self.load(data)) == data

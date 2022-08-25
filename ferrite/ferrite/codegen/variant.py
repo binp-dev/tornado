@@ -184,10 +184,7 @@ class Variant(Type):
                 *indent([f"{f.name.camel()}({f.type.rust_type()})," for f in self.variants]),
                 f"}}",
             ]],
-            deps=[
-                Source(Location.IMPORT, [["use flatty::make_flat;"]]),
-                *[f.type.rust_source() for f in self.variants],
-            ],
+            deps=[f.type.rust_source() for f in self.variants],
         )
 
     def pyi_type(self) -> str:
@@ -228,14 +225,14 @@ class Variant(Type):
     def rust_check(self, var: str, obj: VariantValue) -> List[str]:
         if self.is_sized():
             return [
-                f"if let {self.variants[obj.id].name.camel()}(x) = {var} {{",
-                *indent(obj.variant_type().rust_check("x", obj.variant)),
+                f"if let {self.rust_type()}::{self.variants[obj.id].name.camel()}(tmp) = {var} {{",
+                *indent(obj.variant_type().rust_check("tmp", obj.variant)),
                 f"}}",
             ]
         else:
             return [
-                f"if let {self.variants[obj.id].name.camel()}Ref(x) = {var}.as_ref() {{",
-                *indent(obj.variant_type().rust_check("(*x)", obj.variant)),
+                f"if let {self.rust_type()}Ref::{self.variants[obj.id].name.camel()}(tmp) = {var}.as_ref() {{",
+                *indent(obj.variant_type().rust_check("tmp", obj.variant)),
                 f"}}",
             ]
 

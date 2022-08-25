@@ -18,8 +18,8 @@ class Codegen(Component):
         generate: Callable[[Path], None]
 
         def run(self, ctx: Context) -> None:
-            self.generate(self.owner.gen_dir)
             shutil.copytree(self.owner.assets_dir, self.owner.gen_dir, dirs_exist_ok=True)
+            self.generate(self.owner.gen_dir)
 
         def artifacts(self) -> List[Artifact]:
             return [Artifact(self.owner.gen_dir)]

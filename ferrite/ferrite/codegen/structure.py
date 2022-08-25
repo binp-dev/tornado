@@ -163,10 +163,7 @@ class Struct(Type):
                 *indent([f"pub {f.name.snake()}: {f.type.rust_type()}," for f in self.fields]),
                 f"}}",
             ]],
-            deps=[
-                Source(Location.IMPORT, [["use flatty::make_flat;"]]),
-                *[f.type.rust_source() for f in self.fields],
-            ],
+            deps=[f.type.rust_source() for f in self.fields],
         )
 
     def pyi_type(self) -> str:
@@ -198,7 +195,7 @@ class Struct(Type):
         return flatten([f.type.c_check(f"{var}.{f.name.snake()}", getattr(obj, f.name.snake())) for f in self.fields])
 
     def rust_check(self, var: str, obj: StructValue) -> List[str]:
-        return flatten([f.type.rust_check(f"{var}.{f.name.snake()}", getattr(obj, f.name.snake())) for f in self.fields])
+        return flatten([f.type.rust_check(f"(&{var}.{f.name.snake()})", getattr(obj, f.name.snake())) for f in self.fields])
 
     def rust_object(self, obj: StructValue) -> str:
         return f"{self.name.camel()} {{" + ", ".join([getattr(obj, f.name.snake()) for f in self.fields]) + f"}}"
