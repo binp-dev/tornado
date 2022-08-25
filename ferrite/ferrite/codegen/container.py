@@ -5,7 +5,7 @@ from random import Random
 
 from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source
 from ferrite.codegen.primitive import Char, Int
-from ferrite.codegen.utils import pad_bytes, upper_multiple
+from ferrite.codegen.utils import pad_bytes, upper_multiple, flatten
 
 
 class _Sequence:
@@ -13,6 +13,15 @@ class _Sequence:
     def __init__(self, item: Type) -> None:
         assert item.is_sized()
         self.item = item
+
+    def c_check(self, var: str, obj: List[Any]) -> List[str]:
+        return flatten([self.item.c_check(f"{var}.data[{i}]", x) for i, x in enumerate(obj)])
+
+    def rust_check(self, var: str, obj: List[Any]) -> List[str]:
+        return flatten([self.item.rust_check(f"{var}.data[{i}]", x) for i, x in enumerate(obj)])
+
+    def rust_object(self, obj: List[Any]) -> str:
+        return "[" + ", ".join([self.item.rust_object(x) for x in obj]) + "]"
 
 
 class _ArrayLike(_Sequence, Type):
@@ -36,7 +45,7 @@ class _ArrayLike(_Sequence, Type):
         return array
 
     def is_instance(self, value: Any) -> bool:
-        return isinstance(value, list) and (len(value) == 0 or isinstance(self.item, value[0]))
+        return isinstance(value, list) and (len(value) == 0 or isinstance(value[0], self.item))
 
     def _c_len(self, obj: str) -> str:
         raise NotImplementedError()
@@ -144,6 +153,21 @@ class _VectorLike(_Sequence, Type):
             ],
         )
 
+    def c_check(self, var: str, obj: List[Any]) -> List[str]:
+        return [
+            f"codegen_assert_eq({var}.len, {len(obj)});",
+            *super().c_check(var, obj),
+        ]
+
+    def rust_check(self, var: str, obj: List[Any]) -> List[str]:
+        return [
+            f"assert_eq!({var}.len(), {len(obj)});",
+            *super().rust_check(var, obj),
+        ]
+
+    def rust_object(self, obj: List[Any]) -> str:
+        return "vec!" + super().rust_object(obj)
+
 
 class Vector(_VectorLike, _ArrayLike):
 
@@ -158,7 +182,7 @@ class Vector(_VectorLike, _ArrayLike):
     def store(self, array: List[Any]) -> bytes:
         data = pad_bytes(self._len_type.store(len(array)), self.item.align)
         data += self._store_array(array)
-        return pad_bytes(data, self.align)
+        return data
 
     def random(self, rng: Random) -> List[Any]:
         size = rng.randrange(0, 8)
@@ -180,7 +204,7 @@ class String(_VectorLike):
         data = b''
         data += self._len_type.store(len(value))
         data += value.encode("ascii")
-        return pad_bytes(data, self.align)
+        return data
 
     def random(self, rng: Random) -> str:
         size = rng.randrange(0, 64)

@@ -5,7 +5,7 @@ from random import Random
 
 from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source
 from ferrite.codegen.primitive import Int
-from ferrite.codegen.utils import indent, list_join, pad_bytes, upper_multiple
+from ferrite.codegen.utils import indent, flatten, pad_bytes, upper_multiple
 from ferrite.codegen.structure import Field
 
 
@@ -13,8 +13,11 @@ class VariantValue:
 
     def __init__(self, type: Variant, id: int, variant: Any):
         self._type = type
-        self._id = id
+        self.id = id
         self.variant = variant
+
+    def variant_type(self) -> Type:
+        return self._type.variants[self.id].type
 
     def store(self) -> bytes:
         return self._type.store(self)
@@ -62,8 +65,8 @@ class Variant(Type):
         return self.value(id, variant)
 
     def store(self, value: VariantValue) -> bytes:
-        data = pad_bytes(self._id_type.store(value._id), self.align)
-        data += self.variants[value._id].type.store(value.variant)
+        data = pad_bytes(self._id_type.store(value.id), self.align)
+        data += value.variant_type().store(value.variant)
 
         if self.is_sized():
             assert self.size >= len(data)
@@ -138,7 +141,7 @@ class Variant(Type):
             f"{self._c_size_decl()} {{",
             f"    size_t size = {upper_multiple(self._id_type.size, self.align)};",
             f"    switch (({self._c_enum_type()})(obj->type)) {{",
-            *list_join([[
+            *flatten([[
                 f"    case {self._c_enum_value(i)}:",
                 f"        size += {f.type.c_size(f'(obj->{f.name.snake()})')};",
                 f"        break;",
@@ -215,3 +218,26 @@ class Variant(Type):
                 *[f.type.pyi_source() for f in self.variants],
             ],
         )
+
+    def c_check(self, var: str, obj: VariantValue) -> List[str]:
+        return [
+            f"codegen_assert_eq(({self._c_enum_type()}){var}.type, {self._c_enum_value(obj.id)});",
+            *obj.variant_type().c_check(f'{var}.{self.variants[obj.id].name.snake()}', obj.variant),
+        ]
+
+    def rust_check(self, var: str, obj: VariantValue) -> List[str]:
+        if self.is_sized():
+            return [
+                f"if let {self.variants[obj.id].name.camel()}(x) = {var} {{",
+                *indent(obj.variant_type().rust_check("x", obj.variant)),
+                f"}}",
+            ]
+        else:
+            return [
+                f"if let {self.variants[obj.id].name.camel()}Ref(x) = {var}.as_ref() {{",
+                *indent(obj.variant_type().rust_check("(*x)", obj.variant)),
+                f"}}",
+            ]
+
+    def rust_object(self, obj: VariantValue) -> str:
+        return f"{self.name.camel()}::{obj.variant_type().name.camel()} (" + obj.variant_type().rust_object(obj) + f")"

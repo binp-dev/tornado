@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 from random import Random
 
 from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source
-from ferrite.codegen.utils import indent, pad_bytes, upper_multiple
+from ferrite.codegen.utils import flatten, indent, pad_bytes, upper_multiple
 
 
 class Field:
@@ -193,3 +193,12 @@ class Struct(Type):
                 *[f.type.pyi_source() for f in self.fields],
             ],
         )
+
+    def c_check(self, var: str, obj: StructValue) -> List[str]:
+        return flatten([f.type.c_check(f"{var}.{f.name.snake()}", getattr(obj, f.name.snake())) for f in self.fields])
+
+    def rust_check(self, var: str, obj: StructValue) -> List[str]:
+        return flatten([f.type.rust_check(f"{var}.{f.name.snake()}", getattr(obj, f.name.snake())) for f in self.fields])
+
+    def rust_object(self, obj: StructValue) -> str:
+        return f"{self.name.camel()} {{" + ", ".join([getattr(obj, f.name.snake()) for f in self.fields]) + f"}}"

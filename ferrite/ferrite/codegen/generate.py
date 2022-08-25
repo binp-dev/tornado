@@ -21,12 +21,12 @@ def generate_and_write(types: List[Type], base_path: Path, context: Context) -> 
             continue
         setattr(CONTEXT, attr, getattr(context, attr))
 
-    c_source = Source(Location.IMPORT, deps=[ty.c_source() for ty in types])
-    rust_source = Source(Location.IMPORT, deps=[ty.rust_source() for ty in types])
+    c_source = Source(Location.IMPORT, deps=[ty.c_test_source() for ty in types])
+    rust_source = Source(Location.IMPORT, deps=[ty.rust_test_source() for ty in types])
     pyi_source = Source(Location.IMPORT, deps=[ty.pyi_source() for ty in types])
 
     files = {
-        f"include/{context.prefix}.h": "\n".join([
+        f"c/{context.prefix}.h": "\n".join([
             "#pragma once",
             ""
             "#include <stdlib.h>",
@@ -45,17 +45,28 @@ def generate_and_write(types: List[Type], base_path: Path, context: Context) -> 
             "}",
             "#endif // __cplusplus",
         ]),
-        f"src/{context.prefix}.c": "\n".join([
+        f"c/{context.prefix}.c": "\n".join([
             f"#include <{context.prefix}.h>",
             "",
             c_source.make_source(Location.DEFINITION),
         ]),
-        f"{context.prefix}.rs": "\n".join([
+        f"c/test.c": "\n".join([
+            f"#include <{context.prefix}.h>",
+            "",
+            c_source.make_source(Location.TEST),
+        ]),
+        f"rust/{context.prefix}.rs": "\n".join([
             rust_source.make_source(Location.IMPORT, separator=""),
             "",
             rust_source.make_source(Location.DECLARATION),
             "",
             rust_source.make_source(Location.DEFINITION),
+        ]),
+        f"rust/test.rs": "\n".join([
+            f"use flatty::prelude::*;",
+            f"use crate::{context.prefix}::*;",
+            "",
+            rust_source.make_source(Location.TEST),
         ]),
         f"{context.prefix}.pyi": "\n".join([
             "from __future__ import annotations",
@@ -67,8 +78,8 @@ def generate_and_write(types: List[Type], base_path: Path, context: Context) -> 
     }
 
     paths = [
-        Path("include"),
-        Path("src"),
+        Path("c"),
+        Path("rust"),
     ]
     base_path.mkdir(exist_ok=True)
     for p in paths:

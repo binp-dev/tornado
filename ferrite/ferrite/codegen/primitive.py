@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, TypeVar
+from typing import Any, List, TypeVar
 
 from random import Random
 import string
@@ -41,7 +41,7 @@ class Int(Type):
     def is_instance(self, value: Any) -> bool:
         return isinstance(value, int)
 
-    def _c_int_literal(self, value: int, hex: bool = False) -> str:
+    def _c_literal(self, value: int, hex: bool = False) -> str:
         if hex:
             vstr = f"0x{value:x}"
         else:
@@ -56,6 +56,15 @@ class Int(Type):
 
     def pyi_type(self) -> str:
         return "int"
+
+    def c_check(self, var: str, obj: int) -> List[str]:
+        return [f"codegen_assert_eq({var}, {self._c_literal(obj)});"]
+
+    def rust_check(self, var: str, obj: int) -> List[str]:
+        return [f"assert_eq!({var}, {obj});"]
+
+    def rust_object(self, obj: int) -> str:
+        return str(obj)
 
 
 class Float(Type):
@@ -92,6 +101,9 @@ class Float(Type):
     def is_instance(self, value: Any) -> bool:
         return isinstance(value, float)
 
+    def _c_literal(self, value: float) -> str:
+        return f"{value}{self._choose('f', '')}"
+
     def c_type(self) -> str:
         return self._choose("float", "double")
 
@@ -100,6 +112,15 @@ class Float(Type):
 
     def pyi_type(self) -> str:
         return "float"
+
+    def c_check(self, var: str, obj: float) -> List[str]:
+        return [f"codegen_assert_eq({var}, {self._c_literal(obj)});"]
+
+    def rust_check(self, var: str, obj: float) -> List[str]:
+        return [f"assert_eq!({var}, {obj});"]
+
+    def rust_object(self, obj: float) -> str:
+        return str(obj)
 
 
 class Char(Type):
@@ -129,3 +150,15 @@ class Char(Type):
 
     def pyi_type(self) -> str:
         return "str"
+
+    def _code(self, obj: str) -> int:
+        return obj.encode('ascii')[0]
+
+    def c_check(self, var: str, obj: str) -> List[str]:
+        return [f"codegen_assert_eq({var}, '\\x{self._code(obj):02x}');"]
+
+    def rust_check(self, var: str, obj: str) -> List[str]:
+        return [f"assert_eq!({var}, {self._code(obj)});"]
+
+    def rust_object(self, obj: str) -> str:
+        return str(self._code(obj))

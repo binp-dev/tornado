@@ -5,13 +5,14 @@ from dataclasses import dataclass
 from enum import Enum
 from random import Random
 
-from ferrite.codegen.utils import is_power_of_2
+from ferrite.codegen.utils import flatten, indent, is_power_of_2
 
 
 @dataclass
 class Context:
     prefix: Optional[str] = None
-    iter_depth: int = 0
+    test_attempts: int = 4
+    test_rng_seed = 0xdeadbeef
 
 
 # FIXME: Remove global context
@@ -62,6 +63,7 @@ class Location(Enum):
     IMPORT = 0
     DECLARATION = 1
     DEFINITION = 2
+    TEST = 3
 
 
 class Source:
@@ -199,3 +201,70 @@ class Type:
 
     def pyi_source(self) -> Optional[Source]:
         return None
+
+    # Tests
+
+    def c_check(self, var: str, obj: Any) -> List[str]:
+        raise self.NotImplemented(self)
+
+    def rust_check(self, var: str, obj: Any) -> List[str]:
+        raise self.NotImplemented(self)
+
+    def rust_object(self, obj: Any) -> str:
+        raise self.NotImplemented(self)
+
+    def _make_test_objects(self) -> List[Any]:
+        rng = Random(CONTEXT.test_rng_seed)
+        return [self.random(rng) for i in range(CONTEXT.test_attempts)]
+
+    def _c_test_name(self) -> str:
+        return Name(CONTEXT.prefix, self.name, "test").snake()
+
+    def c_test_source(self) -> Source:
+        objs = self._make_test_objects()
+        return Source(
+            Location.TEST, [[
+                f"int {self._c_test_name()}(const uint8_t * const *data) {{",
+                *indent([
+                    f"const {self.c_type()} *obj;",
+                    *flatten(
+                        [[
+                            f"obj = (const {self.c_type()} *)(data[{i}]);",
+                            *self.c_check(f"(*obj)", obj),
+                        ] for i, obj in enumerate(objs)],
+                        sep=[""],
+                    ),
+                ]),
+                f"}}",
+            ]],
+            deps=[self.c_source()]
+        )
+
+    def rust_test_source(self) -> Source:
+        objs = self._make_test_objects()
+        return Source(
+            Location.TEST, [[
+                f"extern \"C\" {{ fn {self._c_test_name()}(data: *const *const u8) -> c_int; }}",
+                f"",
+                f"#[test]",
+                f"fn {self.name.snake()}() {{",
+                *indent([
+                    f"let data = vec![",
+                    *indent(['b"' + "".join([f"\\x{b:02x}" for b in self.store(obj)]) + '"' for obj in objs]),
+                    f"]",
+                    "",
+                    *flatten(
+                        [[
+                            f"let obj = {self.rust_type()}::reinterpret(&data[{i}]);",
+                            *self.rust_check(f"(*obj)", obj),
+                        ] for i, obj in enumerate(objs)],
+                        sep=[""],
+                    ),
+                    "",
+                    f"let raw_data = data.iter().map(|s| s.as_ptr()).collect::<Vec<_>>();",
+                    f"assert_eq!(unsafe {{ {self._c_test_name()}(raw_data.as_ptr()) }}, 0);",
+                ]),
+                f"}}",
+            ]],
+            deps=[self.c_source()]
+        )
