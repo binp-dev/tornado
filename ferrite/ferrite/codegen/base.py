@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, List, Optional, Sequence, Set, Union, overload
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union, overload
 
 from dataclasses import dataclass
 from enum import Enum
@@ -108,29 +108,25 @@ class Type:
             super().__init__(f"{type(owner).__name__}: {owner.name}")
 
     @overload
-    def __init__(self, name: Name, align: int, size: int) -> None:
+    def __init__(self, name: Name, size: int) -> None:
         ...
 
     @overload
-    def __init__(self, name: Name, align: int, size: None, min_size: int) -> None:
+    def __init__(self, name: Name, size: None, min_size: int) -> None:
         ...
 
     def __init__(
         self,
         name: Name,
-        align: int,
         size: Optional[int],
         min_size: Optional[int] = None,
     ) -> None:
-        assert is_power_of_2(align)
         self.name = name
-        self.align = align
         if size is None:
             assert min_size is not None
             self._size = None
             self.min_size = min_size
         else:
-            assert size % align == 0
             self._size = size
             self.min_size = size
 
@@ -253,12 +249,10 @@ class Type:
                 f"fn {self.name.snake()}() {{",
                 *indent([
                     f"let data = vec![",
-                    *indent([
-                        "vec_aligned(&b\"" + "".join([f"\\x{b:02x}"
-                                                      for b in self.store(obj)]) + f"\"[..], {self.align}),"
-                        for obj in objs
-                    ]),
+                    *indent(["&b\"" + "".join([f"\\x{b:02x}" for b in self.store(obj)]) + f"\"[..]," for obj in objs]),
                     f"];",
+                    "",
+                    f"assert_eq!(<{self.rust_type()}>::ALIGN, 1);",
                     "",
                     *flatten(
                         [[

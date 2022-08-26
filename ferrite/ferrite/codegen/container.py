@@ -5,7 +5,7 @@ from random import Random
 
 from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source
 from ferrite.codegen.primitive import Char, Int
-from ferrite.codegen.utils import pad_bytes, upper_multiple, flatten
+from ferrite.codegen.utils import flatten
 
 
 class _Sequence:
@@ -45,7 +45,7 @@ class _ArrayLike(_Sequence, Type):
         return array
 
     def is_instance(self, value: Any) -> bool:
-        return isinstance(value, list) and (len(value) == 0 or isinstance(value[0], self.item))
+        return isinstance(value, list) and (len(value) == 0 or self.item.is_instance(value[0]))
 
     def _c_len(self, obj: str) -> str:
         raise NotImplementedError()
@@ -61,7 +61,7 @@ class Array(_ArrayLike):
 
     def __init__(self, item: Type, len: int) -> None:
         _Sequence.__init__(self, item)
-        Type.__init__(self, Name(f"array{len}", item.name), item.align, self.item.size * len)
+        Type.__init__(self, Name(f"array{len}", item.name), self.item.size * len)
         self.len = len
 
     def load(self, data: bytes) -> List[Any]:
@@ -87,7 +87,7 @@ class Array(_ArrayLike):
         return Source(
             Location.DECLARATION,
             [[
-                f"typedef struct {{",
+                f"typedef struct __attribute__((packed, aligned(1))) {{",
                 f"    {self.item.c_type()} data[{self.len}];",
                 f"}} {self.c_type()};",
             ]],
@@ -103,13 +103,7 @@ class _VectorLike(_Sequence, Type):
     def __init__(self, name: Name, item: Type) -> None:
         size_type = Int(16)
         _Sequence.__init__(self, item)
-        Type.__init__(
-            self,
-            name,
-            max(item.align, size_type.align),
-            None,
-            upper_multiple(size_type.size, item.align),
-        )
+        Type.__init__(self, name, None, size_type.size)
         self._len_type = size_type
 
     def c_type(self) -> str:
@@ -129,7 +123,7 @@ class _VectorLike(_Sequence, Type):
         return Source(
             Location.DECLARATION,
             [[
-                f"typedef struct {{",
+                f"typedef struct __attribute__((packed, aligned(1))) {{",
                 f"    {self._len_type.c_type()} len;",
                 f"    {self.item.c_type()} data[];",
                 f"}} {name};",
@@ -180,7 +174,7 @@ class Vector(_VectorLike, _ArrayLike):
         return self._load_array(data, count)
 
     def store(self, array: List[Any]) -> bytes:
-        data = pad_bytes(self._len_type.store(len(array)), self.item.align)
+        data = self._len_type.store(len(array))
         data += self._store_array(array)
         return data
 

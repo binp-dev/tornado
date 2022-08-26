@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 from random import Random
 
 from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source
-from ferrite.codegen.utils import flatten, indent, pad_bytes, upper_multiple
+from ferrite.codegen.utils import flatten, indent
 
 
 class Field:
@@ -28,29 +28,26 @@ class StructValue:
 class Struct(Type):
 
     def __init__(self, name: Name, fields: List[Field]):
-        align = max([1, *[f.type.align for f in fields]])
-
         size = 0
         sized = True
         if len(fields) > 0:
             for f in fields[:-1]:
                 assert f.type.is_sized()
-                size = upper_multiple(size, f.type.align) + f.type.size
+                size += f.type.size
 
             f = fields[-1]
             if f.type.is_sized():
                 sized = True
-                size = upper_multiple(size, f.type.align) + f.type.size
-                size = upper_multiple(size, align)
+                size += f.type.size
             else:
                 sized = False
-                min_size = upper_multiple(size, f.type.align) + f.type.min_size
+                min_size = size + f.type.min_size
                 del size
 
         if sized:
-            super().__init__(name, align, size)
+            super().__init__(name, size)
         else:
-            super().__init__(name, align, None, min_size)
+            super().__init__(name, None, min_size)
 
         self.fields = fields
 
@@ -60,7 +57,6 @@ class Struct(Type):
         if len(self.fields) > 0:
             index = 0
             for i, f in enumerate(self.fields):
-                index = upper_multiple(index, f.type.align)
                 args.append(f.type.load(data[index:]))
                 if i < len(self.fields) - 1:
                     index += f.type.size
@@ -70,10 +66,7 @@ class Struct(Type):
         assert self.is_instance(value)
         data = b""
         for f in self.fields:
-            data = pad_bytes(data, f.type.align)
             data += f.type.store(getattr(value, f.name.snake()))
-        if self.is_sized():
-            data = pad_bytes(data, self.align)
         return data
 
     def value(self, *args: Any, **kwargs: Any) -> StructValue:
@@ -119,7 +112,7 @@ class Struct(Type):
 
     def _c_struct_decl(self) -> List[str]:
         return [
-            f"typedef struct {{",
+            f"typedef struct __attribute__((packed, aligned(1))) {{",
             *[f"    {f.type.c_type()} {f.name.snake()};" for f in self.fields if not f.type.is_empty()],
             f"}} {self.c_type()};",
         ]

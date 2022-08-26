@@ -1,11 +1,11 @@
 from __future__ import annotations
-from typing import Any, List, TypeVar
+from typing import Any, List, TypeVar, Optional
 
 from random import Random
 import string
 import struct
 
-from ferrite.codegen.base import Name, Type
+from ferrite.codegen.base import Location, Name, Source, Type
 from ferrite.codegen.utils import is_power_of_2
 
 T = TypeVar('T')
@@ -18,7 +18,7 @@ class Int(Type):
     def __init__(self, bits: int, signed: bool = False) -> None:
         assert is_power_of_2(bits // 8) and bits % 8 == 0
         self._int_name = f"{'u' if not signed else ''}int{bits}"
-        super().__init__(Name(self._int_name), bits // 8, bits // 8)
+        super().__init__(Name(self._int_name), bits // 8)
         self.bits = bits
         self.signed = signed
 
@@ -52,7 +52,10 @@ class Int(Type):
         return self._int_name + "_t"
 
     def rust_type(self) -> str:
-        return ("i" if self.signed else "u") + str(self.bits)
+        if self.bits <= 8:
+            return ("i" if self.signed else "u") + str(self.bits)
+        else:
+            return ("I" if self.signed else "U") + str(self.bits)
 
     def pyi_type(self) -> str:
         return "int"
@@ -61,10 +64,19 @@ class Int(Type):
         return [f"codegen_assert_eq({var}, {self._c_literal(obj)});"]
 
     def rust_check(self, var: str, obj: int) -> List[str]:
-        return [f"assert_eq!(*{var}, {obj});"]
+        if self.bits <= 8:
+            return [f"assert_eq!(*{var}, {obj});"]
+        else:
+            return [f"assert_eq!({var}.to_native(), {obj});"]
 
     def rust_object(self, obj: int) -> str:
         return str(obj)
+
+    def rust_source(self) -> Optional[Source]:
+        if self.bits <= 8:
+            return None
+        else:
+            return Source(Location.IMPORT, [["use flatty::portable::le::*;"]])
 
 
 class Float(Type):
@@ -80,7 +92,7 @@ class Float(Type):
     def __init__(self, bits: int) -> None:
         if bits != 32 and bits != 64:
             raise RuntimeError(f"{bits}-bit float is not supported")
-        super().__init__(Name(f"float{bits}"), bits // 8, bits // 8)
+        super().__init__(Name(f"float{bits}"), bits // 8)
         self.bits = bits
 
     def load(self, data: bytes) -> float:
@@ -108,7 +120,7 @@ class Float(Type):
         return self._choose("float", "double")
 
     def rust_type(self) -> str:
-        return f"f{self.bits}"
+        return f"F{self.bits}"
 
     def pyi_type(self) -> str:
         return "float"
@@ -117,16 +129,19 @@ class Float(Type):
         return [f"codegen_assert_eq({var}, {self._c_literal(obj)});"]
 
     def rust_check(self, var: str, obj: float) -> List[str]:
-        return [f"assert_eq!(*{var}, {obj});"]
+        return [f"assert_eq!({var}.to_native(), {obj});"]
 
     def rust_object(self, obj: float) -> str:
         return str(obj)
+
+    def rust_source(self) -> Optional[Source]:
+        return Source(Location.IMPORT, [["use flatty::portable::le::*;"]])
 
 
 class Char(Type):
 
     def __init__(self) -> None:
-        super().__init__(Name("char"), 1, 1)
+        super().__init__(Name("char"), 1)
 
     def load(self, data: bytes) -> str:
         assert len(data) >= 1

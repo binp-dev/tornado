@@ -5,7 +5,7 @@ from random import Random
 
 from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source
 from ferrite.codegen.primitive import Int
-from ferrite.codegen.utils import indent, flatten, pad_bytes, upper_multiple
+from ferrite.codegen.utils import indent, flatten, pad_bytes
 from ferrite.codegen.structure import Field
 
 
@@ -29,22 +29,20 @@ class Variant(Type):
         id_type = Int(8)
         assert len(variants) < (1 << id_type.bits)
 
-        align = max([id_type.align, *[f.type.align for f in variants]])
-
         all_variants_sized = all([f.type.is_sized() for f in variants])
         if sized is None:
             sized = all_variants_sized
         elif sized is True:
             assert all_variants_sized
 
-        size = upper_multiple(id_type.size, align)
+        size = id_type.size
         if sized:
-            size = upper_multiple(size + max([f.type.size for f in variants]), align)
-            super().__init__(name, align, size)
+            size += max([f.type.size for f in variants])
+            super().__init__(name, size)
         else:
             min_size = size + min([f.type.min_size for f in variants])
             del size
-            super().__init__(name, align, None, min_size)
+            super().__init__(name, None, min_size)
 
         self._id_type = Int(8)
         self.variants = variants
@@ -58,14 +56,14 @@ class Variant(Type):
 
         id = self._id_type.load(data[:self._id_type.size])
 
-        var_data = data[upper_multiple(self._id_type.size, self.align):]
+        var_data = data[self._id_type.size:]
         var_type = self.variants[id].type
         variant = var_type.load(var_data)
 
         return self.value(id, variant)
 
     def store(self, value: VariantValue) -> bytes:
-        data = pad_bytes(self._id_type.store(value.id), self.align)
+        data = self._id_type.store(value.id)
         data += value.variant_type().store(value.variant)
 
         if self.is_sized():
@@ -125,7 +123,7 @@ class Variant(Type):
 
     def _c_struct_decl(self) -> List[str]:
         return [
-            f"typedef struct {{",
+            f"typedef struct __attribute__((packed, aligned(1))) {{",
             f"    {self._id_type.c_type()} type;",
             f"    union {{",
             *[f"        {f.type.c_type()} {f.name.snake()};" for f in self.variants if not f.type.is_empty()],
@@ -139,7 +137,7 @@ class Variant(Type):
     def _c_size_def(self) -> List[str]:
         return [
             f"{self._c_size_decl()} {{",
-            f"    size_t size = {upper_multiple(self._id_type.size, self.align)};",
+            f"    size_t size = {self._id_type.size};",
             f"    switch (({self._c_enum_type()})(obj->type)) {{",
             *flatten([[
                 f"    case {self._c_enum_value(i)}:",
