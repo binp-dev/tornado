@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Dict, Optional
+from typing import Sequence, List, Dict, Optional
 
 import os
 import sys
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def run(
-    cmd: List[str | Path],
+    cmd: Sequence[str | Path],
     cwd: Optional[Path] = None,
     add_env: Optional[Dict[str, str]] = None,
     capture: bool = False,

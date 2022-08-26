@@ -11,7 +11,6 @@ from ferrite.components.cmake import Cmake
 
 from ferrite.codegen.base import Context as CodegenContext, TestInfo
 from ferrite.codegen.generator import Generator
-from ferrite.codegen.test import TYPES
 from ferrite.utils.files import substitute
 
 
@@ -87,20 +86,3 @@ class CodegenTest(Codegen):
             "build": self.build_task,
             "test": self.test_task,
         }
-
-
-class CodegenExample(CodegenTest):
-
-    def __init__(
-        self,
-        source_dir: Path,
-        target_dir: Path,
-        rustc: RustcHost,
-    ):
-        super().__init__(
-            "codegen",
-            source_dir,
-            target_dir / "codegen",
-            Generator(list(TYPES.values())),
-            rustc,
-        )

@@ -9,10 +9,11 @@ from ferrite.components.epics.app_ioc import AbstractAppIoc
 from ferrite.components.app import AppBase
 
 
-class IocHostExample(AbstractAppIoc, IocHost):
+class AppIocHost(AbstractAppIoc, IocHost):
 
     def __init__(
         self,
+        ferrite_dir: Path,
         source_dir: Path,
         target_dir: Path,
         epics_base: EpicsBaseHost,
@@ -21,7 +22,7 @@ class IocHostExample(AbstractAppIoc, IocHost):
         self.app = app
 
         super().__init__(
-            [source_dir / "ioc"],
+            [ferrite_dir / "ioc", source_dir / "ioc"],
             target_dir / "ioc_host",
             epics_base,
             app,
@@ -31,10 +32,11 @@ class IocHostExample(AbstractAppIoc, IocHost):
         pass
 
 
-class IocCrossExample(AbstractAppIoc, IocCross):
+class AppIocCross(AbstractAppIoc, IocCross):
 
     def __init__(
         self,
+        ferrite_dir: Path,
         source_dir: Path,
         target_dir: Path,
         epics_base: EpicsBaseCross,
@@ -43,7 +45,7 @@ class IocCrossExample(AbstractAppIoc, IocCross):
         self.app = app
 
         super().__init__(
-            [source_dir / "ioc"],
+            [ferrite_dir / "ioc", source_dir / "ioc"],
             target_dir / f"ioc_{epics_base.cc.name}",
             epics_base,
             app,

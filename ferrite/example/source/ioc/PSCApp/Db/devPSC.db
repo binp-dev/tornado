@@ -1,0 +1,21 @@
+record(ai, "ai")
+{
+    field(DTYP, "devsup")
+    field(SCAN, "I/O Intr")
+}
+record(ao, "ao")
+{
+    field(DTYP, "devsup")
+}
+
+record(aai, "aai") {
+    field(DTYP, "devsup")
+    field(NELM, 64)
+    field(FTVL, "LONG")
+    field(SCAN, "I/O Intr")
+}
+record(aao, "aao") {
+    field(DTYP, "devsup")
+    field(NELM, 64)
+    field(FTVL, "LONG")
+}

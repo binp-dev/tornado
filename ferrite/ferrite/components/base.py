@@ -119,6 +119,14 @@ class Component:
             task._name = f"{task_name}"
 
 
+@dataclass
+class DictComponent(Component):
+    task_dict: Dict[str, Task]
+
+    def tasks(self) -> Dict[str, Task]:
+        return self.task_dict
+
+
 class ComponentGroup(Component):
 
     def components(self) -> Dict[str, Component | ComponentGroup]:

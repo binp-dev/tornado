@@ -9,10 +9,10 @@ crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [[bin]]
-name = "app-example"
+name = "app"
 path = "src/main.rs"
 
 [dependencies]
-base = { package = "ferrite-app-base", path = "../base" }
+base = { package = "ferrite-app", path = "../../../source/app" }
 macro_rules_attribute = "0.1.2"
 futures = "0.3.23"

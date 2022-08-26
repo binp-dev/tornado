@@ -45,13 +45,13 @@ class Rustc(Compiler):
             "RUSTUP_TOOLCHAIN": "stable",
         }
 
-    def install(self, capture: bool = False) -> bool:
-        run(
+    def install(self, capture: bool = False) -> None:
+        cmds = [
+            ["rustup", "set", "profile", "minimal"],
             ["rustup", "target", "add", str(self.target)],
-            add_env=self.env(),
-            quiet=capture,
-        )
-        return True
+        ]
+        for cmd in cmds:
+            run(cmd, add_env=self.env(), quiet=capture)
 
     def tasks(self) -> Dict[str, Task]:
         return {"install": self.install_task}

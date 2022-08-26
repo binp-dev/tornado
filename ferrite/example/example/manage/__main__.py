@@ -4,17 +4,19 @@ import argparse
 from pathlib import Path
 
 import ferrite.manage.cli as cli
-from ferrite.components.tree import make_components
+
+from example.components.tree import make_components
 
 if __name__ == "__main__":
     base_dir = Path.cwd()
     target_dir = base_dir / "target"
     target_dir.mkdir(exist_ok=True)
+    ferrite_dir = (base_dir / "..").resolve()
 
-    components = make_components(base_dir, target_dir)
+    components = make_components(ferrite_dir, base_dir, target_dir)
 
     parser = argparse.ArgumentParser(
-        description="Power supply controller software development automation library",
+        description="Power supply controller software development automation tool",
         usage="python -m ferrite.manage <task> [options...]",
     )
     cli.add_parser_args(parser, components)

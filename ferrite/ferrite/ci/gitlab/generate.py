@@ -306,7 +306,7 @@ def main(
 
 
 if __name__ == "__main__":
-    from ferrite.manage.tree import make_components
+    from ferrite.components.tree import make_components
 
     end_tasks = [
         "host.all.test",

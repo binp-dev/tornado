@@ -1,6 +1,7 @@
-[workspace]
+[package]
+name = "ferrite-app"
+version = "0.1.0"
+edition = "2021"
 
-members = [
-    "base",
-    "example"
-]
+[dependencies]
+lazy_static = "1.4.0"
