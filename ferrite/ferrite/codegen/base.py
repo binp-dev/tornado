@@ -10,18 +10,17 @@ from ferrite.codegen.utils import flatten, indent
 
 @dataclass
 class TestInfo:
-    attempts: int = 4
     rng_seed = 0xdeadbeef
+    attempts: int = 4
 
 
 @dataclass
 class Context:
     prefix: str
-    test: TestInfo
 
 
 # FIXME: Remove global context
-CONTEXT = Context("default", TestInfo())
+CONTEXT = Context("default")
 
 
 class Name:
@@ -214,16 +213,16 @@ class Type:
     def rust_object(self, obj: Any) -> str:
         raise self.NotImplemented(self)
 
-    def _make_test_objects(self) -> List[Any]:
-        rng = Random(CONTEXT.test.rng_seed)
-        return [self.random(rng) for i in range(CONTEXT.test.attempts)]
+    def _make_test_objects(self, info: TestInfo) -> List[Any]:
+        rng = Random(info.rng_seed)
+        return [self.random(rng) for i in range(info.attempts)]
 
     def _c_test_name(self) -> str:
         return Name(CONTEXT.prefix, self.name, "test").snake()
 
-    def c_test_source(self) -> Optional[Source]:
+    def c_test_source(self, info: TestInfo) -> Optional[Source]:
         if not self.is_empty():
-            objs = self._make_test_objects()
+            objs = self._make_test_objects(info)
             return Source(
                 Location.TEST, [[
                     f"int {self._c_test_name()}(const uint8_t * const *data) {{",
@@ -245,8 +244,8 @@ class Type:
         else:
             return self.c_source()
 
-    def rust_test_source(self) -> Optional[Source]:
-        objs = self._make_test_objects()
+    def rust_test_source(self, info: TestInfo) -> Optional[Source]:
+        objs = self._make_test_objects(info)
         return Source(
             Location.TEST, [[
                 *([f"extern \"C\" {{ fn {self._c_test_name()}(data: *const *const u8) -> c_int; }}", f""]
@@ -277,7 +276,7 @@ class Type:
             deps=[self.rust_source()]
         )
 
-    def self_test(self) -> None:
-        for obj in self._make_test_objects():
+    def self_test(self, info: TestInfo) -> None:
+        for obj in self._make_test_objects(info):
             data = self.store(obj)
             assert self.store(self.load(data)) == data

@@ -21,15 +21,18 @@ def make_variant(name: Name, messages: List[Tuple[Name, List[Field]]]) -> Varian
 class Generator:
     types: List[Type]
 
-    def generate(self, context: Context) -> Output:
+    def _set_context(self, context: Context) -> None:
         global CONTEXT
         for attr in dir(context):
             if attr.startswith('__'):
                 continue
             setattr(CONTEXT, attr, getattr(context, attr))
 
-        c_source = Source(Location.IMPORT, deps=[ty.c_test_source() for ty in self.types])
-        rust_source = Source(Location.IMPORT, deps=[ty.rust_test_source() for ty in self.types])
+    def generate(self, context: Context) -> Output:
+        self._set_context(context)
+
+        c_source = Source(Location.IMPORT, deps=[ty.c_source() for ty in self.types])
+        rust_source = Source(Location.IMPORT, deps=[ty.rust_source() for ty in self.types])
         pyi_source = Source(Location.IMPORT, deps=[ty.pyi_source() for ty in self.types])
 
         return self.Output({
@@ -57,12 +60,6 @@ class Generator:
                 "",
                 c_source.make_source(Location.DEFINITION),
             ]),
-            Path(f"c/src/test.c"): "\n".join([
-                f"#include <{context.prefix}.h>",
-                f"#include \"codegen_assert.h\"",
-                "",
-                c_source.make_source(Location.TEST),
-            ]),
             Path(f"rust/src/proto.rs"): "\n".join([
                 "use flatty::make_flat;",
                 rust_source.make_source(Location.IMPORT, separator=""),
@@ -71,8 +68,31 @@ class Generator:
                 "",
                 rust_source.make_source(Location.DEFINITION),
             ]),
+            Path(f"{context.prefix}.pyi"): "\n".join([
+                "# This file was generatered by Ferrite Codegen."
+                "from __future__ import annotations",
+                "",
+                pyi_source.make_source(Location.IMPORT, separator=""),
+                "",
+                pyi_source.make_source(Location.DECLARATION),
+            ]),
+        })
+
+    def generate_tests(self, context: Context, info: TestInfo) -> Output:
+        self._set_context(context)
+
+        c_source = Source(Location.IMPORT, deps=[ty.c_test_source(info) for ty in self.types])
+        rust_source = Source(Location.IMPORT, deps=[ty.rust_test_source(info) for ty in self.types])
+
+        return self.Output({
+            Path(f"c/src/test.c"): "\n".join([
+                f"#include <{context.prefix}.h>",
+                f"#include \"codegen_assert.h\"",
+                "",
+                c_source.make_source(Location.TEST),
+            ]),
             Path(f"rust/src/tests.rs"): "\n".join([
-                "#![allow(unused_variables)]",
+                "#![allow(unused_variables, unused_imports)]",
                 "",
                 f"use std::os::raw::c_int;",
                 f"use flatty::{{prelude::*, portable::NativeCast}};",
@@ -81,13 +101,6 @@ class Generator:
                 rust_source.make_source(Location.IMPORT, separator=""),
                 "",
                 rust_source.make_source(Location.TEST),
-            ]),
-            Path(f"{context.prefix}.pyi"): "\n".join([
-                "from __future__ import annotations",
-                "",
-                pyi_source.make_source(Location.IMPORT, separator=""),
-                "",
-                pyi_source.make_source(Location.DECLARATION),
             ]),
         })
 

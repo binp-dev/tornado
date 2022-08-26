@@ -7,7 +7,7 @@ from ferrite.components.base import Component, ComponentGroup
 from ferrite.components.platforms.base import AppPlatform
 from ferrite.components.platforms.host import HostAppPlatform
 from ferrite.components.codegen import CodegenExample
-from ferrite.components.fakedev import Fakedev
+from ferrite.components.fakedev import Fakedev, Protocol as FakeProto
 from ferrite.components.all_ import AllCross, AllHost
 from ferrite.components.platforms.arm import Aarch64AppPlatform, ArmAppPlatform
 from ferrite.components.app import AppBase
@@ -29,7 +29,8 @@ class _HostComponents(ComponentGroup):
         self.codegen = CodegenExample(source_dir, target_dir, self.rustc)
         self.app = AppBase(source_dir / "app", target_dir / "app", self.rustc)
         self.ioc_example = IocHostExample(source_dir, target_dir, self.epics_base, self.app)
-        self.fakedev = Fakedev(self.ioc_example)
+        self.fake_proto = FakeProto(source_dir, target_dir, self.rustc)
+        self.fakedev = Fakedev(self.ioc_example, self.fake_proto)
         self.all = AllHost(self.epics_base, self.codegen, self.app, self.ioc_example, self.fakedev)
 
     def components(self) -> Dict[str, Component | ComponentGroup]:

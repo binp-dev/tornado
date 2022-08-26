@@ -3,7 +3,7 @@ from typing import Callable, Dict, List
 
 import shutil
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ferrite.components.base import Artifact, CallTask, Component, Task, Context, TaskList
 from ferrite.components.rust import RustcHost, Cargo
@@ -12,12 +12,13 @@ from ferrite.components.cmake import Cmake
 from ferrite.codegen.base import Context as CodegenContext, TestInfo
 from ferrite.codegen.generator import Generator
 from ferrite.codegen.test import TYPES
+from ferrite.utils.files import substitute
 
 
 @dataclass
 class Codegen(Component):
     name: str
-    assets_dir: Path
+    source_dir: Path
     output_dir: Path
     generator: Generator
 
@@ -27,13 +28,17 @@ class Codegen(Component):
 
         def run(self, ctx: Context) -> None:
             shutil.copytree(self.owner.assets_dir, self.owner.output_dir, dirs_exist_ok=True)
+            for path in [Path("c/CMakeLists.txt"), Path("rust/Cargo.toml"), Path("rust/build.rs")]:
+                substitute([("{{codegen}}", self.owner.name)], self.owner.output_dir / path)
+
             self.owner.generator.generate(self.owner.context).write(self.owner.output_dir)
 
         def artifacts(self) -> List[Artifact]:
             return [Artifact(self.owner.output_dir)]
 
     def __post_init__(self) -> None:
-        self.context = CodegenContext(self.name, TestInfo(16))
+        self.assets_dir = self.source_dir / "codegen"
+        self.context = CodegenContext(self.name)
         self.generate_task = self.GenerateTask(self)
 
     def tasks(self) -> Dict[str, Task]:
@@ -44,8 +49,18 @@ class Codegen(Component):
 class CodegenTest(Codegen):
     rustc: RustcHost
 
+    @dataclass
+    class GenerateTask(Codegen.GenerateTask):
+
+        def run(self, ctx: Context) -> None:
+            super().run(ctx)
+            assert isinstance(self.owner, CodegenTest)
+            self.owner.generator.generate_tests(self.owner.context, self.owner.test_info).write(self.owner.output_dir)
+
     def __post_init__(self) -> None:
         super().__post_init__()
+        self.assets_dir = self.source_dir / "codegen"
+        self.test_info = TestInfo(16)
 
         self.c_test = Cmake(
             self.output_dir / "c",
@@ -63,7 +78,7 @@ class CodegenTest(Codegen):
         self.build_task = self.rust_test.build_task
         self.test_task = TaskList([
             self.rust_test.test_task,
-            CallTask(lambda: self.generator.self_test(self.context.test)),
+            CallTask(lambda: self.generator.self_test(self.test_info)),
         ])
 
     def tasks(self) -> Dict[str, Task]:
@@ -84,7 +99,7 @@ class CodegenExample(CodegenTest):
     ):
         super().__init__(
             "codegen",
-            source_dir / "codegen",
+            source_dir,
             target_dir / "codegen",
             Generator(list(TYPES.values())),
             rustc,
