@@ -1,25 +1,27 @@
 from __future__ import annotations
-from typing import Any, List, Optional, Sequence, Set, Union
+from typing import Any, List, Optional, Sequence, Set, Union, overload
 
 from dataclasses import dataclass
 from enum import Enum
 from random import Random
 
-from numpy.typing import DTypeLike
+from ferrite.codegen.utils import flatten, indent
 
-from ferrite.codegen.utils import indent
-from ferrite.codegen.macros import io_read_type, io_result_type, io_write_type, ok, stream_read, stream_write, try_unwrap
+
+@dataclass
+class TestInfo:
+    attempts: int = 4
+    rng_seed = 0xdeadbeef
 
 
 @dataclass
 class Context:
-    prefix: Optional[str] = None
-    iter_depth: int = 0
-    test_attempts: int = 1
+    prefix: str
+    test: TestInfo
 
 
 # FIXME: Remove global context
-CONTEXT = Context()
+CONTEXT = Context("default", TestInfo())
 
 
 class Name:
@@ -63,11 +65,10 @@ class Name:
 
 
 class Location(Enum):
-    NONE = 0
-    INCLUDES = 1
-    DECLARATION = 2
-    DEFINITION = 3
-    TESTS = 4
+    IMPORT = 0
+    DECLARATION = 1
+    DEFINITION = 2
+    TEST = 3
 
 
 class Source:
@@ -104,206 +105,179 @@ class Source:
         return separator.join(self.collect(location))
 
 
-class Include(Source):
-
-    def __init__(self, path: str):
-        super().__init__(Location.INCLUDES, [[f"#include <{path}>"]])
-
-
-def declare_variable(c_type: str, variable: str) -> str:
-    return f"{c_type} {variable}"
-
-
 class Type:
 
-    def __init__(self, sized: bool, trivial: bool = False):
-        if trivial:
-            assert sized
-        self.sized = sized
-        self.trivial = trivial
+    class NotImplemented(NotImplementedError):
 
-    def name(self) -> Name:
-        raise NotImplementedError(type(self).__name__)
+        def __init__(self, owner: Type) -> None:
+            super().__init__(f"{type(owner).__name__}: {owner.name}")
 
-    def _debug_name(self) -> str:
-        try:
-            return self.name().camel()
-        except NotImplementedError:
-            return type(self).__name__
+    @overload
+    def __init__(self, name: Name, size: int) -> None:
+        ...
 
-    def _not_implemented(self) -> RuntimeError:
-        return NotImplementedError(self._debug_name())
+    @overload
+    def __init__(self, name: Name, size: None, min_size: int) -> None:
+        ...
 
-    def size(self) -> int:
-        raise self._not_implemented()
+    def __init__(
+        self,
+        name: Name,
+        size: Optional[int],
+        min_size: Optional[int] = None,
+    ) -> None:
+        self.name = name
+        if size is None:
+            assert min_size is not None
+            self._size = None
+            self.min_size = min_size
+        else:
+            self._size = size
+            self.min_size = size
 
-    def min_size(self) -> int:
-        return self.size()
+    def is_sized(self) -> bool:
+        return self._size is not None
 
     def is_empty(self) -> bool:
-        return self.sized and self.size() == 0
+        return self._size == 0
 
-    def deps(self) -> List[Type]:
-        return []
+    @property
+    def size(self) -> int:
+        if self._size is not None:
+            return self._size
+        else:
+            raise self.NotImplemented(self)
+
+    # Runtime
 
     def load(self, data: bytes) -> Any:
-        raise self._not_implemented()
+        raise self.NotImplemented(self)
 
     def store(self, value: Any) -> bytes:
-        raise self._not_implemented()
+        raise self.NotImplemented(self)
 
     def default(self) -> Any:
-        raise self._not_implemented()
+        raise self.NotImplemented(self)
 
     def random(self, rng: Random) -> Any:
-        raise self._not_implemented()
+        raise self.NotImplemented(self)
 
     def is_instance(self, value: Any) -> bool:
-        raise self._not_implemented()
+        raise self.NotImplemented(self)
 
     def __instancecheck__(self, value: Any) -> bool:
         return self.is_instance(value)
 
-    def np_dtype(self) -> DTypeLike:
-        raise self._not_implemented()
+    # Generation
 
     def c_type(self) -> str:
-        raise self._not_implemented()
+        raise self.NotImplemented(self)
 
-    def cpp_type(self) -> str:
-        return self.c_type()
+    def c_size(self, obj: str) -> str:
+        if self.size is not None:
+            return str(self.size)
+        else:
+            raise self.NotImplemented(self)
 
-    def pyi_type(self) -> str:
-        raise self._not_implemented()
-
-    def pyi_np_dtype(self) -> str:
-        raise self._not_implemented()
+    def _c_size_extent(self, obj: str) -> str:
+        raise self.NotImplemented(self)
 
     def c_source(self) -> Optional[Source]:
         return None
 
-    def _cpp_load_func_decl(self, stream: str) -> str:
-        return f"{io_result_type(self.cpp_type())} {Name(self.name(), 'load').snake()}({io_read_type()} &{stream})"
+    def rust_type(self) -> str:
+        raise self.NotImplemented(self)
 
-    def _cpp_store_func_decl(self, stream: str, value: str) -> str:
-        return f"{io_result_type()} {Name(self.name(), 'store').snake()}({io_write_type()} &{stream}, const {self.cpp_type()} &{value})"
+    def rust_size(self, obj: str) -> str:
+        if self.size is not None:
+            return f"<{self.rust_type()} as FlatSized>::SIZE"
+        else:
+            return f"<{self.rust_type()} as FlatBase>::size({obj})"
 
-    def cpp_source(self) -> Optional[Source]:
-        if not self.trivial:
-            raise self._not_implemented()
+    def rust_source(self) -> Optional[Source]:
+        return None
 
-        load_decl = self._cpp_load_func_decl("stream")
-        store_decl = self._cpp_store_func_decl("stream", "value")
-        return Source(
-            Location.DEFINITION,
-            [
-                [
-                    f"{load_decl} {{",
-                    f"    {self.cpp_type()} value = {self.cpp_object(self.default())};",
-                    *indent(try_unwrap(stream_read("stream", "&value", self.size()))),
-                    f"    return {ok('value')};",
-                    f"}}",
-                ],
-                [
-                    f"{store_decl} {{",
-                    *indent(try_unwrap(stream_write("stream", "&value", self.size()))),
-                    f"    return {ok()};",
-                    f"}}",
-                ],
-            ],
-            deps=[Source(
-                Location.DECLARATION,
-                [
-                    [f"{load_decl};"],
-                    [f"{store_decl};"],
-                ],
-            )],
-        )
+    def pyi_type(self) -> str:
+        raise self.NotImplemented(self)
 
     def pyi_source(self) -> Optional[Source]:
         return None
 
-    def c_size(self, obj: str) -> str:
-        return str(self.size())
+    # Tests
 
-    def cpp_size(self, obj: str) -> str:
-        return self.c_size(obj)
+    def c_check(self, var: str, obj: Any) -> List[str]:
+        raise self.NotImplemented(self)
 
-    def _c_size_extent(self, obj: str) -> str:
-        raise self._not_implemented()
+    def rust_check(self, var: str, obj: Any) -> List[str]:
+        raise self.NotImplemented(self)
 
-    def _cpp_size_extent(self, obj: str) -> str:
-        raise self._not_implemented()
+    def rust_object(self, obj: Any) -> str:
+        raise self.NotImplemented(self)
 
-    def _cpp_load_func(self, stream: str) -> str:
-        return f"{Name(self.name(), 'load').snake()}({stream})"
+    def _make_test_objects(self) -> List[Any]:
+        rng = Random(CONTEXT.test.rng_seed)
+        return [self.random(rng) for i in range(CONTEXT.test.attempts)]
 
-    def _cpp_store_func(self, stream: str, value: str) -> str:
-        return f"{Name(self.name(), 'store').snake()}({stream}, {value})"
+    def _c_test_name(self) -> str:
+        return Name(CONTEXT.prefix, self.name, "test").snake()
 
-    def cpp_load(self, stream: str) -> str:
-        if not self.trivial:
-            raise self._not_implemented()
-        return self._cpp_load_func(stream)
-
-    def cpp_store(self, stream: str, value: str) -> str:
-        if not self.trivial:
-            raise self._not_implemented()
-        return self._cpp_store_func(stream, value)
-
-    def cpp_object(self, value: Any) -> str:
-        raise self._not_implemented()
-
-    def c_test(self, obj: str, src: str) -> List[str]:
-        return self.cpp_test(obj, src)
-
-    def cpp_test(self, dst: str, src: str) -> List[str]:
-        return [f"EXPECT_EQ({dst}, {src});"]
-
-    def _cpp_static_check(self) -> Optional[str]:
-        return f"static_assert(sizeof({self.c_type()}) == size_t({self.size() if self.sized else self.min_size()}));"
-
-    def test_source(self) -> Optional[Source]:
-        if self.trivial:
-            return None
-
-        rng = Random(0xdeadbeef)
-        static_check = self._cpp_static_check()
-        return Source(
-            Location.TESTS,
-            [[
-                f"TEST({Name(CONTEXT.prefix, 'test').camel()}, {self.name().camel()}) {{",
-                *indent([
-                    *([
-                        static_check,
-                        f"",
-                    ] if static_check is not None else []),
-                    f"std::vector<{self.cpp_type()}> srcs = {{",
-                    *["    " + self.cpp_object(self.random(rng)) + "," for _ in range(CONTEXT.test_attempts)],
-                    f"}};",
-                    f"",
-                    f"core::VecDeque<uint8_t> stream;",
-                    f"core::Vec<uint8_t> buffer;",
-                    f"for (size_t k = 0; k < {CONTEXT.test_attempts}; ++k) {{",
+    def c_test_source(self) -> Optional[Source]:
+        if not self.is_empty():
+            objs = self._make_test_objects()
+            return Source(
+                Location.TEST, [[
+                    f"int {self._c_test_name()}(const uint8_t * const *data) {{",
                     *indent([
-                        f"const {self.cpp_type()} src = srcs[k];",
-                        f"",
-                        f"{self.cpp_store('stream', 'src')}.unwrap();",
-                        f"ASSERT_EQ(stream.size(), {self.cpp_size('src')});",
-                        f"",
-                        f"buffer.clear();",
-                        f"ASSERT_EQ(stream.view().read_into_stream(buffer, std::nullopt), {ok('stream.size()')});",
-                        f"auto *obj = reinterpret_cast<{self.c_type()} *>(buffer.data());",
-                        f"ASSERT_EQ({self.c_size('(*obj)')}, {self.cpp_size('src')});",
-                        *self.c_test('(*obj)', 'src'),
-                        f"",
-                        f"const auto dst = {self.cpp_load('stream')}.unwrap();",
-                        f"ASSERT_EQ({self.cpp_size('dst')}, {self.cpp_size('src')});",
-                        *self.cpp_test('dst', 'src'),
+                        f"const {self.c_type()} *obj;",
+                        *flatten(
+                            [[
+                                f"obj = (const {self.c_type()} *)(data[{i}]);",
+                                *self.c_check(f"(*obj)", obj),
+                            ] for i, obj in enumerate(objs)],
+                            sep=[""],
+                        ),
+                        f"return 0;",
                     ]),
                     f"}}",
+                ]],
+                deps=[self.c_source()]
+            )
+        else:
+            return self.c_source()
+
+    def rust_test_source(self) -> Optional[Source]:
+        objs = self._make_test_objects()
+        return Source(
+            Location.TEST, [[
+                *([f"extern \"C\" {{ fn {self._c_test_name()}(data: *const *const u8) -> c_int; }}", f""]
+                  if not self.is_empty() else []),
+                f"#[test]",
+                f"fn {self.name.snake()}() {{",
+                *indent([
+                    f"let data = vec![",
+                    *indent(["&b\"" + "".join([f"\\x{b:02x}" for b in self.store(obj)]) + f"\"[..]," for obj in objs]),
+                    f"];",
+                    "",
+                    f"assert_eq!(<{self.rust_type()}>::ALIGN, 1);",
+                    "",
+                    *flatten(
+                        [[
+                            f"let obj = <{self.rust_type()}>::reinterpret(&data[{i}]).unwrap();",
+                            *self.rust_check(f"obj", obj),
+                        ] for i, obj in enumerate(objs)],
+                        sep=[""],
+                    ),
+                    *([
+                        "", f"let raw_data = data.iter().map(|s| s.as_ptr()).collect::<Vec<_>>();",
+                        f"assert_eq!(unsafe {{ {self._c_test_name()}(raw_data.as_ptr()) }}, 0);"
+                    ] if not self.is_empty() else []),
                 ]),
                 f"}}",
             ]],
-            deps=[ty.test_source() for ty in self.deps()],
+            deps=[self.rust_source()]
         )
+
+    def self_test(self) -> None:
+        for obj in self._make_test_objects():
+            data = self.store(obj)
+            assert self.store(self.load(data)) == data

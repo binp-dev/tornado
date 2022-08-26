@@ -26,10 +26,22 @@ def ceil_to_power_of_2(n: int) -> int:
     return 1 << (n - 1).bit_length()
 
 
+def upper_multiple(x: int, m: int) -> int:
+    return ((x - 1) // m + 1) * m
+
+
+def lower_multiple(x: int, m: int) -> int:
+    return (x // m) * m
+
+
+def pad_bytes(b: bytes, m: int, c: bytes = b'\x00') -> bytes:
+    return b + (c * (upper_multiple(len(b), m) - len(b)))
+
+
 T = TypeVar('T')
 
 
-def list_join(lists: List[List[T]], sep: List[T] = []) -> List[T]:
+def flatten(lists: List[List[T]], sep: List[T] = []) -> List[T]:
     result = []
     for i, l in enumerate(lists):
         if i > 0:
