@@ -7,8 +7,8 @@ include $(TOP)/configure/CONFIG
 # Create and install (or just install) into <top>/db
 # databases, templates, substitutions like this
 #DB += xxx.db
-DB += devPSC.db
-#DB += devPSC.substitutions
+DB += devFer.db
+#DB += devFer.substitutions
 
 #----------------------------------------------------
 # If <anyname>.db template is not named <anyname>*.template add

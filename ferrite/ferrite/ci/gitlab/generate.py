@@ -309,9 +309,7 @@ if __name__ == "__main__":
     from ferrite.components.tree import make_components
 
     end_tasks = [
-        "host.all.test",
-        "arm.all.build",
-        "aarch64.all.build",
+        "all.test",
     ]
 
     base_dir = Path.cwd()

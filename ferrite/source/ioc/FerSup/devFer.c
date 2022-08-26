@@ -22,9 +22,9 @@ static void init_hooks(initHookState state) {
 }
 
 // TODO: Rename to `fer_epics_app_init`
-void psc_init(void) {
+void fer_init(void) {
     initHookRegister(init_hooks);
     fer_app_init();
 }
 
-epicsExportRegistrar(psc_init);
+epicsExportRegistrar(fer_init);

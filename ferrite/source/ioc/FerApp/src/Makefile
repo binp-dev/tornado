@@ -8,36 +8,36 @@ include $(TOP)/configure/CONFIG
 #=============================
 # Build the IOC application
 
-PROD_IOC_$(APP_ARCH) += PSC
+PROD_IOC_$(APP_ARCH) += Fer
 PROD_IOC = $(PROD_IOC_$(T_A))
 
-# PSC.dbd will be created and installed
-DBD += PSC.dbd
+# Fer.dbd will be created and installed
+DBD += Fer.dbd
 
-# PSC.dbd will be made up from these files:
-PSC_DBD += base.dbd
+# Fer.dbd will be made up from these files:
+Fer_DBD += base.dbd
 
 # Include dbd files from all support applications:
-PSC_DBD += devPSC.dbd
+Fer_DBD += devFer.dbd
 
 # Add all the support libraries needed by this IOC
-PSC_LIBS += devPSC
+Fer_LIBS += devFer
 
 # Link app
 include $(TOP)/link_app.mk
 
-# PSC_registerRecordDeviceDriver.cpp derives from PSC.dbd
-PSC_SRCS += PSC_registerRecordDeviceDriver.cpp
+# Fer_registerRecordDeviceDriver.cpp derives from Fer.dbd
+Fer_SRCS += Fer_registerRecordDeviceDriver.cpp
 
 # Build the main IOC entry point on workstation OSs.
-PSC_SRCS_DEFAULT += PSCMain.cpp
-PSC_SRCS_vxWorks += -nil-
+Fer_SRCS_DEFAULT += FerMain.cpp
+Fer_SRCS_vxWorks += -nil-
 
 # Add support from base/src/vxWorks if needed
-#PSC_OBJS_vxWorks += $(EPICS_BASE_BIN)/vxComLibrary
+#Fer_OBJS_vxWorks += $(EPICS_BASE_BIN)/vxComLibrary
 
 # Finally link to the EPICS Base libraries
-PSC_LIBS += $(EPICS_BASE_IOC_LIBS)
+Fer_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 #===========================
 

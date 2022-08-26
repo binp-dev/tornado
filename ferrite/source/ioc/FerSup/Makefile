@@ -2,8 +2,8 @@ TOP=..
 include $(TOP)/configure/CONFIG
 #=======================================
 
-# Build devPSC as a library for an IOC:
-LIBRARY_$(APP_ARCH) += devPSC
+# Build devFer as a library for an IOC:
+LIBRARY_$(APP_ARCH) += devFer
 LIBRARY = $(LIBRARY_$(T_A))
 
 # Library includes
@@ -12,8 +12,8 @@ INCLUDES += \
 # -I$(CORE_SRC)/src
 
 # Library Source files
-devPSC_SRCS += \
-	devPSC.c \
+devFer_SRCS += \
+	devFer.c \
 	_interface.c \
 	_record.c \
 	_array_record.c \
@@ -23,13 +23,13 @@ devPSC_SRCS += \
 	aao.c
 
 # Link with the libraries
-devPSC_LIBS += $(EPICS_BASE_IOC_LIBS)
+devFer_LIBS += $(EPICS_BASE_IOC_LIBS)
 
 # Link app
 include $(TOP)/link_app.mk
 
 # Install .dbd and .db files
-DBD += devPSC.dbd
+DBD += devFer.dbd
 
 #=======================================
 include $(TOP)/configure/RULES

@@ -39,8 +39,8 @@ class IocRemoteRunner:
                 "export {}; export {}; cd {} && {} {}".format(
                     f"TOP={self.deploy_path}",
                     "LD_LIBRARY_PATH={}".format(":".join(map(str, lib_dirs))),
-                    f"{self.deploy_path}/iocBoot/iocPSC",
-                    f"{self.deploy_path}/bin/{self.arch}/PSC",
+                    f"{self.deploy_path}/iocBoot/iocFer",
+                    f"{self.deploy_path}/bin/{self.arch}/Fer",
                     "st.cmd",
                 ),
             ],

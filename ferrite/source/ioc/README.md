@@ -1,4 +1,4 @@
-# PSC-IOC
+# Fer-IOC
 
 BINP next-gen power supply controller - Cortex-A7 Linux EPICS IOC
 

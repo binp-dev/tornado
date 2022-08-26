@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 def make_ioc(ioc_dir: Path, arch: str, debug: bool = False) -> Ioc:
     return Ioc(
-        ioc_dir / "bin" / arch / "PSC",
-        ioc_dir / "iocBoot/iocPSC/st.cmd",
+        ioc_dir / "bin" / arch / "Fer",
+        ioc_dir / "iocBoot/iocFer/st.cmd",
         debug=debug,
     )
 

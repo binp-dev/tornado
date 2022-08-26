@@ -207,14 +207,12 @@ class AbstractEpicsProject(Component):
         def dependencies(self) -> List[Task]:
             return [self.owner.build_task]
 
-    def __init__(self, target_dir: Path, src_path: Path, prefix: str) -> None:
+    def __init__(self, target_dir: Path, src_path: Path) -> None:
         super().__init__()
 
-        self.prefix = prefix
-
         self.src_path = src_path
-        self.build_path = target_dir / f"{prefix}_build_{self.cc.name}"
-        self.install_path = target_dir / f"{prefix}_install_{self.cc.name}"
+        self.build_path = target_dir / self.cc.name / "build"
+        self.install_path = target_dir / self.cc.name / "install"
 
     @property
     def arch(self) -> str:

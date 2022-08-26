@@ -109,16 +109,10 @@ class Generator:
         files: Dict[Path, str]
 
         def write(self, base_path: Path) -> None:
-            paths = [
-                Path("c/include"),
-                Path("c/src"),
-                Path("rust/src"),
-            ]
             base_path.mkdir(exist_ok=True)
-            for p in paths:
-                (base_path / p).mkdir(exist_ok=True)
-            for name, text in self.files.items():
-                path = base_path / name
+            for rel_path, text in self.files.items():
+                path = base_path / rel_path
+                path.parent.mkdir(exist_ok=True, parents=True)
                 content = text + "\n"
                 old_content = None
                 if path.exists():

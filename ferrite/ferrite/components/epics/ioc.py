@@ -65,7 +65,6 @@ class AbstractIoc(AbstractEpicsProject):
 
     def __init__(
         self,
-        name: str,
         ioc_dirs: List[Path],
         target_dir: Path,
         epics_base: AbstractEpicsBase,
@@ -75,10 +74,10 @@ class AbstractIoc(AbstractEpicsProject):
             src_dir = ioc_dirs[0]
         else:
             # Create separate source dir
-            src_dir = target_dir / f"{name}_src"
+            src_dir = target_dir / f"src"
 
         self._epics_base = epics_base
-        super().__init__(target_dir, src_dir, name)
+        super().__init__(target_dir, src_dir)
         self.ioc_dirs = ioc_dirs
         self._build_task = self.BuildTask(self)
 
@@ -102,13 +101,13 @@ class IocHost(AbstractIoc):
 
     def __init__(
         self,
-        name: str,
         ioc_dirs: List[Path],
         target_dir: Path,
         epics_base: EpicsBaseHost,
     ):
+        assert isinstance(epics_base, EpicsBaseHost)
         self._epics_base_host = epics_base
-        super().__init__(name, ioc_dirs, target_dir, epics_base)
+        super().__init__(ioc_dirs, target_dir, epics_base)
 
     @property
     def epics_base(self) -> EpicsBaseHost:
@@ -191,13 +190,13 @@ class IocCross(AbstractIoc):
 
     def __init__(
         self,
-        name: str,
         ioc_dirs: List[Path],
         target_dir: Path,
         epics_base: EpicsBaseCross,
     ):
+        assert isinstance(epics_base, EpicsBaseCross)
         self._epics_base_cross = epics_base
-        super().__init__(name, ioc_dirs, target_dir, epics_base)
+        super().__init__(ioc_dirs, target_dir, epics_base)
 
         self.deploy_path = PurePosixPath("/opt/ioc")
 

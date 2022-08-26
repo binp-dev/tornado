@@ -1,4 +1,4 @@
-registrar("psc_init")
+registrar("fer_init")
 
 #device(waveform, INST_IO, waveform_record_handler, "devsup")
 device(aai, INST_IO, aai_record_handler, "devsup")

@@ -111,15 +111,15 @@ class EpicsBaseHost(AbstractEpicsBase):
     def __init__(self, target_dir: Path, cc: GccHost):
 
         self.version = "7.0.6.1"
-        prefix = f"epics_base_{self.version}"
+        name = f"epics_base_{self.version}"
 
         self._cc = cc
         super().__init__(
-            target_dir,
-            target_dir / f"{prefix}_src",
-            prefix,
+            target_dir / name,
+            target_dir / name / "src",
         )
 
+        self.name = name
         self.repo = RepoList(
             self.src_path,
             [
@@ -229,7 +229,7 @@ class EpicsBaseCross(AbstractEpicsBase):
 
         self._cc = cc
 
-        super().__init__(target_dir, host_base.build_path, host_base.prefix)
+        super().__init__(target_dir / host_base.name, host_base.build_path)
 
         self.host_base = host_base
 

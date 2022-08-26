@@ -77,7 +77,6 @@ class AbstractAppIoc(AbstractIoc):
         self.app = app
 
         super().__init__(
-            "ioc",
             ioc_dirs,
             target_dir,
             epics_base,
