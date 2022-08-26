@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from pathlib import Path
 from dataclasses import dataclass
@@ -52,6 +52,14 @@ class EmptyTask(Task):
 
     def run(self, ctx: Context) -> None:
         pass
+
+
+@dataclass
+class CallTask(Task):
+    func: Callable[[], None]
+
+    def run(self, ctx: Context) -> None:
+        self.func()
 
 
 class TaskList(Task):

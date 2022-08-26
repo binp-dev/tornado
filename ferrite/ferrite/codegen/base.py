@@ -1,22 +1,27 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union, overload
+from typing import Any, List, Optional, Sequence, Set, Union, overload
 
 from dataclasses import dataclass
 from enum import Enum
 from random import Random
 
-from ferrite.codegen.utils import flatten, indent, is_power_of_2
+from ferrite.codegen.utils import flatten, indent
+
+
+@dataclass
+class TestInfo:
+    attempts: int = 4
+    rng_seed = 0xdeadbeef
 
 
 @dataclass
 class Context:
-    prefix: Optional[str] = None
-    test_attempts: int = 4
-    test_rng_seed = 0xdeadbeef
+    prefix: str
+    test: TestInfo
 
 
 # FIXME: Remove global context
-CONTEXT = Context()
+CONTEXT = Context("default", TestInfo())
 
 
 class Name:
@@ -210,8 +215,8 @@ class Type:
         raise self.NotImplemented(self)
 
     def _make_test_objects(self) -> List[Any]:
-        rng = Random(CONTEXT.test_rng_seed)
-        return [self.random(rng) for i in range(CONTEXT.test_attempts)]
+        rng = Random(CONTEXT.test.rng_seed)
+        return [self.random(rng) for i in range(CONTEXT.test.attempts)]
 
     def _c_test_name(self) -> str:
         return Name(CONTEXT.prefix, self.name, "test").snake()
@@ -231,6 +236,7 @@ class Type:
                             ] for i, obj in enumerate(objs)],
                             sep=[""],
                         ),
+                        f"return 0;",
                     ]),
                     f"}}",
                 ]],
@@ -243,8 +249,8 @@ class Type:
         objs = self._make_test_objects()
         return Source(
             Location.TEST, [[
-                f"//extern \"C\" {{ fn {self._c_test_name()}(data: *const *const u8) -> c_int; }}",
-                f"",
+                *([f"extern \"C\" {{ fn {self._c_test_name()}(data: *const *const u8) -> c_int; }}", f""]
+                  if not self.is_empty() else []),
                 f"#[test]",
                 f"fn {self.name.snake()}() {{",
                 *indent([
@@ -261,9 +267,10 @@ class Type:
                         ] for i, obj in enumerate(objs)],
                         sep=[""],
                     ),
-                    "",
-                    f"//let raw_data = data.iter().map(|s| s.as_ptr()).collect::<Vec<_>>();",
-                    f"//assert_eq!(unsafe {{ {self._c_test_name()}(raw_data.as_ptr()) }}, 0);",
+                    *([
+                        "", f"let raw_data = data.iter().map(|s| s.as_ptr()).collect::<Vec<_>>();",
+                        f"assert_eq!(unsafe {{ {self._c_test_name()}(raw_data.as_ptr()) }}, 0);"
+                    ] if not self.is_empty() else []),
                 ]),
                 f"}}",
             ]],

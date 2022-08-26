@@ -1,14 +1,11 @@
 from __future__ import annotations
 from typing import List
 
-from pathlib import Path
-
 from ferrite.codegen.variant import Variant
-from ferrite.codegen.base import Context, Name, Type
+from ferrite.codegen.base import Name, Type
 from ferrite.codegen.primitive import Float, Int
 from ferrite.codegen.container import Array, Vector, String
 from ferrite.codegen.structure import Field, Struct
-from ferrite.codegen.generate import generate_and_write
 
 
 class AllDict(dict[str, Type]):
@@ -21,9 +18,9 @@ class AllDict(dict[str, Type]):
         return self
 
 
-all_ = AllDict()
+TYPES = AllDict()
 
-all_ += [
+TYPES += [
     Struct(Name(["empty", "struct"]), []),
     Array(Int(32), 5),
     Struct(
@@ -34,7 +31,7 @@ all_ += [
         ]
     ),
 ]
-all_ += [
+TYPES += [
     Vector(Int(32)),
     Vector(Int(64)),
     String(),
@@ -73,10 +70,10 @@ all_ += [
         Field(Name("f64_"), Float(64)),
     ]),
     Struct(Name(["vector", "of", "arrays"]), [
-        Field(Name("data"), Vector(all_["array5_uint32"])),
+        Field(Name("data"), Vector(TYPES["array5_uint32"])),
     ]),
     Struct(Name(["vector", "of", "structs"]), [
-        Field(Name("data"), Vector(all_["some_struct"])),
+        Field(Name("data"), Vector(TYPES["some_struct"])),
     ]),
     Struct(
         Name(["nested", "struct"]), [
@@ -103,7 +100,7 @@ all_ += [
     Variant(
         Name(["sized", "variant"]),
         [
-            Field(Name("empty"), all_["empty_struct"]),
+            Field(Name("empty"), TYPES["empty_struct"]),
             Field(Name("value"), Int(32)),
         ],
         sized=True,
@@ -111,7 +108,7 @@ all_ += [
     Variant(
         Name(["unsized", "variant"]),
         [
-            Field(Name("empty"), all_["empty_struct"]),
+            Field(Name("empty"), TYPES["empty_struct"]),
             Field(Name("value"), Int(32)),
         ],
         sized=False,
@@ -119,25 +116,17 @@ all_ += [
     Variant(
         Name(["auto", "unsized", "variant"]),
         [
-            Field(Name("empty"), all_["empty_struct"]),
+            Field(Name("empty"), TYPES["empty_struct"]),
             Field(Name("value"), Int(32)),
             Field(Name("vector"), Vector(Int(32))),
         ],
     ),
 ]
-all_ += [
+TYPES += [
     Struct(
         Name(["struct", "of", "unsized", "variant"]), [
             Field(Name("value"), Int(32)),
-            Field(Name("data"), all_["auto_unsized_variant"]),
+            Field(Name("data"), TYPES["auto_unsized_variant"]),
         ]
     ),
 ]
-
-
-def generate(path: Path) -> None:
-    generate_and_write(
-        list(all_.values()),
-        path,
-        Context(prefix="codegen",),
-    )

@@ -24,7 +24,7 @@ class Int(Type):
 
     def load(self, data: bytes) -> int:
         assert len(data) >= self.size
-        return int.from_bytes(data, byteorder="little", signed=self.signed)
+        return int.from_bytes(data[:self.size], byteorder="little", signed=self.signed)
 
     def store(self, value: int) -> bytes:
         return value.to_bytes(self.size, byteorder="little", signed=self.signed)
@@ -97,7 +97,7 @@ class Float(Type):
 
     def load(self, data: bytes) -> float:
         assert len(data) >= self.size
-        value = struct.unpack(self._choose("<f", "<d"), data)[0]
+        value = struct.unpack(self._choose("<f", "<d"), data[:self.size])[0]
         assert isinstance(value, float)
         return value
 
