@@ -19,8 +19,6 @@ class AppIocBase(AbstractAppIoc):
         epics_base: AbstractEpicsBase,
         app: AppBase,
     ):
-        self.app = app
-
         super().__init__(
             [ferrite_dir / "ioc", source_dir / "ioc"],
             target_dir / "ioc",

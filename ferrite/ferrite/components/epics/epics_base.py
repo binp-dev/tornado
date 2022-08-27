@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from typing import Dict, List
 
 import shutil
@@ -19,12 +20,8 @@ class AbstractEpicsBase(AbstractEpicsProject):
 
     class BuildTask(AbstractEpicsProject.BuildTask):
 
-        def __init__(self) -> None:
-            super().__init__(cached=True)
-
-        @property
-        def owner(self) -> AbstractEpicsBase:
-            raise NotImplementedError()
+        def __init__(self, owner: AbstractEpicsProject) -> None:
+            super().__init__(owner, clean=False, cached=True)
 
         def _configure_common(self) -> None:
             defs = [
@@ -89,11 +86,11 @@ class EpicsBaseHost(AbstractEpicsBase):
     class BuildTask(AbstractEpicsBase.BuildTask):
 
         def __init__(self, owner: EpicsBaseHost):
-            self._owner = owner
-            super().__init__()
+            super().__init__(owner)
 
         @property
         def owner(self) -> EpicsBaseHost:
+            assert isinstance(self._owner, EpicsBaseHost)
             return self._owner
 
         def _configure_toolchain(self) -> None:
@@ -113,10 +110,10 @@ class EpicsBaseHost(AbstractEpicsBase):
         self.version = "7.0.6.1"
         name = f"epics_base_{self.version}"
 
-        self._cc = cc
         super().__init__(
             target_dir / name,
             target_dir / name / "src",
+            cc,
         )
 
         self.name = name
@@ -137,6 +134,7 @@ class EpicsBaseHost(AbstractEpicsBase):
 
     @property
     def cc(self) -> GccHost:
+        assert isinstance(self._cc, GccHost)
         return self._cc
 
     def tasks(self) -> Dict[str, Task]:
@@ -150,12 +148,12 @@ class EpicsBaseCross(AbstractEpicsBase):
 
     class BuildTask(AbstractEpicsBase.BuildTask):
 
-        def __init__(self, owner: EpicsBaseCross):
-            self._owner = owner
-            super().__init__()
+        def __init__(self, owner: EpicsBaseCross) -> None:
+            super().__init__(owner)
 
         @property
         def owner(self) -> EpicsBaseCross:
+            assert isinstance(self._owner, EpicsBaseCross)
             return self._owner
 
         def _configure_toolchain(self) -> None:
@@ -201,22 +199,23 @@ class EpicsBaseCross(AbstractEpicsBase):
                 self.owner.host_base.build_task,
             ]
 
+    @dataclass(eq=False)
     class DeployTask(AbstractEpicsProject.DeployTask):
 
         def __init__(self, owner: EpicsBaseCross, deploy_path: PurePosixPath):
-            self._owner = owner
-
             super().__init__(
+                owner,
                 deploy_path,
                 blacklist=[
                     "*.a",
                     "include/*",
-                    f"*/{self.owner.host_base.arch}/*",
+                    f"*/{owner.host_base.arch}/*",
                 ],
             )
 
         @property
         def owner(self) -> EpicsBaseCross:
+            assert isinstance(self._owner, EpicsBaseCross)
             return self._owner
 
         def dependencies(self) -> List[Task]:
@@ -227,9 +226,7 @@ class EpicsBaseCross(AbstractEpicsBase):
 
     def __init__(self, target_dir: Path, cc: GccCross, host_base: EpicsBaseHost):
 
-        self._cc = cc
-
-        super().__init__(target_dir / host_base.name, host_base.build_path)
+        super().__init__(target_dir / host_base.name, host_base.build_path, cc)
 
         self.host_base = host_base
 
@@ -244,6 +241,7 @@ class EpicsBaseCross(AbstractEpicsBase):
 
     @property
     def cc(self) -> GccCross:
+        assert isinstance(self._cc, GccCross)
         return self._cc
 
     def tasks(self) -> Dict[str, Task]:

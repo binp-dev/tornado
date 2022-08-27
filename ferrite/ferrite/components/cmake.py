@@ -12,7 +12,7 @@ from ferrite.components.compiler import Gcc
 @dataclass
 class Cmake(Component):
 
-    @dataclass
+    @dataclass(eq=False)
     class BuildTask(Task):
         owner: Cmake
 
@@ -84,7 +84,7 @@ class Cmake(Component):
 @dataclass
 class CmakeRunnable(Cmake):
 
-    @dataclass
+    @dataclass(eq=False)
     class RunTask(Task):
         owner: CmakeRunnable
 

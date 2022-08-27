@@ -21,7 +21,7 @@ class Codegen(Component):
     output_dir: Path
     generator: Generator
 
-    @dataclass
+    @dataclass(eq=False)
     class GenerateTask(Task):
         owner: Codegen
 
@@ -48,7 +48,7 @@ class Codegen(Component):
 class CodegenTest(Codegen):
     rustc: RustcHost
 
-    @dataclass
+    @dataclass(eq=False)
     class GenerateTask(Codegen.GenerateTask):
 
         def run(self, ctx: Context) -> None:

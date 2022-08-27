@@ -12,11 +12,9 @@ from ferrite.components.compiler import Compiler, Gcc, GccCross, GccHost, Target
 
 class Rustc(Compiler):
 
+    @dataclass(eq=False)
     class InstallTask(Compiler.InstallTask):
-
-        def __init__(self, owner: Rustc) -> None:
-            super().__init__()
-            self.owner = owner
+        owner: Rustc
 
         def run(self, ctx: Context) -> None:
             self.owner.install(capture=ctx.capture)
@@ -90,7 +88,7 @@ class RustcCross(Rustc):
 
 class Cargo(Component):
 
-    @dataclass
+    @dataclass(eq=False)
     class BuildTask(Task):
         owner: Cargo
 
@@ -107,7 +105,7 @@ class Cargo(Component):
         def artifacts(self) -> List[Artifact]:
             return [Artifact(self.owner.build_dir)]
 
-    @dataclass
+    @dataclass(eq=False)
     class TestTask(Task):
         owner: Cargo
 

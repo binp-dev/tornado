@@ -90,8 +90,9 @@ class _BuildInfo(pydantic.BaseModel):
 
 class AbstractEpicsProject(Component):
 
-    @dataclass
+    @dataclass(eq=False)
     class BuildTask(Task):
+        _owner: AbstractEpicsProject
         clean: bool = False
         cached: bool = False
 
@@ -102,7 +103,7 @@ class AbstractEpicsProject(Component):
 
         @property
         def owner(self) -> AbstractEpicsProject:
-            raise NotImplementedError()
+            return self._owner
 
         def _prepare_source(self) -> None:
             pass
@@ -177,14 +178,15 @@ class AbstractEpicsProject(Component):
                 Artifact(self.install_dir, cached=self.cached),
             ]
 
-    @dataclass
+    @dataclass(eq=False)
     class DeployTask(Task):
+        _owner: AbstractEpicsProject
         deploy_path: PurePosixPath
         blacklist: List[str] = field(default_factory=lambda: [])
 
         @property
         def owner(self) -> AbstractEpicsProject:
-            raise NotImplementedError()
+            return self._owner
 
         def _pre(self, ctx: Context) -> None:
             pass
@@ -207,9 +209,9 @@ class AbstractEpicsProject(Component):
         def dependencies(self) -> List[Task]:
             return [self.owner.build_task]
 
-    def __init__(self, target_dir: Path, src_path: Path) -> None:
+    def __init__(self, target_dir: Path, src_path: Path, cc: Gcc) -> None:
         super().__init__()
-
+        self._cc = cc
         self.src_path = src_path
         self.build_path = target_dir / self.cc.name / "build"
         self.install_path = target_dir / self.cc.name / "install"
@@ -220,7 +222,7 @@ class AbstractEpicsProject(Component):
 
     @property
     def cc(self) -> Gcc:
-        raise NotImplementedError()
+        return self._cc
 
     @property
     def build_task(self) -> BuildTask:

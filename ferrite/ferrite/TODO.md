@@ -1,6 +1,6 @@
 # TODO
 
 + ComponentTasks class
-+ Pass component specific dirs instead of common source dir
 + Generalize all Epics runners
-+ Move from `caproto` to async `pyepics`
++ Move artifacts to `.locker` and back during build process.
++ How to properly derive from Task?

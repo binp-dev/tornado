@@ -4,6 +4,7 @@ from typing import Dict, List
 import shutil
 import re
 import time
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from ferrite.utils.files import substitute
@@ -19,12 +20,12 @@ class AbstractIoc(AbstractEpicsProject):
     class BuildTask(AbstractEpicsProject.BuildTask):
 
         def __init__(self, owner: AbstractIoc):
-            self._owner = owner
-            super().__init__(clean=True)
-            self.epics_base_dir = self.owner.epics_base.build_path
+            super().__init__(owner, clean=True)
+            self.epics_base_dir = owner.epics_base.build_path
 
         @property
         def owner(self) -> AbstractIoc:
+            assert isinstance(self._owner, AbstractIoc)
             return self._owner
 
         def _prepare_source(self) -> None:
@@ -76,8 +77,9 @@ class AbstractIoc(AbstractEpicsProject):
             # Create separate source dir
             src_dir = target_dir / f"src"
 
+        super().__init__(target_dir, src_dir, epics_base.cc)
+
         self._epics_base = epics_base
-        super().__init__(target_dir, src_dir)
         self.ioc_dirs = ioc_dirs
         self._build_task = self.BuildTask(self)
 
@@ -99,23 +101,18 @@ class AbstractIoc(AbstractEpicsProject):
 
 class IocHost(AbstractIoc):
 
-    def __init__(
-        self,
-        ioc_dirs: List[Path],
-        target_dir: Path,
-        epics_base: EpicsBaseHost,
-    ):
-        assert isinstance(epics_base, EpicsBaseHost)
-        self._epics_base_host = epics_base
+    def __init__(self, ioc_dirs: List[Path], target_dir: Path, epics_base: EpicsBaseHost):
         super().__init__(ioc_dirs, target_dir, epics_base)
 
     @property
     def epics_base(self) -> EpicsBaseHost:
-        return self._epics_base_host
+        assert isinstance(self._epics_base, EpicsBaseHost)
+        return self._epics_base
 
     @property
     def cc(self) -> GccHost:
-        return self.epics_base.cc
+        assert isinstance(self._cc, GccHost)
+        return self._cc
 
 
 class IocCross(AbstractIoc):
@@ -137,12 +134,12 @@ class IocCross(AbstractIoc):
             deploy_dir: PurePosixPath,
             epics_deploy_path: PurePosixPath,
         ):
-            self._owner = owner
-            super().__init__(deploy_dir)
+            super().__init__(owner, deploy_dir)
             self.epics_deploy_path = epics_deploy_path
 
         @property
         def owner(self) -> IocCross:
+            assert isinstance(self._owner, IocCross)
             return self._owner
 
         def _post(self, ctx: Context) -> None:
@@ -161,11 +158,9 @@ class IocCross(AbstractIoc):
                 text = re.sub(r'(epicsEnvSet\("EPICS_BASE",)[^\n]+', f'\\1"{self.epics_deploy_path}")', text)
                 ctx.device.store_mem(text, self.deploy_path / "iocBoot" / ioc_name / "envPaths")
 
+    @dataclass(eq=False)
     class RunTask(Task):
-
-        def __init__(self, owner: IocCross):
-            super().__init__()
-            self.owner = owner
+        owner: IocCross
 
         def run(self, ctx: Context) -> None:
             assert ctx.device is not None
@@ -213,7 +208,8 @@ class IocCross(AbstractIoc):
 
     @property
     def cc(self) -> GccCross:
-        return self.epics_base.cc
+        assert isinstance(self._cc, GccCross)
+        return self._cc
 
     def tasks(self) -> Dict[str, Task]:
         tasks = super().tasks()

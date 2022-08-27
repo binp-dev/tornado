@@ -20,16 +20,17 @@ class AbstractAppIoc(AbstractIoc):
             owner: AbstractAppIoc,
             app_lib_name: str = "libapp.so",
         ):
-            self._app_owner = owner
             super().__init__(owner)
-
-            self.app_build_dir = self.owner.app.build_dir
             self.app_lib_name = app_lib_name
-            self.app_lib_path = self.owner.app.bin_dir / self.app_lib_name
+
+        @property
+        def app_lib_path(self) -> Path:
+            return self.owner.app.bin_dir / self.app_lib_name
 
         @property
         def owner(self) -> AbstractAppIoc:
-            return self._app_owner
+            assert isinstance(self._owner, AbstractAppIoc)
+            return self._owner
 
         def _dep_paths(self) -> List[Path]:
             return [
@@ -74,10 +75,9 @@ class AbstractAppIoc(AbstractIoc):
         epics_base: AbstractEpicsBase,
         app: AppBase,
     ):
-        self.app = app
-
         super().__init__(
             ioc_dirs,
             target_dir,
             epics_base,
         )
+        self.app = app

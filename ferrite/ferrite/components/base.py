@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
+from random import getrandbits
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -20,14 +21,14 @@ class Artifact:
     cached: bool = False
 
 
-@dataclass
+@dataclass(eq=False)
 class Task:
 
     def __post_init__(self) -> None:
         self._name: Optional[str] = None
 
     def name(self) -> str:
-        return self._name or f"<{type(self).__qualname__}>"
+        return self._name or f"<{type(self).__qualname__}>({hash(self):x})"
 
     def run(self, ctx: Context) -> None:
         raise NotImplementedError()
@@ -69,8 +70,7 @@ class TaskList(Task):
         self.tasks = tasks
 
     def run(self, ctx: Context) -> None:
-        for task in self.tasks:
-            task.run(ctx)
+        pass
 
     def dependencies(self) -> List[Task]:
         return [dep for task in self.tasks for dep in task.dependencies()]
@@ -103,10 +103,10 @@ class TaskWrapper(Task):
         return inner_deps + self.deps
 
     def artifacts(self) -> List[Artifact]:
-        if self.inner is not None:
-            return self.inner.artifacts()
-        else:
-            return []
+        return [
+            *(self.inner.artifacts() if self.inner is not None else []),
+            *[art for task in self.deps for art in task.artifacts()]
+        ]
 
 
 class Component:
@@ -116,6 +116,8 @@ class Component:
 
     def _update_names(self) -> None:
         for task_name, task in self.tasks().items():
+            if hasattr(task, "_name") and task._name is not None:
+                raise RuntimeError(f"Task has multiple names: '{task._name}' and '{task_name}'")
             task._name = f"{task_name}"
 
 
@@ -129,7 +131,7 @@ class DictComponent(Component):
 
 class ComponentGroup(Component):
 
-    def components(self) -> Dict[str, Component | ComponentGroup]:
+    def components(self) -> Dict[str, Component]:
         raise NotImplementedError()
 
     def tasks(self) -> Dict[str, Task]:

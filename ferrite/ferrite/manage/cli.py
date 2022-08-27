@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from colorama import init as colorama_init, Fore, Style
 
 from ferrite.components.base import Context, Task, Component
+from ferrite.manage.runner import Runner
 from ferrite.remote.ssh import SshDevice
 
 import logging
@@ -148,42 +149,6 @@ def setup_logging(params: RunParams, modules: List[str] = ["ferrite"]) -> None:
             logging.getLogger(mod).setLevel(logging.DEBUG)
 
 
-def _print_title(text: str, style: Optional[str] = None, end: bool = True) -> None:
-    if style is not None:
-        text = style + text + Style.RESET_ALL
-    print(text, flush=True, end=("" if not end else None))
-
-
-def _run_task(context: Context, task: Task, complete_tasks: Dict[str, Task], no_deps: bool = False) -> None:
-    if task.name() in complete_tasks:
-        return
-
-    if not no_deps:
-        for dep in task.dependencies():
-            _run_task(context, dep, complete_tasks, no_deps=no_deps)
-
-    if context.capture:
-        _print_title(f"{task.name()} ... ", end=False)
-    else:
-        _print_title(f"\nTask '{task.name()}' started ...", Style.BRIGHT)
-
-    try:
-        task.run(context)
-    except:
-        if context.capture:
-            _print_title(f"FAIL", Fore.RED)
-        else:
-            _print_title(f"Task '{task.name()}' FAILED:", Style.BRIGHT + Fore.RED)
-        raise
-    else:
-        if context.capture:
-            _print_title(f"ok", Fore.GREEN)
-        else:
-            _print_title(f"Task '{task.name()}' successfully completed", Style.BRIGHT + Fore.GREEN)
-
-    complete_tasks[task.name()] = task
-
-
 def run_with_params(params: RunParams) -> None:
     _prepare_for_run(params)
-    _run_task(params.context, params.task, {}, no_deps=params.no_deps)
+    Runner(params.task).run(params.context, no_deps=params.no_deps)
