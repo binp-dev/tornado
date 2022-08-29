@@ -120,6 +120,7 @@ class Cargo(Component):
         src_dir: Path,
         build_dir: Path,
         rustc: Rustc,
+        envs: Dict[str, str] = {},
         deps: List[Task] = [],
     ) -> None:
         super().__init__()
@@ -127,6 +128,7 @@ class Cargo(Component):
         self.src_dir = src_dir
         self.build_dir = build_dir
         self.rustc = rustc
+        self.envs = envs
         self.deps = deps
 
         self.home_dir = self.rustc.target_dir / "cargo"
@@ -139,6 +141,7 @@ class Cargo(Component):
             **self.rustc.env(),
             "CARGO_HOME": str(self.home_dir),
             "CARGO_TARGET_DIR": str(self.build_dir),
+            **self.envs,
         }
 
     @property

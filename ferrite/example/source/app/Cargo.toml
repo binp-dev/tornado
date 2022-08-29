@@ -13,6 +13,8 @@ name = "app"
 path = "src/main.rs"
 
 [dependencies]
-base = { package = "ferrite-app", path = "../../../source/app" }
-macro_rules_attribute = "0.1.2"
+ferrite = { package = "ferrite-app", path = "../../../source/app" }
 futures = "0.3.23"
+async-std = "1.6.4"
+flatty = { git = "https://github.com/agerasev/flatty.git", branch = "master"}
+macro_rules_attribute = "0.1.2"

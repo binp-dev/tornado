@@ -27,7 +27,7 @@ class HostComponents(ComponentGroup):
         self.rustc = platform.rustc
         self.epics_base = EpicsBaseHost(target_dir, self.gcc)
         self.protocol = Protocol(ferrite_dir, target_dir, self.rustc)
-        self.app = App(source_dir, target_dir, self.rustc)
+        self.app = App(source_dir, target_dir, self.rustc, self.protocol)
         self.ioc = AppIocHost(ferrite_dir, source_dir, target_dir, self.epics_base, self.app)
         self.fakedev = Fakedev(self.ioc, self.protocol)
         self.all = DictComponent({
@@ -47,12 +47,12 @@ class CrossComponents(ComponentGroup):
         source_dir: Path,
         target_dir: Path,
         platform: AppPlatform,
-        host_components: HostComponents,
+        host: HostComponents,
     ) -> None:
         self.gcc = platform.gcc
         self.rustc = platform.rustc
-        self.epics_base = EpicsBaseCross(target_dir, self.gcc, host_components.epics_base)
-        self.app = App(source_dir, target_dir, self.rustc)
+        self.epics_base = EpicsBaseCross(target_dir, self.gcc, host.epics_base)
+        self.app = App(source_dir, target_dir, self.rustc, host.protocol)
         self.ioc = AppIocCross(ferrite_dir, source_dir, target_dir, self.epics_base, self.app)
 
         build_task = TaskList([self.epics_base.build_task, self.ioc.build_task])

@@ -55,7 +55,7 @@ class EmptyTask(Task):
         pass
 
 
-@dataclass
+@dataclass(eq=False)
 class CallTask(Task):
     func: Callable[[], None]
 
@@ -73,10 +73,7 @@ class TaskList(Task):
         pass
 
     def dependencies(self) -> List[Task]:
-        return [dep for task in self.tasks for dep in task.dependencies()]
-
-    def artifacts(self) -> List[Artifact]:
-        return [art for task in self.tasks for art in task.artifacts()]
+        return self.tasks
 
 
 class TaskWrapper(Task):

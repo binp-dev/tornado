@@ -4,9 +4,9 @@ from pathlib import Path
 
 from ferrite.components.codegen import CodegenTest
 from ferrite.components.rust import RustcHost
-
 from ferrite.codegen.generator import Generator
-from ferrite.ioc.fakedev.protocol import Imsg, Omsg
+
+from example.ioc.protocol import InMsg, OutMsg
 
 
 class Protocol(CodegenTest):
@@ -21,6 +21,6 @@ class Protocol(CodegenTest):
             "protocol",
             ferrite_dir,
             target_dir / "protocol",
-            Generator([Imsg, Omsg]),
+            Generator([InMsg, OutMsg]),
             rustc,
         )

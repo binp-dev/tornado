@@ -151,7 +151,7 @@ class Struct(Type):
         return Source(
             Location.DECLARATION,
             [[
-                f"#[make_flat(sized = {'true' if self.is_sized() else 'false'})]",
+                f"#[make_flat(portable = true, sized = {'true' if self.is_sized() else 'false'})]",
                 f"pub struct {self.rust_type()} {{",
                 *indent([f"pub {f.name.snake()}: {f.type.rust_type()}," for f in self.fields]),
                 f"}}",

@@ -177,7 +177,7 @@ class Variant(Type):
         return Source(
             Location.DECLARATION,
             [[
-                f"#[make_flat(sized = {'true' if self.is_sized() else 'false'}, enum_type = \"{self._id_type.rust_type()}\")]",
+                f"#[make_flat(portable = true, sized = {'true' if self.is_sized() else 'false'}, enum_type = \"{self._id_type.rust_type()}\")]",
                 f"pub enum {self.rust_type()} {{",
                 *indent([f"{f.name.camel()}({f.type.rust_type()})," for f in self.variants]),
                 f"}}",

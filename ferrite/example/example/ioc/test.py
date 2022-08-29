@@ -3,10 +3,9 @@ from typing import List
 
 from pathlib import Path
 import asyncio
-from asyncio import StreamReader, StreamWriter, Task, CancelledError
+from asyncio import StreamReader, StreamWriter, Task
 
 from ferrite.utils.epics.ioc import make_ioc
-from time import sleep
 
 
 class FakedevTest:

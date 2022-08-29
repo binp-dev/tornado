@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import List
 
 from ferrite.codegen.base import Name
 from ferrite.codegen.all import Int, Vector, Field, Struct, Variant
@@ -17,11 +16,11 @@ Aao = Struct(Name("aao"), [
     Field(Name("value"), Vector(Int(32, signed=True))),
 ])
 
-Imsg = Variant(Name("imsg"), [
+InMsg = Variant(Name("in", "msg"), [
     Field(Ai.name, Ai),
     Field(Aai.name, Aai),
 ])
-Omsg = Variant(Name("omsg"), [
+OutMsg = Variant(Name("out", "msg"), [
     Field(Ao.name, Ao),
     Field(Aao.name, Aao),
 ])

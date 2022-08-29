@@ -6,16 +6,15 @@ from dataclasses import dataclass
 
 from ferrite.components.base import Component, Task, Context
 
-from ferrite.ioc.fakedev.protocol import Imsg, Omsg
-import ferrite.ioc.fakedev.test as test
-
 from example.components.ioc import AppIocHost
 from example.components.protocol import Protocol
+from example.ioc.protocol import InMsg, OutMsg
+import example.ioc.test as test
 
 
 class Fakedev(Component):
 
-    @dataclass
+    @dataclass(eq=False)
     class BaseTask(Task):
         owner: Fakedev
 
