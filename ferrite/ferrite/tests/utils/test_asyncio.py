@@ -7,7 +7,7 @@ import asyncio
 from asyncio import CancelledError, ensure_future
 from typing import Any
 
-from ferrite.utils.asyncio import forever, cancel_and_wait, with_background
+from ferrite.utils.asyncio.task import forever, cancel_and_wait, with_background
 
 
 async def _immediate() -> None:

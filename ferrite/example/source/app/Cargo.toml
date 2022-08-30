@@ -8,13 +8,9 @@ name = "app"
 crate-type = ["cdylib"]
 path = "src/lib.rs"
 
-[[bin]]
-name = "app"
-path = "src/main.rs"
-
 [dependencies]
 ferrite = { package = "ferrite-app", path = "../../../source/app" }
 futures = "0.3.23"
 async-std = "1.6.4"
-flatty = { git = "https://github.com/agerasev/flatty.git", branch = "master"}
+flatty = { path = "/home/agerasev/develop/my/flatty/flatty", version = "0.1.0-alpha.1" } #{ git = "https://github.com/agerasev/flatty.git", branch = "master"}
 macro_rules_attribute = "0.1.2"

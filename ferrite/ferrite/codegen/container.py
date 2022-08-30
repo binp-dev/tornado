@@ -3,7 +3,7 @@ from typing import Any, List, Optional
 
 from random import Random
 
-from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source
+from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source, UnexpectedEof
 from ferrite.codegen.primitive import Char, Int
 from ferrite.codegen.utils import flatten
 
@@ -27,7 +27,8 @@ class _Sequence:
 class _ArrayLike(_Sequence, Type):
 
     def _load_array(self, data: bytes, count: int) -> List[Any]:
-        assert len(data) >= self.item.size * count
+        if len(data) < self.item.size * count:
+            raise UnexpectedEof(self, data)
         array = []
         for i in range(count):
             array.append(self.item.load(data[(i * self.item.size):((i + 1) * self.item.size)]))
@@ -178,6 +179,9 @@ class Vector(_VectorLike, _ArrayLike):
         data += self._store_array(array)
         return data
 
+    def size_of(self, value: List[Any]) -> int:
+        return self._len_type.size + self.item.size * len(value)
+
     def random(self, rng: Random) -> List[Any]:
         size = rng.randrange(0, 8)
         return self._random_array(rng, size)
@@ -191,7 +195,8 @@ class String(_VectorLike):
     def load(self, data: bytes) -> str:
         count = self._len_type.load(data[:self._len_type.size])
         data = data[self._len_type.size:]
-        assert len(data) >= count
+        if len(data) < count:
+            raise UnexpectedEof(self, data)
         return data.decode("ascii")
 
     def store(self, value: str) -> bytes:
@@ -199,6 +204,9 @@ class String(_VectorLike):
         data += self._len_type.store(len(value))
         data += value.encode("ascii")
         return data
+
+    def size_of(self, value: str) -> int:
+        return self._len_type.size + self.item.size * len(value)
 
     def random(self, rng: Random) -> str:
         size = rng.randrange(0, 64)

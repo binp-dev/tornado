@@ -6,7 +6,7 @@ from ferrite.components.codegen import CodegenTest
 from ferrite.components.rust import RustcHost
 from ferrite.codegen.generator import Generator
 
-from example.ioc.protocol import InMsg, OutMsg
+from example.protocol import InMsg, OutMsg
 
 
 class Protocol(CodegenTest):

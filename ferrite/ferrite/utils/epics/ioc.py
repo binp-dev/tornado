@@ -1,31 +1,35 @@
 from __future__ import annotations
 from typing import Any, List, Optional
 
-from dataclasses import dataclass
 from subprocess import Popen, CalledProcessError
 from pathlib import Path
 from time import sleep
+import asyncio
 
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-def make_ioc(ioc_dir: Path, arch: str, debug: bool = False) -> Ioc:
-    return Ioc(
-        ioc_dir / "bin" / arch / "Fer",
-        ioc_dir / "iocBoot/iocFer/st.cmd",
-        debug=debug,
-    )
+class IocBase:
+
+    def __init__(self, ioc_dir: Path, arch: str, debug: bool = False):
+        self.binary = ioc_dir / "bin" / arch / "Fer"
+        self.script = ioc_dir / "iocBoot/iocFer/st.cmd"
+        self.debug = debug
+
+    def _cmd(self) -> List[str]:
+        return [
+            *(["gdb", "-batch", "-ex", "run", "-ex", "bt", "-args"] if self.debug else []),
+            str(self.binary),
+            self.script.name,
+        ]
+
+    def _cwd(self) -> Path:
+        return self.script.parent
 
 
-@dataclass
-class Ioc:
-    binary: Path
-    script: Path
-    debug: bool = False
-    proc: Optional[Popen[str]] = None
-    args: Optional[List[str | Path]] = None
+class Ioc(IocBase):
 
     def __enter__(self) -> Ioc:
         self.start()
@@ -35,12 +39,9 @@ class Ioc:
         self.stop()
 
     def start(self) -> None:
-        prefix = []
-        if self.debug:
-            prefix = ["gdb", "-batch", "-ex", "run", "-ex", "bt", "-args"]
-        self.args = [*prefix, self.binary, self.script.name]
-        self.proc = Popen(self.args, cwd=self.script.parent, text=True)
-        logger.debug(f"IOC started: {self.args}")
+        cmd = self._cmd()
+        self.proc: Optional[Popen[str] | None] = Popen(cmd, cwd=self._cwd(), text=True)
+        logger.debug(f"IOC started: {cmd}")
 
     def stop(self) -> None:
         if self.proc is not None:
@@ -61,3 +62,26 @@ class Ioc:
                 if ret != 0:
                     raise CalledProcessError(ret, [self.binary, self.script])
                 break
+
+
+class AsyncIoc(IocBase):
+
+    async def __aenter__(self) -> AsyncIoc:
+        cmd = self._cmd()
+        self.stopped = False
+        self.proc = await asyncio.create_subprocess_exec(*cmd, cwd=self._cwd())
+        logger.debug(f"IOC started: {cmd}")
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        self.stop()
+        await asyncio.sleep(0.1)
+
+    async def wait(self) -> None:
+        retcode = await self.proc.wait()
+        if not self.stopped:
+            assert retcode == 0
+
+    def stop(self) -> None:
+        self.stopped = True
+        self.proc.terminate()

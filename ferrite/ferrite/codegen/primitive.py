@@ -5,7 +5,7 @@ from random import Random
 import string
 import struct
 
-from ferrite.codegen.base import Location, Name, Source, Type
+from ferrite.codegen.base import Location, Name, Source, Type, UnexpectedEof
 from ferrite.codegen.utils import is_power_of_2
 
 T = TypeVar('T')
@@ -23,7 +23,8 @@ class Int(Type):
         self.signed = signed
 
     def load(self, data: bytes) -> int:
-        assert len(data) >= self.size
+        if len(data) < self.size:
+            raise UnexpectedEof(self, data)
         return int.from_bytes(data[:self.size], byteorder="little", signed=self.signed)
 
     def store(self, value: int) -> bytes:
@@ -96,7 +97,8 @@ class Float(Type):
         self.bits = bits
 
     def load(self, data: bytes) -> float:
-        assert len(data) >= self.size
+        if len(data) < self.size:
+            raise UnexpectedEof(self, data)
         value = struct.unpack(self._choose("<f", "<d"), data[:self.size])[0]
         assert isinstance(value, float)
         return value
@@ -144,7 +146,8 @@ class Char(Type):
         super().__init__(Name("char"), 1)
 
     def load(self, data: bytes) -> str:
-        assert len(data) >= 1
+        if len(data) < 1:
+            raise UnexpectedEof(self, data)
         return data.decode('ascii')
 
     def store(self, value: str) -> bytes:

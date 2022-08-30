@@ -10,8 +10,8 @@ from ferrite.components.platforms.arm import Aarch64AppPlatform, ArmAppPlatform
 from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 
 from example.components.app import App
-from example.components.fakedev import Fakedev, Protocol
 from example.components.ioc import AppIocHost, AppIocCross
+from example.components.backend import Backend, Protocol
 
 
 class HostComponents(ComponentGroup):
@@ -29,10 +29,10 @@ class HostComponents(ComponentGroup):
         self.protocol = Protocol(ferrite_dir, target_dir, self.rustc)
         self.app = App(source_dir, target_dir, self.rustc, self.protocol)
         self.ioc = AppIocHost(ferrite_dir, source_dir, target_dir, self.epics_base, self.app)
-        self.fakedev = Fakedev(self.ioc, self.protocol)
+        self.backend = Backend(self.ioc, self.protocol)
         self.all = DictComponent({
             "build": TaskList([self.epics_base.build_task, self.app.build_task, self.ioc.build_task]),
-            "test": TaskList([self.protocol.test_task, self.app.test_task, self.fakedev.test_task]),
+            "test": TaskList([self.protocol.test_task, self.app.test_task, self.backend.test_task]),
         })
 
     def components(self) -> Dict[str, Component]:

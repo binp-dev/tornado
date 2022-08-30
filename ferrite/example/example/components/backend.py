@@ -8,18 +8,20 @@ from ferrite.components.base import Component, Task, Context
 
 from example.components.ioc import AppIocHost
 from example.components.protocol import Protocol
-from example.ioc.protocol import InMsg, OutMsg
-import example.ioc.test as test
+import example.backend as backend
 
 
-class Fakedev(Component):
+class Backend(Component):
 
     @dataclass(eq=False)
     class BaseTask(Task):
-        owner: Fakedev
+        owner: Backend
 
         def dependencies(self) -> List[Task]:
-            return [self.owner.app_ioc.build_task]
+            return [
+                self.owner.app_ioc.build_task,
+                self.owner.proto.generate_task,
+            ]
 
     class TestTask(BaseTask):
 
@@ -29,25 +31,19 @@ class Fakedev(Component):
         def dependencies(self) -> List[Task]:
             return super().dependencies()
 
-    class RunTask(BaseTask):
-
-        def run(self, ctx: Context) -> None:
-            self.owner.run()
-
-    def __init__(self, app_ioc: AppIocHost, protocol: Protocol):
+    def __init__(self, app_ioc: AppIocHost, proto: Protocol):
         self.app_ioc = app_ioc
-        self.protocol = protocol
+        self.proto = proto
         self.test_task = self.TestTask(self)
-        self.run_task = self.RunTask(self)
 
     def test(self) -> None:
-        test.test(self.app_ioc.app.bin_dir / "app")
-
-    def run(self) -> None:
-        test.run(self.app_ioc.install_path, self.app_ioc.arch)
+        backend.test(
+            self.app_ioc.epics_base.install_path,
+            self.app_ioc.install_path,
+            self.app_ioc.arch,
+        )
 
     def tasks(self) -> Dict[str, Task]:
         return {
             "test": self.test_task,
-            "run": self.run_task,
         }

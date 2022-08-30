@@ -84,6 +84,11 @@ def add_parser_args(parser: argparse.ArgumentParser, comp: Component) -> None:
         help="Display task stdout.",
     )
     parser.add_argument(
+        "--update",
+        action="store_true",
+        help="Update external dependencies.",
+    )
+    parser.add_argument(
         "-j",
         "--jobs",
         type=int,
@@ -122,6 +127,7 @@ def _make_context_from_args(args: argparse.Namespace) -> Context:
     return Context(
         device=device,
         capture=not args.no_capture,
+        update=args.update,
         jobs=args.jobs,
     )
 

@@ -3,7 +3,7 @@ from typing import Any, List, Optional, Tuple, Union
 
 from random import Random
 
-from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source
+from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source, UnexpectedEof
 from ferrite.codegen.primitive import Int
 from ferrite.codegen.utils import indent, flatten, pad_bytes
 from ferrite.codegen.structure import Field
@@ -21,6 +21,9 @@ class VariantValue:
 
     def store(self) -> bytes:
         return self._type.store(self)
+
+    def size(self) -> int:
+        return self._type.size_of(self)
 
 
 class Variant(Type):
@@ -52,7 +55,8 @@ class Variant(Type):
             setattr(self, f.name.camel(), f.type)
 
     def load(self, data: bytes) -> VariantValue:
-        assert len(data) >= self.min_size
+        if len(data) < self.min_size:
+            raise UnexpectedEof(self, data)
 
         id = self._id_type.load(data[:self._id_type.size])
 
@@ -71,6 +75,9 @@ class Variant(Type):
             data = pad_bytes(data, self.size)
 
         return data
+
+    def size_of(self, value: VariantValue) -> int:
+        return self._id_type.size + value.variant_type().size_of(value.variant)
 
     def value(self, id: int, value: Any) -> VariantValue:
         assert self.variants[id].type.is_instance(value)
@@ -195,9 +202,9 @@ class Variant(Type):
                 f"@dataclass",
                 f"class {self.pyi_type()}:",
                 f"",
-                *[f"    {f.name.camel()} = {f.type.pyi_type()}" for f in self.variants],
-                f"",
                 f"    Variant = {' | '.join([f.type.pyi_type() for f in self.variants])}",
+                f"",
+                *[f"    {f.name.camel()} = {f.type.pyi_type()}" for f in self.variants],
                 f"",
                 f"    variant: Variant",
                 f"",
@@ -206,6 +213,9 @@ class Variant(Type):
                 f"        ...",
                 f"",
                 f"    def store(self) -> bytes:",
+                f"        ...",
+                f"",
+                f"    def size(self) -> int:",
                 f"        ...",
             ]],
             deps=[

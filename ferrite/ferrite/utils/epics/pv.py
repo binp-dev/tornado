@@ -9,7 +9,7 @@ import pyepics_asyncio as aepics
 import numpy as np
 from numpy.typing import NDArray
 
-T = TypeVar("T", bool, int, float, str, NDArray[np.int64], NDArray[np.float64])
+T = TypeVar("T", bool, int, float, str, NDArray[np.int32], NDArray[np.float64])
 
 
 class PvType(Enum):
@@ -144,14 +144,14 @@ class _PvStr(Pv[str]):
         return str(value)
 
 
-class _PvArrayInt(PvArray[NDArray[np.int64]]):
+class _PvArrayInt(PvArray[NDArray[np.int32]]):
 
     type: PvType = PvType.ARRAY_INT
 
     @staticmethod
-    def _convert(array: Any) -> NDArray[np.int64]:
+    def _convert(array: Any) -> NDArray[np.int32]:
         assert isinstance(array, np.ndarray)
-        assert array.dtype == np.int64
+        assert array.dtype == np.int32
         return array
 
 
@@ -166,7 +166,7 @@ class _PvArrayFloat(PvArray[NDArray[np.float64]]):
         return array
 
 
-_PvAny = Union[Pv[bool], Pv[int], Pv[float], Pv[str], PvArray[NDArray[np.int64]], PvArray[NDArray[np.float64]]]
+_PvAny = Union[Pv[bool], Pv[int], Pv[float], Pv[str], PvArray[NDArray[np.int32]], PvArray[NDArray[np.float64]]]
 
 
 class Context:
@@ -188,7 +188,7 @@ class Context:
         ...
 
     @overload
-    async def connect(self, name: str, pv_type: Literal[PvType.ARRAY_INT]) -> PvArray[NDArray[np.int64]]:
+    async def connect(self, name: str, pv_type: Literal[PvType.ARRAY_INT]) -> PvArray[NDArray[np.int32]]:
         ...
 
     @overload

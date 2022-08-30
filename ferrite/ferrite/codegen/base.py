@@ -104,12 +104,21 @@ class Source:
         return separator.join(self.collect(location))
 
 
+class UnexpectedEof(RuntimeError):
+
+    def __init__(self, type: Type, data: bytes) -> None:
+        super().__init__(f"Unexpected EOF while loading {type._debug_name()} from {data!r}")
+
+
 class Type:
+
+    def _debug_name(self) -> str:
+        return f"{self.name}({type(self).__name__})"
 
     class NotImplemented(NotImplementedError):
 
         def __init__(self, owner: Type) -> None:
-            super().__init__(f"{type(owner).__name__}: {owner.name}")
+            super().__init__(owner._debug_name())
 
     @overload
     def __init__(self, name: Name, size: int) -> None:
@@ -154,6 +163,9 @@ class Type:
 
     def store(self, value: Any) -> bytes:
         raise self.NotImplemented(self)
+
+    def size_of(self, value: Any) -> int:
+        return self.size
 
     def default(self) -> Any:
         raise self.NotImplemented(self)

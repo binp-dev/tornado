@@ -15,6 +15,7 @@ class App(AppBase):
             source_dir / "app",
             target_dir / "app",
             rustc,
+            deps=[proto.generate_task],
             envs={"FER_PROTO_DIR": str(proto.output_dir)},
         )
         self.proto = proto

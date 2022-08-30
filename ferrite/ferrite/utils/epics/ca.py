@@ -3,7 +3,6 @@ from math import fabs
 from sqlite3 import OptimizedUnicode
 from typing import Any, Dict, List, Optional, Union
 
-import os
 import time
 from subprocess import Popen
 from pathlib import Path
@@ -15,7 +14,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _env() -> Dict[str, str]:
+def local_env() -> Dict[str, str]:
     return {
         "EPICS_CA_AUTO_ADDR_LIST": "NO",
         "EPICS_CA_ADDR_LIST": "127.0.0.1",
@@ -24,7 +23,7 @@ def _env() -> Dict[str, str]:
 
 def _get_str(prefix: Path, pv: str) -> str:
     logger.debug(f"caget {pv} ...")
-    out = capture([prefix / "caget", "-t", "-f 3", pv], add_env=_env())
+    out = capture([prefix / "caget", "-t", "-f 3", pv])
     logger.debug(f"  {out}")
     return out
 
@@ -42,7 +41,7 @@ def get_array(prefix: Path, pv: str) -> List[float]:
 
 def put(prefix: Path, pv: str, value: int | float) -> None:
     logger.debug(f"caput {pv} {value} ...")
-    run([prefix / "caput", "-t", pv, str(value)], add_env=_env(), quiet=True)
+    run([prefix / "caput", "-t", pv, str(value)], quiet=True)
     logger.debug("  done")
 
 
@@ -52,7 +51,7 @@ def put_array(prefix: Path, pv: str, value: List[int] | List[float]) -> None:
     args: List[str | Path] = [prefix / "caput", "-t", "-a", pv, str(len(value))]
     args.extend([str(v) for v in value])
 
-    run(args, add_env=_env(), quiet=True)
+    run(args, quiet=True)
     logger.debug("  done")
 
 
@@ -64,12 +63,7 @@ class Repeater:
 
     def __enter__(self) -> None:
         logger.debug("starting caRepeater ...")
-        env = dict(os.environ)
-        env.update(_env())
-        self.proc = Popen(
-            [self.prefix / "caRepeater"],
-            env=env,
-        )
+        self.proc = Popen([self.prefix / "caRepeater"],)
         time.sleep(1)
         logger.debug("caRepeater started")
 

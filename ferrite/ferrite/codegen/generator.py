@@ -69,7 +69,7 @@ class Generator:
                 rust_source.make_source(Location.DEFINITION),
             ]),
             Path(f"{context.prefix}.pyi"): "\n".join([
-                "# This file was generatered by Ferrite Codegen."
+                "# This file was generatered by Ferrite Codegen.",
                 "from __future__ import annotations",
                 "",
                 pyi_source.make_source(Location.IMPORT, separator=""),

@@ -1,9 +1,9 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from random import Random
 
-from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source
+from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source, UnexpectedEof
 from ferrite.codegen.utils import flatten, indent
 
 
@@ -16,13 +16,17 @@ class Field:
 
 class StructValue:
 
-    def __init__(self, type: Struct, fields: Dict[str, Any]):
+    def __init__(self, type: Struct, fields: List[Tuple[str, Any]]):
         self._type = type
-        for k, v in fields.items():
+        self._fields = [v for k, v in fields]
+        for k, v in fields:
             setattr(self, k, v)
 
     def store(self) -> bytes:
         return self._type.store(self)
+
+    def size(self) -> int:
+        return self._type.size_of(self)
 
 
 class Struct(Type):
@@ -52,7 +56,8 @@ class Struct(Type):
         self.fields = fields
 
     def load(self, data: bytes) -> StructValue:
-        assert len(data) >= self.min_size
+        if len(data) < self.min_size:
+            raise UnexpectedEof(self, data)
         args = []
         if len(self.fields) > 0:
             index = 0
@@ -65,22 +70,24 @@ class Struct(Type):
     def store(self, value: StructValue) -> bytes:
         assert self.is_instance(value)
         data = b""
-        for f in self.fields:
-            data += f.type.store(getattr(value, f.name.snake()))
+        for f, v in zip(self.fields, value._fields):
+            data += f.type.store(v)
         return data
 
-    def value(self, *args: Any, **kwargs: Any) -> StructValue:
-        fields = {}
-        field_types = {f.name.snake(): f.type for f in self.fields}
-        for k, v in zip(field_types, args):
-            fields[k] = v
-        for k, v in kwargs.items():
-            assert k in field_types
-            assert k not in fields
-            fields[k] = v
-        assert len(self.fields) == len(fields)
-        for k, v in fields.items():
-            assert field_types[k].is_instance(v)
+    def size_of(self, value: StructValue) -> int:
+        assert self.is_instance(value)
+        if self.is_empty():
+            return 0
+        else:
+            size = sum([f.type.size for f in self.fields[:-1]])
+            size += self.fields[-1].type.size_of(value._fields[-1])
+            return size
+
+    def value(self, *args: Any) -> StructValue:
+        assert len(self.fields) == len(args)
+        fields = [(f.name.snake(), v) for f, v in zip(self.fields, args)]
+        for f, (k, v) in zip(self.fields, fields):
+            assert f.type.is_instance(v)
         return StructValue(self, fields)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -176,6 +183,9 @@ class Struct(Type):
                 f"        ...",
                 f"",
                 f"    def store(self) -> bytes:",
+                f"        ...",
+                f"",
+                f"    def size(self) -> int:",
                 f"        ...",
             ]],
             deps=[

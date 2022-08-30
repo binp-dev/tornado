@@ -93,7 +93,7 @@ class Cargo(Component):
         owner: Cargo
 
         def run(self, ctx: Context) -> None:
-            self.owner.build(capture=ctx.capture)
+            self.owner.build(capture=ctx.capture, update=ctx.update)
 
         def dependencies(self) -> List[Task]:
             return [
@@ -148,13 +148,13 @@ class Cargo(Component):
     def bin_dir(self) -> Path:
         return self.build_dir / str(self.rustc.target) / "debug"
 
-    def build(self, capture: bool = False) -> None:
-        run(
+    def build(self, capture: bool = False, update: bool = False) -> None:
+        cmds = [
+            *([["cargo", "update"]] if update else []),
             ["cargo", "build", f"--target={self.rustc.target}"],
-            cwd=self.src_dir,
-            add_env=self._env(),
-            quiet=capture,
-        )
+        ]
+        for cmd in cmds:
+            run(cmd, cwd=self.src_dir, add_env=self._env(), quiet=capture)
 
     def test(self, capture: bool = False) -> None:
         run(
