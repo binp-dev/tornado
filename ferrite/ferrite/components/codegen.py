@@ -1,9 +1,9 @@
 from __future__ import annotations
-from typing import Callable, Dict, List
+from typing import Dict, List
 
 import shutil
 from pathlib import Path
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ferrite.components.base import Artifact, CallTask, Component, Task, Context, TaskList
 from ferrite.components.rust import RustcHost, Cargo
@@ -20,6 +20,7 @@ class Codegen(Component):
     source_dir: Path
     output_dir: Path
     generator: Generator
+    default_msg: bool # FIXME: Make `True` by default
 
     @dataclass(eq=False)
     class GenerateTask(Task):
@@ -37,7 +38,7 @@ class Codegen(Component):
 
     def __post_init__(self) -> None:
         self.assets_dir = self.source_dir / "codegen"
-        self.context = CodegenContext(self.name, default=False)
+        self.context = CodegenContext(self.name, default=self.default_msg)
         self.generate_task = self.GenerateTask(self)
 
     def tasks(self) -> Dict[str, Task]:

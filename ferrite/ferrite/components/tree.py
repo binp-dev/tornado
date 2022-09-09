@@ -21,7 +21,7 @@ class Components(ComponentGroup):
     ) -> None:
         self.gcc = platform.gcc
         self.rustc = platform.rustc
-        self.codegen = CodegenTest("codegen", source_dir, target_dir / "codegen", make_test_generator(), self.rustc)
+        self.codegen = CodegenTest("codegen", source_dir, target_dir / "codegen", make_test_generator(), False, self.rustc)
         self.app = Cargo(source_dir / "app", target_dir / "app", self.rustc)
         self.all = DictComponent({"test": TaskList([self.codegen.test_task, self.app.test_task])})
 

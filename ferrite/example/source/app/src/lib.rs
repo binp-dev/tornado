@@ -9,7 +9,7 @@ use futures::{executor::block_on, join};
 use macro_rules_attribute::apply;
 
 use flatty::portable::{le, NativeCast};
-use proto::{InMsg, InMsgRef, OutMsg, OutMsgDyn, OutMsgMut};
+use proto::{InMsg, InMsgRef, OutMsg, OutMsgMut, OutMsgTag};
 
 /// *Export symbols being called from IOC.*
 pub use ferrite::export;
@@ -59,22 +59,31 @@ async fn async_main(mut ctx: Context) {
             loop {
                 let value = ao.read().await;
                 println!("[app]: Ioc.Ao");
-                let msg = OutMsgDyn::Ao(proto::Ao {
+                let msg = proto::Ao {
                     value: le::I32::from_native(value),
-                });
-                writer.lock().await.init_msg(&msg).unwrap().write().await.unwrap();
+                };
+                let mut writer_guard = writer.lock().await;
+                let mut msg_guard = writer_guard.init_default_msg().unwrap();
+                msg_guard.set_default(OutMsgTag::Ao).unwrap();
+                if let OutMsgMut::Ao(ao_msg) = msg_guard.as_mut() {
+                    *ao_msg = msg;
+                } else {
+                    unreachable!();
+                }
+                msg_guard.write().await.unwrap();
             }
         },
         async {
             loop {
                 let aao_guard = aao.read_in_place().await;
                 println!("[app]: Ioc.Aao");
-                let msg_dyn = OutMsgDyn::Aao(proto::AaoDyn { value: Vec::new() });
                 let mut writer_guard = writer.lock().await;
-                let mut msg_guard = writer_guard.init_msg(&msg_dyn).unwrap();
-                let data = match msg_guard.as_mut() {
-                    OutMsgMut::Aao(msg) => &mut msg.value,
-                    _ => unreachable!(),
+                let mut msg_guard = writer_guard.init_default_msg().unwrap();
+                msg_guard.set_default(OutMsgTag::Aao).unwrap();
+                let data = if let OutMsgMut::Aao(msg) = msg_guard.as_mut() {
+                    &mut msg.value
+                } else {
+                    unreachable!();
                 };
                 for value in aao_guard.as_slice() {
                     data.push(le::I32::from_native(*value)).unwrap();

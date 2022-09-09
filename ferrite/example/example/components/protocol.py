@@ -22,5 +22,6 @@ class Protocol(CodegenTest):
             ferrite_dir,
             target_dir / "protocol",
             Generator([InMsg, OutMsg]),
+            True,
             rustc,
         )
