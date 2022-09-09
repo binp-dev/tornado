@@ -17,6 +17,7 @@ class TestInfo:
 @dataclass
 class Context:
     prefix: str
+    default: bool = True
 
 
 # FIXME: Remove global context
@@ -273,7 +274,7 @@ class Type:
                     "",
                     *flatten(
                         [[
-                            f"let obj = <{self.rust_type()}>::reinterpret(&data[{i}]).unwrap();",
+                            f"let obj = <{self.rust_type()}>::from_bytes(&data[{i}]).unwrap();",
                             *self.rust_check(f"obj", obj),
                         ] for i, obj in enumerate(objs)],
                         sep=[""],

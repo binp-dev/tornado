@@ -1,5 +1,5 @@
 use async_std::io::{self, Read};
-use flatty::{self, Flat, Portable};
+use flatty::{self, prelude::*};
 use std::{
     future::Future,
     marker::PhantomData,
@@ -18,14 +18,14 @@ pub enum MsgReadError {
 
 // Reader
 
-pub struct MsgReader<M: Flat + Portable + ?Sized, R: Read + Unpin> {
+pub struct MsgReader<M: Portable + ?Sized, R: Read + Unpin> {
     reader: R,
     buffer: Vec<u8>,
     window: Range<usize>,
     _phantom: PhantomData<M>,
 }
 
-impl<M: Flat + Portable + ?Sized, R: Read + Unpin> MsgReader<M, R> {
+impl<M: Portable + ?Sized, R: Read + Unpin> MsgReader<M, R> {
     pub fn new(reader: R, max_msg_size: usize) -> Self {
         Self {
             reader,
@@ -40,10 +40,13 @@ impl<M: Flat + Portable + ?Sized, R: Read + Unpin> MsgReader<M, R> {
         mem::swap(&mut buffer, &mut self.buffer);
         let mut window = self.window.clone();
         let result = loop {
-            match M::reinterpret(&mut buffer[window.clone()]) {
+            match M::from_bytes(&buffer[window.clone()]) {
                 Ok(_) => break Poll::Ready(Ok(())),
                 Err(err) => match err {
-                    flatty::Error::InsufficientSize => {
+                    flatty::Error {
+                        kind: flatty::ErrorKind::InsufficientSize,
+                        ..
+                    } => {
                         if window.end == buffer.len() {
                             // No free space at the end of the buffer.
                             if window.start != 0 {
@@ -52,7 +55,10 @@ impl<M: Flat + Portable + ?Sized, R: Read + Unpin> MsgReader<M, R> {
                                 window = 0..(window.end - window.start);
                             } else {
                                 // Message is greater than `max_msg_size`, it cannot fit the buffer.
-                                break Poll::Ready(Err(MsgReadError::Parse(flatty::Error::InsufficientSize)));
+                                break Poll::Ready(Err(MsgReadError::Parse(flatty::Error {
+                                    kind: flatty::ErrorKind::InsufficientSize,
+                                    pos: buffer.len(),
+                                })));
                             }
                         }
                     }
@@ -97,36 +103,36 @@ impl<M: Flat + Portable + ?Sized, R: Read + Unpin> MsgReader<M, R> {
     }
 }
 
-impl<M: Flat + Portable + ?Sized, R: Read + Unpin> Unpin for MsgReader<M, R> {}
+impl<M: Portable + ?Sized, R: Read + Unpin> Unpin for MsgReader<M, R> {}
 
 // ReadGuard
 
-pub struct MsgReadGuard<'a, M: Flat + Portable + ?Sized, R: Read + Unpin> {
+pub struct MsgReadGuard<'a, M: Portable + ?Sized, R: Read + Unpin> {
     owner: &'a mut MsgReader<M, R>,
 }
 
-impl<'a, M: Flat + Portable + ?Sized, R: Read + Unpin> Drop for MsgReadGuard<'a, M, R> {
+impl<'a, M: Portable + ?Sized, R: Read + Unpin> Drop for MsgReadGuard<'a, M, R> {
     fn drop(&mut self) {
         self.owner.consume(self.size());
     }
 }
 
-impl<'a, M: Flat + Portable + ?Sized, R: Read + Unpin> Deref for MsgReadGuard<'a, M, R> {
+impl<'a, M: Portable + ?Sized, R: Read + Unpin> Deref for MsgReadGuard<'a, M, R> {
     type Target = M;
     fn deref(&self) -> &M {
-        M::reinterpret(&self.owner.buffer[self.owner.window.clone()]).unwrap()
+        M::from_bytes(&self.owner.buffer[self.owner.window.clone()]).unwrap()
     }
 }
 
 // ReadFuture
 
-pub struct MsgReadFuture<'a, M: Flat + Portable + ?Sized, R: Read + Unpin> {
+pub struct MsgReadFuture<'a, M: Portable + ?Sized, R: Read + Unpin> {
     owner: Option<&'a mut MsgReader<M, R>>,
 }
 
-impl<'a, M: Flat + Portable + ?Sized, R: Read + Unpin> Unpin for MsgReadFuture<'a, M, R> {}
+impl<'a, M: Portable + ?Sized, R: Read + Unpin> Unpin for MsgReadFuture<'a, M, R> {}
 
-impl<'a, M: Flat + Portable + ?Sized, R: Read + Unpin> Future for MsgReadFuture<'a, M, R> {
+impl<'a, M: Portable + ?Sized, R: Read + Unpin> Future for MsgReadFuture<'a, M, R> {
     type Output = Result<MsgReadGuard<'a, M, R>, MsgReadError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {

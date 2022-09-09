@@ -10,6 +10,7 @@ use super::{read::MsgReadError, MsgReader, MsgWriter};
 
 #[make_flat(sized = false, portable = true)]
 enum TestMsg {
+    #[default]
     A,
     B(le::I32),
     C(FlatVec<le::I32, le::U16>),
@@ -23,16 +24,29 @@ async fn test() {
         async move {
             let mut writer = MsgWriter::<TestMsg, _>::new(prod, MAX_SIZE);
 
-            writer.init_msg(&TestMsgDyn::A).unwrap().write().await.unwrap();
+            writer.init_default_msg().unwrap().write().await.unwrap();
 
-            writer.init_msg(&TestMsgDyn::B(123456)).unwrap().write().await.unwrap();
+            {
+                let mut guard = writer.init_default_msg().unwrap();
+                guard.set_default(TestMsgTag::B).unwrap();
+                if let TestMsgMut::B(x) = guard.as_mut() {
+                    *x = 123456.into();
+                } else {
+                    unreachable!();
+                }
+                guard.write().await.unwrap();
+            }
 
-            writer
-                .init_msg(&TestMsgDyn::C(vec![0, 1, 2, 3, 4, 5, 6]))
-                .unwrap()
-                .write()
-                .await
-                .unwrap();
+            {
+                let mut guard = writer.init_default_msg().unwrap();
+                guard.set_default(TestMsgTag::C).unwrap();
+                if let TestMsgMut::C(vec) = guard.as_mut() {
+                    assert_eq!(vec.extend_from_iter((0..7).into_iter().map(|x| x.into())), 7);
+                } else {
+                    unreachable!();
+                }
+                guard.write().await.unwrap();
+            }
         },
         async move {
             let mut reader = MsgReader::<TestMsg, _>::new(cons, MAX_SIZE);

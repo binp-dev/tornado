@@ -37,7 +37,7 @@ impl<T: Copy> WriteArrayVariable<T> {
         let dst_uninit = guard.as_uninit_slice();
         let src_uninit =
             unsafe { slice::from_raw_parts(src.as_ptr() as *const MaybeUninit<T>, src.len()) };
-        dst_uninit[..src.len()].copy_from_slice(&src_uninit);
+        dst_uninit[..src.len()].copy_from_slice(src_uninit);
         guard.set_len(src.len());
     }
 }

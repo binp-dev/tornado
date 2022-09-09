@@ -37,7 +37,7 @@ class Codegen(Component):
 
     def __post_init__(self) -> None:
         self.assets_dir = self.source_dir / "codegen"
-        self.context = CodegenContext(self.name)
+        self.context = CodegenContext(self.name, default=False)
         self.generate_task = self.GenerateTask(self)
 
     def tasks(self) -> Dict[str, Task]:

@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-flatty = { git = "https://github.com/agerasev/flatty.git", branch = "master"}
+flatty = { path = "/home/agerasev/develop/my/flatty/flatty", version = "0.1.0-alpha.2" }

@@ -30,6 +30,7 @@ pub extern "C" fn fer_app_start() {
     });
 }
 
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn fer_var_init(ptr: *mut FerVar) {
     let mut unvar = unsafe { VariableUnprotected::from_ptr(ptr) };
@@ -38,6 +39,7 @@ pub extern "C" fn fer_var_init(ptr: *mut FerVar) {
     registry::add_variable(any_var);
 }
 
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn fer_var_proc_start(ptr: *mut FerVar) {
     // No need for lock here - variable is already locked during this call.
