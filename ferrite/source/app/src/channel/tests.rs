@@ -28,7 +28,7 @@ async fn test() {
 
             {
                 let mut guard = writer.init_default_msg().unwrap();
-                guard.set_default(TestMsgTag::B).unwrap();
+                guard.reset_tag(TestMsgTag::B).unwrap();
                 if let TestMsgMut::B(x) = guard.as_mut() {
                     *x = 123456.into();
                 } else {
@@ -38,8 +38,9 @@ async fn test() {
             }
 
             {
-                let mut guard = writer.init_default_msg().unwrap();
-                guard.set_default(TestMsgTag::C).unwrap();
+                let mut guard = writer.new_uninit_msg();
+                TestMsg::set_tag(&mut guard, TestMsgTag::C).unwrap();
+                let mut guard = guard.validate().unwrap();
                 if let TestMsgMut::C(vec) = guard.as_mut() {
                     assert_eq!(vec.extend_from_iter((0..7).into_iter().map(|x| x.into())), 7);
                 } else {

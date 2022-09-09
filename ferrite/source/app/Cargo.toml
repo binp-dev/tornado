@@ -5,9 +5,9 @@ edition = "2021"
 
 [dependencies]
 lazy_static = "1.4.0"
-flatty = { path = "/home/agerasev/develop/my/flatty/flatty", version = "0.1.0-alpha.2" }
+flatty = "0.1.0-alpha.2"
 futures = "0.3.23"
 async-std = { version = "1.6.4", features = ["attributes"] }
 
 [dev-dependencies]
-async-ringbuf = { git = "https://github.com/agerasev/async-ringbuf.git", branch = "master" }
+async-ringbuf = "0.0.2"

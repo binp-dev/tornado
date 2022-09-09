@@ -64,7 +64,7 @@ async fn async_main(mut ctx: Context) {
                 };
                 let mut writer_guard = writer.lock().await;
                 let mut msg_guard = writer_guard.init_default_msg().unwrap();
-                msg_guard.set_default(OutMsgTag::Ao).unwrap();
+                msg_guard.reset_tag(OutMsgTag::Ao).unwrap();
                 if let OutMsgMut::Ao(ao_msg) = msg_guard.as_mut() {
                     *ao_msg = msg;
                 } else {
@@ -79,7 +79,7 @@ async fn async_main(mut ctx: Context) {
                 println!("[app]: Ioc.Aao");
                 let mut writer_guard = writer.lock().await;
                 let mut msg_guard = writer_guard.init_default_msg().unwrap();
-                msg_guard.set_default(OutMsgTag::Aao).unwrap();
+                msg_guard.reset_tag(OutMsgTag::Aao).unwrap();
                 let data = if let OutMsgMut::Aao(msg) = msg_guard.as_mut() {
                     &mut msg.value
                 } else {
