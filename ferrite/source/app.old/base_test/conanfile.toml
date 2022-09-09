@@ -1,5 +1,0 @@
-[requires]
-gtest = "cci.20210126"
-
-[[dependencies]]
-path = "../base_zmq"
