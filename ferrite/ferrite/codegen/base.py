@@ -281,7 +281,7 @@ class Type:
                     ),
                     *([
                         "", f"let raw_data = data.iter().map(|s| s.as_ptr()).collect::<Vec<_>>();",
-                        f"assert_eq!(unsafe {{ {self._c_test_name()}(raw_data.as_ptr()) }}, 0);"
+                        f"assert_eq!(unsafe {{ {self._c_test_name()}(raw_data.as_ptr()) }}, 0, \"C test '{self._c_test_name()}' failed\");"
                     ] if not self.is_empty() else []),
                 ]),
                 f"}}",

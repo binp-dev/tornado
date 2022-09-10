@@ -47,13 +47,12 @@ class RepoSource:
         return f"'{self.remote}'" + f", branch '{self.branch}'" if self.branch is not None else ""
 
 
+@dataclass(eq=False)
 class GitCloneTask(Task):
 
-    def __init__(self, path: Path, sources: List[RepoSource], cached: bool = False):
-        super().__init__()
-        self.path = path
-        self.sources = sources
-        self.cached = cached
+    path: Path
+    sources: List[RepoSource]
+    cached: bool = False
 
     def run(self, ctx: Context) -> None:
         last_error = None
@@ -82,11 +81,6 @@ class RepoList(Component):
         self.cached = cached
 
         self.clone_task = GitCloneTask(self.path, self.sources, cached=cached)
-
-    def tasks(self) -> Dict[str, Task]:
-        return {
-            "clone": self.clone_task,
-        }
 
 
 class Repo(RepoList):

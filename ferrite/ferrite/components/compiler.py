@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from ferrite.utils.run import capture
 from ferrite.utils.net import download_alt
-from ferrite.components.base import Artifact, Component, EmptyTask, Task, Context
+from ferrite.components.base import Artifact, Component, EmptyTask, OwnedTask, Task, Context
 from ferrite.remote.base import Device
 
 import logging
@@ -54,12 +54,13 @@ class Compiler(Component):
     target: Target
     cached: bool = False
 
-    class InstallTask(Task):
-        pass
-
     @property
-    def install_task(self) -> InstallTask:
+    def install_task(self) -> _InstallTask:
         raise NotImplementedError()
+
+
+class _InstallTask(Task):
+    pass
 
 
 @dataclass
@@ -72,47 +73,19 @@ class Gcc(Compiler):
 
 class GccHost(Gcc):
 
-    class InstallTask(Gcc.InstallTask, EmptyTask):
-        pass
-
     def __init__(self) -> None:
         super().__init__("host", Target.from_str(capture(["gcc", "-dumpmachine"])))
-        self._install_task = self.InstallTask()
+        self._install_task = _GccHostInstallTask()
 
     def bin(self, name: Gcc.BinType) -> Path:
         return Path("/usr/bin") / name
 
     @property
-    def install_task(self) -> InstallTask:
+    def install_task(self) -> _GccHostInstallTask:
         return self._install_task
-
-    def tasks(self) -> Dict[str, Task]:
-        return {"install": self.install_task}
 
 
 class GccCross(Gcc):
-
-    class InstallTask(Gcc.InstallTask):
-
-        def __init__(self, owner: GccCross) -> None:
-            super().__init__()
-            self.owner = owner
-
-        def run(self, ctx: Context) -> None:
-            self.owner.download()
-
-        def artifacts(self) -> List[Artifact]:
-            return [Artifact(self.owner.path, cached=self.owner.cached)]
-
-    class DeployTask(Task):
-
-        def __init__(self, owner: GccCross) -> None:
-            super().__init__()
-            self.owner = owner
-
-        def run(self, ctx: Context) -> None:
-            assert ctx.device is not None
-            self.owner.deploy(ctx.device)
 
     def __init__(self, name: str, target: Target, target_dir: Path, dir_name: str, archive: str, urls: List[str]):
         super().__init__(name, target, cached=True)
@@ -126,14 +99,14 @@ class GccCross(Gcc):
         self.path = target_dir / f"toolchain_{self.dir_name}"
         self.deploy_path = PurePosixPath("/opt/toolchain")
 
-        self._install_task = self.InstallTask(self)
-        self.deploy_task = self.DeployTask(self)
+        self._install_task = _GccCrossInstallTask(self)
+        self.deploy_task = _GccCrossDeployTask(self)
 
     def bin(self, name: Gcc.BinType) -> Path:
         return self.path / "bin" / f"{self.target}-{name}"
 
     @property
-    def install_task(self) -> InstallTask:
+    def install_task(self) -> _GccCrossInstallTask:
         return self._install_task
 
     def download(self) -> bool:
@@ -174,8 +147,26 @@ class GccCross(Gcc):
             exclude=["include/*", "*.a", "*.o"],
         )
 
-    def tasks(self) -> Dict[str, Task]:
-        return {
-            "install": self.install_task,
-            "deploy": self.deploy_task,
-        }
+
+class _GccInstallTask(_InstallTask):
+    pass
+
+
+class _GccHostInstallTask(_GccInstallTask, EmptyTask):
+    pass
+
+
+class _GccCrossInstallTask(_GccInstallTask, OwnedTask[GccCross]):
+
+    def run(self, ctx: Context) -> None:
+        self.owner.download()
+
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.owner.path, cached=self.owner.cached)]
+
+
+class _GccCrossDeployTask(OwnedTask[GccCross]):
+
+    def run(self, ctx: Context) -> None:
+        assert ctx.device is not None
+        self.owner.deploy(ctx.device)

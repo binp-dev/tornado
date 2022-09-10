@@ -1,6 +1,6 @@
 from __future__ import annotations
 import json
-from typing import Dict, List, ClassVar
+from typing import Dict, Generic, List, ClassVar, Type, TypeVar
 
 import os
 import shutil
@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 import pydantic
 
 from ferrite.utils.run import capture, run
-from ferrite.components.base import Artifact, Component, Task, Context
+from ferrite.components.base import Artifact, Component, OwnedTask, Context, Task
 from ferrite.components.compiler import Target, Gcc
 
 import logging
@@ -88,142 +88,143 @@ class _BuildInfo(pydantic.BaseModel):
         return False
 
 
-class AbstractEpicsProject(Component):
+# Compiler
+C = TypeVar("C", bound=Gcc, covariant=True)
 
-    @dataclass(eq=False)
-    class BuildTask(Task):
-        _owner: AbstractEpicsProject
-        clean: bool = False
-        cached: bool = False
 
-        def __post_init__(self) -> None:
-            self.src_dir = self.owner.src_path
-            self.build_dir = self.owner.build_path
-            self.install_dir = self.owner.install_path
+class EpicsProject(Component, Generic[C]):
 
-        @property
-        def owner(self) -> AbstractEpicsProject:
-            return self._owner
+    # TODO: Use type aliases in 3.10
+    # Cc: TypeAlias = Gcc
 
-        def _prepare_source(self) -> None:
-            pass
-
-        def _configure(self) -> None:
-            raise NotImplementedError()
-
-        def _install(self) -> None:
-            raise NotImplementedError()
-
-        def _dep_paths(self) -> List[Path]:
-            return []
-
-        def run(self, ctx: Context) -> None:
-            info = _BuildInfo.from_paths(self.build_dir, self._dep_paths())
-            try:
-                stored_info = _BuildInfo.load(self.build_dir)
-            except FileNotFoundError:
-                pass
-            else:
-                if not info.has_changed_since(stored_info):
-                    logger.info(f"'{self.build_dir}' is already built")
-                    return
-
-            # TODO: Remove after a while
-            done_file = self.build_dir / "build.done"
-            if done_file.exists():
-                logger.info(f"Migrating from 'build.done' to '{_BuildInfo.FILE_NAME}'")
-                info.store(self.build_dir)
-                os.remove(done_file)
-                return
-
-            if self.clean:
-                shutil.rmtree(self.build_dir, ignore_errors=True)
-                shutil.rmtree(self.install_dir, ignore_errors=True)
-
-            self._prepare_source()
-
-            shutil.copytree(
-                self.src_dir,
-                self.build_dir,
-                dirs_exist_ok=True,
-                ignore=shutil.ignore_patterns(".git"),
-            )
-
-            logger.info(f"Configure {self.build_dir}")
-            self._configure()
-
-            logger.info(f"Build {self.build_dir}")
-            run(
-                [
-                    "make",
-                    "--jobs",
-                    *([str(ctx.jobs)] if ctx.jobs is not None else []),
-                ],
-                cwd=self.build_dir,
-                quiet=ctx.capture,
-            )
-
-            info.store(self.build_dir)
-
-            logger.info(f"Install {self.build_dir} to {self.install_dir}")
-            self.install_dir.mkdir(exist_ok=True)
-            self._install()
-
-        def dependencies(self) -> List[Task]:
-            return [self.owner.cc.install_task]
-
-        def artifacts(self) -> List[Artifact]:
-            return [
-                Artifact(self.build_dir, cached=self.cached),
-                Artifact(self.install_dir, cached=self.cached),
-            ]
-
-    @dataclass(eq=False)
-    class DeployTask(Task):
-        _owner: AbstractEpicsProject
-        deploy_path: PurePosixPath
-        blacklist: List[str] = field(default_factory=lambda: [])
-
-        @property
-        def owner(self) -> AbstractEpicsProject:
-            return self._owner
-
-        def _pre(self, ctx: Context) -> None:
-            pass
-
-        def _post(self, ctx: Context) -> None:
-            pass
-
-        def run(self, ctx: Context) -> None:
-            assert ctx.device is not None
-            self._pre(ctx)
-            logger.info(f"Deploy {self.owner.install_path} to {ctx.device.name()}:{self.deploy_path}")
-            ctx.device.store(
-                self.owner.install_path,
-                self.deploy_path,
-                recursive=True,
-                exclude=self.blacklist,
-            )
-            self._post(ctx)
-
-        def dependencies(self) -> List[Task]:
-            return [self.owner.build_task]
-
-    def __init__(self, target_dir: Path, src_path: Path, cc: Gcc) -> None:
+    def __init__(self, target_dir: Path, src_path: Path, target_name: str) -> None:
         super().__init__()
-        self._cc = cc
         self.src_path = src_path
-        self.build_path = target_dir / self.cc.name / "build"
-        self.install_path = target_dir / self.cc.name / "install"
+        self.build_path = target_dir / target_name / "build"
+        self.install_path = target_dir / target_name / "install"
+
+    @property
+    def cc(self) -> C:
+        raise NotImplementedError()
 
     @property
     def arch(self) -> str:
         return epics_arch_by_target(self.cc.target)
 
     @property
-    def cc(self) -> Gcc:
-        return self._cc
-
-    @property
-    def build_task(self) -> BuildTask:
+    def build_task(self) -> EpicsBuildTask[EpicsProject[C]]:
         raise NotImplementedError()
+
+
+O = TypeVar("O", bound=EpicsProject[Gcc], covariant=True)
+
+
+@dataclass(eq=False)
+class EpicsBuildTask(OwnedTask[O]):
+    clean: bool = False
+    cached: bool = False
+
+    def __post_init__(self) -> None:
+        self.src_dir = self.owner.src_path
+        self.build_dir = self.owner.build_path
+        self.install_dir = self.owner.install_path
+
+    def _prepare_source(self) -> None:
+        pass
+
+    def _configure(self) -> None:
+        raise NotImplementedError()
+
+    def _install(self) -> None:
+        raise NotImplementedError()
+
+    def _dep_paths(self) -> List[Path]:
+        return []
+
+    def run(self, ctx: Context) -> None:
+        info = _BuildInfo.from_paths(self.build_dir, self._dep_paths())
+        try:
+            stored_info = _BuildInfo.load(self.build_dir)
+        except FileNotFoundError:
+            pass
+        else:
+            if not info.has_changed_since(stored_info):
+                logger.info(f"'{self.build_dir}' is already built")
+                return
+
+        # TODO: Remove after a while
+        done_file = self.build_dir / "build.done"
+        if done_file.exists():
+            logger.info(f"Migrating from 'build.done' to '{_BuildInfo.FILE_NAME}'")
+            info.store(self.build_dir)
+            os.remove(done_file)
+            return
+
+        if self.clean:
+            shutil.rmtree(self.build_dir, ignore_errors=True)
+            shutil.rmtree(self.install_dir, ignore_errors=True)
+
+        self._prepare_source()
+
+        shutil.copytree(
+            self.src_dir,
+            self.build_dir,
+            dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns(".git"),
+        )
+
+        logger.info(f"Configure {self.build_dir}")
+        self._configure()
+
+        logger.info(f"Build {self.build_dir}")
+        run(
+            [
+                "make",
+                "--jobs",
+                *([str(ctx.jobs)] if ctx.jobs is not None else []),
+            ],
+            cwd=self.build_dir,
+            quiet=ctx.capture,
+        )
+
+        info.store(self.build_dir)
+
+        logger.info(f"Install {self.build_dir} to {self.install_dir}")
+        self.install_dir.mkdir(exist_ok=True)
+        self._install()
+
+    def dependencies(self) -> List[Task]:
+        return [self.owner.cc.install_task]
+
+    def artifacts(self) -> List[Artifact]:
+        return [
+            Artifact(self.build_dir, cached=self.cached),
+            Artifact(self.install_dir, cached=self.cached),
+        ]
+
+
+@dataclass(eq=False)
+class EpicsDeployTask(OwnedTask[O]):
+    deploy_path: PurePosixPath
+    blacklist: List[str] = field(default_factory=lambda: [])
+
+    def _pre(self, ctx: Context) -> None:
+        pass
+
+    def _post(self, ctx: Context) -> None:
+        pass
+
+    def run(self, ctx: Context) -> None:
+        assert ctx.device is not None
+        self._pre(ctx)
+        logger.info(f"Deploy {self.owner.install_path} to {ctx.device.name()}:{self.deploy_path}")
+        ctx.device.store(
+            self.owner.install_path,
+            self.deploy_path,
+            recursive=True,
+            exclude=self.blacklist,
+        )
+        self._post(ctx)
+
+    def dependencies(self) -> List[Task]:
+        return [self.owner.build_task]

@@ -5,7 +5,7 @@ from typing import Dict, List
 import shutil
 from pathlib import Path
 
-from ferrite.components.base import Artifact, Component, Task, Context, TaskWrapper
+from ferrite.components.base import Task, OwnedTask, Context, TaskWrapper
 from ferrite.components.cmake import Cmake
 from ferrite.components.compiler import GccCross
 from ferrite.components.freertos import Freertos
@@ -20,18 +20,6 @@ class McuDeployer:
 
 
 class McuBase(Cmake):
-
-    @dataclass
-    class DeployTask(Task):
-        owner: McuBase
-        deployer: McuDeployer
-
-        def run(self, ctx: Context) -> None:
-            assert ctx.device is not None
-            self.deployer.deploy(self.owner.build_dir, ctx.device)
-
-        def dependencies(self) -> List[Task]:
-            return [self.owner.build_task]
 
     def configure(self, capture: bool = False) -> None:
         # Workaround to disable cmake caching (incremental build is broken anyway)
@@ -75,13 +63,17 @@ class McuBase(Cmake):
         )
         self.freertos = freertos
 
-        self.deploy_task = self.DeployTask(self, deployer)
+        self.deploy_task = _DeployTask(self, deployer)
         self.deploy_and_reboot_task = TaskWrapper(RebootTask(), deps=[self.deploy_task])
 
-    def tasks(self) -> Dict[str, Task]:
-        tasks = super().tasks()
-        tasks.update({
-            "deploy": self.deploy_task,
-            "deploy_and_reboot": self.deploy_and_reboot_task,
-        })
-        return tasks
+
+@dataclass
+class _DeployTask(OwnedTask[McuBase]):
+    deployer: McuDeployer
+
+    def run(self, ctx: Context) -> None:
+        assert ctx.device is not None
+        self.deployer.deploy(self.owner.build_dir, ctx.device)
+
+    def dependencies(self) -> List[Task]:
+        return [self.owner.build_task]

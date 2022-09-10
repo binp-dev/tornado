@@ -3,34 +3,23 @@ from typing import Dict, List, Any
 
 import re
 from pathlib import Path
-from dataclasses import dataclass
 
 from ferrite.utils.run import run, capture
-from ferrite.components.base import Artifact, Component, Task, Context
-from ferrite.components.compiler import Compiler, Gcc, GccCross, GccHost, Target
+from ferrite.components.base import Artifact, Component, OwnedTask, Context, Task
+from ferrite.components.compiler import Compiler, Gcc, GccCross, GccHost, Target, _InstallTask as CompilerInstallTask
 
 
 class Rustc(Compiler):
 
-    @dataclass(eq=False)
-    class InstallTask(Compiler.InstallTask):
-        owner: Rustc
-
-        def run(self, ctx: Context) -> None:
-            self.owner.install(capture=ctx.capture)
-
-        def artifacts(self) -> List[Artifact]:
-            return [Artifact(self.owner.path, cached=True)]
-
     def __init__(self, postfix: str, target: Target, target_dir: Path, cc: Gcc):
-        self._install_task = self.InstallTask(self)
+        self._install_task = _RustcInstallTask(self)
         super().__init__(f"rustc_{postfix}", target, cached=True)
         self.target_dir = target_dir
         self.path = target_dir / "rustup"
         self._cc = cc
 
     @property
-    def install_task(self) -> InstallTask:
+    def install_task(self) -> _RustcInstallTask:
         return self._install_task
 
     @property
@@ -51,8 +40,14 @@ class Rustc(Compiler):
         for cmd in cmds:
             run(cmd, add_env=self.env(), quiet=capture)
 
-    def tasks(self) -> Dict[str, Task]:
-        return {"install": self.install_task}
+
+class _RustcInstallTask(CompilerInstallTask, OwnedTask[Rustc]):
+
+    def run(self, ctx: Context) -> None:
+        self.owner.install(capture=ctx.capture)
+
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.owner.path, cached=True)]
 
 
 class RustcHost(Rustc):
@@ -88,33 +83,6 @@ class RustcCross(Rustc):
 
 class Cargo(Component):
 
-    @dataclass(eq=False)
-    class BuildTask(Task):
-        owner: Cargo
-
-        def run(self, ctx: Context) -> None:
-            self.owner.build(capture=ctx.capture, update=ctx.update)
-
-        def dependencies(self) -> List[Task]:
-            return [
-                *self.owner.deps,
-                self.owner.rustc.install_task,
-                self.owner.rustc.cc.install_task,
-            ]
-
-        def artifacts(self) -> List[Artifact]:
-            return [Artifact(self.owner.build_dir)]
-
-    @dataclass(eq=False)
-    class TestTask(Task):
-        owner: Cargo
-
-        def run(self, ctx: Context) -> None:
-            self.owner.test(capture=ctx.capture)
-
-        def dependencies(self) -> List[Task]:
-            return [self.owner.build_task, self.owner.rustc.install_task]
-
     def __init__(
         self,
         src_dir: Path,
@@ -133,8 +101,8 @@ class Cargo(Component):
 
         self.home_dir = self.rustc.target_dir / "cargo"
 
-        self.build_task = self.BuildTask(self)
-        self.test_task = self.TestTask(self)
+        self.build_task = _CargoBuildTask(self)
+        self.test_task = _CargoTestTask(self)
 
     def _env(self) -> Dict[str, str]:
         return {
@@ -164,8 +132,29 @@ class Cargo(Component):
             quiet=capture,
         )
 
-    def tasks(self) -> Dict[str, Task]:
-        return {
-            "build": self.build_task,
-            "test": self.test_task,
-        }
+
+class _CargoBuildTask(OwnedTask[Cargo]):
+    owner: Cargo
+
+    def run(self, ctx: Context) -> None:
+        self.owner.build(capture=ctx.capture, update=ctx.update)
+
+    def dependencies(self) -> List[Task]:
+        return [
+            *self.owner.deps,
+            self.owner.rustc.install_task,
+            self.owner.rustc.cc.install_task,
+        ]
+
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.owner.build_dir)]
+
+
+class _CargoTestTask(OwnedTask[Cargo]):
+    owner: Cargo
+
+    def run(self, ctx: Context) -> None:
+        self.owner.test(capture=ctx.capture)
+
+    def dependencies(self) -> List[Task]:
+        return [self.owner.build_task, self.owner.rustc.install_task]

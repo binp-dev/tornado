@@ -1,7 +1,6 @@
 from __future__ import annotations
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Generic
 
-from random import getrandbits
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -22,6 +21,7 @@ class Artifact:
     cached: bool = False
 
 
+# Task must be hashable, so any derived dataclass should use eq=False.
 @dataclass(eq=False)
 class Task:
 
@@ -56,9 +56,11 @@ class EmptyTask(Task):
         pass
 
 
-@dataclass(eq=False)
 class CallTask(Task):
-    func: Callable[[], None]
+
+    def __init__(self, func: Callable[[], None]) -> None:
+        super().__init__()
+        self.func = func
 
     def run(self, ctx: Context) -> None:
         self.func()
@@ -110,7 +112,22 @@ class TaskWrapper(Task):
 class Component:
 
     def tasks(self) -> Dict[str, Task]:
-        raise NotImplementedError()
+        tasks: Dict[str, Task] = {}
+        for key, var in vars(self).items():
+            if isinstance(var, Task):
+                # Try to get task name
+                postfix = "_task"
+                if key.endswith(postfix):
+                    key = key[:-len(postfix)]
+                else:
+                    raise RuntimeWarning(f"Cannot determine task name for {type(self).__qualname__}.{key}")
+                if key.startswith("_"):
+                    key = key[1:]
+
+                assert (key not in tasks)
+                tasks[key] = var
+
+        return tasks
 
     def _update_names(self) -> None:
         for task_name, task in self.tasks().items():
@@ -140,3 +157,11 @@ class ComponentGroup(Component):
                 assert key not in tasks
                 tasks[key] = task
         return tasks
+
+
+O = TypeVar("O", bound=Component, covariant=True)
+
+
+@dataclass(eq=False)
+class OwnedTask(Task, Generic[O]):
+    owner: O

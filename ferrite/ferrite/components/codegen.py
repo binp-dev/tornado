@@ -1,11 +1,11 @@
 from __future__ import annotations
-from typing import Dict, List
+from typing import ClassVar, Dict, List, Type, TypeVar
 
 import shutil
 from pathlib import Path
 from dataclasses import dataclass
 
-from ferrite.components.base import Artifact, CallTask, Component, Task, Context, TaskList
+from ferrite.components.base import Artifact, CallTask, Component, OwnedTask, Context, TaskList
 from ferrite.components.rust import RustcHost, Cargo
 from ferrite.components.cmake import Cmake
 
@@ -16,46 +16,41 @@ from ferrite.utils.files import substitute
 
 @dataclass
 class Codegen(Component):
+
     name: str
     source_dir: Path
     output_dir: Path
     generator: Generator
     default_msg: bool # FIXME: Make `True` by default
 
-    @dataclass(eq=False)
-    class GenerateTask(Task):
-        owner: Codegen
-
-        def run(self, ctx: Context) -> None:
-            shutil.copytree(self.owner.assets_dir, self.owner.output_dir, dirs_exist_ok=True)
-            for path in [Path("c/CMakeLists.txt"), Path("rust/Cargo.toml"), Path("rust/build.rs")]:
-                substitute([("{{codegen}}", self.owner.name)], self.owner.output_dir / path)
-
-            self.owner.generator.generate(self.owner.context).write(self.owner.output_dir)
-
-        def artifacts(self) -> List[Artifact]:
-            return [Artifact(self.owner.output_dir)]
-
     def __post_init__(self) -> None:
         self.assets_dir = self.source_dir / "codegen"
         self.context = CodegenContext(self.name, default=self.default_msg)
-        self.generate_task = self.GenerateTask(self)
+        self.generate_task = self.GenerateTask()
 
-    def tasks(self) -> Dict[str, Task]:
-        return {"generate": self.generate_task}
+    def GenerateTask(self) -> _GenerateTask[Codegen]:
+        return _GenerateTask(self)
+
+
+O = TypeVar("O", bound=Codegen, covariant=True)
+
+
+class _GenerateTask(OwnedTask[O]):
+
+    def run(self, ctx: Context) -> None:
+        shutil.copytree(self.owner.assets_dir, self.owner.output_dir, dirs_exist_ok=True)
+        for path in [Path("c/CMakeLists.txt"), Path("rust/Cargo.toml"), Path("rust/build.rs")]:
+            substitute([("{{codegen}}", self.owner.name)], self.owner.output_dir / path)
+
+        self.owner.generator.generate(self.owner.context).write(self.owner.output_dir)
+
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.owner.output_dir)]
 
 
 @dataclass
 class CodegenTest(Codegen):
     rustc: RustcHost
-
-    @dataclass(eq=False)
-    class GenerateTask(Codegen.GenerateTask):
-
-        def run(self, ctx: Context) -> None:
-            super().run(ctx)
-            assert isinstance(self.owner, CodegenTest)
-            self.owner.generator.generate_tests(self.owner.context, self.owner.test_info).write(self.owner.output_dir)
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -81,9 +76,12 @@ class CodegenTest(Codegen):
             CallTask(lambda: self.generator.self_test(self.test_info)),
         ])
 
-    def tasks(self) -> Dict[str, Task]:
-        return {
-            **super().tasks(),
-            "build": self.build_task,
-            "test": self.test_task,
-        }
+    def GenerateTask(self) -> _GenerateTestTask:
+        return _GenerateTestTask(self)
+
+
+class _GenerateTestTask(_GenerateTask[CodegenTest]):
+
+    def run(self, ctx: Context) -> None:
+        super().run(ctx)
+        self.owner.generator.generate_tests(self.owner.context, self.owner.test_info).write(self.owner.output_dir)

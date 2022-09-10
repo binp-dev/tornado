@@ -1,44 +1,27 @@
 from __future__ import annotations
-from typing import Dict, List, Optional
+from typing import ClassVar, Dict, List, Optional
 
 from pathlib import Path
 from dataclasses import dataclass, field
 
 from ferrite.utils.run import run
-from ferrite.components.base import Artifact, Component, Task, Context
+from ferrite.components.base import Artifact, Component, OwnedTask, Context, Task
 from ferrite.components.compiler import Gcc
 
 
 @dataclass
 class Cmake(Component):
 
-    @dataclass(eq=False)
-    class BuildTask(Task):
-        owner: Cmake
-
-        def run(self, ctx: Context) -> None:
-            self.owner.configure(capture=ctx.capture)
-            self.owner.build(jobs=ctx.jobs, capture=ctx.capture)
-
-        def dependencies(self) -> List[Task]:
-            return [
-                *self.owner.deps,
-                self.owner.cc.install_task,
-            ]
-
-        def artifacts(self) -> List[Artifact]:
-            return [Artifact(self.owner.build_dir)]
-
     src_dir: Path
     build_dir: Path
     cc: Gcc
-    target: str # FIXME: Rename to `cmake_target`
+    target: str # TODO: Rename to `cmake_target`
     opts: List[str] = field(default_factory=list)
     envs: Dict[str, str] = field(default_factory=dict)
     deps: List[Task] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        self.build_task = self.BuildTask(self)
+        self.build_task = _BuildTask(self)
 
     def create_build_dir(self) -> None:
         self.build_dir.mkdir(exist_ok=True)
@@ -77,26 +60,29 @@ class Cmake(Component):
             quiet=capture,
         )
 
-    def tasks(self) -> Dict[str, Task]:
-        return {"build": self.build_task}
+
+class _BuildTask(OwnedTask[Cmake]):
+
+    def run(self, ctx: Context) -> None:
+        self.owner.configure(capture=ctx.capture)
+        self.owner.build(jobs=ctx.jobs, capture=ctx.capture)
+
+    def dependencies(self) -> List[Task]:
+        return [
+            *self.owner.deps,
+            self.owner.cc.install_task,
+        ]
+
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.owner.build_dir)]
 
 
 @dataclass
 class CmakeRunnable(Cmake):
 
-    @dataclass(eq=False)
-    class RunTask(Task):
-        owner: CmakeRunnable
-
-        def run(self, ctx: Context) -> None:
-            self.owner.run(ctx)
-
-        def dependencies(self) -> List[Task]:
-            return [self.owner.build_task]
-
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.run_task = self.RunTask(self)
+        self.run_task = _RunTask(self)
 
     def run(self, ctx: Context) -> None:
         run(
@@ -105,7 +91,11 @@ class CmakeRunnable(Cmake):
             quiet=ctx.capture,
         )
 
-    def tasks(self) -> Dict[str, Task]:
-        tasks = super().tasks()
-        tasks["run"] = self.run_task
-        return tasks
+
+class _RunTask(OwnedTask[CmakeRunnable]):
+
+    def run(self, ctx: Context) -> None:
+        self.owner.run(ctx)
+
+    def dependencies(self) -> List[Task]:
+        return [self.owner.build_task]

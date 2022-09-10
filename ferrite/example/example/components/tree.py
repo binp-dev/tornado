@@ -10,8 +10,8 @@ from ferrite.components.platforms.arm import Aarch64AppPlatform, ArmAppPlatform
 from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 
 from example.components.app import App
-from example.components.ioc import AppIocHost, AppIocCross
-from example.components.backend import Backend, Protocol
+from example.components.frontend import FrontendHost, FrontendCross
+from example.components.backend import TestBackend, Protocol
 
 
 class HostComponents(ComponentGroup):
@@ -28,8 +28,8 @@ class HostComponents(ComponentGroup):
         self.epics_base = EpicsBaseHost(target_dir, self.gcc)
         self.protocol = Protocol(ferrite_dir, target_dir, self.rustc)
         self.app = App(source_dir, target_dir, self.rustc, self.protocol)
-        self.ioc = AppIocHost(ferrite_dir, source_dir, target_dir, self.epics_base, self.app)
-        self.backend = Backend(self.ioc, self.protocol)
+        self.ioc = FrontendHost(ferrite_dir, source_dir, target_dir, self.epics_base, self.app)
+        self.backend = TestBackend(self.ioc, self.protocol)
         self.all = DictComponent({
             "build": TaskList([self.epics_base.build_task, self.app.build_task, self.ioc.build_task]),
             "test": TaskList([self.protocol.test_task, self.app.test_task, self.backend.test_task]),
@@ -53,7 +53,7 @@ class CrossComponents(ComponentGroup):
         self.rustc = platform.rustc
         self.epics_base = EpicsBaseCross(target_dir, self.gcc, host.epics_base)
         self.app = App(source_dir, target_dir, self.rustc, host.protocol)
-        self.ioc = AppIocCross(ferrite_dir, source_dir, target_dir, self.epics_base, self.app)
+        self.ioc = FrontendCross(ferrite_dir, source_dir, target_dir, self.epics_base, self.app)
 
         build_task = TaskList([self.epics_base.build_task, self.ioc.build_task])
         deploy_task = TaskList([self.epics_base.deploy_task, self.ioc.deploy_task])
