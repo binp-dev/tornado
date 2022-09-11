@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, List, Optional, Sequence, Set, Union, overload
+from typing import Any, List, Optional, Sequence, Set, TypeVar, Union, overload, Type as GenType
 
 from dataclasses import dataclass
 from enum import Enum
@@ -293,3 +293,19 @@ class Type:
         for obj in self._make_test_objects(info):
             data = self.store(obj)
             assert self.store(self.load(data)) == data
+
+
+Self = TypeVar("Self")
+
+
+class Value:
+
+    @classmethod
+    def load(cls: GenType[Self], data: bytes) -> Self:
+        raise NotImplementedError()
+
+    def store(self) -> bytes:
+        raise NotImplementedError()
+
+    def size(self) -> int:
+        raise NotImplementedError()

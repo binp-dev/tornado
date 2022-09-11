@@ -72,6 +72,8 @@ class Generator:
                 "# This file was generatered by Ferrite Codegen.",
                 "from __future__ import annotations",
                 "",
+                "from ferrite.codegen.base import Value",
+                "",
                 pyi_source.make_source(Location.IMPORT, separator=""),
                 "",
                 pyi_source.make_source(Location.DECLARATION),
