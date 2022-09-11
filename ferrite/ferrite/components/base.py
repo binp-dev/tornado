@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Generic
+from typing import Any, Callable, Dict, List, Optional, Set, TypeVar, Generic
 
 from pathlib import Path
 from dataclasses import dataclass
@@ -30,13 +30,30 @@ class Task:
         self._name: Optional[str] = None
 
     def name(self) -> str:
-        return self._name or f"<{type(self).__qualname__}>({hash(self):x})"
+        cls = self.__class__
+        return self._name or f"<{cls.__module__}.{cls.__qualname__}>({hash(self):x})"
 
     def run(self, ctx: Context) -> None:
         raise NotImplementedError()
 
     def dependencies(self) -> List[Task]:
         return []
+
+    def graph(self) -> Dict[Task, Set[Task]]:
+        graph: Dict[Task, Set[Task]] = {}
+
+        def fill_graph(task: Task) -> None:
+            if task not in graph:
+                deps = task.dependencies()
+                graph[task] = set(deps)
+                for dep in deps:
+                    fill_graph(dep)
+            else:
+                # Check that task dependencies are the same.
+                assert len(graph[task].symmetric_difference(set(task.dependencies()))) == 0
+
+        fill_graph(self)
+        return graph
 
     def run_with_dependencies(self, ctx: Context) -> None:
         deps = self.dependencies()
