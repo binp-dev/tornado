@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from ferrite.utils.files import substitute
-from ferrite.components.base import OwnedTask, Task, Context
+from ferrite.components.base import Artifact, OwnedTask, Task, Context
 from ferrite.components.compiler import Gcc, GccHost, GccCross
 from ferrite.components.epics.base import EpicsProject, EpicsBuildTask, EpicsDeployTask
 from ferrite.components.epics.epics_base import AbstractEpicsBase, EpicsBaseCross, EpicsBaseHost
@@ -137,6 +137,12 @@ class AbstractBuildTask(EpicsBuildTask[O]):
         return [
             *super().dependencies(),
             self.owner.epics_base.build_task,
+        ]
+
+    def artifacts(self) -> List[Artifact]:
+        return [
+            *super().artifacts(),
+            *([Artifact(self.src_dir)] if len(self.owner.ioc_dirs) > 1 else []),
         ]
 
 

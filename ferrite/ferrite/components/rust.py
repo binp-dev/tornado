@@ -99,7 +99,7 @@ class Cargo(Component):
         self.envs = envs
         self.deps = deps
 
-        self.home_dir = self.rustc.target_dir / "cargo"
+        self.home_dir = Path.cwd() / ".cargo"
 
         self.build_task = _CargoBuildTask(self)
         self.test_task = _CargoTestTask(self)
@@ -146,10 +146,7 @@ class _CargoBuildTask(OwnedTask[Cargo]):
         ]
 
     def artifacts(self) -> List[Artifact]:
-        return [
-            Artifact(self.owner.home_dir, cached=True),
-            Artifact(self.owner.build_dir),
-        ]
+        return [Artifact(self.owner.build_dir)]
 
 
 class _CargoTestTask(_CargoBuildTask):
