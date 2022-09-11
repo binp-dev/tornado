@@ -111,7 +111,7 @@ class GccCross(Gcc):
 
     def download(self) -> bool:
         if self.path.exists():
-            logger.info(f"Toolchain {self.archive} is already downloaded")
+            logger.info(f"Toolchain {self.archive} is already installed")
             return False
 
         tmp_dir = self.target_dir / "download"
@@ -122,7 +122,7 @@ class GccCross(Gcc):
             logger.info(f"Loading toolchain {self.archive} ...")
             download_alt(self.urls, archive_path)
         else:
-            logger.info(f"Toolchain archive {self.archive} already exists")
+            logger.info(f"Toolchain archive {self.archive} already downloaded")
 
         logger.info(f"Extracting toolchain {self.archive} ...")
         dir_path = tmp_dir / self.dir_name
@@ -134,6 +134,7 @@ class GccCross(Gcc):
             raise
 
         shutil.move(dir_path, self.path)
+        shutil.rmtree(tmp_dir)
 
         return True
 
