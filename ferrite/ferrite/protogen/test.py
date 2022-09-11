@@ -1,12 +1,12 @@
 from __future__ import annotations
 from typing import List
 
-from ferrite.codegen.variant import Variant
-from ferrite.codegen.base import Name, Type
-from ferrite.codegen.primitive import Float, Int
-from ferrite.codegen.container import Array, Vector, String
-from ferrite.codegen.structure import Field, Struct
-from ferrite.codegen.generator import Generator
+from ferrite.protogen.variant import Variant
+from ferrite.protogen.base import Name, Type
+from ferrite.protogen.primitive import Float, Int
+from ferrite.protogen.container import Array, Vector, String
+from ferrite.protogen.structure import Field, Struct
+from ferrite.protogen.generator import Generator
 
 
 class AllDict(dict[str, Type]):

@@ -5,8 +5,8 @@ from random import Random
 import string
 import struct
 
-from ferrite.codegen.base import Location, Name, Source, Type, UnexpectedEof
-from ferrite.codegen.utils import is_power_of_2
+from ferrite.protogen.base import Location, Name, Source, Type, UnexpectedEof
+from ferrite.protogen.utils import is_power_of_2
 
 T = TypeVar('T')
 

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import asyncio
 from asyncio import StreamReader, StreamWriter
 
-from ferrite.codegen.base import UnexpectedEof, Value
+from ferrite.protogen.base import UnexpectedEof, Value
 
 
 @dataclass

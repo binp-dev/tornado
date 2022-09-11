@@ -3,10 +3,10 @@ from typing import Any, List, Optional, Tuple, Union
 
 from random import Random
 
-from ferrite.codegen.base import CONTEXT, Location, Name, Type, Value, Source, UnexpectedEof
-from ferrite.codegen.primitive import Int
-from ferrite.codegen.utils import indent, flatten, pad_bytes
-from ferrite.codegen.structure import Field
+from ferrite.protogen.base import CONTEXT, Location, Name, Type, Value, Source, UnexpectedEof
+from ferrite.protogen.primitive import Int
+from ferrite.protogen.utils import indent, flatten, pad_bytes
+from ferrite.protogen.structure import Field
 
 
 class VariantValue(Value):

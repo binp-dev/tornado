@@ -5,10 +5,10 @@ from pathlib import Path
 
 from ferrite.components.base import Component, DictComponent, ComponentGroup, TaskList
 from ferrite.components.platforms.host import HostAppPlatform
-from ferrite.components.codegen import CodegenTest
+from ferrite.components.protogen import ProtogenTest
 from ferrite.components.rust import Cargo
 
-from ferrite.codegen.test import make_test_generator
+from ferrite.protogen.test import make_test_generator
 
 
 class Components(ComponentGroup):
@@ -21,9 +21,9 @@ class Components(ComponentGroup):
     ) -> None:
         self.gcc = platform.gcc
         self.rustc = platform.rustc
-        self.codegen = CodegenTest("codegen", source_dir, target_dir / "codegen", make_test_generator(), False, self.rustc)
+        self.protogen = ProtogenTest("protogen", source_dir, target_dir / "protogen", make_test_generator(), False, self.rustc)
         self.app = Cargo(source_dir / "app", target_dir / "app", self.rustc)
-        self.all = DictComponent({"test": TaskList([self.codegen.test_task, self.app.test_task])})
+        self.all = DictComponent({"test": TaskList([self.protogen.test_task, self.app.test_task])})
 
     def components(self) -> Dict[str, Component]:
         return self.__dict__

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 from random import Random
 
-from ferrite.codegen.utils import flatten, indent
+from ferrite.protogen.utils import flatten, indent
 
 
 @dataclass

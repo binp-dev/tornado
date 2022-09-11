@@ -3,8 +3,8 @@ from typing import Any, List, Optional, Tuple
 
 from random import Random
 
-from ferrite.codegen.base import CONTEXT, Location, Name, Type, Value, Source, UnexpectedEof
-from ferrite.codegen.utils import flatten, indent
+from ferrite.protogen.base import CONTEXT, Location, Name, Type, Value, Source, UnexpectedEof
+from ferrite.protogen.utils import flatten, indent
 
 
 class Field:
