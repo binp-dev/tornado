@@ -28,4 +28,4 @@ if __name__ == "__main__":
         exit(1)
 
     cli.setup_logging(params)
-    cli.run_with_params(params)
+    cli.run_with_params(target_dir, params)

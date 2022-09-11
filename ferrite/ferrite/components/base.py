@@ -12,6 +12,7 @@ class Context:
     device: Optional[Device] = None
     capture: bool = False
     update: bool = False
+    hide_artifacts: bool = False
     jobs: Optional[int] = None
 
 
@@ -77,6 +78,9 @@ class TaskList(Task):
 
     def dependencies(self) -> List[Task]:
         return self.tasks
+
+    def artifacts(self) -> List[Artifact]:
+        return [art for task in self.tasks for art in task.artifacts()]
 
 
 class TaskWrapper(Task):

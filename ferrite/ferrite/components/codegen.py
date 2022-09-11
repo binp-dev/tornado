@@ -68,7 +68,7 @@ class CodegenTest(Codegen):
             self.output_dir / "rust",
             self.output_dir / "rust/target",
             self.rustc,
-            deps=[self.c_test.build_task],
+            deps=[self.generate_task, self.c_test.build_task],
         )
         self.build_task = self.rust_test.build_task
         self.test_task = TaskList([

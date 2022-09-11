@@ -134,7 +134,6 @@ class Cargo(Component):
 
 
 class _CargoBuildTask(OwnedTask[Cargo]):
-    owner: Cargo
 
     def run(self, ctx: Context) -> None:
         self.owner.build(capture=ctx.capture, update=ctx.update)
@@ -147,14 +146,19 @@ class _CargoBuildTask(OwnedTask[Cargo]):
         ]
 
     def artifacts(self) -> List[Artifact]:
-        return [Artifact(self.owner.build_dir)]
+        return [
+            Artifact(self.owner.home_dir, cached=True),
+            Artifact(self.owner.build_dir),
+        ]
 
 
-class _CargoTestTask(OwnedTask[Cargo]):
-    owner: Cargo
+class _CargoTestTask(_CargoBuildTask):
 
     def run(self, ctx: Context) -> None:
         self.owner.test(capture=ctx.capture)
 
     def dependencies(self) -> List[Task]:
-        return [self.owner.build_task, self.owner.rustc.install_task]
+        return [
+            *super().dependencies(),
+            self.owner.build_task,
+        ]

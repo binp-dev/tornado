@@ -1,4 +1,5 @@
 from __future__ import annotations
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import argparse
@@ -6,7 +7,7 @@ from dataclasses import dataclass
 from colorama import init as colorama_init, Fore, Style
 
 from ferrite.components.base import Context, Task, Component
-from ferrite.manage.runner import Runner
+from ferrite.runner import Runner
 from ferrite.remote.ssh import SshDevice
 
 import logging
@@ -89,6 +90,11 @@ def add_parser_args(parser: argparse.ArgumentParser, comp: Component) -> None:
         help="Update external dependencies.",
     )
     parser.add_argument(
+        "--hide-artifacts",
+        action="store_true",
+        help="Hide artifacts which are unused by task. Useful to test task dependencies list.",
+    )
+    parser.add_argument(
         "-j",
         "--jobs",
         type=int,
@@ -128,6 +134,7 @@ def _make_context_from_args(args: argparse.Namespace) -> Context:
         device=device,
         capture=not args.no_capture,
         update=args.update,
+        hide_artifacts=args.hide_artifacts,
         jobs=args.jobs,
     )
 
@@ -155,6 +162,6 @@ def setup_logging(params: RunParams, modules: List[str] = ["ferrite"]) -> None:
             logging.getLogger(mod).setLevel(logging.DEBUG)
 
 
-def run_with_params(params: RunParams) -> None:
+def run_with_params(target_dir: Path, params: RunParams) -> None:
     _prepare_for_run(params)
-    Runner(params.task).run(params.context, no_deps=params.no_deps)
+    Runner(target_dir, params.task, no_deps=params.no_deps).run(params.context)
