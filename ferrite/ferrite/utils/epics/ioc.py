@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
+import os
 from subprocess import Popen, CalledProcessError
 from pathlib import Path
 from time import sleep
@@ -13,9 +14,10 @@ logger = logging.getLogger(__name__)
 
 class IocBase:
 
-    def __init__(self, ioc_dir: Path, arch: str, debug: bool = False):
+    def __init__(self, epics_base_dir: Path, ioc_dir: Path, arch: str, debug: bool = False):
         self.binary = ioc_dir / "bin" / arch / "Fer"
         self.script = ioc_dir / "iocBoot/iocFer/st.cmd"
+        self.lib_dirs = [epics_base_dir / "lib" / arch, ioc_dir / "lib" / arch]
         self.debug = debug
 
     def _cmd(self) -> List[str]:
@@ -27,6 +29,12 @@ class IocBase:
 
     def _cwd(self) -> Path:
         return self.script.parent
+
+    def _env(self) -> Dict[str, str]:
+        return {
+            **dict(os.environ),
+            "LD_LIBRARY_PATH": ":".join([str(p) for p in self.lib_dirs]),
+        }
 
 
 class Ioc(IocBase):
@@ -40,7 +48,7 @@ class Ioc(IocBase):
 
     def start(self) -> None:
         cmd = self._cmd()
-        self.proc: Optional[Popen[str] | None] = Popen(cmd, cwd=self._cwd(), text=True)
+        self.proc: Optional[Popen[str] | None] = Popen(cmd, cwd=self._cwd(), env=self._env(), text=True)
         logger.debug(f"IOC started: {cmd}")
 
     def stop(self) -> None:
@@ -69,7 +77,7 @@ class AsyncIoc(IocBase):
     async def __aenter__(self) -> AsyncIoc:
         cmd = self._cmd()
         self.stopped = False
-        self.proc = await asyncio.create_subprocess_exec(*cmd, cwd=self._cwd())
+        self.proc = await asyncio.create_subprocess_exec(*cmd, cwd=self._cwd(), env=self._env())
         logger.debug(f"IOC started: {cmd}")
         return self
 

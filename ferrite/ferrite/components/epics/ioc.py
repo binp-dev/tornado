@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 from ferrite.utils.files import substitute
 from ferrite.components.base import Artifact, OwnedTask, Task, Context
 from ferrite.components.compiler import Gcc, GccHost, GccCross
-from ferrite.components.epics.base import EpicsProject, EpicsBuildTask, EpicsDeployTask
+from ferrite.components.epics.base import EpicsInstallTask, EpicsProject, EpicsBuildTask, EpicsDeployTask
 from ferrite.components.epics.epics_base import AbstractEpicsBase, EpicsBaseCross, EpicsBaseHost
 from ferrite.utils.epics.ioc_remote import IocRemoteRunner
 
@@ -41,10 +41,15 @@ class AbstractIoc(EpicsProject[Gcc], Generic[B]):
         self.epics_base = epics_base
         self.ioc_dirs = ioc_dirs
         self._build_task = self.BuildTask()
+        self._install_task = AbstractInstallTask(self)
 
     @property
     def build_task(self) -> AbstractBuildTask[AbstractIoc[B]]:
         return self._build_task
+
+    @property
+    def install_task(self) -> AbstractInstallTask[AbstractIoc[B]]:
+        return self._install_task
 
     @property
     def arch(self) -> str:
@@ -125,14 +130,6 @@ class AbstractBuildTask(EpicsBuildTask[O]):
         )
         self.install_dir.mkdir(exist_ok=True)
 
-    def _install(self) -> None:
-        shutil.copytree(
-            self.build_dir / "iocBoot",
-            self.install_dir / "iocBoot",
-            dirs_exist_ok=True,
-            ignore=shutil.ignore_patterns("Makefile"),
-        )
-
     def dependencies(self) -> List[Task]:
         return [
             *super().dependencies(),
@@ -143,17 +140,31 @@ class AbstractBuildTask(EpicsBuildTask[O]):
         return [
             *super().artifacts(),
             *([Artifact(self.src_dir)] if len(self.owner.ioc_dirs) > 1 else []),
+            Artifact(self.install_dir), # Because IOC install is performed during build
         ]
 
 
+class AbstractInstallTask(EpicsInstallTask[O]):
+
+    def _install(self) -> None:
+        shutil.rmtree(
+            self.install_dir / "iocBoot",
+            ignore_errors=True,
+        )
+        shutil.copytree(
+            self.build_dir / "iocBoot",
+            self.install_dir / "iocBoot",
+            dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns("Makefile"),
+        )
+
+
 Ho = TypeVar("Ho", bound=IocHost, covariant=True)
+Co = TypeVar("Co", bound=IocCross, covariant=True)
 
 
 class HostBuildTask(AbstractBuildTask[Ho]):
     pass
-
-
-Co = TypeVar("Co", bound=IocCross, covariant=True)
 
 
 class CrossBuildTask(AbstractBuildTask[Co]):

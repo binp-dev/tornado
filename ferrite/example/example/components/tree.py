@@ -32,7 +32,7 @@ class HostComponents(ComponentGroup):
         self.ioc = FrontendHost(ferrite_dir, source_dir, target_dir, self.epics_base, self.app)
         self.backend = TestBackend(self.ioc, self.protocol)
         self.all = DictComponent({
-            "build": TaskList([self.epics_base.build_task, self.app.build_task, self.ioc.build_task]),
+            "build": TaskList([self.epics_base.install_task, self.app.build_task, self.ioc.install_task]),
             "test": TaskList([self.protocol.test_task, self.app.test_task, self.backend.test_task]),
         })
 
@@ -56,7 +56,7 @@ class CrossComponents(ComponentGroup):
         self.app = App(source_dir, target_dir, self.rustc, host.protocol)
         self.ioc = FrontendCross(ferrite_dir, source_dir, target_dir, self.epics_base, self.app)
 
-        build_task = TaskList([self.epics_base.build_task, self.ioc.build_task])
+        build_task = TaskList([self.epics_base.install_task, self.ioc.install_task])
         deploy_task = TaskList([self.epics_base.deploy_task, self.ioc.deploy_task])
         run_task = TaskWrapper(self.ioc.run_task, [deploy_task])
         self.all = DictComponent({"build": build_task, "deploy": deploy_task, "run": run_task})

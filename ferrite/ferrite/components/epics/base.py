@@ -115,6 +115,10 @@ class EpicsProject(Component, Generic[C]):
     def build_task(self) -> EpicsBuildTask[EpicsProject[C]]:
         raise NotImplementedError()
 
+    @property
+    def install_task(self) -> EpicsInstallTask[EpicsProject[C]]:
+        raise NotImplementedError()
+
 
 O = TypeVar("O", bound=EpicsProject[Gcc], covariant=True)
 
@@ -135,9 +139,6 @@ class EpicsBuildTask(OwnedTask[O]):
     def _configure(self) -> None:
         raise NotImplementedError()
 
-    def _install(self) -> None:
-        raise NotImplementedError()
-
     def _dep_paths(self) -> List[Path]:
         return []
 
@@ -152,17 +153,8 @@ class EpicsBuildTask(OwnedTask[O]):
                 logger.info(f"'{self.build_dir}' is already built")
                 return
 
-        # TODO: Remove after a while
-        done_file = self.build_dir / "build.done"
-        if done_file.exists():
-            logger.info(f"Migrating from 'build.done' to '{_BuildInfo.FILE_NAME}'")
-            info.store(self.build_dir)
-            os.remove(done_file)
-            return
-
         if self.clean:
             shutil.rmtree(self.build_dir, ignore_errors=True)
-            shutil.rmtree(self.install_dir, ignore_errors=True)
 
         self._prepare_source()
 
@@ -189,18 +181,33 @@ class EpicsBuildTask(OwnedTask[O]):
 
         info.store(self.build_dir)
 
+    def dependencies(self) -> List[Task]:
+        return [self.owner.cc.install_task]
+
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.build_dir, cached=self.cached)]
+
+
+@dataclass(eq=False)
+class EpicsInstallTask(OwnedTask[O]):
+
+    def __post_init__(self) -> None:
+        self.build_dir = self.owner.build_path
+        self.install_dir = self.owner.install_path
+
+    def _install(self) -> None:
+        raise NotImplementedError()
+
+    def run(self, ctx: Context) -> None:
         logger.info(f"Install {self.build_dir} to {self.install_dir}")
         self.install_dir.mkdir(exist_ok=True)
         self._install()
 
     def dependencies(self) -> List[Task]:
-        return [self.owner.cc.install_task]
+        return [self.owner.build_task]
 
     def artifacts(self) -> List[Artifact]:
-        return [
-            Artifact(self.build_dir, cached=self.cached),
-            Artifact(self.install_dir, cached=self.cached),
-        ]
+        return [Artifact(self.install_dir)]
 
 
 @dataclass(eq=False)
@@ -227,4 +234,4 @@ class EpicsDeployTask(OwnedTask[O]):
         self._post(ctx)
 
     def dependencies(self) -> List[Task]:
-        return [self.owner.build_task]
+        return [self.owner.install_task]

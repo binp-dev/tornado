@@ -30,7 +30,7 @@ class _TestTask(OwnedTask[TestBackend]):
 
     def dependencies(self) -> List[Task]:
         return [
-            self.owner.frontend.epics_base.build_task,
-            self.owner.frontend.build_task,
+            self.owner.frontend.epics_base.install_task,
+            self.owner.frontend.install_task,
             self.owner.proto.generate_task,
         ]

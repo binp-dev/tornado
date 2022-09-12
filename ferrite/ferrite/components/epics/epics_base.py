@@ -9,7 +9,7 @@ from ferrite.utils.files import substitute, allow_patterns
 from ferrite.components.base import Task
 from ferrite.components.git import RepoList, RepoSource
 from ferrite.components.compiler import Gcc, GccHost, GccCross
-from ferrite.components.epics.base import EpicsProject, EpicsBuildTask, EpicsDeployTask, C
+from ferrite.components.epics.base import EpicsInstallTask, EpicsProject, EpicsBuildTask, EpicsDeployTask, C
 
 import logging
 
@@ -28,6 +28,10 @@ class AbstractEpicsBase(EpicsProject[C]):
 
     @property
     def build_task(self) -> _BuildTask[AbstractEpicsBase[C]]:
+        raise NotImplementedError()
+
+    @property
+    def install_task(self) -> _InstallTask[AbstractEpicsBase[C]]:
         raise NotImplementedError()
 
 
@@ -55,10 +59,15 @@ class EpicsBaseHost(AbstractEpicsBase[GccHost]):
         )
 
         self._build_task = _HostBuildTask(self)
+        self._install_task = _HostInstallTask(self)
 
     @property
     def build_task(self) -> _HostBuildTask:
         return self._build_task
+
+    @property
+    def install_task(self) -> _HostInstallTask:
+        return self._install_task
 
 
 class EpicsBaseCross(AbstractEpicsBase[GccCross]):
@@ -72,11 +81,16 @@ class EpicsBaseCross(AbstractEpicsBase[GccCross]):
         self.deploy_path = PurePosixPath("/opt/epics_base")
 
         self._build_task = _CrossBuildTask(self)
+        self._install_task = _CrossInstallTask(self)
         self.deploy_task = _CrossDeployTask(self, self.deploy_path)
 
     @property
     def build_task(self) -> _CrossBuildTask:
         return self._build_task
+
+    @property
+    def install_task(self) -> _CrossInstallTask:
+        return self._install_task
 
 
 O = TypeVar("O", bound=AbstractEpicsBase[Gcc], covariant=True)
@@ -117,6 +131,9 @@ class _BuildTask(EpicsBuildTask[O]):
         self._configure_toolchain()
         #self._configure_install() # Install is broken
 
+
+class _InstallTask(EpicsInstallTask[O]):
+
     # Workaround for broken EPICS install
     def _install(self) -> None:
         # Copy all required dirs manually
@@ -132,10 +149,13 @@ class _BuildTask(EpicsBuildTask[O]):
             #"templates",
         ]
         for path in paths:
+            shutil.rmtree(
+                self.install_dir / path,
+                ignore_errors=True,
+            )
             shutil.copytree(
                 self.build_dir / path,
                 self.install_dir / path,
-                dirs_exist_ok=True,
                 symlinks=True,
                 ignore=shutil.ignore_patterns("O.*"),
             )
@@ -154,6 +174,10 @@ class _HostBuildTask(_BuildTask[EpicsBaseHost]):
             *super().dependencies(),
             self.owner.repo.clone_task,
         ]
+
+
+class _HostInstallTask(_InstallTask[EpicsBaseHost]):
+    pass
 
 
 class _CrossBuildTask(_BuildTask[EpicsBaseCross]):
@@ -180,6 +204,15 @@ class _CrossBuildTask(_BuildTask[EpicsBaseCross]):
             self.build_dir / f"configure/os/CONFIG_SITE.{host_arch}.{cross_arch}",
         )
 
+    def dependencies(self) -> List[Task]:
+        return [
+            *super().dependencies(),
+            self.owner.host_base.build_task,
+        ]
+
+
+class _CrossInstallTask(_InstallTask[EpicsBaseCross]):
+
     def _install(self) -> None:
         super()._install()
 
@@ -194,12 +227,6 @@ class _CrossBuildTask(_BuildTask[EpicsBaseCross]):
             symlinks=True,
             ignore=allow_patterns("*.pl", "*.py"),
         )
-
-    def dependencies(self) -> List[Task]:
-        return [
-            *super().dependencies(),
-            self.owner.host_base.build_task,
-        ]
 
 
 class _CrossDeployTask(EpicsDeployTask[EpicsBaseCross]):

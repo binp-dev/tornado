@@ -14,9 +14,9 @@ import ferrite.utils.epics.ca as ca
 from example.protocol import InMsg, OutMsg
 
 
-async def _async_test(ioc_dir: Path, arch: str) -> None:
+async def _async_test(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
     async with TcpListener("127.0.0.1", 4884) as lis:
-        async with AsyncIoc(ioc_dir, arch) as ioc:
+        async with AsyncIoc(epics_base_dir, ioc_dir, arch) as ioc:
             print("[backend] IOC started")
             async for stream in lis:
                 break
@@ -102,5 +102,5 @@ async def _async_test(ioc_dir: Path, arch: str) -> None:
 
 def test(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
     os.environ.update(ca.local_env())
-    with ca.Repeater(epics_base_dir / "bin" / arch):
-        asyncio.run(_async_test(ioc_dir, arch))
+    with ca.Repeater(epics_base_dir, arch):
+        asyncio.run(_async_test(epics_base_dir, ioc_dir, arch))

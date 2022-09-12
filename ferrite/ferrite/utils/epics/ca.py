@@ -3,6 +3,7 @@ from math import fabs
 from sqlite3 import OptimizedUnicode
 from typing import Any, Dict, List, Optional, Union
 
+import os
 import time
 from subprocess import Popen
 from pathlib import Path
@@ -57,13 +58,21 @@ def put_array(prefix: Path, pv: str, value: List[int] | List[float]) -> None:
 
 class Repeater:
 
-    def __init__(self, prefix: Path):
+    def __init__(self, base_dir: Path, arch: str):
         self.proc: Optional[Popen[bytes]] = None
-        self.prefix = prefix
+        self.base_dir = base_dir
+        self.arch = arch
 
     def __enter__(self) -> None:
         logger.debug("starting caRepeater ...")
-        self.proc = Popen([self.prefix / "caRepeater"],)
+
+        env = dict(os.environ)
+        env["LD_LIBRARY_PATH"] = str(self.base_dir / "lib" / self.arch)
+
+        self.proc = Popen(
+            [self.base_dir / "bin" / self.arch / "caRepeater"],
+            env=env,
+        )
         time.sleep(1)
         logger.debug("caRepeater started")
 
