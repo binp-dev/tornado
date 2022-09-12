@@ -17,9 +17,14 @@ def make_variant(name: Name, messages: List[Tuple[Name, List[Field]]]) -> Varian
     )
 
 
-@dataclass
 class Generator:
-    types: List[Type]
+
+    # `Type | type` is used here to suppress typing error while passing classes from generated `.pyi`.
+    def __init__(self, types: List[Type | type]) -> None:
+        self.types: List[Type] = []
+        for ty in types:
+            assert isinstance(ty, Type)
+            self.types.append(ty)
 
     def _set_context(self, context: Context) -> None:
         global CONTEXT

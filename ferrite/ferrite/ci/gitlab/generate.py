@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Literal, Optional, Set, Union
 
 from pathlib import Path
 from dataclasses import dataclass
@@ -39,14 +39,21 @@ class Cache:
             return [
                 f"cache: &{self.name}",
                 f"  - paths:",
-                *[f"    - {str(p.relative_to(ctx.base_dir))}" for p in self.paths],
+                *[f"      - {str(p.relative_to(ctx.base_dir))}" for p in self.paths],
             ]
         else:
             return []
 
 
+stage_list = ["self_check", "host_test", "cross_build"]
+Stage = Union[Literal["self_check"], Literal["host_test"], Literal["cross_build"]]
+
+Attribute = Union[bool, int, float, str]
+
+
+@dataclass
 class Job:
-    Attribute = Union[bool, int, float, str]
+    stage: Stage
 
     def name(self) -> str:
         raise NotImplementedError()
@@ -63,13 +70,13 @@ class Job:
     def artifacts(self) -> List[Path]:
         return []
 
-    def attributes(self) -> Dict[str, Job.Attribute]:
+    def attributes(self) -> Dict[str, Attribute]:
         return {}
 
     def generate(self, ctx: Context, global_cache: List[Cache] = []) -> List[str]:
         lines = [
             f"{ctx.module}.{self.name()}:",
-            f"  stage: \"main\"",
+            f"  stage: \"{self.stage}\"",
         ]
         script = [
             *([f"cd {str(Path.cwd().relative_to(ctx.base_dir))}"] if ctx.base_dir != Path.cwd() else []),
@@ -105,7 +112,7 @@ class Job:
             if len(cache) > 0:
                 lines.append("    - paths:")
                 for path in sorted(cache):
-                    lines.append(f"      - {str(path.relative_to(ctx.base_dir))}")
+                    lines.append(f"        - {str(path.relative_to(ctx.base_dir))}")
 
         for k, v in self.attributes().items():
             if isinstance(v, str):
@@ -126,7 +133,7 @@ class TaskJob(Job):
         return self.task.name()
 
     def script(self, ctx: Context) -> List[str]:
-        return [f"poetry run python -u -m {ctx.module}.manage --no-capture --hide-artifacts -j1 {self.name()}"]
+        return [f"poetry run python -u -m {ctx.module}.manage --no-capture --hide-artifacts -j4 {self.name()}"]
 
     def needs(self) -> List[Job]:
         return self.deps
@@ -155,21 +162,11 @@ class ScriptJob(Job):
     def script(self, ctx: Context) -> List[str]:
         return self._script
 
-    def attributes(self) -> Dict[str, Job.Attribute]:
-        attrs: Dict[str, Job.Attribute] = {}
+    def attributes(self) -> Dict[str, Attribute]:
+        attrs: Dict[str, Attribute] = {}
         if self.allow_failure:
             attrs["allow_failure"] = True
         return attrs
-
-
-def make_jobs(components: Component, tasks: List[str]) -> List[Job]:
-    jobs: List[Job] = []
-
-    for name in tasks:
-        task = components.tasks()[name]
-        jobs.append(TaskJob(task, []))
-
-    return jobs
 
 
 def generate_local(
@@ -179,6 +176,9 @@ def generate_local(
     includes: List[Path],
 ) -> str:
     return "\n".join([
+        "include:",
+        *["  - /" + str(path.relative_to(ctx.base_dir)) for path in includes],
+        "",
         *["\n".join(c.generate(ctx)) + "\n" for c in cache],
         *["\n".join(j.generate(ctx, global_cache=cache)) + "\n" for j in jobs],
     ])
@@ -198,10 +198,7 @@ def generate(
         *(vars.generate() if vars is not None else []),
         "",
         "stages:",
-        "  - \"main\"",
-        "",
-        "include:",
-        *["  - " + str(path.relative_to(ctx.base_dir)) for path in includes],
+        *[f"  - \"{st}\"" for st in stage_list],
         "",
         generate_local(ctx, jobs, cache, includes),
     ])
@@ -235,10 +232,11 @@ if __name__ == "__main__":
 
     ctx = Context("ferrite", self_dir)
 
-    components = make_components(self_dir, target_dir)
+    tasks = make_components(self_dir, target_dir).tasks()
     jobs = [
-        TaskJob(components.tasks()["all.test"], []),
-        ScriptJob("mypy", [f"poetry run mypy -p {ctx.module}"], allow_failure=True),
+        ScriptJob("self_check", "pytest", [f"poetry run python -m pytest"]),
+        ScriptJob("self_check", "mypy", [f"poetry run mypy -p {ctx.module}"], allow_failure=True),
+        TaskJob("host_test", tasks["all.test"], []),
     ]
 
     print("Generating script ...")

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, List, Optional, Sequence, Set, TypeVar, Union, overload, Type as GenType
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, TypeVar, Union, overload, Type as GenType
 
 from dataclasses import dataclass
 from enum import Enum

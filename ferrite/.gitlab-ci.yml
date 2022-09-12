@@ -6,22 +6,41 @@ variables:
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
 
 stages:
-  - "main"
+  - "self_check"
+  - "host_test"
+  - "cross_build"
 
 include:
-  - example/.gitlab-ci.yml
+  - /example/.gitlab-ci.yml
 
 cache: &global_cache
   - paths:
-    - poetry.lock
-    - .venv
-    - .cargo
+      - poetry.lock
+      - .venv
+      - .cargo
 
-ferrite.all.test:
-  stage: "main"
+ferrite.pytest:
+  stage: "self_check"
   script:
     - poetry install
-    - poetry run python -u -m ferrite.manage --no-capture --hide-artifacts all.test
+    - poetry run python -m pytest
+  cache:
+    - *global_cache
+
+ferrite.mypy:
+  stage: "self_check"
+  script:
+    - poetry install
+    - poetry run mypy -p ferrite
+  cache:
+    - *global_cache
+  allow_failure: true
+
+ferrite.all.test:
+  stage: "host_test"
+  script:
+    - poetry install
+    - poetry run python -u -m ferrite.manage --no-capture --hide-artifacts -j4 all.test
   artifacts:
     paths:
       - target/app
@@ -29,13 +48,4 @@ ferrite.all.test:
   cache:
     - *global_cache
     - paths:
-      - target/rustup
-
-ferrite.mypy:
-  stage: "main"
-  script:
-    - poetry install
-    - poetry run mypy -p ferrite
-  cache:
-    - *global_cache
-  allow_failure: true
+        - target/rustup

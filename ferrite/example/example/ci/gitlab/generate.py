@@ -13,11 +13,13 @@ if __name__ == "__main__":
 
     ctx = Context("example", ferrite_dir)
 
-    components = make_components(ferrite_dir, self_dir, target_dir)
+    tasks = make_components(ferrite_dir, self_dir, target_dir).tasks()
+    host_test = TaskJob("host_test", tasks["host.all.test"], [])
     jobs = [
-        TaskJob(components.tasks()["host.all.test"], []),
-        ScriptJob("pytest", [f"poetry run python -m pytest"]),
-        ScriptJob("mypy", [f"poetry run mypy -p {ctx.module}"], allow_failure=True),
+        ScriptJob("self_check", "mypy", [f"poetry run mypy -p {ctx.module}"], allow_failure=True),
+        host_test,
+        TaskJob("cross_build", tasks["arm.all.build"], [host_test]),
+        TaskJob("cross_build", tasks["aarch64.all.build"], [host_test]),
     ]
 
     print("Generating script ...")

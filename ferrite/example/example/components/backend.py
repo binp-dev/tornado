@@ -1,8 +1,6 @@
 from __future__ import annotations
 from typing import Dict, List
 
-from dataclasses import dataclass
-
 from ferrite.components.base import Component, Task, OwnedTask, Context
 
 from example.components.frontend import FrontendHost

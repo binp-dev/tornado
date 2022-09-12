@@ -11,7 +11,8 @@ from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 
 from example.components.app import App
 from example.components.frontend import FrontendHost, FrontendCross
-from example.components.backend import TestBackend, Protocol
+from example.components.backend import TestBackend
+from example.components.protocol import Protocol
 
 
 class HostComponents(ComponentGroup):
