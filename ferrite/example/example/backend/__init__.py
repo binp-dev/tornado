@@ -3,49 +3,15 @@ from typing import Any, Callable, List
 
 import os
 from pathlib import Path
-from dataclasses import dataclass
 import asyncio
-from asyncio import StreamReader, StreamWriter
 import numpy as np
 
-from ferrite.codegen.base import UnexpectedEof
-from ferrite.utils.asyncio.net import TcpListener
+from ferrite.utils.asyncio.net import TcpListener, MsgWriter, MsgReader
 from ferrite.utils.epics.pv import Context, Pv, PvType
 from ferrite.utils.epics.ioc import AsyncIoc
 import ferrite.utils.epics.ca as ca
 
 from example.protocol import InMsg, OutMsg
-
-
-@dataclass
-class MsgWriter:
-    writer: StreamWriter
-
-    async def write_msg(self, value: InMsg) -> None:
-        data = value.store()
-        #print(f"[backend] - Stream write: {[int(b) for b in data]}")
-        self.writer.write(data)
-        await self.writer.drain()
-
-
-@dataclass
-class MsgReader:
-    reader: StreamReader
-    buffer: bytes = b""
-    chunk_size: int = 260
-
-    async def read_msg(self) -> OutMsg:
-        while True:
-            try:
-                #print(f"[backend] - Stream read: {[int(b) for b in self.buffer]}")
-                msg = OutMsg.load(self.buffer)
-                #print(f"[backend] - Msg size: {msg.size()}")
-                self.buffer = self.buffer[msg.size():]
-                return msg
-            except UnexpectedEof:
-                pass
-
-            self.buffer += await self.reader.read(260)
 
 
 async def _async_test(ioc_dir: Path, arch: str) -> None:
@@ -54,8 +20,8 @@ async def _async_test(ioc_dir: Path, arch: str) -> None:
             print("[backend] IOC started")
             async for stream in lis:
                 break
-            writer = MsgWriter(stream.writer)
-            reader = MsgReader(stream.reader)
+            writer = MsgWriter(InMsg, stream.writer)
+            reader = MsgReader(OutMsg, stream.reader, 260)
             print("[backend] Socket connected")
 
             ctx = Context()
@@ -66,14 +32,13 @@ async def _async_test(ioc_dir: Path, arch: str) -> None:
             print("[backend] Pvs connected")
 
             async def test_ao(x: int) -> None:
-                x = float(x)
-                await ao.put(x)
+                await ao.put(float(x))
                 print(f"[backend] - Pv put: {x}")
                 msg = (await reader.read_msg()).variant
                 assert isinstance(msg, OutMsg.Ao)
                 y = msg.value
                 print(f"[backend] - Msg received: {y}")
-                assert int(x) == y
+                assert x == y
 
             print("[backend] Test Ao:")
             await test_ao(0x12345678)

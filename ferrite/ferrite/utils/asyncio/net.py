@@ -1,9 +1,11 @@
 from __future__ import annotations
-from typing import Any
+from typing import Any, Type, TypeVar, Generic
 
 from dataclasses import dataclass
 import asyncio
 from asyncio import StreamReader, StreamWriter
+
+from ferrite.protogen.base import UnexpectedEof, Value
 
 
 @dataclass
@@ -34,3 +36,39 @@ class TcpListener:
 
     async def __anext__(self) -> TcpStream:
         return await self.queue.get()
+
+
+M = TypeVar("M", bound=Value)
+
+
+@dataclass
+class MsgWriter(Generic[M]):
+    Msg: Type[M]
+    writer: StreamWriter
+
+    async def write_msg(self, value: M) -> None:
+        data = value.store()
+        #print(f"- Stream write: {[int(b) for b in data]}")
+        self.writer.write(data)
+        await self.writer.drain()
+
+
+@dataclass
+class MsgReader(Generic[M]):
+    Msg: Type[M]
+    reader: StreamReader
+    chunk_size: int
+    buffer: bytes = b""
+
+    async def read_msg(self) -> M:
+        while True:
+            try:
+                #print(f"- Stream read: {[int(b) for b in self.buffer]}")
+                msg = self.Msg.load(self.buffer)
+                #print(f"- Msg size: {msg.size()}")
+                self.buffer = self.buffer[msg.size():]
+                return msg
+            except UnexpectedEof:
+                pass
+
+            self.buffer += await self.reader.read(self.chunk_size)

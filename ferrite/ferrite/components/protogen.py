@@ -9,13 +9,13 @@ from ferrite.components.base import Artifact, CallTask, Component, OwnedTask, Co
 from ferrite.components.rust import RustcHost, Cargo
 from ferrite.components.cmake import Cmake
 
-from ferrite.codegen.base import Context as CodegenContext, TestInfo
-from ferrite.codegen.generator import Generator
+from ferrite.protogen.base import Context as CodegenContext, TestInfo
+from ferrite.protogen.generator import Generator
 from ferrite.utils.files import substitute
 
 
 @dataclass
-class Codegen(Component):
+class Protogen(Component):
 
     name: str
     source_dir: Path
@@ -24,15 +24,15 @@ class Codegen(Component):
     default_msg: bool # FIXME: Make `True` by default
 
     def __post_init__(self) -> None:
-        self.assets_dir = self.source_dir / "codegen"
+        self.assets_dir = self.source_dir / "protogen"
         self.context = CodegenContext(self.name, default=self.default_msg)
         self.generate_task = self.GenerateTask()
 
-    def GenerateTask(self) -> _GenerateTask[Codegen]:
+    def GenerateTask(self) -> _GenerateTask[Protogen]:
         return _GenerateTask(self)
 
 
-O = TypeVar("O", bound=Codegen, covariant=True)
+O = TypeVar("O", bound=Protogen, covariant=True)
 
 
 class _GenerateTask(OwnedTask[O]):
@@ -40,7 +40,7 @@ class _GenerateTask(OwnedTask[O]):
     def run(self, ctx: Context) -> None:
         shutil.copytree(self.owner.assets_dir, self.owner.output_dir, dirs_exist_ok=True)
         for path in [Path("c/CMakeLists.txt"), Path("rust/Cargo.toml"), Path("rust/build.rs")]:
-            substitute([("{{codegen}}", self.owner.name)], self.owner.output_dir / path)
+            substitute([("{{protogen}}", self.owner.name)], self.owner.output_dir / path)
 
         self.owner.generator.generate(self.owner.context).write(self.owner.output_dir)
 
@@ -49,12 +49,12 @@ class _GenerateTask(OwnedTask[O]):
 
 
 @dataclass
-class CodegenTest(Codegen):
+class ProtogenTest(Protogen):
     rustc: RustcHost
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.assets_dir = self.source_dir / "codegen"
+        self.assets_dir = self.source_dir / "protogen"
         self.test_info = TestInfo(16)
 
         self.c_test = Cmake(
@@ -80,7 +80,7 @@ class CodegenTest(Codegen):
         return _GenerateTestTask(self)
 
 
-class _GenerateTestTask(_GenerateTask[CodegenTest]):
+class _GenerateTestTask(_GenerateTask[ProtogenTest]):
 
     def run(self, ctx: Context) -> None:
         super().run(ctx)

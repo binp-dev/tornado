@@ -1,10 +1,10 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from random import Random
 
-from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source, UnexpectedEof
-from ferrite.codegen.utils import flatten, indent
+from ferrite.protogen.base import CONTEXT, Location, Name, Type, Value, Source, UnexpectedEof
+from ferrite.protogen.utils import flatten, indent
 
 
 class Field:
@@ -14,7 +14,7 @@ class Field:
         self.type = type
 
 
-class StructValue:
+class StructValue(Value):
 
     def __init__(self, type: Struct, fields: List[Tuple[str, Any]]):
         self._type = type
@@ -174,19 +174,10 @@ class Struct(Type):
             Location.DECLARATION,
             [[
                 f"@dataclass",
-                f"class {self.pyi_type()}:",
+                f"class {self.pyi_type()}(Value):",
                 f"",
-                *[f"    {f.name.snake()}: {f.type.pyi_type()}" for f in self.fields],
-                f"",
-                f"    @staticmethod",
-                f"    def load(data: bytes) -> {self.pyi_type()}:",
-                f"        ...",
-                f"",
-                f"    def store(self) -> bytes:",
-                f"        ...",
-                f"",
-                f"    def size(self) -> int:",
-                f"        ...",
+                *([f"    {f.name.snake()}: {f.type.pyi_type()}"
+                   for f in self.fields] if len(self.fields) > 0 else ["    pass"]),
             ]],
             deps=[
                 Source(Location.IMPORT, [["from dataclasses import dataclass"]]),

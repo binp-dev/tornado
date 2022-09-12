@@ -1,44 +1,26 @@
-# This file was generatered by Ferrite Codegen.
+# This file was generatered by Ferrite Protogen.
 from __future__ import annotations
+
+from ferrite.protogen.base import Value
 
 from dataclasses import dataclass
 from typing import List
 
 
 @dataclass
-class Ai:
+class Ai(Value):
 
     value: int
 
-    @staticmethod
-    def load(data: bytes) -> Ai:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
-    def size(self) -> int:
-        ...
-
 
 @dataclass
-class Aai:
+class Aai(Value):
 
     value: List[int]
 
-    @staticmethod
-    def load(data: bytes) -> Aai:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
-    def size(self) -> int:
-        ...
-
 
 @dataclass
-class InMsg:
+class InMsg(Value):
 
     Variant = Ai | Aai
 
@@ -47,51 +29,21 @@ class InMsg:
 
     variant: Variant
 
-    @staticmethod
-    def load(data: bytes) -> InMsg:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
-    def size(self) -> int:
-        ...
-
 
 @dataclass
-class Ao:
+class Ao(Value):
 
     value: int
 
-    @staticmethod
-    def load(data: bytes) -> Ao:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
-    def size(self) -> int:
-        ...
-
 
 @dataclass
-class Aao:
+class Aao(Value):
 
     value: List[int]
 
-    @staticmethod
-    def load(data: bytes) -> Aao:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
-    def size(self) -> int:
-        ...
-
 
 @dataclass
-class OutMsg:
+class OutMsg(Value):
 
     Variant = Ao | Aao
 
@@ -99,13 +51,3 @@ class OutMsg:
     Aao = Aao
 
     variant: Variant
-
-    @staticmethod
-    def load(data: bytes) -> OutMsg:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
-    def size(self) -> int:
-        ...

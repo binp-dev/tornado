@@ -3,9 +3,9 @@ from typing import Any, List, Optional
 
 from random import Random
 
-from ferrite.codegen.base import CONTEXT, Location, Name, Type, Source, UnexpectedEof
-from ferrite.codegen.primitive import Char, Int
-from ferrite.codegen.utils import flatten
+from ferrite.protogen.base import CONTEXT, Location, Name, Type, Source, UnexpectedEof
+from ferrite.protogen.primitive import Char, Int
+from ferrite.protogen.utils import flatten
 
 
 class _Sequence:
