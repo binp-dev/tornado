@@ -1,11 +1,11 @@
 from __future__ import annotations
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Union
 
 from pathlib import Path
 from dataclasses import dataclass
 from graphlib import TopologicalSorter
 
-from ferrite.components.base import Artifact, Component, Task
+from ferrite.components.base import Component, Task
 from ferrite.utils.strings import quote
 
 
@@ -13,14 +13,13 @@ from ferrite.utils.strings import quote
 class Context:
     module: str
     base_dir: Path
-    cache: Optional[Cache] = None
 
 
 @dataclass
 class Variables:
     vars: Dict[str, str]
 
-    def text(self) -> List[str]:
+    def generate(self) -> List[str]:
         lines = []
         if len(self.vars) > 0:
             lines.extend([
@@ -33,14 +32,14 @@ class Variables:
 @dataclass
 class Cache:
     name: str
-    paths: List[str]
+    paths: List[Path]
 
-    def text(self) -> List[str]:
+    def generate(self, ctx: Context) -> List[str]:
         if len(self.paths) > 0:
             return [
                 f"cache: &{self.name}",
                 f"  - paths:",
-                *[f"      - {p}" for p in self.paths],
+                *[f"    - {str(p.relative_to(ctx.base_dir))}" for p in self.paths],
             ]
         else:
             return []
@@ -52,7 +51,7 @@ class Job:
     def name(self) -> str:
         raise NotImplementedError()
 
-    def script(self, context: Context) -> List[str]:
+    def script(self, ctx: Context) -> List[str]:
         raise NotImplementedError()
 
     def needs(self) -> List[Job]:
@@ -67,23 +66,29 @@ class Job:
     def attributes(self) -> Dict[str, Job.Attribute]:
         return {}
 
-    def text(self, context: Context) -> List[str]:
+    def generate(self, ctx: Context, global_cache: List[Cache] = []) -> List[str]:
         lines = [
-            f"{self.name()}:",
+            f"{ctx.module}.{self.name()}:",
             f"  stage: \"main\"",
-            f"  script:",
-            f"    - poetry install",
-            *[f"    - {sl}" for sl in self.script(context)],
         ]
+        script = [
+            *([f"cd {str(Path.cwd().relative_to(ctx.base_dir))}"] if ctx.base_dir != Path.cwd() else []),
+            "poetry install",
+            *self.script(ctx),
+        ]
+        lines.extend([
+            "  script:",
+            *[f"    - {sl}" for sl in script],
+        ])
 
         if len(self.needs()) > 0:
             lines.extend([
                 "  needs:",
-                *[f"    - {n}" for n in sorted([dj.name() for dj in self.needs()])],
+                *[f"    - {ctx.module}.{n}" for n in sorted([dj.name() for dj in self.needs()])],
             ])
 
         if len(self.artifacts()) > 0:
-            paths = sorted([str(art.relative_to(base_dir)) for art in self.artifacts()])
+            paths = sorted([str(art.relative_to(ctx.base_dir)) for art in self.artifacts()])
             lines.extend([
                 "  artifacts:",
                 "    paths:",
@@ -91,17 +96,16 @@ class Job:
             ])
             del paths
 
-        lines.append("  cache:")
-        if context.cache is not None:
-            lines.append(f"    - *{context.cache.name}")
         cache = self.cache()
-        if len(cache) > 0:
-            paths = sorted([str(path.relative_to(base_dir)) for path in cache])
-            lines.extend([
-                "    - paths:",
-                *[f"        - {p}" for p in paths],
-            ])
-            del paths
+        if len(cache) + len(global_cache) > 0:
+            lines.append("  cache:")
+            for name in sorted([c.name for c in global_cache]):
+                lines.append(f"    - *{name}")
+
+            if len(cache) > 0:
+                lines.append("    - paths:")
+                for path in sorted(cache):
+                    lines.append(f"      - {str(path.relative_to(ctx.base_dir))}")
 
         for k, v in self.attributes().items():
             if isinstance(v, str):
@@ -121,8 +125,8 @@ class TaskJob(Job):
     def name(self) -> str:
         return self.task.name()
 
-    def script(self, context: Context) -> List[str]:
-        return [f"poetry run python -u -m {context.module}.manage --no-capture --hide-artifacts {self.name()}"]
+    def script(self, ctx: Context) -> List[str]:
+        return [f"poetry run python -u -m {ctx.module}.manage --no-capture --hide-artifacts {self.name()}"]
 
     def needs(self) -> List[Job]:
         return self.deps
@@ -148,7 +152,7 @@ class ScriptJob(Job):
     def name(self) -> str:
         return self._name
 
-    def script(self, context: Context) -> List[str]:
+    def script(self, ctx: Context) -> List[str]:
         return self._script
 
     def attributes(self) -> Dict[str, Job.Attribute]:
@@ -168,26 +172,38 @@ def make_jobs(components: Component, tasks: List[str]) -> List[Job]:
     return jobs
 
 
-def generate(
-    context: Context,
+def generate_local(
+    ctx: Context,
     jobs: List[Job],
+    cache: List[Cache],
+    includes: List[Path],
+) -> str:
+    return "\n".join([
+        *["\n".join(c.generate(ctx)) + "\n" for c in cache],
+        *["\n".join(j.generate(ctx, global_cache=cache)) + "\n" for j in jobs],
+    ])
+
+
+def generate(
+    ctx: Context,
+    jobs: List[Job],
+    cache: List[Cache],
+    includes: List[Path],
     vars: Optional[Variables] = None,
     image_version: str = "latest",
 ) -> str:
     return "\n".join([
-        f"# This file is generated by script '{Path(__file__).relative_to(base_dir)}'",
-        "",
         f"image: agerasev/debian-psc:{image_version}",
         "",
-        *(vars.text() if vars is not None else []),
-        "",
-        *(context.cache.text() if context.cache is not None else []),
+        *(vars.generate() if vars is not None else []),
         "",
         "stages:",
         "  - \"main\"",
         "",
-        *["\n".join(job.text(context)) for job in jobs],
+        "include:",
+        *["  - " + str(path.relative_to(ctx.base_dir)) for path in includes],
         "",
+        generate_local(ctx, jobs, cache, includes),
     ])
 
 
@@ -198,66 +214,47 @@ def default_variables() -> Variables:
     })
 
 
-def default_cache(lock_deps: bool = False) -> Cache:
+def default_cache(name: str = "global_cache", lock_deps: bool = False) -> Cache:
+    root = Path.cwd()
     if not lock_deps:
-        poetry = ["poetry.lock", ".venv/"]
+        poetry = [root / "poetry.lock", root / ".venv/"]
     else:
-        poetry = [".venv/"]
+        poetry = [root / ".venv/"]
 
-    return Cache("global_cache", [
+    return Cache(name, [
         *poetry,
-        ".cargo",
+        root / ".cargo",
     ])
-
-
-def main(
-    module: str,
-    base_dir: Path,
-    components: Component,
-    tasks: List[str],
-    variables: Variables,
-    cache: Cache,
-    image_version: str,
-) -> None:
-    context = Context(module, base_dir, cache)
-
-    print("Collecting jobs ...")
-    jobs = make_jobs(components, tasks)
-    jobs.append(ScriptJob("mypy", [f"poetry run mypy -p {module}"], allow_failure=True))
-
-    print("Generating script ...")
-    text = generate(
-        context,
-        jobs,
-        vars=variables,
-        image_version=image_version,
-    )
-
-    path = ".gitlab-ci.yml"
-    print(f"Writing to '{path}' ...")
-    with open(path, "w") as f:
-        f.write(text)
-
-    print("Done.")
 
 
 if __name__ == "__main__":
     from ferrite.components.tree import make_components
 
-    tasks = [
-        "all.test",
+    self_dir = Path.cwd()
+    target_dir = self_dir / "target"
+
+    ctx = Context("ferrite", self_dir)
+
+    components = make_components(self_dir, target_dir)
+    jobs = [
+        TaskJob(components.tasks()["all.test"], []),
+        ScriptJob("mypy", [f"poetry run mypy -p {ctx.module}"], allow_failure=True),
     ]
 
-    base_dir = Path.cwd()
-    target_dir = base_dir / "target"
-    components = make_components(base_dir, target_dir)
-
-    main(
-        "ferrite",
-        base_dir,
-        components,
-        tasks,
-        default_variables(),
-        default_cache(),
+    print("Generating script ...")
+    text = generate(
+        ctx,
+        jobs,
+        cache=[default_cache()],
+        includes=[Path.cwd() / "example/.gitlab-ci.yml"],
+        vars=default_variables(),
         image_version="0.3",
     )
+
+    path = ".gitlab-ci.yml"
+    print(f"Writing to '{path}' ...")
+    with open(path, "w") as f:
+        f.write(f"# This file is generated by script '{Path(__file__).relative_to(self_dir)}'\n")
+        f.write(text)
+
+    print("Done.")
