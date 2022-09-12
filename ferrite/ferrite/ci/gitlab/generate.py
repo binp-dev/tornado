@@ -206,6 +206,7 @@ def default_cache(lock_deps: bool = False) -> Cache:
 
     return Cache("global_cache", [
         *poetry,
+        ".cargo",
     ])
 
 

@@ -7,12 +7,10 @@ variables:
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
 
 cache: &global_cache
-  - key:
-      files:
-        - pyproject.toml
-    paths:
+  - paths:
       - poetry.lock
       - .venv/
+      - .cargo
 
 stages:
   - "main"
@@ -25,12 +23,10 @@ all.test:
   artifacts:
     paths:
       - target/app
-      - target/cargo
-      - target/codegen/rust/target
+      - target/protogen/rust/target
   cache:
     - *global_cache
     - paths:
-        - target/cargo
         - target/rustup
 mypy:
   stage: "main"
