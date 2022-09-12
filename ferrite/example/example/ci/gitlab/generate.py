@@ -16,6 +16,7 @@ if __name__ == "__main__":
     components = make_components(ferrite_dir, self_dir, target_dir)
     jobs = [
         TaskJob(components.tasks()["host.all.test"], []),
+        ScriptJob("pytest", [f"poetry run python -m pytest"]),
         ScriptJob("mypy", [f"poetry run mypy -p {ctx.module}"], allow_failure=True),
     ]
 
