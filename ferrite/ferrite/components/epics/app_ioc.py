@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ferrite.utils.files import substitute
 from ferrite.components.base import Context, Task
+from ferrite.components.compiler import Gcc
 from ferrite.components.app import AppBase
 from ferrite.components.epics.epics_base import AbstractEpicsBase
 from ferrite.components.epics.ioc import AbstractIoc, AbstractBuildTask, B as B
@@ -28,7 +29,7 @@ class AppIoc(AbstractIoc[B]):
         self.app = app
 
 
-O = TypeVar("O", bound=AppIoc[AbstractEpicsBase], covariant=True)
+O = TypeVar("O", bound=AppIoc[AbstractEpicsBase[Gcc]], covariant=True)
 
 
 class AppBuildTask(AbstractBuildTask[O]):
