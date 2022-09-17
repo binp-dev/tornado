@@ -50,5 +50,6 @@ ferrite.all.test:
       - target/protogen/rust/target
   cache:
     - *ferrite_cache
-    - paths:
+    - key: "$CI_JOB_NAME"
+      paths:
         - target/rustup

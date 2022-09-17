@@ -115,7 +115,10 @@ class Job:
                 lines.append(f"    - *{gc.name}")
 
             if len(cache) > 0:
-                lines.append("    - paths:")
+                lines.extend([
+                    "    - key: \"$CI_JOB_NAME\"",
+                    "      paths:",
+                ])
                 for path in sorted(cache):
                     lines.append(f"        - {str(path.relative_to(ctx.base_dir))}")
 

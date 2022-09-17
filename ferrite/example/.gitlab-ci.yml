@@ -29,7 +29,8 @@ example.host.all.test:
       - example/target/protocol/rust/target
   cache:
     - *example_cache
-    - paths:
+    - key: "$CI_JOB_NAME"
+      paths:
         - example/target/epics_base_7.0.6.1/host/build
         - example/target/epics_base_7.0.6.1/src
         - example/target/rustup
@@ -46,7 +47,8 @@ example.arm.all.build:
       - example/target/ioc/arm/install
   cache:
     - *example_cache
-    - paths:
+    - key: "$CI_JOB_NAME"
+      paths:
         - example/target/epics_base_7.0.6.1/arm/build
         - example/target/epics_base_7.0.6.1/host/build
         - example/target/epics_base_7.0.6.1/src
@@ -65,7 +67,8 @@ example.aarch64.all.build:
       - example/target/ioc/aarch64/install
   cache:
     - *example_cache
-    - paths:
+    - key: "$CI_JOB_NAME"
+      paths:
         - example/target/epics_base_7.0.6.1/aarch64/build
         - example/target/epics_base_7.0.6.1/host/build
         - example/target/epics_base_7.0.6.1/src

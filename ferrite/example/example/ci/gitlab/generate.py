@@ -24,7 +24,7 @@ if __name__ == "__main__":
     text = generate_local(
         ctx,
         jobs,
-        cache=[default_cache("example", lock_deps=True)],
+        cache=[default_cache(ctx.module, lock_deps=True)],
         includes=[],
     )
 
