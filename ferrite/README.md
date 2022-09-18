@@ -30,23 +30,20 @@ To use the framework you need:
 2. Specify your project components derived from Ferrite component templates.
 3. Add `manage` script to your project.
 
-You may look at Tornado project for reference usage examples.
+You may look at `example` directory for usage example.
 
-Framework also provides some libraries with common routines:
+Framework contains libraries you may use in derived projects:
 
 + C - for real-time code (including HAL).
-+ C++ - for application code and IOC.
++ Rust - for application code.
 + Python - for processes automation and CI integration.
 
-## Framework testing
-
-The framework contains tests for common use cases along with libraries unit tests. 
+## Usage
 
 ### Requirements
 
 #### Linux packages
 
-+ `g++`
 + `cmake`
 + `python3`
 + `perl`
@@ -55,18 +52,36 @@ The framework contains tests for common use cases along with libraries unit test
 
 + `poetry`
 
-### Prepare
+#### [Rustup](https://rustup.rs/)
 
-At first you need to install python dependencies. Run the following command in the project root:
+### Tests
+
+These commands will install dependencies, build software and run all tests:
 
 ```bash
+cd <path-to-ferrite>
+poetry install
+poetry run python -m pytest
+poetry run python -m ferrite.manage all.test
+```
+
+### Example
+
+Go to example directory:
+
+```bash
+cd example/
 poetry install
 ```
 
-### Run tests
-
-This command will build software and run all tests:
+To build example for host and run tests:
 
 ```bash
-poetry run python -m ferrite.manage all.test
+poetry run python -m example.manage host.all.test
+```
+
+For cross-builing (e.g. for aarch64) run:
+
+```bash
+poetry run python -m example.manage aarch64.all.build
 ```
