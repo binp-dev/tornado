@@ -4,7 +4,9 @@ from typing import Any, Callable, List
 import os
 from pathlib import Path
 import asyncio
+
 import numpy as np
+from numpy.typing import NDArray
 
 from ferrite.utils.asyncio.net import TcpListener, MsgWriter, MsgReader
 from ferrite.utils.epics.pv import Context, Pv, PvType
@@ -63,39 +65,39 @@ async def _async_test(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
             print("[backend] Test Ai:")
             await test_ai(0x789abcde)
 
-            async def test_aao(gx: Callable[[int], List[int]]) -> None:
+            async def test_aao(gx: Callable[[int], NDArray[np.int32]]) -> None:
 
-                ax = np.array(gx(aao.nelm), dtype=np.int32)
+                ax = gx(aao.nelm)
                 await aao.put(ax)
                 print(f"[backend] - Pv put:\n{ax}")
                 msg = (await reader.read_msg()).variant
                 assert isinstance(msg, OutMsg.Aao)
                 ay = msg.value
-                print(f"[backend] - Msg received: {ay}")
-                assert all((x == y for x, y in zip(ax, ay)))
+                print(f"[backend] - Msg received:\n{ay}")
+                assert (ax == ay).all()
 
             print("[backend] Test Aao:")
-            await test_aao(lambda n: [i * 0x1234 for i in range(n)])
+            await test_aao(lambda n: np.arange(n, dtype=np.int32) * 0x1234)
 
-            async def test_aai(gx: Callable[[int], List[int]]) -> None:
+            async def test_aai(gx: Callable[[int], NDArray[np.int32]]) -> None:
                 ax = gx(aai.nelm)
 
                 async def send() -> None:
                     await asyncio.sleep(0.1)
                     await writer.write_msg(InMsg(InMsg.Aai(ax)))
-                    print(f"[backend] - Msg sent: {ax}")
+                    print(f"[backend] - Msg sent:\n{ax}")
 
                 async def check() -> None:
                     async with aai.monitor() as mon:
                         async for ay in mon:
-                            print(f"[backend] - Pv get: {ay}")
-                            assert all((x == y for x, y in zip(ax, ay)))
+                            print(f"[backend] - Pv get:\n{ay}")
+                            assert (ax == ay).all()
                             break
 
                 await asyncio.gather(send(), check())
 
             print("[backend] Test Aai:")
-            await test_aai(lambda n: [i * 0x4321 for i in range(n, 0, -1)])
+            await test_aai(lambda n: np.arange(n, 0, -1, dtype=np.int32) * 0x4321)
 
             ioc.stop()
 

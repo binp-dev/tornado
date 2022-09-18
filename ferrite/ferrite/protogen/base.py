@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from enum import Enum
 from random import Random
 
+from numpy.typing import DTypeLike
+
 from ferrite.protogen.utils import flatten, indent
 
 
@@ -180,6 +182,15 @@ class Type:
     def __instancecheck__(self, value: Any) -> bool:
         return self.is_instance(value)
 
+    def is_np(self) -> bool:
+        return False
+
+    def np_dtype(self) -> DTypeLike:
+        raise self.NotImplemented(self)
+
+    def np_shape(self) -> List[int]:
+        raise self.NotImplemented(self)
+
     # Generation
 
     def c_type(self) -> str:
@@ -210,6 +221,9 @@ class Type:
         return None
 
     def pyi_type(self) -> str:
+        raise self.NotImplemented(self)
+
+    def _pyi_np_dtype(self) -> str:
         raise self.NotImplemented(self)
 
     def pyi_source(self) -> Optional[Source]:

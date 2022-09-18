@@ -1,9 +1,12 @@
 from __future__ import annotations
-from typing import Any, List, TypeVar, Optional
+from typing import Any, ClassVar, List, TypeVar, Optional
 
 from random import Random
 import string
 import struct
+
+import numpy as np
+from numpy.typing import DTypeLike
 
 from ferrite.protogen.base import Location, Name, Source, Type, UnexpectedEof
 from ferrite.protogen.utils import is_power_of_2
@@ -14,6 +17,13 @@ T = TypeVar('T')
 class Int(Type):
     bits: int
     signed: bool = False
+
+    _np_dtypes: ClassVar[List[List[DTypeLike]]] = [
+        [np.uint8, np.int8],
+        [np.uint16, np.int16],
+        [np.uint32, np.int32],
+        [np.uint64, np.int64],
+    ]
 
     def __init__(self, bits: int, signed: bool = False) -> None:
         assert is_power_of_2(bits // 8) and bits % 8 == 0
@@ -42,6 +52,15 @@ class Int(Type):
     def is_instance(self, value: Any) -> bool:
         return isinstance(value, int)
 
+    def is_np(self) -> bool:
+        return True
+
+    def np_dtype(self) -> DTypeLike:
+        return self._np_dtypes[(self.bits // 8).bit_length() - 1][self.signed]
+
+    def np_shape(self) -> List[int]:
+        return []
+
     def _c_literal(self, value: int, hex: bool = False) -> str:
         if hex:
             vstr = f"0x{value:x}"
@@ -60,6 +79,9 @@ class Int(Type):
 
     def pyi_type(self) -> str:
         return "int"
+
+    def _pyi_np_dtype(self) -> str:
+        return f"np.{self._int_name}"
 
     def c_check(self, var: str, obj: int) -> List[str]:
         return [f"codegen_assert_eq({var}, {self._c_literal(obj)});"]
@@ -115,6 +137,15 @@ class Float(Type):
     def is_instance(self, value: Any) -> bool:
         return isinstance(value, float)
 
+    def is_np(self) -> bool:
+        return True
+
+    def np_dtype(self) -> DTypeLike:
+        return self._choose(np.float32, np.float64)
+
+    def np_shape(self) -> List[int]:
+        return []
+
     def _c_literal(self, value: float) -> str:
         return f"{value}{self._choose('f', '')}"
 
@@ -126,6 +157,9 @@ class Float(Type):
 
     def pyi_type(self) -> str:
         return "float"
+
+    def _pyi_np_dtype(self) -> str:
+        return f"np.float{self.bits}"
 
     def c_check(self, var: str, obj: float) -> List[str]:
         return [f"codegen_assert_eq({var}, {self._c_literal(obj)});"]
