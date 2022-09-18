@@ -4,7 +4,8 @@ from __future__ import annotations
 from ferrite.protogen.base import Value
 
 from dataclasses import dataclass
-from typing import List
+import numpy as np
+from numpy.typing import NDArray
 
 
 @dataclass
@@ -16,7 +17,7 @@ class Ai(Value):
 @dataclass
 class Aai(Value):
 
-    value: List[int]
+    value: NDArray[np.int32]
 
 
 @dataclass
@@ -39,7 +40,7 @@ class Ao(Value):
 @dataclass
 class Aao(Value):
 
-    value: List[int]
+    value: NDArray[np.int32]
 
 
 @dataclass

@@ -80,13 +80,21 @@ class _ArrayLike(_Sequence, Type):
         raise NotImplementedError()
 
     def pyi_type(self) -> str:
-        return f"List[{self.item.pyi_type()}]"
+        if not self.is_np():
+            return f"List[{self.item.pyi_type()}]"
+        else:
+            return f"NDArray[{self._pyi_np_dtype()}]"
 
     def _pyi_np_dtype(self) -> str:
         return self.item._pyi_np_dtype()
 
     def pyi_source(self) -> Optional[Source]:
-        return Source(Location.IMPORT, [["from typing import List"]], deps=[self.item.pyi_source()])
+        if not self.is_np():
+            imports = [["from typing import List"]]
+        else:
+            imports = [["import numpy as np"], ["from numpy.typing import NDArray"]]
+
+        return Source(Location.IMPORT, imports, deps=[self.item.pyi_source()])
 
 
 class Array(_ArrayLike):
