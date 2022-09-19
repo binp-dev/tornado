@@ -6,7 +6,7 @@ from ferrite.components.compiler import GccHost
 from ferrite.components.rust import RustcHost
 
 
-class HostAppPlatform:
+class HostPlatform:
 
     def __init__(self, target_dir: Path) -> None:
         self.gcc = GccHost()

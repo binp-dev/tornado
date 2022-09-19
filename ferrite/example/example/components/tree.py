@@ -5,7 +5,7 @@ from pathlib import Path
 
 from ferrite.components.base import TaskList, TaskWrapper, Component, DictComponent, ComponentGroup
 from ferrite.components.platforms.base import AppPlatform
-from ferrite.components.platforms.host import HostAppPlatform
+from ferrite.components.platforms.host import HostPlatform
 from ferrite.components.platforms.arm import Aarch64AppPlatform, ArmAppPlatform
 from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 
@@ -22,7 +22,7 @@ class HostComponents(ComponentGroup):
         ferrite_dir: Path,
         source_dir: Path,
         target_dir: Path,
-        platform: HostAppPlatform,
+        platform: HostPlatform,
     ) -> None:
         self.gcc = platform.gcc
         self.rustc = platform.rustc
@@ -77,7 +77,7 @@ class AllComponents(ComponentGroup):
             ferrite_dir,
             source_dir,
             target_dir,
-            HostAppPlatform(target_dir),
+            HostPlatform(target_dir),
         )
 
         self.arm = CrossComponents(

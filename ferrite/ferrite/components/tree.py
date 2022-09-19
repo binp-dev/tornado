@@ -4,7 +4,7 @@ from typing import Dict
 from pathlib import Path
 
 from ferrite.components.base import Component, DictComponent, ComponentGroup, TaskList
-from ferrite.components.platforms.host import HostAppPlatform
+from ferrite.components.platforms.host import HostPlatform
 from ferrite.components.protogen import ProtogenTest
 from ferrite.components.rust import Cargo
 
@@ -17,7 +17,7 @@ class Components(ComponentGroup):
         self,
         source_dir: Path,
         target_dir: Path,
-        platform: HostAppPlatform,
+        platform: HostPlatform,
     ) -> None:
         self.gcc = platform.gcc
         self.rustc = platform.rustc
@@ -30,6 +30,6 @@ class Components(ComponentGroup):
 
 
 def make_components(base_dir: Path, target_dir: Path) -> ComponentGroup:
-    tree = Components(base_dir / "source", target_dir, HostAppPlatform(target_dir))
+    tree = Components(base_dir / "source", target_dir, HostPlatform(target_dir))
     tree._update_names()
     return tree

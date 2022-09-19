@@ -90,6 +90,7 @@ class Cargo(Component):
         rustc: Rustc,
         envs: Dict[str, str] = {},
         deps: List[Task] = [],
+        features: List[str] = [],
     ) -> None:
         super().__init__()
 
@@ -98,6 +99,7 @@ class Cargo(Component):
         self.rustc = rustc
         self.envs = envs
         self.deps = deps
+        self.features = features
 
         self.home_dir = Path.cwd() / ".cargo"
 
@@ -119,14 +121,19 @@ class Cargo(Component):
     def build(self, capture: bool = False, update: bool = False) -> None:
         cmds = [
             *([["cargo", "update"]] if update else []),
-            ["cargo", "build", f"--target={self.rustc.target}"],
+            [
+                "cargo",
+                "build",
+                f"--target={self.rustc.target}",
+                f"--features={','.join(self.features)}",
+            ],
         ]
         for cmd in cmds:
             run(cmd, cwd=self.src_dir, add_env=self._env(), quiet=capture)
 
     def test(self, capture: bool = False) -> None:
         run(
-            ["cargo", "test"],
+            ["cargo", "test", f"--features={','.join(self.features)}"],
             cwd=self.src_dir,
             add_env=self._env(),
             quiet=capture,
