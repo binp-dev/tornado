@@ -9,7 +9,6 @@ LIBRARY = $(LIBRARY_$(T_A))
 # Library includes
 INCLUDES += \
 	-DUSE_TYPED_RSET
-# -I$(CORE_SRC)/src
 
 # Library Source files
 devFer_SRCS += \
@@ -20,7 +19,12 @@ devFer_SRCS += \
 	ai.c \
 	ao.c \
 	aai.c \
-	aao.c
+	aao.c \
+	waveform.c \
+	bi.c \
+	bo.c \
+	mbbi_direct.c \
+	mbbo_direct.c
 
 # Link with the libraries
 devFer_LIBS += $(EPICS_BASE_IOC_LIBS)

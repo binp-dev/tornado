@@ -1,58 +1,52 @@
 #include <stdlib.h>
 
-#include <aoRecord.h>
 #include <devSup.h>
 #include <epicsExport.h>
+#include <mbbiDirectRecord.h>
 #include <recGbl.h>
 
 #include "_record.h"
 
-static long init(aoRecord *rec) {
+static long init(mbbiDirectRecord *rec) {
     FerEpicsVar *var_info = (FerEpicsVar *)malloc(sizeof(FerEpicsVar));
     var_info->type = (FerVarType){
         FER_VAR_KIND_SCALAR,
-        FER_VAR_DIR_READ,
-        FER_VAR_SCALAR_TYPE_I32,
+        FER_VAR_DIR_WRITE,
+        FER_VAR_SCALAR_TYPE_U32,
         1,
     };
     var_info->data = (void *)(&rec->rval);
 
-    fer_epics_record_init((dbCommon *)rec, FER_EPICS_RECORD_TYPE_AO, var_info);
+    fer_epics_record_init((dbCommon *)rec, FER_EPICS_RECORD_TYPE_MBBI_DIRECT, var_info);
     return 0;
 }
 
-static long get_ioint_info(int cmd, aoRecord *rec, IOSCANPVT *ppvt) {
+static long get_ioint_info(int cmd, mbbiDirectRecord *rec, IOSCANPVT *ppvt) {
     *ppvt = fer_epics_record_ioscan_create((dbCommon *)rec);
     return 0;
 }
 
-static long write(aoRecord *rec) {
+static long read(mbbiDirectRecord *rec) {
     fer_epics_record_process((dbCommon *)rec);
     return 0;
 }
 
-static long linconv(aoRecord *rec, int after) {
-    return 0;
-}
-
-struct AoRecordCallbacks {
+struct MbbiDirectRecordCallbacks {
     long number;
     DEVSUPFUN report;
     DEVSUPFUN init;
     DEVSUPFUN init_record;
     DEVSUPFUN get_ioint_info;
-    DEVSUPFUN write;
-    DEVSUPFUN special_linconv;
+    DEVSUPFUN read_ai;
 };
 
-struct AoRecordCallbacks ao_record_handler = {
-    6,
+struct MbbiDirectRecordCallbacks mbbi_direct_record_handler = {
+    5,
     NULL,
     NULL,
     (DEVSUPFUN)init,
     (DEVSUPFUN)get_ioint_info,
-    (DEVSUPFUN)write,
-    (DEVSUPFUN)linconv,
+    (DEVSUPFUN)read,
 };
 
-epicsExportAddress(dset, ao_record_handler);
+epicsExportAddress(dset, mbbi_direct_record_handler);

@@ -47,3 +47,19 @@ async def with_background(
         await cancel_and_wait(fore_task)
         await cancel_and_wait(back_task)
         raise
+
+
+async def with_timeout(
+    awaitable: Awaitable[T],
+    timeout: float,
+) -> T:
+    task = ensure_future(awaitable)
+    try:
+        await asyncio.wait([task], timeout=timeout)
+        if task.done():
+            return task.result()
+        else:
+            raise TimeoutError()
+    except CancelledError:
+        await cancel_and_wait(task)
+        raise

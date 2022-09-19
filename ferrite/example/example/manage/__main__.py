@@ -29,5 +29,5 @@ if __name__ == "__main__":
         print(e)
         exit(1)
 
-    cli.setup_logging(params)
+    cli.setup_logging(params, ["ferrite", "example"])
     cli.run_with_params(target_dir, params)

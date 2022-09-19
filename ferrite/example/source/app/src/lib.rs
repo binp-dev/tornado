@@ -3,7 +3,7 @@ mod proto;
 use async_std::{net::TcpStream, sync::Mutex};
 use ferrite::{
     channel::{MsgReader, MsgWriter},
-    entry_point, Context,
+    entry_point, AnyVariable, Context, Downcast, ReadArrayVariable, ReadVariable, Registry, WriteArrayVariable, WriteVariable,
 };
 use futures::{executor::block_on, join};
 use macro_rules_attribute::apply;
@@ -19,13 +19,26 @@ fn app_main(mut ctx: Context) {
     block_on(async_main(ctx));
 }
 
+fn take_from_registry<V>(reg: &mut Registry, name: &str) -> Option<V>
+where
+    AnyVariable: Downcast<V>,
+{
+    reg.remove(name)?.downcast()
+}
+
 async fn async_main(mut ctx: Context) {
     println!("[app]: IOC started");
 
-    let mut ai = ctx.registry.remove("ai").unwrap().downcast_write::<i32>().unwrap();
-    let mut ao = ctx.registry.remove("ao").unwrap().downcast_read::<i32>().unwrap();
-    let mut aai = ctx.registry.remove("aai").unwrap().downcast_write_array::<i32>().unwrap();
-    let mut aao = ctx.registry.remove("aao").unwrap().downcast_read_array::<i32>().unwrap();
+    let mut ai: WriteVariable<i32> = take_from_registry(&mut ctx.registry, "ai").unwrap();
+    let mut ao: ReadVariable<i32> = take_from_registry(&mut ctx.registry, "ao").unwrap();
+    let mut aai: WriteArrayVariable<i32> = take_from_registry(&mut ctx.registry, "aai").unwrap();
+    let mut aao: ReadArrayVariable<i32> = take_from_registry(&mut ctx.registry, "aao").unwrap();
+    let mut waveform: WriteArrayVariable<i32> = take_from_registry(&mut ctx.registry, "waveform").unwrap();
+    let mut bi: WriteVariable<u32> = take_from_registry(&mut ctx.registry, "bi").unwrap();
+    let mut bo: ReadVariable<u32> = take_from_registry(&mut ctx.registry, "bo").unwrap();
+    let mut mbbi_direct: WriteVariable<u32> = take_from_registry(&mut ctx.registry, "mbbiDirect").unwrap();
+    let mut mbbo_direct: ReadVariable<u32> = take_from_registry(&mut ctx.registry, "mbboDirect").unwrap();
+
     assert!(ctx.registry.is_empty());
 
     let max_msg_size: usize = 259;
@@ -45,12 +58,29 @@ async fn async_main(mut ctx: Context) {
                     }
                     InMsgRef::Aai(msg) => {
                         println!("[app]: Msg.Aai");
-                        assert!(msg.value.len() <= aai.max_len());
-                        let mut aai_guard = aai.write_in_place().await;
-                        for (src, dst) in msg.value.iter().zip(aai_guard.as_uninit_slice().iter_mut()) {
+                        assert!(msg.values.len() <= aai.max_len());
+                        let mut var_guard = aai.write_in_place().await;
+                        for (src, dst) in msg.values.iter().zip(var_guard.as_uninit_slice().iter_mut()) {
                             dst.write(src.to_native());
                         }
-                        aai_guard.set_len(msg.value.len());
+                        var_guard.set_len(msg.values.len());
+                    }
+                    InMsgRef::Waveform(msg) => {
+                        println!("[app]: Msg.Waveform");
+                        assert!(msg.values.len() <= waveform.max_len());
+                        let mut var_guard = waveform.write_in_place().await;
+                        for (src, dst) in msg.values.iter().zip(var_guard.as_uninit_slice().iter_mut()) {
+                            dst.write(src.to_native());
+                        }
+                        var_guard.set_len(msg.values.len());
+                    }
+                    InMsgRef::Bi(msg) => {
+                        println!("[app]: Msg.Bi");
+                        bi.write(msg.value.to_native()).await;
+                    }
+                    InMsgRef::MbbiDirect(msg) => {
+                        println!("[app]: Msg.MbbiDirect");
+                        mbbi_direct.write(msg.value.to_native()).await;
                     }
                 }
             }
@@ -59,14 +89,13 @@ async fn async_main(mut ctx: Context) {
             loop {
                 let value = ao.read().await;
                 println!("[app]: Ioc.Ao");
-                let msg = proto::Ao {
-                    value: le::I32::from_native(value),
-                };
                 let mut writer_guard = writer.lock().await;
                 let mut msg_guard = writer_guard.init_default_msg().unwrap();
                 msg_guard.reset_tag(OutMsgTag::Ao).unwrap();
-                if let OutMsgMut::Ao(ao_msg) = msg_guard.as_mut() {
-                    *ao_msg = msg;
+                if let OutMsgMut::Ao(msg) = msg_guard.as_mut() {
+                    *msg = proto::Ao {
+                        value: le::I32::from_native(value),
+                    };
                 } else {
                     unreachable!();
                 }
@@ -75,21 +104,55 @@ async fn async_main(mut ctx: Context) {
         },
         async {
             loop {
-                let aao_guard = aao.read_in_place().await;
+                let var_guard = aao.read_in_place().await;
                 println!("[app]: Ioc.Aao");
                 let mut writer_guard = writer.lock().await;
                 let mut msg_guard = writer_guard.init_default_msg().unwrap();
                 msg_guard.reset_tag(OutMsgTag::Aao).unwrap();
                 let data = if let OutMsgMut::Aao(msg) = msg_guard.as_mut() {
-                    &mut msg.value
+                    &mut msg.values
                 } else {
                     unreachable!();
                 };
-                for value in aao_guard.as_slice() {
+                for value in var_guard.as_slice() {
                     data.push(le::I32::from_native(*value)).unwrap();
                 }
                 msg_guard.write().await.unwrap();
             }
-        }
+        },
+        async {
+            loop {
+                let value = bo.read().await;
+                println!("[app]: Ioc.Bo");
+                let mut writer_guard = writer.lock().await;
+                let mut msg_guard = writer_guard.init_default_msg().unwrap();
+                msg_guard.reset_tag(OutMsgTag::Bo).unwrap();
+                if let OutMsgMut::Bo(msg) = msg_guard.as_mut() {
+                    *msg = proto::Bo {
+                        value: le::U32::from_native(value),
+                    };
+                } else {
+                    unreachable!();
+                }
+                msg_guard.write().await.unwrap();
+            }
+        },
+        async {
+            loop {
+                let value = mbbo_direct.read().await;
+                println!("[app]: Ioc.MbboDirect");
+                let mut writer_guard = writer.lock().await;
+                let mut msg_guard = writer_guard.init_default_msg().unwrap();
+                msg_guard.reset_tag(OutMsgTag::MbboDirect).unwrap();
+                if let OutMsgMut::MbboDirect(msg) = msg_guard.as_mut() {
+                    *msg = proto::MbboDirect {
+                        value: le::U32::from_native(value),
+                    };
+                } else {
+                    unreachable!();
+                }
+                msg_guard.write().await.unwrap();
+            }
+        },
     );
 }

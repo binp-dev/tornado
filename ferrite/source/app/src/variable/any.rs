@@ -32,7 +32,7 @@ impl AnyVariable {
         self.type_
     }
 
-    pub fn downcast_read<T: Copy + 'static>(self) -> Option<ReadVariable<T>> {
+    pub fn downcast_read<T: Copy + 'static + 'static>(self) -> Option<ReadVariable<T>> {
         match self.dir {
             Direction::Read => match self.type_ {
                 VariableType::Scalar { scal_type } => {
@@ -47,7 +47,7 @@ impl AnyVariable {
             Direction::Write => None,
         }
     }
-    pub fn downcast_write<T: Copy + 'static>(self) -> Option<WriteVariable<T>> {
+    pub fn downcast_write<T: Copy + 'static + 'static>(self) -> Option<WriteVariable<T>> {
         match self.dir {
             Direction::Read => None,
             Direction::Write => match self.type_ {
@@ -62,7 +62,7 @@ impl AnyVariable {
             },
         }
     }
-    pub fn downcast_read_array<T: Copy + 'static>(self) -> Option<ReadArrayVariable<T>> {
+    pub fn downcast_read_array<T: Copy + 'static + 'static>(self) -> Option<ReadArrayVariable<T>> {
         match self.dir {
             Direction::Read => match self.type_ {
                 VariableType::Array { scal_type, max_len } => {
@@ -77,7 +77,7 @@ impl AnyVariable {
             Direction::Write => None,
         }
     }
-    pub fn downcast_write_array<T: Copy + 'static>(self) -> Option<WriteArrayVariable<T>> {
+    pub fn downcast_write_array<T: Copy + 'static + 'static>(self) -> Option<WriteArrayVariable<T>> {
         match self.dir {
             Direction::Read => None,
             Direction::Write => match self.type_ {
@@ -91,5 +91,33 @@ impl AnyVariable {
                 _ => None,
             },
         }
+    }
+}
+
+pub trait Downcast<V> {
+    fn downcast(self) -> Option<V>;
+}
+
+impl<T: Copy + 'static> Downcast<ReadVariable<T>> for AnyVariable {
+    fn downcast(self) -> Option<ReadVariable<T>> {
+        self.downcast_read::<T>()
+    }
+}
+
+impl<T: Copy + 'static> Downcast<WriteVariable<T>> for AnyVariable {
+    fn downcast(self) -> Option<WriteVariable<T>> {
+        self.downcast_write::<T>()
+    }
+}
+
+impl<T: Copy + 'static> Downcast<ReadArrayVariable<T>> for AnyVariable {
+    fn downcast(self) -> Option<ReadArrayVariable<T>> {
+        self.downcast_read_array::<T>()
+    }
+}
+
+impl<T: Copy + 'static> Downcast<WriteArrayVariable<T>> for AnyVariable {
+    fn downcast(self) -> Option<WriteArrayVariable<T>> {
+        self.downcast_write_array::<T>()
     }
 }

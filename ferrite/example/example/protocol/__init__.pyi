@@ -17,16 +17,37 @@ class Ai(Value):
 @dataclass
 class Aai(Value):
 
-    value: NDArray[np.int32]
+    values: NDArray[np.int32]
+
+
+@dataclass
+class Waveform(Value):
+
+    values: NDArray[np.int32]
+
+
+@dataclass
+class Bi(Value):
+
+    value: int
+
+
+@dataclass
+class MbbiDirect(Value):
+
+    value: int
 
 
 @dataclass
 class InMsg(Value):
 
-    Variant = Ai | Aai
+    Variant = Ai | Aai | Waveform | Bi | MbbiDirect
 
     Ai = Ai
     Aai = Aai
+    Waveform = Waveform
+    Bi = Bi
+    MbbiDirect = MbbiDirect
 
     variant: Variant
 
@@ -40,15 +61,29 @@ class Ao(Value):
 @dataclass
 class Aao(Value):
 
-    value: NDArray[np.int32]
+    values: NDArray[np.int32]
+
+
+@dataclass
+class Bo(Value):
+
+    value: int
+
+
+@dataclass
+class MbboDirect(Value):
+
+    value: int
 
 
 @dataclass
 class OutMsg(Value):
 
-    Variant = Ao | Aao
+    Variant = Ao | Aao | Bo | MbboDirect
 
     Ao = Ao
     Aao = Aao
+    Bo = Bo
+    MbboDirect = MbboDirect
 
     variant: Variant

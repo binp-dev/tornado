@@ -10,7 +10,7 @@ pub mod registry;
 
 pub use typing::VariableType;
 
-pub use any::AnyVariable;
+pub use any::{AnyVariable, Downcast};
 pub use read::ReadVariable;
 pub use read_array::ReadArrayVariable;
 pub use write::WriteVariable;

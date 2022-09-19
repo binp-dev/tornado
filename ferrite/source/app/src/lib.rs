@@ -4,7 +4,7 @@ pub mod channel;
 pub mod variable;
 
 pub use raw::export;
-pub use variable::{AnyVariable, ReadArrayVariable, ReadVariable, VariableType, WriteArrayVariable, WriteVariable};
+pub use variable::{AnyVariable, Downcast, ReadArrayVariable, ReadVariable, VariableType, WriteArrayVariable, WriteVariable};
 
 use std::collections::HashMap;
 
@@ -26,8 +26,10 @@ macro_rules! entry_point {
     );
 }
 
+pub type Registry = HashMap<String, AnyVariable>;
+
 pub struct Context {
-    pub registry: HashMap<String, AnyVariable>,
+    pub registry: Registry,
 }
 
 pub fn add(left: usize, right: usize) -> usize {

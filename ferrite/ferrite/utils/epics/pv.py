@@ -3,11 +3,14 @@ from typing import Any, AsyncGenerator, AsyncIterator, Generic, List, Literal, T
 
 from enum import Enum
 from contextlib import asynccontextmanager
+import asyncio
 
 import pyepics_asyncio as aepics
 
 import numpy as np
 from numpy.typing import NDArray
+
+from ferrite.utils.asyncio.task import with_timeout
 
 T = TypeVar("T", bool, int, float, str, NDArray[np.int32], NDArray[np.float64])
 
@@ -83,14 +86,14 @@ class Pv(Generic[T]):
     async def put(self, value: T) -> None:
         await self._raw.put(value)
 
-    async def _converter(self, mon: AsyncGenerator[Any, None]) -> AsyncGenerator[T, None]:
+    async def _generator(self, mon: AsyncGenerator[Any, None]) -> AsyncGenerator[T, None]:
         async for value in mon:
             yield self._convert(value)
 
     @asynccontextmanager
     async def monitor(self, current: bool = False) -> AsyncIterator[AsyncGenerator[T, None]]:
         async with self._raw.monitor(current=current) as mon:
-            yield self._converter(mon)
+            yield self._generator(mon)
 
     @property
     def name(self) -> str:
@@ -196,5 +199,9 @@ class Context:
         ...
 
     async def connect(self, name: str, pv_type: PvType) -> _PvAny:
-        raw = await aepics.Pv.connect(name)
+        raw = await with_timeout(aepics.Pv.connect(name), 1.0)
+
+        # Without this workaround calling `monitor()` right after `connect()` sometimes returns initial value.
+        await asyncio.sleep(0.2)
+
         return pv_type._type()(raw)
