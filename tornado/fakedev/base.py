@@ -1,17 +1,14 @@
 from __future__ import annotations
-from typing import List, Generator
+from typing import ClassVar
 
 import asyncio
 from dataclasses import dataclass
-from contextlib import contextmanager
 
 import numpy as np
 from numpy.typing import NDArray
 
-import zmq
-import zmq.asyncio as azmq
-
-from ferrite.utils.epics.ioc import Ioc
+from ferrite.utils.asyncio.net import TcpListener, MsgWriter, MsgReader
+from ferrite.utils.epics.ioc import AsyncIoc
 
 from tornado.ipp import AppMsg, McuMsg
 from tornado.common.config import Config
@@ -21,8 +18,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@dataclass
 class FakeDev:
-    REQUEST_SIZE: int = 1024
+    request_size: ClassVar[int] = 1024
+
+    ioc: AsyncIoc
+    config: Config
+    handler: FakeDev.Handler
 
     @dataclass
     class Handler:
@@ -43,23 +45,11 @@ class FakeDev:
             adcs = await self.transfer(self.dac_codes_to_volts(dac_codes))
             return self.adc_volts_to_codes(adcs)
 
-    def __init__(self, ioc: Ioc, config: Config, handler: FakeDev.Handler) -> None:
-        self.ioc = ioc
-
-        self.context = azmq.Context()
-        self.recv_socket = self.context.socket(zmq.PAIR)
-        self.send_socket = self.context.socket(zmq.PAIR)
-
-        self.config = config
-        self.handler = handler
-
     async def _send_msg(self, msg: McuMsg.Variant) -> None:
-        await self.send_socket.send(McuMsg(msg).store())
+        await self.writer.write_msg(McuMsg(msg))
 
     async def _recv_msg(self) -> AppMsg:
-        data = await self.recv_socket.recv()
-        assert isinstance(data, bytes)
-        return AppMsg.load(data)
+        return await self.reader.read_msg()
 
     async def _sample_chunk(self, dac: NDArray[np.int32]) -> None:
         adcs = await self.handler.transfer_codes(dac)
@@ -81,12 +71,12 @@ class FakeDev:
         else:
             raise RuntimeError(f"Unexpected message type")
 
-    async def loop(self) -> None:
+    async def _loop(self) -> None:
         assert isinstance((await self._recv_msg()).variant, AppMsg.Connect)
         logger.info("IOC connected signal")
         await self._send_msg(McuMsg.Debug("Hello from MCU!"))
 
-        await self._send_msg(McuMsg.DacRequest(FakeDev.REQUEST_SIZE))
+        await self._send_msg(McuMsg.DacRequest(self.request_size))
         while True:
             try:
                 await asyncio.wait_for(self._recv_and_handle_msg(), self.config.keep_alive_max_delay_ms * 1e-3)
@@ -94,15 +84,12 @@ class FakeDev:
                 logger.error("Keep-alive timeout reached")
                 raise
 
-    @contextmanager
-    def _bind_sockets(self) -> Generator[None, None, None]:
-        recv = self.recv_socket.bind("tcp://127.0.0.1:8321")
-        send = self.send_socket.bind("tcp://127.0.0.1:8322")
-        with recv, send:
-            yield None
-
     async def run(self) -> None:
-        with self._bind_sockets(), self.ioc:
-            await asyncio.sleep(1.0)
-            logger.debug("Fakedev started")
-            await self.loop()
+        async with TcpListener("127.0.0.1", 8321) as lis:
+            async with self.ioc:
+                async for stream in lis:
+                    self.writer = MsgWriter(McuMsg, stream.writer)
+                    self.reader = MsgReader(AppMsg, stream.reader, self.config.rpmsg_max_app_msg_len)
+                    break
+                logger.debug("Fakedev started")
+                await self._loop()

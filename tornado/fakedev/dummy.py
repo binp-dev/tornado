@@ -9,10 +9,10 @@ from numpy.typing import NDArray
 
 import asyncio
 
-from ferrite.utils.epics.ioc import make_ioc
+from ferrite.utils.epics.ioc import AsyncIoc
 
 from tornado.common.config import read_common_config
-from tornado.ioc.fakedev.base import FakeDev
+from tornado.fakedev.base import FakeDev
 
 
 @dataclass
@@ -33,7 +33,7 @@ class Handler(FakeDev.Handler):
 
 def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
 
-    ioc = make_ioc(ioc_dir, arch)
+    ioc = AsyncIoc(epics_base_dir, ioc_dir, arch)
 
     config = read_common_config(source_dir)
     handler = Handler(config)

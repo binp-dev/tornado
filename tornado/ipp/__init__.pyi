@@ -1,11 +1,7 @@
+# This file was generatered by Ferrite Protogen.
 from __future__ import annotations
 
-from pathlib import Path
-
-
-def generate(path: Path) -> None:
-    ...
-
+from ferrite.protogen.base import Value
 
 from dataclasses import dataclass
 import numpy as np
@@ -13,80 +9,53 @@ from numpy.typing import NDArray
 
 
 @dataclass
-class AppMsgConnect:
+class AppMsgEmpty(Value):
 
-    @staticmethod
-    def load(data: bytes) -> AppMsgConnect:
-        ...
-
-    def store(self) -> bytes:
-        ...
+    pass
 
 
 @dataclass
-class AppMsgKeepAlive:
+class AppMsgConnect(Value):
 
-    @staticmethod
-    def load(data: bytes) -> AppMsgKeepAlive:
-        ...
-
-    def store(self) -> bytes:
-        ...
+    pass
 
 
 @dataclass
-class AppMsgDoutUpdate:
+class AppMsgKeepAlive(Value):
+
+    pass
+
+
+@dataclass
+class AppMsgDoutUpdate(Value):
 
     value: int
 
-    @staticmethod
-    def load(data: bytes) -> AppMsgDoutUpdate:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
 
 @dataclass
-class AppMsgDacMode:
+class AppMsgDacMode(Value):
 
     enable: int
 
-    @staticmethod
-    def load(data: bytes) -> AppMsgDacMode:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
 
 @dataclass
-class AppMsgDacData:
+class AppMsgDacData(Value):
 
     points: NDArray[np.int32]
 
-    @staticmethod
-    def load(data: bytes) -> AppMsgDacData:
-        ...
 
-    def store(self) -> bytes:
-        ...
+@dataclass
+class AppMsgStatsReset(Value):
+
+    pass
 
 
 @dataclass
-class AppMsgStatsReset:
+class AppMsg(Value):
 
-    @staticmethod
-    def load(data: bytes) -> AppMsgStatsReset:
-        ...
+    Variant = AppMsgEmpty | AppMsgConnect | AppMsgKeepAlive | AppMsgDoutUpdate | AppMsgDacMode | AppMsgDacData | AppMsgStatsReset
 
-    def store(self) -> bytes:
-        ...
-
-
-@dataclass
-class AppMsg:
-
+    Empty = AppMsgEmpty
     Connect = AppMsgConnect
     KeepAlive = AppMsgKeepAlive
     DoutUpdate = AppMsgDoutUpdate
@@ -94,100 +63,56 @@ class AppMsg:
     DacData = AppMsgDacData
     StatsReset = AppMsgStatsReset
 
-    Variant = AppMsgConnect | AppMsgKeepAlive | AppMsgDoutUpdate | AppMsgDacMode | AppMsgDacData | AppMsgStatsReset
-
     variant: Variant
-
-    @staticmethod
-    def load(data: bytes) -> AppMsg:
-        ...
-
-    def store(self) -> bytes:
-        ...
 
 
 @dataclass
-class McuMsgDinUpdate:
+class McuMsgEmpty(Value):
+
+    pass
+
+
+@dataclass
+class McuMsgDinUpdate(Value):
 
     value: int
 
-    @staticmethod
-    def load(data: bytes) -> McuMsgDinUpdate:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
 
 @dataclass
-class McuMsgDacRequest:
+class McuMsgDacRequest(Value):
 
     count: int
 
-    @staticmethod
-    def load(data: bytes) -> McuMsgDacRequest:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
 
 @dataclass
-class McuMsgAdcData:
+class McuMsgAdcData(Value):
 
     points_arrays: NDArray[np.int32]
 
-    @staticmethod
-    def load(data: bytes) -> McuMsgAdcData:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
 
 @dataclass
-class McuMsgError:
+class McuMsgError(Value):
 
     code: int
     message: str
 
-    @staticmethod
-    def load(data: bytes) -> McuMsgError:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
 
 @dataclass
-class McuMsgDebug:
+class McuMsgDebug(Value):
 
     message: str
 
-    @staticmethod
-    def load(data: bytes) -> McuMsgDebug:
-        ...
-
-    def store(self) -> bytes:
-        ...
-
 
 @dataclass
-class McuMsg:
+class McuMsg(Value):
 
+    Variant = McuMsgEmpty | McuMsgDinUpdate | McuMsgDacRequest | McuMsgAdcData | McuMsgError | McuMsgDebug
+
+    Empty = McuMsgEmpty
     DinUpdate = McuMsgDinUpdate
     DacRequest = McuMsgDacRequest
     AdcData = McuMsgAdcData
     Error = McuMsgError
     Debug = McuMsgDebug
 
-    Variant = McuMsgDinUpdate | McuMsgDacRequest | McuMsgAdcData | McuMsgError | McuMsgDebug
-
     variant: Variant
-
-    @staticmethod
-    def load(data: bytes) -> McuMsg:
-        ...
-
-    def store(self) -> bytes:
-        ...

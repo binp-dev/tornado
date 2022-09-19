@@ -9,14 +9,14 @@ import asyncio
 import numpy as np
 from numpy.typing import NDArray
 
-from ferrite.utils.asyncio import with_background
-from ferrite.utils.epics.ioc import make_ioc
-from ferrite.utils.epics.asyncio import Context, Pv, PvType
+from ferrite.utils.asyncio.task import with_background
+from ferrite.utils.epics.ioc import AsyncIoc
+from ferrite.utils.epics.pv import Context, Pv, PvType
 from ferrite.utils.progress import CountBar
 import ferrite.utils.epics.ca as ca
 
 from tornado.common.config import Config, read_common_config
-from tornado.ioc.fakedev.base import FakeDev
+from tornado.fakedev.base import FakeDev
 
 import logging
 
@@ -29,7 +29,7 @@ def array_approx_eq(a: NDArray[np.float64], b: NDArray[np.float64], eps: float =
 
 @dataclass
 class Handler(FakeDev.Handler):
-    _dt: float = 0.0
+    dt: float = 0.0
 
     class Waveform:
 
@@ -69,9 +69,9 @@ class Handler(FakeDev.Handler):
         adcs = [dac / self.config.dac_max_abs_v * self.config.adc_max_abs_v]
         step = 1e-4
         for i in range(1, self.config.adc_count):
-            array = self._dt + step * np.arange(len(dac), dtype=np.float64)
+            array = self.dt + step * np.arange(len(dac), dtype=np.float64)
             adcs.append(self.config.adc_max_abs_v * np.sin(2.0 * np.pi * i * array))
-        self._dt += step * len(dac)
+        self.dt += step * len(dac)
 
         for adc, chunk in zip(self.adcs, adcs):
             adc.push(chunk)
@@ -168,10 +168,9 @@ def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str) -> Non
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    os.environ["EPICS_CA_ADDR_LIST"] = "127.0.0.1"
-    os.environ["EPICS_CA_AUTO_ADDR_LIST"] = "NO"
+    os.environ.update(ca.local_env())
 
-    ioc = make_ioc(ioc_dir, arch)
+    ioc = AsyncIoc(epics_base_dir, ioc_dir, arch)
     repeater = ca.Repeater(epics_base_dir / "bin" / arch)
 
     config = read_common_config(source_dir)
@@ -179,7 +178,7 @@ def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str) -> Non
     device = FakeDev(ioc, config, handler)
 
     with repeater:
-        loop.run_until_complete(with_background(
+        asyncio.run(with_background(
             async_run(device.config, handler),
             device.run(),
         ))

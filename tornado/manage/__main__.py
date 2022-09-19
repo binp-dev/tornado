@@ -5,7 +5,7 @@ from pathlib import Path
 
 import ferrite.manage.cli as cli
 
-from tornado.manage.tree import make_components
+from tornado.components.tree import make_components
 
 if __name__ == "__main__":
     base_dir = Path.cwd()
@@ -30,4 +30,4 @@ if __name__ == "__main__":
         exit(1)
 
     cli.setup_logging(params, ["ferrite", "tornado"])
-    cli.run_with_params(params)
+    cli.run_with_params(target_dir, params)

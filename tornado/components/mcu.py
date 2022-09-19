@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ferrite.components.toolchain import CrossToolchain
+from ferrite.components.compiler import GccCross
 from ferrite.components.freertos import Freertos
 from ferrite.components.mcu import McuBase, McuDeployer
 
@@ -13,10 +13,10 @@ class Mcu(McuBase):
 
     def __init__(
         self,
+        ferrite_dir: Path,
         source_dir: Path,
-        ferrite_source_dir: Path,
         target_dir: Path,
-        toolchain: CrossToolchain,
+        gcc: GccCross,
         freertos: Freertos,
         deployer: McuDeployer,
         ipp: Ipp,
@@ -25,12 +25,12 @@ class Mcu(McuBase):
             "mcu",
             source_dir / f"mcu",
             target_dir,
-            toolchain,
+            gcc,
             freertos,
             deployer,
             target="m7image.elf",
-            opts=[f"-DFERRITE={ferrite_source_dir}", f"-DIPP={ipp.gen_dir}"],
+            opts=[f"-DFERRITE={ferrite_dir}", f"-DIPP={ipp.output_dir}"],
             deps=[ipp.generate_task],
         )
-        self.ferrite_source_dir = ferrite_source_dir
+        self.ferrite_dir = ferrite_dir
         self.ipp = ipp
