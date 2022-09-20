@@ -1,3 +1,4 @@
 #!/usr/bin/bash
 
-mypy -p ferrite
+echo "ferrite:" && mypy -p ferrite && \
+echo "example:" && cd example && mypy -p example

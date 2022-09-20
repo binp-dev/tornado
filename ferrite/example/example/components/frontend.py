@@ -20,7 +20,7 @@ class AbstractFrontend(AppIoc[B]):
     ):
         super().__init__(
             [ferrite_dir / "ioc", source_dir / "ioc"],
-            target_dir / "ioc",
+            target_dir / "example/ioc",
             epics_base,
             app,
         )

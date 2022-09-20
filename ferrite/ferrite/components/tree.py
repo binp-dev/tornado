@@ -19,10 +19,13 @@ class Components(ComponentGroup):
         target_dir: Path,
         platform: HostPlatform,
     ) -> None:
+        local_target_dir = target_dir / "ferrite"
         self.gcc = platform.gcc
         self.rustc = platform.rustc
-        self.protogen = ProtogenTest("protogen", source_dir, target_dir / "protogen", make_test_generator(), False, self.rustc)
-        self.app = Cargo(source_dir / "app", target_dir / "app", self.rustc)
+        self.protogen = ProtogenTest(
+            "protogen", source_dir, local_target_dir / "protogen", make_test_generator(), False, self.rustc
+        )
+        self.app = Cargo(source_dir / "app", local_target_dir / "app", self.rustc)
         self.all = DictComponent({"test": TaskList([self.protogen.test_task, self.app.test_task])})
 
     def components(self) -> Dict[str, Component]:

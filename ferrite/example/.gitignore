@@ -1,9 +1,0 @@
-/target*/
-
-__pycache__
-#/poetry.lock
-.venv
-.mypy_cache
-.pytest_cache
-
-/.cargo

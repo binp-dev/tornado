@@ -13,7 +13,7 @@ class App(AppBase):
     def __init__(self, source_dir: Path, target_dir: Path, rustc: Rustc, proto: Protocol) -> None:
         super().__init__(
             source_dir / "app",
-            target_dir / "app",
+            target_dir / "example/app",
             rustc,
             deps=[proto.generate_task],
             envs={"FER_PROTO_DIR": str(proto.output_dir)},

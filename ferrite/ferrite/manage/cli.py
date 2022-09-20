@@ -1,9 +1,9 @@
 from __future__ import annotations
-from pathlib import Path
 from typing import Dict, List, Optional
 
 import argparse
 from dataclasses import dataclass
+from pathlib import Path
 from colorama import init as colorama_init, Fore, Style
 
 from ferrite.components.base import Context, Task, Component
@@ -63,6 +63,13 @@ def add_parser_args(parser: argparse.ArgumentParser, comp: Component) -> None:
         ]),
     )
     parser.add_argument(
+        "-t",
+        "--target-dir",
+        type=str,
+        default="target",
+        help="Path to directory to place build artifacts. ('$PWD/target' by default)",
+    )
+    parser.add_argument(
         "--no-deps",
         action="store_true",
         help="Run only specified task without dependencies.",
@@ -73,10 +80,11 @@ def add_parser_args(parser: argparse.ArgumentParser, comp: Component) -> None:
         metavar="<address>[:port]",
         default=None,
         help="\n".join([
-            "Device to deploy and run tests.", "Requirements:",
+            "Device to deploy and run tests.",
+            "Requirements:",
             "+ Debian Linux running on the device (another distros are not tested).",
             "+ SSH server running on the device on the specified port (or 22 if the port is not specified).",
-            "+ Possibility to log in to the device via SSH by user 'root' without password (e.g. using public key)."
+            "+ Possibility to log in to the device via SSH by user 'root' without password (e.g. using public key).",
         ])
     )
     parser.add_argument(
@@ -111,6 +119,7 @@ class ReadRunParamsError(RuntimeError):
 @dataclass
 class RunParams:
     task: Task
+    target_dir: Path
     context: Context
     no_deps: bool = False
 
@@ -148,7 +157,7 @@ def read_run_params(args: argparse.Namespace, comp: Component) -> RunParams:
 
     context = _make_context_from_args(args)
 
-    return RunParams(task, context, no_deps=args.no_deps)
+    return RunParams(task, Path(args.target_dir), context, no_deps=args.no_deps)
 
 
 def _prepare_for_run(params: RunParams) -> None:

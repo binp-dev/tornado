@@ -20,7 +20,7 @@ class Protocol(ProtogenTest):
         super().__init__(
             "protocol",
             ferrite_dir,
-            target_dir / "protocol",
+            target_dir / "example/protocol",
             Generator([InMsg, OutMsg]),
             True,
             rustc,
