@@ -3,7 +3,9 @@ from typing import Dict, List, Any
 
 import re
 from pathlib import Path
+from dataclasses import dataclass, field
 
+from ferrite.utils.path import TargetPath
 from ferrite.utils.run import run, capture
 from ferrite.components.base import Artifact, Component, OwnedTask, Context, Task
 from ferrite.components.compiler import Compiler, Gcc, GccCross, GccHost, Target, _InstallTask as CompilerInstallTask
@@ -11,11 +13,10 @@ from ferrite.components.compiler import Compiler, Gcc, GccCross, GccHost, Target
 
 class Rustc(Compiler):
 
-    def __init__(self, postfix: str, target: Target, target_dir: Path, cc: Gcc):
+    def __init__(self, postfix: str, target: Target, cc: Gcc):
         self._install_task = _RustcInstallTask(self)
         super().__init__(f"rustc_{postfix}", target, cached=True)
-        self.target_dir = target_dir
-        self.path = target_dir / "rustup"
+        self.path = TargetPath("rustup")
         self._cc = cc
 
     @property
@@ -26,25 +27,25 @@ class Rustc(Compiler):
     def cc(self) -> Gcc:
         return self._cc
 
-    def env(self) -> Dict[str, str]:
+    def env(self, ctx: Context) -> Dict[str, str]:
         return {
-            "RUSTUP_HOME": str(self.path),
+            "RUSTUP_HOME": str(ctx.target_path / self.path),
             "RUSTUP_TOOLCHAIN": "stable",
         }
 
-    def install(self, capture: bool = False) -> None:
+    def install(self, ctx: Context) -> None:
         cmds = [
             ["rustup", "set", "profile", "minimal"],
             ["rustup", "target", "add", str(self.target)],
         ]
         for cmd in cmds:
-            run(cmd, add_env=self.env(), quiet=capture)
+            run(cmd, add_env=self.env(ctx), quiet=ctx.capture)
 
 
 class _RustcInstallTask(CompilerInstallTask, OwnedTask[Rustc]):
 
     def run(self, ctx: Context) -> None:
-        self.owner.install(capture=ctx.capture)
+        self.owner.install(ctx)
 
     def artifacts(self) -> List[Artifact]:
         return [Artifact(self.owner.path, cached=True)]
@@ -54,73 +55,69 @@ class RustcHost(Rustc):
 
     _target_pattern: re.Pattern[str] = re.compile(r"^Default host:\s+(\S+)$", re.MULTILINE)
 
-    def __init__(self, target_dir: Path, cc: GccHost):
+    def __init__(self, cc: GccHost):
         info = capture(["rustup", "show"])
         match = re.search(self._target_pattern, info)
         assert match is not None, f"Cannot detect rustup host rustc:\n{info}"
         target = Target.from_str(match[1])
-        super().__init__("host", target, target_dir, cc)
+        super().__init__("host", target, cc)
 
 
 class RustcCross(Rustc):
 
-    def __init__(self, postfix: str, target: Target, target_dir: Path, cc: GccCross):
+    def __init__(self, postfix: str, target: Target, cc: GccCross):
         self._cc_cross = cc
-        super().__init__(postfix, target, target_dir, cc)
+        super().__init__(postfix, target, cc)
 
     @property
     def cc(self) -> GccCross:
         return self._cc_cross
 
-    def env(self) -> Dict[str, str]:
+    def env(self, ctx: Context) -> Dict[str, str]:
         target_uu = str(self.target).upper().replace("-", "_")
-        linker = self.cc.bin("gcc")
+        linker = ctx.target_path / self.cc.bin("gcc")
         return {
-            **super().env(),
+            **super().env(ctx),
             f"CARGO_TARGET_{target_uu}_LINKER": str(linker),
         }
 
 
+@dataclass
 class Cargo(Component):
+    src_dir: Path | TargetPath
+    build_dir: TargetPath
+    rustc: Rustc
+    envs: Dict[str, str] = field(default_factory=dict)
+    deps: List[Task] = field(default_factory=list)
+    features: List[str] = field(default_factory=list)
 
-    def __init__(
-        self,
-        src_dir: Path,
-        build_dir: Path,
-        rustc: Rustc,
-        envs: Dict[str, str] = {},
-        deps: List[Task] = [],
-        features: List[str] = [],
-    ) -> None:
-        super().__init__()
-
-        self.src_dir = src_dir
-        self.build_dir = build_dir
-        self.rustc = rustc
-        self.envs = envs
-        self.deps = deps
-        self.features = features
-
+    def __post_init__(self) -> None:
         self.home_dir = Path.cwd() / ".cargo"
 
         self.build_task = _CargoBuildTask(self)
         self.test_task = _CargoTestTask(self)
 
-    def _env(self) -> Dict[str, str]:
+    def _env(self, ctx: Context) -> Dict[str, str]:
         return {
-            **self.rustc.env(),
+            **self.rustc.env(ctx),
             "CARGO_HOME": str(self.home_dir),
-            "CARGO_TARGET_DIR": str(self.build_dir),
+            "CARGO_TARGET_DIR": str(ctx.target_path / self.build_dir),
             **self.envs,
         }
 
     @property
-    def bin_dir(self) -> Path:
+    def bin_dir(self) -> TargetPath:
         return self.build_dir / str(self.rustc.target) / "debug"
 
-    def build(self, capture: bool = False, update: bool = False) -> None:
+    def src_path(self, ctx: Context) -> Path:
+        if isinstance(self.src_dir, Path):
+            return self.src_dir
+        else:
+            return ctx.target_path / self.src_dir
+
+    def build(self, ctx: Context) -> None:
         cmds = [
-            *([["cargo", "update"]] if update else []),
+            *([["cargo", "update"]] if ctx.update else []),
             [
                 "cargo",
                 "build",
@@ -129,21 +126,21 @@ class Cargo(Component):
             ],
         ]
         for cmd in cmds:
-            run(cmd, cwd=self.src_dir, add_env=self._env(), quiet=capture)
+            run(cmd, cwd=self.src_path(ctx), add_env=self._env(ctx), quiet=ctx.capture)
 
-    def test(self, capture: bool = False) -> None:
+    def test(self, ctx: Context) -> None:
         run(
             ["cargo", "test", f"--features={','.join(self.features)}"],
-            cwd=self.src_dir,
-            add_env=self._env(),
-            quiet=capture,
+            cwd=self.src_path(ctx),
+            add_env=self._env(ctx),
+            quiet=ctx.capture,
         )
 
 
 class _CargoBuildTask(OwnedTask[Cargo]):
 
     def run(self, ctx: Context) -> None:
-        self.owner.build(capture=ctx.capture, update=ctx.update)
+        self.owner.build(ctx)
 
     def dependencies(self) -> List[Task]:
         return [
@@ -159,7 +156,7 @@ class _CargoBuildTask(OwnedTask[Cargo]):
 class _CargoTestTask(_CargoBuildTask):
 
     def run(self, ctx: Context) -> None:
-        self.owner.test(capture=ctx.capture)
+        self.owner.test(ctx)
 
     def dependencies(self) -> List[Task]:
         return [

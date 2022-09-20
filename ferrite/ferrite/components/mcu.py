@@ -5,6 +5,7 @@ from typing import Dict, List
 import shutil
 from pathlib import Path
 
+from ferrite.utils.path import TargetPath
 from ferrite.components.base import Task, OwnedTask, Context, TaskWrapper
 from ferrite.components.cmake import Cmake
 from ferrite.components.compiler import GccCross
@@ -21,18 +22,20 @@ class McuDeployer:
 
 class McuBase(Cmake):
 
-    def configure(self, capture: bool = False) -> None:
-        # Workaround to disable cmake caching (incremental build is broken anyway)
-        if self.build_dir.exists():
-            shutil.rmtree(self.build_dir)
+    def configure(self, ctx: Context) -> None:
+        build_path = ctx.target_path / self.build_dir
 
-        super().configure(capture=capture)
+        # Workaround to disable cmake caching (incremental build is broken anyway)
+        if build_path.exists():
+            shutil.rmtree(build_path)
+
+        super().configure(ctx)
 
     def __init__(
         self,
         name: str,
         src_dir: Path,
-        target_dir: Path,
+        target_dir: TargetPath,
         cc: GccCross,
         freertos: Freertos,
         deployer: McuDeployer,
@@ -73,7 +76,7 @@ class _DeployTask(OwnedTask[McuBase]):
 
     def run(self, ctx: Context) -> None:
         assert ctx.device is not None
-        self.deployer.deploy(self.owner.build_dir, ctx.device)
+        self.deployer.deploy(ctx.target_path / self.owner.build_dir, ctx.device)
 
     def dependencies(self) -> List[Task]:
         return [self.owner.build_task]

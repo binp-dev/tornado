@@ -5,13 +5,9 @@ from pathlib import Path
 
 import ferrite.manage.cli as cli
 from ferrite.components.tree import make_components
-from ferrite.info import path as self_path
 
 if __name__ == "__main__":
-    target_dir = self_path / "target"
-    target_dir.mkdir(exist_ok=True)
-
-    components = make_components(self_path, target_dir)
+    components = make_components()
 
     parser = argparse.ArgumentParser(
         description="Power supply controller software development automation library",
@@ -28,4 +24,4 @@ if __name__ == "__main__":
         exit(1)
 
     cli.setup_logging(params)
-    cli.run_with_params(target_dir, params)
+    cli.run_with_params(params)

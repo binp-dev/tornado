@@ -1,12 +1,12 @@
 from __future__ import annotations
-from typing import Dict, Generic, List, TypeVar
+from typing import Generic, List, TypeVar
 
 import shutil
 import re
 import time
-from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from ferrite.utils.path import TargetPath
 from ferrite.utils.files import substitute
 from ferrite.components.base import Artifact, OwnedTask, Task, Context
 from ferrite.components.compiler import Gcc, GccHost, GccCross
@@ -23,12 +23,8 @@ class AbstractIoc(EpicsProject[Gcc], Generic[B]):
     def BuildTask(self) -> AbstractBuildTask[AbstractIoc[B]]:
         raise NotImplementedError()
 
-    def __init__(
-        self,
-        ioc_dirs: List[Path],
-        target_dir: Path,
-        epics_base: B,
-    ):
+    def __init__(self, ioc_dirs: List[Path], target_dir: TargetPath, epics_base: B):
+        src_dir: Path | TargetPath
         assert len(ioc_dirs) > 0
         if len(ioc_dirs) == 1:
             src_dir = ioc_dirs[0]
@@ -36,7 +32,7 @@ class AbstractIoc(EpicsProject[Gcc], Generic[B]):
             # Create separate source dir
             src_dir = target_dir / f"src"
 
-        super().__init__(target_dir, src_dir, epics_base.cc.name)
+        super().__init__(src_dir, target_dir, epics_base.cc.name)
 
         self.epics_base = epics_base
         self.ioc_dirs = ioc_dirs
@@ -61,7 +57,7 @@ class IocHost(AbstractIoc[EpicsBaseHost]):
     def BuildTask(self) -> HostBuildTask[IocHost]:
         return HostBuildTask(self)
 
-    def __init__(self, ioc_dirs: List[Path], target_dir: Path, epics_base: EpicsBaseHost):
+    def __init__(self, ioc_dirs: List[Path], target_dir: TargetPath, epics_base: EpicsBaseHost):
         super().__init__(ioc_dirs, target_dir, epics_base)
 
     @property
@@ -81,12 +77,7 @@ class IocCross(AbstractIoc[EpicsBaseCross]):
             self.epics_base.deploy_path,
         )
 
-    def __init__(
-        self,
-        ioc_dirs: List[Path],
-        target_dir: Path,
-        epics_base: EpicsBaseCross,
-    ):
+    def __init__(self, ioc_dirs: List[Path], target_dir: TargetPath, epics_base: EpicsBaseCross):
         super().__init__(ioc_dirs, target_dir, epics_base)
 
         self.deploy_path = PurePosixPath("/opt/ioc")
@@ -106,29 +97,30 @@ class AbstractBuildTask(EpicsBuildTask[O]):
 
     def __init__(self, owner: O):
         super().__init__(owner, clean=True)
-        self.epics_base_dir = owner.epics_base.build_path
 
-    def _prepare_source(self) -> None:
+    def _prepare_source(self, ctx: Context) -> None:
         if len(self.owner.ioc_dirs) == 1:
             # There is no patches
             return
 
         for ioc_dirs in self.owner.ioc_dirs:
-            shutil.copytree(ioc_dirs, self.src_dir, dirs_exist_ok=True)
+            shutil.copytree(ioc_dirs, ctx.target_path / self.owner.src_dir, dirs_exist_ok=True)
 
-    def _dep_paths(self) -> List[Path]:
+    def _dep_paths(self, ctx: Context) -> List[Path]:
         return self.owner.ioc_dirs
 
-    def _configure(self) -> None:
+    def _configure(self, ctx: Context) -> None:
+        build_path = ctx.target_path / self.owner.build_dir
+        install_path = ctx.target_path / self.owner.install_dir
         substitute(
-            [("^\\s*#*(\\s*EPICS_BASE\\s*=).*$", f"\\1 {self.epics_base_dir}")],
-            self.build_dir / "configure/RELEASE",
+            [("^\\s*#*(\\s*EPICS_BASE\\s*=).*$", f"\\1 {ctx.target_path / self.owner.epics_base.build_dir}")],
+            build_path / "configure/RELEASE",
         )
         substitute(
-            [("^\\s*#*(\\s*INSTALL_LOCATION\\s*=).*$", f"\\1 {self.install_dir}")],
-            self.build_dir / "configure/CONFIG_SITE",
+            [("^\\s*#*(\\s*INSTALL_LOCATION\\s*=).*$", f"\\1 {install_path}")],
+            build_path / "configure/CONFIG_SITE",
         )
-        self.install_dir.mkdir(exist_ok=True)
+        install_path.mkdir(exist_ok=True)
 
     def dependencies(self) -> List[Task]:
         return [
@@ -137,23 +129,24 @@ class AbstractBuildTask(EpicsBuildTask[O]):
         ]
 
     def artifacts(self) -> List[Artifact]:
+        assert isinstance(self.owner.src_dir, TargetPath)
         return [
             *super().artifacts(),
-            *([Artifact(self.src_dir)] if len(self.owner.ioc_dirs) > 1 else []),
-            Artifact(self.install_dir), # Because IOC install is performed during build
+            *([Artifact(self.owner.src_dir)] if len(self.owner.ioc_dirs) > 1 else []),
+            Artifact(self.owner.install_dir), # Because IOC install is performed during build
         ]
 
 
 class AbstractInstallTask(EpicsInstallTask[O]):
 
-    def _install(self) -> None:
+    def _install(self, ctx: Context) -> None:
         shutil.rmtree(
-            self.install_dir / "iocBoot",
+            ctx.target_path / self.owner.install_dir / "iocBoot",
             ignore_errors=True,
         )
         shutil.copytree(
-            self.build_dir / "iocBoot",
-            self.install_dir / "iocBoot",
+            ctx.target_path / self.owner.build_dir / "iocBoot",
+            ctx.target_path / self.owner.install_dir / "iocBoot",
             dirs_exist_ok=True,
             ignore=shutil.ignore_patterns("Makefile"),
         )
@@ -169,11 +162,11 @@ class HostBuildTask(AbstractBuildTask[Ho]):
 
 class CrossBuildTask(AbstractBuildTask[Co]):
 
-    def _configure(self) -> None:
-        super()._configure()
+    def _configure(self, ctx: Context) -> None:
+        super()._configure(ctx)
         substitute(
             [("^\\s*#*(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {self.owner.arch}")],
-            self.build_dir / "configure/CONFIG_SITE",
+            ctx.target_path / self.owner.build_dir / "configure/CONFIG_SITE",
         )
 
 
@@ -190,7 +183,7 @@ class _CrossDeployTask(EpicsDeployTask[Co]):
 
     def _post(self, ctx: Context) -> None:
         assert ctx.device is not None
-        boot_dir = self.owner.install_path / "iocBoot"
+        boot_dir = ctx.target_path / self.owner.install_dir / "iocBoot"
         for ioc_name in [path.name for path in boot_dir.iterdir()]:
             ioc_dirs = boot_dir / ioc_name
             if not ioc_dirs.is_dir():

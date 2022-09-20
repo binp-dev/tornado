@@ -3,8 +3,9 @@ from typing import Dict, List, Optional
 
 import shutil
 from pathlib import Path
-
 from dataclasses import dataclass
+
+from ferrite.utils.path import TargetPath
 from ferrite.utils.run import run, RunError
 from ferrite.components.base import Artifact, Component, Task, Context
 
@@ -50,7 +51,7 @@ class RepoSource:
 @dataclass(eq=False)
 class GitCloneTask(Task):
 
-    path: Path
+    path: TargetPath
     sources: List[RepoSource]
     cached: bool = False
 
@@ -58,7 +59,7 @@ class GitCloneTask(Task):
         last_error = None
         for source in self.sources:
             try:
-                clone(self.path, source.remote, source.branch, clean=True, quiet=ctx.capture)
+                clone(ctx.target_path / self.path, source.remote, source.branch, clean=True, quiet=ctx.capture)
                 return
             except RunError as e:
                 last_error = e
@@ -73,7 +74,7 @@ class GitCloneTask(Task):
 
 class RepoList(Component):
 
-    def __init__(self, dst_dir: Path, sources: List[RepoSource], cached: bool = False):
+    def __init__(self, dst_dir: TargetPath, sources: List[RepoSource], cached: bool = False):
         super().__init__()
 
         self.path = dst_dir
@@ -85,5 +86,5 @@ class RepoList(Component):
 
 class Repo(RepoList):
 
-    def __init__(self, dst_dir: Path, remote: str, branch: Optional[str] = None):
+    def __init__(self, dst_dir: TargetPath, remote: str, branch: Optional[str] = None):
         super().__init__(dst_dir, [RepoSource(remote, branch)])

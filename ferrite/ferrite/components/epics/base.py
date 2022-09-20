@@ -1,14 +1,15 @@
 from __future__ import annotations
-import json
-from typing import Dict, Generic, List, ClassVar, Type, TypeVar
+from typing import Dict, Generic, List, ClassVar, TypeVar
 
 import os
 import shutil
 from pathlib import Path, PurePosixPath
 from dataclasses import dataclass, field
+import json
 
 import pydantic
 
+from ferrite.utils.path import TargetPath
 from ferrite.utils.run import capture, run
 from ferrite.components.base import Artifact, Component, OwnedTask, Context, Task
 from ferrite.components.compiler import Target, Gcc
@@ -53,7 +54,6 @@ def _tree_mod_time(path: Path) -> int:
 
 
 class _BuildInfo(pydantic.BaseModel):
-    build_dir: str
     dep_mod_times: Dict[str, int]
 
     FILE_NAME: ClassVar[str] = "build_info.json"
@@ -77,8 +77,6 @@ class _BuildInfo(pydantic.BaseModel):
             json.dump(self.dict(), f, indent=2, sort_keys=True)
 
     def has_changed_since(self, other: _BuildInfo) -> bool:
-        if self.build_dir != other.build_dir:
-            return True
         for path, time in self.dep_mod_times.items():
             try:
                 if time > other.dep_mod_times[path]:
@@ -97,11 +95,11 @@ class EpicsProject(Component, Generic[C]):
     # TODO: Use type aliases in 3.10
     # Cc: TypeAlias = Gcc
 
-    def __init__(self, target_dir: Path, src_path: Path, target_name: str) -> None:
+    def __init__(self, src_dir: Path | TargetPath, target_dir: TargetPath, target_name: str) -> None:
         super().__init__()
-        self.src_path = src_path
-        self.build_path = target_dir / target_name / "build"
-        self.install_path = target_dir / target_name / "install"
+        self.src_dir = src_dir
+        self.build_dir = target_dir / target_name / "build"
+        self.install_dir = target_dir / target_name / "install"
 
     @property
     def cc(self) -> C:
@@ -128,86 +126,81 @@ class EpicsBuildTask(OwnedTask[O]):
     clean: bool = False
     cached: bool = False
 
-    def __post_init__(self) -> None:
-        self.src_dir = self.owner.src_path
-        self.build_dir = self.owner.build_path
-        self.install_dir = self.owner.install_path
-
-    def _prepare_source(self) -> None:
+    def _prepare_source(self, ctx: Context) -> None:
         pass
 
-    def _configure(self) -> None:
+    def _configure(self, ctx: Context) -> None:
         raise NotImplementedError()
 
-    def _dep_paths(self) -> List[Path]:
+    def _dep_paths(self, ctx: Context) -> List[Path]:
+        "Dependent paths."
         return []
 
     def run(self, ctx: Context) -> None:
-        info = _BuildInfo.from_paths(self.build_dir, self._dep_paths())
+        build_path = ctx.target_path / self.owner.build_dir
+
+        info = _BuildInfo.from_paths(build_path, self._dep_paths(ctx))
         try:
-            stored_info = _BuildInfo.load(self.build_dir)
+            stored_info = _BuildInfo.load(build_path)
         except FileNotFoundError:
             pass
         else:
             if not info.has_changed_since(stored_info):
-                logger.info(f"'{self.build_dir}' is already built")
+                logger.info(f"'{build_path}' is already built")
                 return
 
         if self.clean:
-            shutil.rmtree(self.build_dir, ignore_errors=True)
+            shutil.rmtree(build_path, ignore_errors=True)
 
-        self._prepare_source()
+        self._prepare_source(ctx)
 
         shutil.copytree(
-            self.src_dir,
-            self.build_dir,
+            ctx.target_path / self.owner.src_dir,
+            build_path,
             dirs_exist_ok=True,
             ignore=shutil.ignore_patterns(".git"),
         )
 
-        logger.info(f"Configure {self.build_dir}")
-        self._configure()
+        logger.info(f"Configure {build_path}")
+        self._configure(ctx)
 
-        logger.info(f"Build {self.build_dir}")
+        logger.info(f"Build {build_path}")
         run(
             [
                 "make",
                 "--jobs",
                 *([str(ctx.jobs)] if ctx.jobs is not None else []),
             ],
-            cwd=self.build_dir,
+            cwd=build_path,
             quiet=ctx.capture,
         )
 
-        info.store(self.build_dir)
+        info.store(build_path)
 
     def dependencies(self) -> List[Task]:
         return [self.owner.cc.install_task]
 
     def artifacts(self) -> List[Artifact]:
-        return [Artifact(self.build_dir, cached=self.cached)]
+        return [Artifact(self.owner.build_dir, cached=self.cached)]
 
 
 @dataclass(eq=False)
 class EpicsInstallTask(OwnedTask[O]):
 
-    def __post_init__(self) -> None:
-        self.build_dir = self.owner.build_path
-        self.install_dir = self.owner.install_path
-
-    def _install(self) -> None:
+    def _install(self, ctx: Context) -> None:
         raise NotImplementedError()
 
     def run(self, ctx: Context) -> None:
-        logger.info(f"Install {self.build_dir} to {self.install_dir}")
-        self.install_dir.mkdir(exist_ok=True)
-        self._install()
+        install_path = ctx.target_path / self.owner.install_dir
+        logger.info(f"Install from {ctx.target_path / self.owner.build_dir} to {install_path}")
+        install_path.mkdir(exist_ok=True)
+        self._install(ctx)
 
     def dependencies(self) -> List[Task]:
         return [self.owner.build_task]
 
     def artifacts(self) -> List[Artifact]:
-        return [Artifact(self.install_dir)]
+        return [Artifact(self.owner.install_dir)]
 
 
 @dataclass(eq=False)
@@ -222,11 +215,12 @@ class EpicsDeployTask(OwnedTask[O]):
         pass
 
     def run(self, ctx: Context) -> None:
+        install_path = ctx.target_path / self.owner.install_dir
         assert ctx.device is not None
         self._pre(ctx)
-        logger.info(f"Deploy {self.owner.install_path} to {ctx.device.name()}:{self.deploy_path}")
+        logger.info(f"Deploy {install_path} to {ctx.device.name()}:{self.deploy_path}")
         ctx.device.store(
-            self.owner.install_path,
+            install_path,
             self.deploy_path,
             recursive=True,
             exclude=self.blacklist,

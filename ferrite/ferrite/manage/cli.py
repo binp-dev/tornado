@@ -119,7 +119,6 @@ class ReadRunParamsError(RuntimeError):
 @dataclass
 class RunParams:
     task: Task
-    target_dir: Path
     context: Context
     no_deps: bool = False
 
@@ -135,11 +134,15 @@ def _find_task_by_args(comp: Component, args: argparse.Namespace) -> Task:
 
 
 def _make_context_from_args(args: argparse.Namespace) -> Context:
-    device = None
+    target_dir = Path(args.target_dir).resolve()
+
     if args.device:
         device = SshDevice(args.device)
+    else:
+        device = None
 
     return Context(
+        target_dir,
         device=device,
         capture=not args.no_capture,
         update=args.update,
@@ -157,7 +160,7 @@ def read_run_params(args: argparse.Namespace, comp: Component) -> RunParams:
 
     context = _make_context_from_args(args)
 
-    return RunParams(task, Path(args.target_dir), context, no_deps=args.no_deps)
+    return RunParams(task, context, no_deps=args.no_deps)
 
 
 def _prepare_for_run(params: RunParams) -> None:
@@ -171,6 +174,6 @@ def setup_logging(params: RunParams, modules: List[str] = ["ferrite"]) -> None:
             logging.getLogger(mod).setLevel(logging.DEBUG)
 
 
-def run_with_params(target_dir: Path, params: RunParams) -> None:
+def run_with_params(params: RunParams) -> None:
     _prepare_for_run(params)
-    Runner(target_dir, params.task, no_deps=params.no_deps).run(params.context)
+    Runner(params.task, no_deps=params.no_deps).run(params.context)

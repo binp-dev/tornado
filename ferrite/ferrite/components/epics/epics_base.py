@@ -1,12 +1,12 @@
 from __future__ import annotations
-from typing import Dict, List, TypeVar
+from typing import List, TypeVar
 
 import shutil
 from pathlib import Path, PurePosixPath
-from dataclasses import dataclass
 
+from ferrite.utils.path import TargetPath
 from ferrite.utils.files import substitute, allow_patterns
-from ferrite.components.base import Task
+from ferrite.components.base import Task, Context
 from ferrite.components.git import RepoList, RepoSource
 from ferrite.components.compiler import Gcc, GccHost, GccCross
 from ferrite.components.epics.base import EpicsInstallTask, EpicsProject, EpicsBuildTask, EpicsDeployTask, C
@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 
 class AbstractEpicsBase(EpicsProject[C]):
 
-    def __init__(self, target_dir: Path, src_path: Path, cc: C) -> None:
-        super().__init__(target_dir, src_path, cc.name)
+    def __init__(self, src_dir: Path | TargetPath, target_dir: TargetPath, cc: C) -> None:
+        super().__init__(src_dir, target_dir, cc.name)
         self._cc = cc
 
     @property
@@ -37,20 +37,22 @@ class AbstractEpicsBase(EpicsProject[C]):
 
 class EpicsBaseHost(AbstractEpicsBase[GccHost]):
 
-    def __init__(self, target_dir: Path, cc: GccHost):
+    def __init__(self, target_dir: TargetPath, cc: GccHost):
 
         self.version = "7.0.6.1"
         name = f"epics_base_{self.version}"
 
         super().__init__(
-            target_dir / name,
             target_dir / name / "src",
+            target_dir / name,
             cc,
         )
 
         self.name = name
+
+        assert isinstance(self.src_dir, TargetPath)
         self.repo = RepoList(
-            self.src_path,
+            self.src_dir,
             [
                 RepoSource("https://gitlab.inp.nsk.su/epics/epics-base.git", f"binp-R{self.version}"),
                 RepoSource("https://github.com/epics-base/epics-base.git", f"R{self.version}"),
@@ -72,9 +74,9 @@ class EpicsBaseHost(AbstractEpicsBase[GccHost]):
 
 class EpicsBaseCross(AbstractEpicsBase[GccCross]):
 
-    def __init__(self, target_dir: Path, cc: GccCross, host_base: EpicsBaseHost):
+    def __init__(self, target_dir: TargetPath, cc: GccCross, host_base: EpicsBaseHost):
 
-        super().__init__(target_dir / host_base.name, host_base.build_path, cc)
+        super().__init__(host_base.build_dir, target_dir / host_base.name, cc)
 
         self.host_base = host_base
 
@@ -101,7 +103,7 @@ class _BuildTask(EpicsBuildTask[O]):
     def __init__(self, owner: O) -> None:
         super().__init__(owner, clean=False, cached=True)
 
-    def _configure_common(self) -> None:
+    def _configure_common(self, ctx: Context) -> None:
         defs = [
             #("USR_CFLAGS", ""),
             #("USR_CPPFLAGS", ""),
@@ -115,27 +117,27 @@ class _BuildTask(EpicsBuildTask[O]):
         logger.info(rules)
         substitute(
             rules,
-            self.build_dir / "configure/CONFIG_COMMON",
+            ctx.target_path / self.owner.build_dir / "configure/CONFIG_COMMON",
         )
 
-    def _configure_toolchain(self) -> None:
+    def _configure_toolchain(self, ctx: Context) -> None:
         raise NotImplementedError()
 
-    def _configure_install(self) -> None:
+    def _configure_install(self, ctx: Context) -> None:
         substitute([
-            ("^\\s*#*(\\s*INSTALL_LOCATION\\s*=).*$", f"\\1 {self.install_dir}"),
-        ], self.build_dir / "configure/CONFIG_SITE")
+            ("^\\s*#*(\\s*INSTALL_LOCATION\\s*=).*$", f"\\1 {ctx.target_path / self.owner.install_dir}"),
+        ], ctx.target_path / self.owner.build_dir / "configure/CONFIG_SITE")
 
-    def _configure(self) -> None:
-        self._configure_common()
-        self._configure_toolchain()
-        #self._configure_install() # Install is broken
+    def _configure(self, ctx: Context) -> None:
+        self._configure_common(ctx)
+        self._configure_toolchain(ctx)
+        #self._configure_install(ctx) # Install is broken
 
 
 class _InstallTask(EpicsInstallTask[O]):
 
     # Workaround for broken EPICS install
-    def _install(self) -> None:
+    def _install(self, ctx: Context) -> None:
         # Copy all required dirs manually
         paths = [
             "bin",
@@ -150,12 +152,12 @@ class _InstallTask(EpicsInstallTask[O]):
         ]
         for path in paths:
             shutil.rmtree(
-                self.install_dir / path,
+                ctx.target_path / self.owner.install_dir / path,
                 ignore_errors=True,
             )
             shutil.copytree(
-                self.build_dir / path,
-                self.install_dir / path,
+                ctx.target_path / self.owner.build_dir / path,
+                ctx.target_path / self.owner.install_dir / path,
                 symlinks=True,
                 ignore=shutil.ignore_patterns("O.*"),
             )
@@ -163,10 +165,10 @@ class _InstallTask(EpicsInstallTask[O]):
 
 class _HostBuildTask(_BuildTask[EpicsBaseHost]):
 
-    def _configure_toolchain(self) -> None:
+    def _configure_toolchain(self, ctx: Context) -> None:
         substitute(
             [("^(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", "\\1")],
-            self.build_dir / "configure/CONFIG_SITE",
+            ctx.target_path / self.owner.build_dir / "configure/CONFIG_SITE",
         )
 
     def dependencies(self) -> List[Task]:
@@ -182,7 +184,7 @@ class _HostInstallTask(_InstallTask[EpicsBaseHost]):
 
 class _CrossBuildTask(_BuildTask[EpicsBaseCross]):
 
-    def _configure_toolchain(self) -> None:
+    def _configure_toolchain(self, ctx: Context) -> None:
         cc = self.owner.cc
 
         host_arch = self.owner.host_base.arch
@@ -194,14 +196,14 @@ class _CrossBuildTask(_BuildTask[EpicsBaseCross]):
 
         substitute(
             [("^(\\s*CROSS_COMPILER_TARGET_ARCHS\\s*=).*$", f"\\1 {cross_arch}")],
-            self.build_dir / "configure/CONFIG_SITE",
+            ctx.target_path / self.owner.build_dir / "configure/CONFIG_SITE",
         )
         substitute(
             [
                 ("^(\\s*GNU_TARGET\\s*=).*$", f"\\1 {str(cc.target)}"),
                 ("^(\\s*GNU_DIR\\s*=).*$", f"\\1 {cc.path}"),
             ],
-            self.build_dir / f"configure/os/CONFIG_SITE.{host_arch}.{cross_arch}",
+            ctx.target_path / self.owner.build_dir / f"configure/os/CONFIG_SITE.{host_arch}.{cross_arch}",
         )
 
     def dependencies(self) -> List[Task]:
@@ -213,16 +215,16 @@ class _CrossBuildTask(_BuildTask[EpicsBaseCross]):
 
 class _CrossInstallTask(_InstallTask[EpicsBaseCross]):
 
-    def _install(self) -> None:
-        super()._install()
+    def _install(self, ctx: Context) -> None:
+        super()._install(ctx)
 
         host_arch = self.owner.host_base.arch
         cross_arch = self.owner.arch
         assert cross_arch != host_arch
 
         shutil.copytree(
-            self.build_dir / "bin" / host_arch,
-            self.install_dir / "bin" / cross_arch,
+            ctx.target_path / self.owner.build_dir / "bin" / host_arch,
+            ctx.target_path / self.owner.install_dir / "bin" / cross_arch,
             dirs_exist_ok=True,
             symlinks=True,
             ignore=allow_patterns("*.pl", "*.py"),

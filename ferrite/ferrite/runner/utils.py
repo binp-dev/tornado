@@ -3,6 +3,8 @@ from typing import Callable, Sequence, List, TypeVar
 
 from pathlib import Path
 
+from ferrite.utils.path import PathLike
+
 
 def rename_mkdir(src: Path, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -18,9 +20,10 @@ def remove_empty_tree(path: Path) -> None:
 
 
 T = TypeVar("T")
+P = TypeVar("P", bound=PathLike)
 
 
-def filter_parents(items: Sequence[T], path: Callable[[T], Path]) -> List[T]:
+def filter_parents(items: Sequence[T], path: Callable[[T], P]) -> List[T]:
     filtered: List[T] = []
     for x in items:
         filtered = [y for y in filtered if path(x) not in path(y).parents]

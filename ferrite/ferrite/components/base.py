@@ -4,11 +4,13 @@ from typing import Any, Callable, Dict, List, Optional, Set, TypeVar, Generic
 from pathlib import Path
 from dataclasses import dataclass
 
+from ferrite.utils.path import TargetPath
 from ferrite.remote.base import Device
 
 
 @dataclass
 class Context:
+    target_path: Path
     device: Optional[Device] = None
     capture: bool = False
     update: bool = False
@@ -18,7 +20,7 @@ class Context:
 
 @dataclass
 class Artifact:
-    path: Path
+    path: TargetPath
     cached: bool = False
 
 

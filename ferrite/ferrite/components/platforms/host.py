@@ -8,6 +8,6 @@ from ferrite.components.rust import RustcHost
 
 class HostPlatform:
 
-    def __init__(self, target_dir: Path) -> None:
+    def __init__(self) -> None:
         self.gcc = GccHost()
-        self.rustc = RustcHost(target_dir, self.gcc)
+        self.rustc = RustcHost(self.gcc)

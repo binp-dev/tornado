@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import ClassVar, Dict, List, Type, TypeVar
+from typing import List, TypeVar
 
 import shutil
 from pathlib import Path
@@ -9,23 +9,24 @@ from ferrite.components.base import Artifact, CallTask, Component, OwnedTask, Co
 from ferrite.components.rust import RustcHost, Cargo
 from ferrite.components.cmake import Cmake
 
-from ferrite.protogen.base import Context as CodegenContext, TestInfo
-from ferrite.protogen.generator import Generator
+from ferrite.utils.path import TargetPath
 from ferrite.utils.files import substitute
+from ferrite.protogen.base import Context as ProtogenContext, TestInfo
+from ferrite.protogen.generator import Generator
+from ferrite.info import path as self_path
 
 
 @dataclass
 class Protogen(Component):
 
     name: str
-    source_dir: Path
-    output_dir: Path
+    output_dir: TargetPath
     generator: Generator
     default_msg: bool # FIXME: Make `True` by default
 
     def __post_init__(self) -> None:
-        self.assets_dir = self.source_dir / "protogen"
-        self.context = CodegenContext(self.name, default=self.default_msg)
+        self.assets_path = self_path / "source/protogen"
+        self.context = ProtogenContext(self.name, default=self.default_msg)
         self.generate_task = self.GenerateTask()
 
     def GenerateTask(self) -> _GenerateTask[Protogen]:
@@ -38,11 +39,13 @@ O = TypeVar("O", bound=Protogen, covariant=True)
 class _GenerateTask(OwnedTask[O]):
 
     def run(self, ctx: Context) -> None:
-        shutil.copytree(self.owner.assets_dir, self.owner.output_dir, dirs_exist_ok=True)
-        for path in [Path("c/CMakeLists.txt"), Path("rust/Cargo.toml"), Path("rust/build.rs")]:
-            substitute([("{{protogen}}", self.owner.name)], self.owner.output_dir / path)
+        output_path = ctx.target_path / self.owner.output_dir
 
-        self.owner.generator.generate(self.owner.context).write(self.owner.output_dir)
+        shutil.copytree(self.owner.assets_path, output_path, dirs_exist_ok=True)
+        for path in [Path("c/CMakeLists.txt"), Path("rust/Cargo.toml"), Path("rust/build.rs")]:
+            substitute([("{{protogen}}", self.owner.name)], output_path / path)
+
+        self.owner.generator.generate(self.owner.context).write(output_path)
 
     def artifacts(self) -> List[Artifact]:
         return [Artifact(self.owner.output_dir)]
@@ -54,7 +57,6 @@ class ProtogenTest(Protogen):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.assets_dir = self.source_dir / "protogen"
         self.test_info = TestInfo(16)
 
         self.c_test = Cmake(
@@ -84,4 +86,7 @@ class _GenerateTestTask(_GenerateTask[ProtogenTest]):
 
     def run(self, ctx: Context) -> None:
         super().run(ctx)
-        self.owner.generator.generate_tests(self.owner.context, self.owner.test_info).write(self.owner.output_dir)
+        self.owner.generator.generate_tests(
+            self.owner.context,
+            self.owner.test_info,
+        ).write(ctx.target_path / self.owner.output_dir)

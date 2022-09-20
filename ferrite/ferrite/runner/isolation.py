@@ -4,8 +4,6 @@ from typing import Generator, List, Optional
 from pathlib import Path
 from contextlib import contextmanager
 
-from colorama import Fore, Style
-
 from ferrite.components.base import Artifact, Task
 
 from .utils import filter_parents, rename_mkdir, remove_empty_tree
@@ -48,15 +46,14 @@ def with_artifacts(target_dir: Path, hideout_dir: Path, task: Task) -> Generator
         *[art for art in task.artifacts()],
         *[art for dep in task.dependencies() for art in dep.artifacts()],
     ], lambda art: art.path)
-    print(f"Artifacts: {[str(a.path.relative_to(target_dir)) for a in artifacts]}")
+    print(f"Artifacts: {[str(a.path) for a in artifacts]}")
 
     for art in artifacts:
-        relpath = art.path.relative_to(target_dir)
-        hidden_path = hideout_dir / relpath
+        hidden_path = hideout_dir / art.path
         if not hidden_path.exists():
             #raise FileNotFoundError(f"There's no artifact '{art.path}'")
             continue
-        rename_mkdir(hidden_path, art.path)
+        rename_mkdir(hidden_path, target_dir / art.path)
     exc: Optional[Exception] = None
     try:
         yield
@@ -64,16 +61,17 @@ def with_artifacts(target_dir: Path, hideout_dir: Path, task: Task) -> Generator
         exc = e
     finally:
         for art in artifacts:
-            if not art.path.exists():
+            real_art_path = target_dir / art.path
+            if not real_art_path.exists():
                 if exc is None:
                     exc = FileNotFoundError(f"There's no artifact '{art.path}'")
                 continue
-            hidden_path = hideout_dir / art.path.relative_to(target_dir)
+            hidden_path = hideout_dir / art.path
             if hidden_path.exists():
                 if exc is None:
                     exc = FileExistsError(f"Artifact '{art.path}' already exists")
                 continue
-            rename_mkdir(art.path, hidden_path)
+            rename_mkdir(real_art_path, hidden_path)
 
         # Cleanup
         for path in target_dir.iterdir():
