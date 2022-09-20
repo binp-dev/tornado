@@ -29,6 +29,9 @@ class TargetPath:
     def __init__(self, *args: str | PurePath | TargetPath) -> None:
         self._inner: PurePath = PurePath(*[a._inner if isinstance(a, TargetPath) else a for a in args])
 
+    def pure(self) -> PurePath:
+        return self._inner
+
     def __truediv__(self, rhs: str | PurePath | TargetPath) -> TargetPath:
         return TargetPath(self, rhs)
 
