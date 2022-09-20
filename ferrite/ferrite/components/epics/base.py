@@ -54,6 +54,7 @@ def _tree_mod_time(path: Path) -> int:
 
 
 class _BuildInfo(pydantic.BaseModel):
+    build_dir: str
     dep_mod_times: Dict[str, int]
 
     FILE_NAME: ClassVar[str] = "build_info.json"
@@ -77,6 +78,8 @@ class _BuildInfo(pydantic.BaseModel):
             json.dump(self.dict(), f, indent=2, sort_keys=True)
 
     def has_changed_since(self, other: _BuildInfo) -> bool:
+        if self.build_dir != other.build_dir:
+            return True
         for path, time in self.dep_mod_times.items():
             try:
                 if time > other.dep_mod_times[path]:
@@ -138,18 +141,21 @@ class EpicsBuildTask(OwnedTask[O]):
 
     def run(self, ctx: Context) -> None:
         build_path = ctx.target_path / self.owner.build_dir
+        clean = self.clean
 
         info = _BuildInfo.from_paths(build_path, self._dep_paths(ctx))
         try:
             stored_info = _BuildInfo.load(build_path)
-        except FileNotFoundError:
+        except (FileNotFoundError, pydantic.ValidationError) as e:
+            logger.warning(e)
+            clean = True
             pass
         else:
             if not info.has_changed_since(stored_info):
                 logger.info(f"'{build_path}' is already built")
                 return
 
-        if self.clean:
+        if clean:
             shutil.rmtree(build_path, ignore_errors=True)
 
         self._prepare_source(ctx)
@@ -166,11 +172,7 @@ class EpicsBuildTask(OwnedTask[O]):
 
         logger.info(f"Build {build_path}")
         run(
-            [
-                "make",
-                "--jobs",
-                *([str(ctx.jobs)] if ctx.jobs is not None else []),
-            ],
+            ["make", "--jobs", *([str(ctx.jobs)] if ctx.jobs is not None else [])],
             cwd=build_path,
             quiet=ctx.capture,
         )

@@ -15,10 +15,10 @@ class TestBackend(Component):
         self.proto = proto
         self.test_task = _TestTask(self)
 
-    def test(self) -> None:
+    def test(self, ctx: Context) -> None:
         backend.test(
-            self.frontend.epics_base.install_path,
-            self.frontend.install_path,
+            ctx.target_path / self.frontend.epics_base.install_dir,
+            ctx.target_path / self.frontend.install_dir,
             self.frontend.arch,
         )
 
@@ -26,7 +26,7 @@ class TestBackend(Component):
 class _TestTask(OwnedTask[TestBackend]):
 
     def run(self, ctx: Context) -> None:
-        self.owner.test()
+        self.owner.test(ctx)
 
     def dependencies(self) -> List[Task]:
         return [

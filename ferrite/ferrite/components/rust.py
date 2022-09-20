@@ -87,7 +87,6 @@ class Cargo(Component):
     src_dir: Path | TargetPath
     build_dir: TargetPath
     rustc: Rustc
-    envs: Dict[str, str] = field(default_factory=dict)
     deps: List[Task] = field(default_factory=list)
     features: List[str] = field(default_factory=list)
 
@@ -97,12 +96,11 @@ class Cargo(Component):
         self.build_task = _CargoBuildTask(self)
         self.test_task = _CargoTestTask(self)
 
-    def _env(self, ctx: Context) -> Dict[str, str]:
+    def env(self, ctx: Context) -> Dict[str, str]:
         return {
             **self.rustc.env(ctx),
             "CARGO_HOME": str(self.home_dir),
             "CARGO_TARGET_DIR": str(ctx.target_path / self.build_dir),
-            **self.envs,
         }
 
     @property
@@ -126,13 +124,13 @@ class Cargo(Component):
             ],
         ]
         for cmd in cmds:
-            run(cmd, cwd=self.src_path(ctx), add_env=self._env(ctx), quiet=ctx.capture)
+            run(cmd, cwd=self.src_path(ctx), add_env=self.env(ctx), quiet=ctx.capture)
 
     def test(self, ctx: Context) -> None:
         run(
             ["cargo", "test", f"--features={','.join(self.features)}"],
             cwd=self.src_path(ctx),
-            add_env=self._env(ctx),
+            add_env=self.env(ctx),
             quiet=ctx.capture,
         )
 

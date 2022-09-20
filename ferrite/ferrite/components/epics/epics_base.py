@@ -37,16 +37,12 @@ class AbstractEpicsBase(EpicsProject[C]):
 
 class EpicsBaseHost(AbstractEpicsBase[GccHost]):
 
-    def __init__(self, target_dir: TargetPath, cc: GccHost):
+    def __init__(self, cc: GccHost):
 
         self.version = "7.0.6.1"
         name = f"epics_base_{self.version}"
 
-        super().__init__(
-            target_dir / name / "src",
-            target_dir / name,
-            cc,
-        )
+        super().__init__(TargetPath(name) / "src", TargetPath(name), cc)
 
         self.name = name
 
@@ -74,9 +70,9 @@ class EpicsBaseHost(AbstractEpicsBase[GccHost]):
 
 class EpicsBaseCross(AbstractEpicsBase[GccCross]):
 
-    def __init__(self, target_dir: TargetPath, cc: GccCross, host_base: EpicsBaseHost):
+    def __init__(self, cc: GccCross, host_base: EpicsBaseHost):
 
-        super().__init__(host_base.build_dir, target_dir / host_base.name, cc)
+        super().__init__(host_base.build_dir, TargetPath(host_base.name), cc)
 
         self.host_base = host_base
 
@@ -201,7 +197,7 @@ class _CrossBuildTask(_BuildTask[EpicsBaseCross]):
         substitute(
             [
                 ("^(\\s*GNU_TARGET\\s*=).*$", f"\\1 {str(cc.target)}"),
-                ("^(\\s*GNU_DIR\\s*=).*$", f"\\1 {cc.path}"),
+                ("^(\\s*GNU_DIR\\s*=).*$", f"\\1 {ctx.target_path / cc.path}"),
             ],
             ctx.target_path / self.owner.build_dir / f"configure/os/CONFIG_SITE.{host_arch}.{cross_arch}",
         )

@@ -39,6 +39,9 @@ class TargetPath:
         assert isinstance(other, TargetPath)
         return self._inner == other._inner
 
+    def __str__(self) -> str:
+        return str(self._inner)
+
     @property
     def parent(self) -> TargetPath:
         return TargetPath(self._inner.parent)

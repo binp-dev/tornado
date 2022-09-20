@@ -11,22 +11,13 @@ from ferrite.components.compiler import Gcc
 from ferrite.components.app import AppBase
 from ferrite.components.epics.epics_base import AbstractEpicsBase
 from ferrite.components.epics.ioc import AbstractIoc, AbstractBuildTask, B as B
+from ferrite.info import path as self_path
 
 
 class AppIoc(AbstractIoc[B]):
 
-    def __init__(
-        self,
-        ioc_dirs: List[Path],
-        target_dir: TargetPath,
-        epics_base: B,
-        app: AppBase,
-    ):
-        super().__init__(
-            ioc_dirs,
-            target_dir,
-            epics_base,
-        )
+    def __init__(self, ioc_dirs: List[Path], target_dir: TargetPath, epics_base: B, app: AppBase):
+        super().__init__([self_path / "source/ioc", *ioc_dirs], target_dir, epics_base)
         self.app = app
 
 
@@ -35,11 +26,7 @@ O = TypeVar("O", bound=AppIoc[AbstractEpicsBase[Gcc]], covariant=True)
 
 class AppBuildTask(AbstractBuildTask[O]):
 
-    def __init__(
-        self,
-        owner: O,
-        app_lib_name: str = "libapp.so",
-    ):
+    def __init__(self, owner: O, app_lib_name: str = "libapp.so"):
         super().__init__(owner)
         self.app_lib_name = app_lib_name
 
