@@ -1,3 +1,4 @@
+use crate::config::{ADC_COUNT, DAC_COUNT};
 use ferrite::{AnyVariable, Context, Downcast, ReadArrayVariable, ReadVariable, Registry, WriteArrayVariable, WriteVariable};
 
 #[derive(Clone, Debug)]
@@ -6,9 +7,6 @@ pub enum EpicsError {
     WrongPvType,
     UnusedPvs,
 }
-
-pub const DAC_COUNT: usize = 1;
-pub const ADC_COUNT: usize = 6;
 
 pub struct Dac {
     pub scalar: ReadVariable<i32>,
@@ -40,7 +38,7 @@ where
         .remove(name)
         .ok_or_else(|| EpicsError::NoSuchPv(String::from(name)))?
         .downcast()
-        .ok_or_else(|| EpicsError::WrongPvType)
+        .ok_or(EpicsError::WrongPvType)
 }
 
 impl Dac {
@@ -66,7 +64,7 @@ impl Adc {
 
 impl Epics {
     pub fn new(mut ctx: Context) -> Result<Self, EpicsError> {
-        let mut reg = &mut ctx.registry;
+        let reg = &mut ctx.registry;
         let self_ = Self {
             analog_outputs: (0..DAC_COUNT)
                 .map(|i| Dac::new(reg, &format!("ao{}", i)))
