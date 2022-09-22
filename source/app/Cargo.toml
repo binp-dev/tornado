@@ -1,0 +1,16 @@
+[package]
+name = "tornado-app"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "app"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+ferrite = { package = "ferrite-app", path = "../../ferrite/source/app" }
+futures = "0.3.23"
+async-std = "1.6.4"
+flatty = "0.1.0-alpha.2"
+macro_rules_attribute = "0.1.2"
