@@ -7,11 +7,12 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.9"
+ferrite = { path = "ferrite", develop = true }
 pydantic = "^1.9.0"
 numpy = "^1.22.3"
-ferrite = { path = "ferrite", develop = true }
 
 [tool.poetry.dev-dependencies]
+ferrite = { path = "ferrite", develop = true, extras = ["example"] }
 toml = "^0.10.2"
 yapf = "^0.32.0"
 mypy = "^0.942"

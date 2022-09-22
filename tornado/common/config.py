@@ -26,6 +26,6 @@ class Config(pydantic.BaseModel):
 
 
 def read_common_config(source_dir: Path) -> Config:
-    defs = read_defs(source_dir / "common" / "include" / "common" / "config.h")
+    defs = read_defs(source_dir / "include" / "common" / "config.h")
     obj = {k.lower(): v for k, v in defs.items()}
     return Config.parse_obj(obj)

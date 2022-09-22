@@ -49,6 +49,22 @@ ssh = ["bcrypt (>=3.1.5)"]
 test = ["pytest (>=6.2.0)", "pytest-benchmark", "pytest-cov", "pytest-subtests", "pytest-xdist", "pretend", "iso8601", "pytz", "hypothesis (>=1.11.4,!=3.79.2)"]
 
 [[package]]
+name = "example"
+version = "0.0.0"
+description = "Ferrite usage example"
+category = "dev"
+optional = false
+python-versions = "^3.9"
+develop = true
+
+[package.dependencies]
+ferrite = {path = "..", develop = true}
+
+[package.source]
+type = "directory"
+url = "ferrite/example"
+
+[[package]]
 name = "ferrite"
 version = "0.0.0"
 description = "Power supply controller framework"
@@ -59,6 +75,7 @@ develop = true
 
 [package.dependencies]
 colorama = "^0.4.4"
+example = {path = "example", develop = true, optional = true}
 numpy = "^1.23.2"
 paramiko = "^2.9.2"
 pydantic = "^1.9.0"
@@ -68,6 +85,9 @@ toml = "^0.10.2"
 types-colorama = "^0.4.4"
 types-paramiko = "^2.8.10"
 types-toml = "^0.10.4"
+
+[package.extras]
+example = ["example @ example"]
 
 [package.source]
 type = "directory"
@@ -262,7 +282,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "fd374e3929579eaa6e4c61f0c595ee405edd072327d56fd858454d0354cf5896"
+content-hash = "d574d39f23379cca0ef8f2c51446963070b43727c294b6deca0c2ca696c7ff47"
 
 [metadata.files]
 bcrypt = [
@@ -377,6 +397,7 @@ cryptography = [
     {file = "cryptography-38.0.1-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:52e7bee800ec869b4031093875279f1ff2ed12c1e2f74923e8f49c916afd1d3b"},
     {file = "cryptography-38.0.1.tar.gz", hash = "sha256:1db3d807a14931fa317f96435695d9ec386be7b84b618cc61cfa5d08b0ae33d7"},
 ]
+example = []
 ferrite = []
 mypy = [
     {file = "mypy-0.942-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:5bf44840fb43ac4074636fd47ee476d73f0039f4f54e86d7265077dc199be24d"},

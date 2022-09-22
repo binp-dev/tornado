@@ -7,12 +7,13 @@ from dataclasses import dataclass
 from ferrite.components.base import Component, Task, OwnedTask, Context
 
 from tornado.components.ioc import AppIocHost
+from tornado.components.ioc import AppIocHost
 from tornado.components.ipp import Ipp
+from tornado.info import path as self_path
 
 
 @dataclass
 class Fakedev(Component):
-    source_dir: Path
     ioc: AppIocHost
     ipp: Ipp
 
@@ -22,15 +23,15 @@ class Fakedev(Component):
         self.test_task = _RunTask(self, test.run)
 
 
-@dataclass
+@dataclass(eq=False)
 class _RunTask(OwnedTask[Fakedev]):
     run_fn: Callable[[Path, Path, Path, str], None]
 
     def run(self, ctx: Context) -> None:
         self.run_fn(
-            self.owner.source_dir,
-            self.owner.ioc.epics_base.install_path,
-            self.owner.ioc.install_path,
+            self_path / "source/common",
+            ctx.target_path / self.owner.ioc.epics_base.install_dir,
+            ctx.target_path / self.owner.ioc.install_dir,
             self.owner.ioc.arch,
         )
 
