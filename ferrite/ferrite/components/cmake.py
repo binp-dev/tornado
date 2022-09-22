@@ -17,8 +17,6 @@ class Cmake(Component):
     build_dir: TargetPath
     cc: Gcc
     target: str # TODO: Rename to `cmake_target`
-    opts: List[str] = field(default_factory=list)
-    envs: Dict[str, str] = field(default_factory=dict)
     deps: List[Task] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -27,22 +25,22 @@ class Cmake(Component):
     def create_build_dir(self, ctx: Context) -> None:
         (ctx.target_path / self.build_dir).mkdir(exist_ok=True)
 
-    @property
-    def _defs(self) -> Dict[str, str]:
-        deflist = [opt[2:].split("=") for opt in self.opts if opt.startswith("-D")]
-        assert all((len(ds) == 2 for ds in deflist))
-        return {k: v for k, v in deflist}
+    def env(self, ctx: Context) -> Dict[str, str]:
+        return {}
+
+    def opt(self, ctx: Context) -> List[str]:
+        return []
 
     def configure(self, ctx: Context) -> None:
         self.create_build_dir(ctx)
         run(
             [
                 "cmake",
-                *self.opts,
+                *self.opt(ctx),
                 self.src_dir if isinstance(self.src_dir, Path) else ctx.target_path / self.src_dir,
             ],
             cwd=(ctx.target_path / self.build_dir),
-            add_env=self.envs,
+            add_env=self.env(ctx),
             quiet=ctx.capture,
         )
 

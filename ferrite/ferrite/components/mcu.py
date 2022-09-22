@@ -33,32 +33,19 @@ class McuBase(Cmake):
 
     def __init__(
         self,
-        name: str,
         src_dir: Path,
-        target_dir: TargetPath,
+        build_dir: TargetPath,
         cc: GccCross,
         freertos: Freertos,
         deployer: McuDeployer,
         target: str,
-        opts: List[str] = [],
-        envs: Dict[str, str] = {},
         deps: List[Task] = [],
     ):
         super().__init__(
             src_dir,
-            target_dir / name,
+            build_dir,
             cc,
             target=target,
-            opts=[
-                "-DCMAKE_TOOLCHAIN_FILE={}".format(freertos.path / "tools/cmake_toolchain_files/armgcc.cmake"),
-                "-DCMAKE_BUILD_TYPE=Release",
-                *opts,
-            ],
-            envs={
-                "FREERTOS_DIR": str(freertos.path),
-                "ARMGCC_DIR": str(cc.path),
-                **envs,
-            },
             deps=[
                 freertos.clone_task,
                 *deps,
@@ -68,6 +55,21 @@ class McuBase(Cmake):
 
         self.deploy_task = _DeployTask(self, deployer)
         self.deploy_and_reboot_task = TaskWrapper(RebootTask(), deps=[self.deploy_task])
+
+    def env(self, ctx: Context) -> Dict[str, str]:
+        assert isinstance(self.cc, GccCross)
+        return {
+            **super().env(ctx),
+            "FREERTOS_DIR": str(ctx.target_path / self.freertos.path),
+            "ARMGCC_DIR": str(ctx.target_path / self.cc.path),
+        }
+
+    def opt(self, ctx: Context) -> List[str]:
+        return [
+            *super().opt(ctx),
+            f"-DCMAKE_TOOLCHAIN_FILE={ctx.target_path / self.freertos.path / 'tools/cmake_toolchain_files/armgcc.cmake'}",
+            "-DCMAKE_BUILD_TYPE=Release",
+        ]
 
 
 @dataclass

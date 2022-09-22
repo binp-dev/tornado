@@ -7,6 +7,7 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.9"
+example = { path = "example", develop = true, optional = true }
 toml = "^0.10.2"
 types-toml = "^0.10.4"
 pyepics = "^3.5.1"
@@ -19,11 +20,14 @@ pydantic = "^1.9.0"
 numpy = "^1.23.2"
 
 [tool.poetry.dev-dependencies]
+example = { path = "example", develop = true }
 yapf = "^0.32.0"
 mypy = "^0.942"
 pytest = "^7.0.1"
 pytest-asyncio = "^0.18.2"
-example = { path = "example", develop = true }
+
+[tool.poetry.extras]
+example = ["example"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
