@@ -1,17 +1,19 @@
 use crate::config::{ADC_COUNT, DAC_COUNT};
-use ferrite::{AnyVariable, Context, Downcast, ReadArrayVariable, ReadVariable, Registry, WriteArrayVariable, WriteVariable};
+use ferrite::{
+    AnyVariable, Context, Downcast, ReadArrayVariable, ReadVariable, Registry, VariableType, WriteArrayVariable, WriteVariable,
+};
 
 #[derive(Clone, Debug)]
-pub enum EpicsError {
+pub enum Error {
     NoSuchPv(String),
-    WrongPvType,
-    UnusedPvs,
+    WrongPvType(String, VariableType),
+    UnusedPvs(Vec<String>),
 }
 
 pub struct Dac {
     pub scalar: ReadVariable<i32>,
     pub array: ReadArrayVariable<f64>,
-    pub request: WriteVariable<bool>,
+    pub request: WriteVariable<u32>,
     pub mode: ReadVariable<u32>,
     pub state: ReadVariable<u32>,
 }
@@ -27,22 +29,21 @@ pub struct Epics {
     pub analog_inputs: [Adc; ADC_COUNT],
     pub discrete_output: ReadVariable<u32>,
     pub discrete_input: WriteVariable<u32>,
-    pub stats_reset: ReadVariable<bool>,
+    pub stats_reset: ReadVariable<u32>,
 }
 
-fn try_downcast<R>(registry: &mut Registry, name: &str) -> Result<R, EpicsError>
+fn try_downcast<R>(registry: &mut Registry, name: &str) -> Result<R, Error>
 where
     AnyVariable: Downcast<R>,
 {
-    registry
-        .remove(name)
-        .ok_or_else(|| EpicsError::NoSuchPv(String::from(name)))?
-        .downcast()
-        .ok_or(EpicsError::WrongPvType)
+    let any = registry.remove(name).ok_or_else(|| Error::NoSuchPv(String::from(name)))?;
+    let data_type = any.data_type();
+    any.downcast()
+        .ok_or_else(|| Error::WrongPvType(String::from(name), data_type))
 }
 
 impl Dac {
-    fn new(reg: &mut Registry, name: &str) -> Result<Self, EpicsError> {
+    fn new(reg: &mut Registry, name: &str) -> Result<Self, Error> {
         Ok(Self {
             scalar: try_downcast(reg, name)?,
             array: try_downcast(reg, &format!("a{}", name))?,
@@ -54,7 +55,7 @@ impl Dac {
 }
 
 impl Adc {
-    fn new(reg: &mut Registry, name: &str) -> Result<Self, EpicsError> {
+    fn new(reg: &mut Registry, name: &str) -> Result<Self, Error> {
         Ok(Self {
             scalar: try_downcast(reg, name)?,
             array: try_downcast(reg, &format!("a{}", name))?,
@@ -63,7 +64,7 @@ impl Adc {
 }
 
 impl Epics {
-    pub fn new(mut ctx: Context) -> Result<Self, EpicsError> {
+    pub fn new(mut ctx: Context) -> Result<Self, Error> {
         let reg = &mut ctx.registry;
         let self_ = Self {
             analog_outputs: (0..DAC_COUNT)
@@ -83,7 +84,7 @@ impl Epics {
             stats_reset: try_downcast(reg, "stats_reset")?,
         };
         if !ctx.registry.is_empty() {
-            return Err(EpicsError::UnusedPvs);
+            return Err(Error::UnusedPvs(ctx.registry.keys().map(String::from).collect()));
         }
         Ok(self_)
     }

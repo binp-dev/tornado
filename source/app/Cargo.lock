@@ -82,6 +82,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-ringbuf"
+version = "0.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a13eae71d3cd6af924453d07e115056e2f7de96eb42a302554c1412b7cf3ebd4"
+dependencies = [
+ "futures",
+ "ringbuf",
+]
+
+[[package]]
 name = "async-std"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -518,6 +528,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ringbuf"
+version = "0.3.0-rc.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9286e944ad9b62f4a65c6d18f789de32cf19d344aa319911ed19572ab35b4ab0"
+dependencies = [
+ "cache-padded",
+]
+
+[[package]]
 name = "slab"
 version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -560,6 +579,7 @@ dependencies = [
 name = "tornado-app"
 version = "0.1.0"
 dependencies = [
+ "async-ringbuf",
  "async-std",
  "ferrite-app",
  "flatty",

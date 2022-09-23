@@ -93,7 +93,7 @@ record(bi, "aao0_request")
 # DAC operation state
 # 0 - stopped
 # 1 - running
-record(bo, "aao0_running")
+record(bo, "aao0_state")
 {
     field(DTYP, "devsup")
 
@@ -104,7 +104,7 @@ record(bo, "aao0_running")
 # DAC playback mode
 # 0 - one-shot
 # 1 - cyclic
-record(bo, "aao0_cyclic")
+record(bo, "aao0_mode")
 {
     field(DTYP, "devsup")
 

@@ -22,7 +22,7 @@ class AbstractApp(AppBase):
     ) -> None:
         super().__init__(
             self_path / "source/app",
-            TargetPath("app"),
+            TargetPath("tornado/app"),
             rustc,
             deps=[ipp.generate_task],
             features=features,
@@ -39,10 +39,10 @@ class AbstractApp(AppBase):
 class AppFake(AbstractApp):
 
     def __init__(self, rustc: RustcHost, ipp: Ipp):
-        super().__init__(rustc, ipp, features=["fake"])
+        super().__init__(rustc, ipp, features=["tcp"])
 
 
 class AppReal(AbstractApp):
 
     def __init__(self, rustc: RustcCross, ipp: Ipp):
-        super().__init__(rustc, ipp, features=["real"])
+        super().__init__(rustc, ipp, features=["rpmsg"])

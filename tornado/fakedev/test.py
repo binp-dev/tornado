@@ -85,7 +85,7 @@ async def async_run(config: Config, handler: Handler) -> None:
     aais = [await ctx.connect(f"aai{i}", PvType.ARRAY_FLOAT) for i in range(config.adc_count)]
     aao = await ctx.connect("aao0", PvType.ARRAY_FLOAT)
     aao_request = await ctx.connect("aao0_request", PvType.BOOL)
-    aao_cyclic = await ctx.connect("aao0_cyclic", PvType.BOOL)
+    aao_mode = await ctx.connect("aao0_mode", PvType.BOOL)
 
     wf_size = aao.nelm
     logger.debug(f"Waveform max size: {wf_size}")
@@ -133,7 +133,7 @@ async def async_run(config: Config, handler: Handler) -> None:
             print()
 
         logger.info("Set one-shot DAC playback mode")
-        await aao_cyclic.put(False)
+        await aao_mode.put(False)
 
         logger.info("Check full-size DAC waveform")
 
@@ -156,7 +156,7 @@ async def async_run(config: Config, handler: Handler) -> None:
         logger.info("Flush DAC and check all ADCs")
         await wait_dac_req()
         # Flush FakeDev chunk buffer
-        await write_and_check_dac(np.zeros(FakeDev.REQUEST_SIZE, dtype=np.float64))
+        await write_and_check_dac(np.zeros(FakeDev.request_size, dtype=np.float64))
         await asyncio.sleep(0.5)
         # Check total ADCs samples count
         assert all([sc == 2 * wf_size * attempts for sc in adcs_samples_count])
@@ -171,7 +171,7 @@ def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str) -> Non
     os.environ.update(ca.local_env())
 
     ioc = AsyncIoc(epics_base_dir, ioc_dir, arch)
-    repeater = ca.Repeater(epics_base_dir / "bin" / arch)
+    repeater = ca.Repeater(epics_base_dir, arch)
 
     config = read_common_config(source_dir)
     handler = Handler(config)
