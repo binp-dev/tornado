@@ -20,9 +20,3 @@ class App(AppBase):
             deps=[proto.generate_task],
         )
         self.proto = proto
-
-    def env(self, ctx: Context) -> Dict[str, str]:
-        return {
-            **super().env(ctx),
-            "FER_PROTO_DIR": str(ctx.target_path / self.proto.output_dir),
-        }
