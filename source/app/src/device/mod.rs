@@ -58,7 +58,9 @@ impl MsgDispatcher {
         let mut channel = self.channel;
         let mut adcs = self.adcs;
         loop {
-            match channel.read_msg().await.unwrap().as_ref() {
+            let msg = channel.read_msg().await.unwrap();
+            println!("read_msg: {:?}", msg.tag());
+            match msg.as_ref() {
                 McuMsgRef::Empty(_) => (),
                 McuMsgRef::DinUpdate(_) => unimplemented!(),
                 McuMsgRef::DacRequest(req) => self.dacs[0].request(req.count.to_native() as usize),

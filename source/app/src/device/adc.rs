@@ -1,5 +1,6 @@
 use crate::{config::Point, epics};
 use async_ringbuf::{AsyncHeapRb, AsyncProducer};
+use stavec::GenericVec;
 use std::{future::Future, iter::ExactSizeIterator, sync::Arc};
 
 pub struct Adc {
@@ -12,9 +13,28 @@ pub struct AdcHandle {
 
 impl Adc {
     pub fn run(self) -> (impl Future<Output = ()>, AdcHandle) {
-        let buffer = AsyncHeapRb::<Point>::new(self.epics.array.max_len());
-        let (producer, consumer) = buffer.split();
-        (async move {}, AdcHandle { buffer: producer })
+        let mut epics = self.epics;
+        let max_len = epics.array.max_len();
+        let buffer = AsyncHeapRb::<Point>::new(2 * max_len);
+        let (producer, mut consumer) = buffer.split();
+        (
+            async move {
+                loop {
+                    consumer.wait(max_len).await;
+                    assert!(consumer.len() >= max_len);
+                    {
+                        let mut guard = epics.array.write_in_place().await;
+                        let mut buffer = consumer.as_mut_sync().postponed();
+                        {
+                            GenericVec::<_, _>::from_empty(&mut guard.as_uninit_slice()[..max_len])
+                                .extend(buffer.pop_iter().map(|x| x as f64));
+                        }
+                        guard.set_len(max_len);
+                    }
+                }
+            },
+            AdcHandle { buffer: producer },
+        )
     }
 }
 

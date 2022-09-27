@@ -14,8 +14,10 @@ futures = "0.3.23"
 async-std = "1.6.4"
 flatty = "0.1.0-alpha.2"
 macro_rules_attribute = "0.1.2"
-async-ringbuf = "0.0.2"
+async-ringbuf = { path = "/home/agerasev/develop/my/async-ringbuf" }
+stavec = { path = "/home/agerasev/develop/my/stavec" }
 
 [features]
+default = ["tcp"]
 rpmsg = []
 tcp = []

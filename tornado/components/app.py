@@ -29,12 +29,6 @@ class AbstractApp(AppBase):
         )
         self.ipp = ipp
 
-    def env(self, ctx: Context) -> Dict[str, str]:
-        return {
-            **super().env(ctx),
-            "TORNADO_IPP_DIR": str(ctx.target_path / self.ipp.output_dir),
-        }
-
 
 class AppFake(AbstractApp):
 
