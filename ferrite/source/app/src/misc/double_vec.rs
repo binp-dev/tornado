@@ -2,90 +2,68 @@ use async_std::sync::{Arc, Mutex, MutexGuard};
 use std::{
     mem::swap,
     ops::{Deref, DerefMut},
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 pub struct DoubleVec<T> {
-    bufs: (Vec<T>, Vec<T>),
-    ready: bool,
+    buffers: (Vec<T>, Vec<T>),
 }
+
 impl<T> DoubleVec<T> {
     pub fn new(capacity: usize) -> Self {
         Self {
-            bufs: (Vec::with_capacity(capacity), Vec::with_capacity(capacity)),
-            ready: false,
+            buffers: (Vec::with_capacity(capacity), Vec::with_capacity(capacity)),
         }
     }
-    pub fn split(self) -> (ReadVec<T>, WriteVec<T>) {
-        let base = Arc::new(Mutex::new(self));
-        (ReadVec { base: base.clone() }, WriteVec { base })
-    }
-    pub fn swap(&mut self) {
-        swap(&mut self.bufs.0, &mut self.bufs.1);
-    }
-}
-
-pub struct ReadVec<T> {
-    base: Arc<Mutex<DoubleVec<T>>>,
-}
-impl<T> ReadVec<T> {
-    pub async fn lock(&mut self) -> ReadVecGuard<'_, T> {
-        ReadVecGuard {
-            guard: self.base.lock().await,
-        }
+    pub fn split(self) -> (ReadVec<T>, Arc<WriteVec<T>>) {
+        let write = Arc::new(WriteVec {
+            buffer: Mutex::new(self.buffers.0),
+            ready: AtomicBool::new(false),
+        });
+        (
+            ReadVec {
+                buffer: self.buffers.1,
+                write: write.clone(),
+            },
+            write,
+        )
     }
 }
 
 pub struct WriteVec<T> {
-    base: Arc<Mutex<DoubleVec<T>>>,
+    buffer: Mutex<Vec<T>>,
+    ready: AtomicBool,
 }
+pub struct ReadVec<T> {
+    buffer: Vec<T>,
+    write: Arc<WriteVec<T>>,
+}
+
 impl<T> WriteVec<T> {
-    pub async fn lock(&mut self) -> WriteVecGuard<'_, T> {
-        WriteVecGuard {
-            guard: self.base.lock().await,
-        }
+    pub async fn lock(&self) -> MutexGuard<'_, Vec<T>> {
+        self.buffer.lock().await
+    }
+    pub fn set_ready(&self) {
+        self.ready.store(true, Ordering::Release);
     }
 }
 
-pub struct ReadVecGuard<'a, T> {
-    guard: MutexGuard<'a, DoubleVec<T>>,
-}
-impl<'a, T> ReadVecGuard<'a, T> {
-    pub fn set_ready(&mut self) {
-        self.guard.ready = true;
-    }
-}
-impl<'a, T> Deref for ReadVecGuard<'a, T> {
-    type Target = Vec<T>;
-    fn deref(&self) -> &Self::Target {
-        &self.guard.bufs.0
-    }
-}
-
-pub struct WriteVecGuard<'a, T> {
-    guard: MutexGuard<'a, DoubleVec<T>>,
-}
-impl<'a, T> WriteVecGuard<'a, T> {
+impl<T> ReadVec<T> {
     pub fn ready(&self) -> bool {
-        self.guard.ready
+        self.write.ready.load(Ordering::Acquire)
     }
-    pub fn try_swap(&mut self) -> bool {
-        if self.guard.ready {
-            self.guard.swap();
-            self.guard.ready = false;
+    pub async fn try_swap(&mut self) -> bool {
+        if self.ready() {
+            swap(self.write.lock().await.deref_mut(), &mut self.buffer);
             true
         } else {
             false
         }
     }
 }
-impl<'a, T> Deref for WriteVecGuard<'a, T> {
+impl<T> Deref for ReadVec<T> {
     type Target = Vec<T>;
-    fn deref(&self) -> &Self::Target {
-        &self.guard.bufs.1
-    }
-}
-impl<'a, T> DerefMut for WriteVecGuard<'a, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.guard.bufs.1
+    fn deref(&self) -> &Vec<T> {
+        &self.buffer
     }
 }
