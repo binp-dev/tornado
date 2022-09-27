@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, AsyncGenerator, AsyncIterator, Generic, List, Literal, Type, TypeVar, overload, Union
+from typing import Any, AsyncGenerator, AsyncIterator, Generic, List, Literal, Optional, Type, TypeVar, overload, Union
 
 from enum import Enum
 from contextlib import asynccontextmanager
@@ -66,7 +66,9 @@ class PvType(Enum):
             else:
                 raise RuntimeError("Unreachable")
         except AssertionError:
-            raise AssertionError(f"Actual PV type '{raw.raw.type}' (nelm: {raw.nelm}) does not match requested type {self}")
+            raise AssertionError(
+                f"Actual PV '{raw.name}' type '{raw.raw.type}' (nelm: {raw.nelm}) does not match requested type {self}"
+            )
 
 
 class Pv(Generic[T]):
@@ -198,8 +200,15 @@ class Context:
     async def connect(self, name: str, pv_type: Literal[PvType.ARRAY_FLOAT]) -> PvArray[NDArray[np.float64]]:
         ...
 
-    async def connect(self, name: str, pv_type: PvType) -> _PvAny:
-        raw = await with_timeout(aepics.Pv.connect(name), 1.0)
+    async def connect(self, name: str, pv_type: PvType, timeout: Optional[float] = 2.0) -> _PvAny:
+        connect_future = aepics.Pv.connect(name)
+        if timeout is not None:
+            try:
+                raw = await with_timeout(connect_future, timeout)
+            except TimeoutError as e:
+                raise TimeoutError(f"Cannot connect to PV '{name}': {e}")
+        else:
+            raw = await connect_future
 
         # Without this workaround calling `monitor()` right after `connect()` sometimes returns initial value.
         await asyncio.sleep(0.2)

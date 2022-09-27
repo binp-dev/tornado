@@ -78,6 +78,7 @@ class AsyncIoc(IocBase):
         cmd = self._cmd()
         self.stopped = False
         self.proc = await asyncio.create_subprocess_exec(*cmd, cwd=self._cwd(), env=self._env())
+        await asyncio.sleep(1.0)
         logger.debug(f"IOC started: {cmd}")
         return self
 

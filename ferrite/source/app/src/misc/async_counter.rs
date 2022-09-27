@@ -1,6 +1,5 @@
 use core::{
     future::Future,
-    ops::{Bound, RangeBounds},
     pin::Pin,
     sync::atomic::{AtomicUsize, Ordering},
     task::{Context, Poll},
@@ -23,42 +22,33 @@ impl AsyncCounter {
         self.value.fetch_add(value, Ordering::SeqCst);
         self.waker.wake();
     }
-    pub fn wait_sub<R: RangeBounds<usize>>(&self, range: R) -> WaitSubFuture<'_, R> {
-        WaitSubFuture { owner: self, range }
+    pub fn sub(&self, max_value: Option<usize>) -> usize {
+        let mut value = self.value.load(Ordering::Acquire);
+        if let Some(x) = max_value {
+            value = usize::min(value, x);
+        }
+        self.value.fetch_sub(value, Ordering::SeqCst);
+        value
+    }
+    pub fn wait(&self, min_value: usize) -> WaitFuture<'_> {
+        WaitFuture { owner: self, min_value }
     }
 }
 
-pub struct WaitSubFuture<'a, R: RangeBounds<usize>> {
+pub struct WaitFuture<'a> {
     owner: &'a AsyncCounter,
-    range: R,
+    min_value: usize,
 }
-impl<'a, R: RangeBounds<usize>> Unpin for WaitSubFuture<'a, R> {}
-impl<'a, R: RangeBounds<usize>> Future for WaitSubFuture<'a, R> {
-    type Output = usize;
+impl<'a> Unpin for WaitFuture<'a> {}
+impl<'a> Future for WaitFuture<'a> {
+    type Output = ();
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<usize> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
         self.owner.waker.register(cx.waker());
-        let start = match self.range.start_bound() {
-            Bound::Included(x) => *x,
-            Bound::Excluded(x) => {
-                assert_ne!(*x, usize::MAX);
-                *x + 1
-            }
-            Bound::Unbounded => 0,
-        };
         let value = self.owner.value.load(Ordering::Acquire);
-        if value < start {
+        if value < self.min_value {
             return Poll::Pending;
         }
-        let sub_value = match self.range.end_bound() {
-            Bound::Included(x) => usize::min(*x, value),
-            Bound::Excluded(x) => {
-                assert_ne!(*x, 0);
-                usize::min(*x - 1, value)
-            }
-            Bound::Unbounded => value,
-        };
-        self.owner.value.fetch_sub(sub_value, Ordering::SeqCst);
-        Poll::Ready(sub_value)
+        Poll::Ready(())
     }
 }
