@@ -1,6 +1,6 @@
 use crate::{
     channel::Channel,
-    config::Point,
+    config::{self, Point},
     epics,
     proto::{AppMsg, AppMsgMut, AppMsgTag},
 };
@@ -41,12 +41,11 @@ impl Dac {
             loop {
                 let epics_guard = epics_array.read_in_place().await;
                 {
-                    let mut buffer_guard = array_write_buffer.lock().await;
+                    let mut buffer_guard = array_write_buffer.write().await;
                     buffer_guard.clear();
                     buffer_guard.extend(epics_guard.iter().map(|x| *x as i32));
                     println!("[app] array_read: {:?}", epics_guard.deref());
                 }
-                array_write_buffer.set_ready();
             }
         };
 
@@ -55,36 +54,49 @@ impl Dac {
             loop {
                 let value = epics_scalar.read().await;
                 {
-                    let mut buffer_guard = write_buffer.lock().await;
+                    let mut buffer_guard = write_buffer.write().await;
                     buffer_guard.clear();
                     buffer_guard.push(value as i32);
                     println!("[app] scalar_read: {}", value);
                 }
-                write_buffer.set_ready();
             }
         };
 
         let msg_send_loop = async move {
             let mut slice = &[][..];
+            let mut total_count = 0;
             loop {
-                let requested_count = requested.wait_sub(1..=max_len).await;
-                println!("[app] requested_count: {}", requested_count);
+                join!(
+                    async {
+                        if total_count == 0 {
+                            requested.wait(1).await;
+                        }
+                        total_count += requested.sub(None);
+                    },
+                    async {
+                        if slice.is_empty() {
+                            //while read_buffer.is_empty() {
+                            read_buffer.wait_ready().await;
+                            read_buffer.try_swap().await;
+                            //}
+                            slice = read_buffer.as_slice();
+                        }
+                    },
+                );
+
+                println!("[app] total_count: {}", total_count);
                 let mut channel_guard = channel.lock().await;
+                println!("lock channel (dac)");
                 let mut msg_guard = channel_guard.init_default_msg().unwrap();
                 msg_guard.reset_tag(AppMsgTag::DacData).unwrap();
                 if let AppMsgMut::DacData(msg) = msg_guard.as_mut() {
-                    while msg.points.len() < requested_count {
-                        if slice.is_empty() {
-                            read_buffer.try_swap().await;
-                            slice = read_buffer.as_slice();
-                        }
-                        let count = msg.points.extend_from_iter(slice.iter().map(|x| I32::from_native(*x)));
-                        slice = &slice[count..];
-                    }
+                    println!("write_len: {}", msg.points.len());
+                    let count = msg.points.extend_from_iter(slice.iter().map(|x| I32::from_native(*x)));
                     println!("[app] points_send: {:?}", &msg.points);
                 } else {
                     unreachable!();
                 }
+                println!("write msg (dac)");
                 msg_guard.write().await.unwrap();
             }
         };

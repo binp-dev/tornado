@@ -80,7 +80,7 @@ class Handler(FakeDev.Handler):
         return result
 
 
-async def async_run(config: Config, handler: Handler) -> None:
+async def test(config: Config, handler: Handler) -> None:
     ctx = Context()
     aais = [await ctx.connect(f"aai{i}", PvType.ARRAY_FLOAT) for i in range(config.adc_count)]
     aao = await ctx.connect("aao0", PvType.ARRAY_FLOAT)
@@ -177,8 +177,9 @@ def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str) -> Non
     handler = Handler(config)
     device = FakeDev(ioc, config, handler)
 
+    async def async_run() -> None:
+        async with device:
+            await test(device.config, handler)
+
     with repeater:
-        asyncio.run(with_background(
-            async_run(device.config, handler),
-            device.run(),
-        ))
+        asyncio.run(async_run(), debug=True)

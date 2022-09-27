@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import ClassVar
+from typing import Any, AsyncGenerator, ClassVar, Optional
 
-import asyncio
 from dataclasses import dataclass
+import asyncio
+from asyncio import CancelledError
 
 import numpy as np
 from numpy.typing import NDArray
@@ -46,10 +47,13 @@ class FakeDev:
             return self.adc_volts_to_codes(adcs)
 
     async def _send_msg(self, msg: McuMsg.Variant) -> None:
+        print(f"[fakedev] send_msg: {msg._type.name}")
         await self.writer.write_msg(McuMsg(msg))
 
     async def _recv_msg(self) -> AppMsg:
-        return await self.reader.read_msg()
+        msg = await self.reader.read_msg()
+        print(f"[fakedev] recv_msg: {msg.variant._type.name}")
+        return msg
 
     async def _sample_chunk(self, dac: NDArray[np.int32]) -> None:
         adcs = await self.handler.transfer_codes(dac)
@@ -93,3 +97,14 @@ class FakeDev:
                     break
                 logger.debug("Fakedev started")
                 await self._loop()
+
+    async def __aenter__(self) -> FakeDev:
+        self.task = asyncio.get_running_loop().create_task(self.run())
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        self.task.cancel()
+        try:
+            await self.task
+        except CancelledError:
+            pass

@@ -5,9 +5,12 @@ use crate::{
     channel::Channel,
     config,
     epics::Epics,
-    proto::{AppMsg, McuMsg, McuMsgRef},
+    proto::{AppMsg, AppMsgTag, McuMsg, McuMsgRef},
 };
-use async_std::sync::{Arc, Mutex};
+use async_std::{
+    sync::{Arc, Mutex},
+    task::sleep,
+};
 use ferrite::channel::{MsgReader, MsgWriter};
 use flatty::prelude::*;
 use futures::{future::join_all, join};
@@ -16,28 +19,34 @@ use adc::{Adc, AdcHandle};
 use dac::{Dac, DacHandle};
 
 pub struct Device {
-    channel: MsgReader<McuMsg, Channel>,
+    reader: MsgReader<McuMsg, Channel>,
+    writer: Arc<Mutex<MsgWriter<AppMsg, Channel>>>,
     dacs: [Dac; config::DAC_COUNT],
     adcs: [Adc; config::ADC_COUNT],
 }
 
-pub struct MsgDispatcher {
+struct MsgDispatcher {
     channel: MsgReader<McuMsg, Channel>,
     dacs: [DacHandle; config::DAC_COUNT],
     adcs: [AdcHandle; config::ADC_COUNT],
 }
 
+struct Keepalive {
+    channel: Arc<Mutex<MsgWriter<AppMsg, Channel>>>,
+}
+
 impl Device {
     pub fn new(channel: Channel, epics: Epics) -> Self {
-        let recv = MsgReader::<McuMsg, _>::new(channel.clone(), config::MAX_MCU_MSG_LEN);
-        let send = Arc::new(Mutex::new(MsgWriter::<AppMsg, _>::new(channel, config::MAX_APP_MSG_LEN)));
+        let reader = MsgReader::<McuMsg, _>::new(channel.clone(), config::MAX_MCU_MSG_LEN);
+        let writer = Arc::new(Mutex::new(MsgWriter::<AppMsg, _>::new(channel, config::MAX_APP_MSG_LEN)));
         Self {
-            channel: recv,
             dacs: epics.analog_outputs.map(|epics| Dac {
-                channel: send.clone(),
+                channel: writer.clone(),
                 epics,
             }),
             adcs: epics.analog_inputs.map(|epics| Adc { epics }),
+            reader,
+            writer,
         }
     }
 
@@ -45,16 +54,17 @@ impl Device {
         let (dac_loops, dac_handles): (Vec<_>, Vec<_>) = self.dacs.into_iter().map(|dac| dac.run()).unzip();
         let (adc_loops, adc_handles): (Vec<_>, Vec<_>) = self.adcs.into_iter().map(|adc| adc.run()).unzip();
         let dispatcher = MsgDispatcher {
-            channel: self.channel,
+            channel: self.reader,
             dacs: dac_handles.try_into().ok().unwrap(),
             adcs: adc_handles.try_into().ok().unwrap(),
         };
-        join!(join_all(dac_loops), join_all(adc_loops), dispatcher.run());
+        let keepalive = Keepalive { channel: self.writer };
+        join!(join_all(dac_loops), join_all(adc_loops), dispatcher.run(), keepalive.run());
     }
 }
 
 impl MsgDispatcher {
-    pub async fn run(self) {
+    async fn run(self) {
         let mut channel = self.channel;
         let mut adcs = self.adcs;
         loop {
@@ -76,6 +86,27 @@ impl MsgDispatcher {
                     println!("Debug: {}", String::from_utf8_lossy(debug.message.as_slice()))
                 }
             }
+        }
+    }
+}
+
+impl Keepalive {
+    async fn run(self) {
+        {
+            let mut channel_guard = self.channel.lock().await;
+            let mut msg_guard = channel_guard.init_default_msg().unwrap();
+            msg_guard.reset_tag(AppMsgTag::Connect).unwrap();
+            msg_guard.write().await.unwrap();
+        }
+        loop {
+            sleep(config::KEEP_ALIVE_PERIOD).await;
+            println!("keepalive");
+            let mut channel_guard = self.channel.lock().await;
+            println!("lock channel (keepalive)");
+            let mut msg_guard = channel_guard.init_default_msg().unwrap();
+            msg_guard.reset_tag(AppMsgTag::KeepAlive).unwrap();
+            println!("write msg (keepalive)");
+            msg_guard.write().await.unwrap();
         }
     }
 }
