@@ -1,4 +1,7 @@
-use async_std::io::{self, Write, WriteExt};
+use async_std::{
+    io::{self, Write, WriteExt},
+    sync::{Arc, Mutex},
+};
 use flatty::{self, mem::MaybeUninitUnsized, prelude::*};
 use std::{
     marker::PhantomData,
@@ -8,7 +11,7 @@ use std::{
 // Writer
 
 pub struct MsgWriter<M: Portable + ?Sized, W: Write + Unpin> {
-    writer: W,
+    writer: Arc<Mutex<W>>,
     buffer: Vec<u8>,
     _phantom: PhantomData<M>,
 }
@@ -16,7 +19,7 @@ pub struct MsgWriter<M: Portable + ?Sized, W: Write + Unpin> {
 impl<M: Portable + ?Sized, W: Write + Unpin> MsgWriter<M, W> {
     pub fn new(writer: W, max_msg_size: usize) -> Self {
         Self {
-            writer,
+            writer: Arc::new(Mutex::new(writer)),
             buffer: vec![0; max_msg_size],
             _phantom: PhantomData,
         }
@@ -30,6 +33,16 @@ impl<M: Portable + ?Sized, W: Write + Unpin> MsgWriter<M, W> {
 impl<M: Portable + FlatDefault + ?Sized, W: Write + Unpin> MsgWriter<M, W> {
     pub fn init_default_msg(&mut self) -> Result<MsgWriteGuard<M, W>, flatty::Error> {
         self.new_uninit_msg().default()
+    }
+}
+
+impl<M: Portable + ?Sized, W: Write + Unpin> Clone for MsgWriter<M, W> {
+    fn clone(&self) -> Self {
+        Self {
+            writer: self.writer.clone(),
+            buffer: Vec::with_capacity(self.buffer.capacity()),
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -65,7 +78,8 @@ impl<'a, M: Portable + FlatDefault + ?Sized, W: Write + Unpin> MsgUninitWriteGua
 }
 impl<'a, M: Portable + FlatDefault + ?Sized, W: Write + Unpin> MsgWriteGuard<'a, M, W> {
     pub async fn write(self) -> Result<(), io::Error> {
-        self.owner.writer.write_all(&self.owner.buffer[..self.size()]).await
+        let mut guard = self.owner.writer.lock().await;
+        guard.write_all(&self.owner.buffer[..self.size()]).await
     }
 }
 

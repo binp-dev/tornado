@@ -8,20 +8,19 @@ use std::{
 pub struct DoubleVec<T> {
     buffers: (Vec<T>, Vec<T>),
 }
-
 impl<T> DoubleVec<T> {
     pub fn new(capacity: usize) -> Self {
         Self {
             buffers: (Vec::with_capacity(capacity), Vec::with_capacity(capacity)),
         }
     }
-    pub fn split(self) -> (ReadVec<T>, Arc<WriteVec<T>>) {
-        let write = Arc::new(WriteVec {
+    pub fn split(self) -> (Reader<T>, Arc<Writer<T>>) {
+        let write = Arc::new(Writer {
             buffer: Mutex::new(self.buffers.0),
             ready: AsyncFlag::new(false),
         });
         (
-            ReadVec {
+            Reader {
                 buffer: self.buffers.1,
                 write: write.clone(),
             },
@@ -30,23 +29,21 @@ impl<T> DoubleVec<T> {
     }
 }
 
-pub struct WriteVec<T> {
+pub struct Writer<T> {
     buffer: Mutex<Vec<T>>,
     ready: AsyncFlag,
 }
-
-pub struct ReadVec<T> {
-    buffer: Vec<T>,
-    write: Arc<WriteVec<T>>,
-}
-
-impl<T> WriteVec<T> {
+impl<T> Writer<T> {
     pub async fn write(&self) -> MutexGuard<'_, Vec<T>> {
         self.buffer.lock().await
     }
 }
 
-impl<T> ReadVec<T> {
+pub struct Reader<T> {
+    buffer: Vec<T>,
+    write: Arc<Writer<T>>,
+}
+impl<T> Reader<T> {
     pub fn ready(&self) -> bool {
         self.write.ready.get()
     }
@@ -63,7 +60,16 @@ impl<T> ReadVec<T> {
         }
     }
 }
-impl<T> Deref for ReadVec<T> {
+impl<T: Clone> Reader<T> {
+    pub fn into_stream(self) -> ReadStream<T> {
+        ReadStream {
+            buffer: self,
+            pos: 0,
+            cyclic: false,
+        }
+    }
+}
+impl<T> Deref for Reader<T> {
     type Target = Vec<T>;
     fn deref(&self) -> &Vec<T> {
         &self.buffer
@@ -88,5 +94,29 @@ impl<'a, T> Deref for WriteGuard<'a, T> {
 impl<'a, T> DerefMut for WriteGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut Vec<T> {
         self.inner.deref_mut()
+    }
+}
+
+pub struct ReadStream<T: Clone> {
+    buffer: Reader<T>,
+    pos: usize,
+    cyclic: bool,
+}
+impl<T: Clone> ReadStream<T> {
+    pub fn buffer(&self) -> &Reader<T> {
+        &self.buffer
+    }
+    pub async fn next(&mut self) -> Option<T> {
+        loop {
+            if self.pos < self.buffer.len() {
+                let value = self.buffer[self.pos].clone();
+                self.pos += 1;
+                break Some(value);
+            } else if self.buffer.try_swap().await || self.cyclic {
+                self.pos = 0;
+            } else {
+                break None;
+            }
+        }
     }
 }
