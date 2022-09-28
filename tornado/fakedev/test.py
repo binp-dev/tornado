@@ -114,6 +114,7 @@ async def test(config: Config, handler: Handler) -> None:
     async def wait_dac_req() -> None:
         async with aao_request.monitor(current=True) as mon:
             async for flag in mon:
+                print(f"[fakedev] dac request: {flag}")
                 if int(flag) != 0:
                     break
 
@@ -133,7 +134,7 @@ async def test(config: Config, handler: Handler) -> None:
             print()
 
         logger.info("Set one-shot DAC playback mode")
-        await aao_mode.put(False)
+        #await aao_mode.put(False)
 
         logger.info("Check full-size DAC waveform")
 
@@ -182,4 +183,4 @@ def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str) -> Non
             await test(device.config, handler)
 
     with repeater:
-        asyncio.run(async_run(), debug=True)
+        loop.run_until_complete(async_run())

@@ -7,10 +7,7 @@ use crate::{
     epics::Epics,
     proto::{AppMsg, AppMsgTag, McuMsg, McuMsgRef},
 };
-use async_std::{
-    sync::{Arc, Mutex},
-    task::sleep,
-};
+use async_std::task::sleep;
 use ferrite::channel::{MsgReader, MsgWriter};
 use flatty::prelude::*;
 use futures::{future::join_all, join};
@@ -20,7 +17,7 @@ use dac::{Dac, DacHandle};
 
 pub struct Device {
     reader: MsgReader<McuMsg, Channel>,
-    writer: Arc<Mutex<MsgWriter<AppMsg, Channel>>>,
+    writer: MsgWriter<AppMsg, Channel>,
     dacs: [Dac; config::DAC_COUNT],
     adcs: [Adc; config::ADC_COUNT],
 }
@@ -32,13 +29,13 @@ struct MsgDispatcher {
 }
 
 struct Keepalive {
-    channel: Arc<Mutex<MsgWriter<AppMsg, Channel>>>,
+    channel: MsgWriter<AppMsg, Channel>,
 }
 
 impl Device {
     pub fn new(channel: Channel, epics: Epics) -> Self {
         let reader = MsgReader::<McuMsg, _>::new(channel.clone(), config::MAX_MCU_MSG_LEN);
-        let writer = Arc::new(Mutex::new(MsgWriter::<AppMsg, _>::new(channel, config::MAX_APP_MSG_LEN)));
+        let writer = MsgWriter::<AppMsg, _>::new(channel, config::MAX_APP_MSG_LEN);
         Self {
             dacs: epics.analog_outputs.map(|epics| Dac {
                 channel: writer.clone(),
@@ -91,21 +88,16 @@ impl MsgDispatcher {
 }
 
 impl Keepalive {
-    async fn run(self) {
+    async fn run(mut self) {
         {
-            let mut channel_guard = self.channel.lock().await;
-            let mut msg_guard = channel_guard.init_default_msg().unwrap();
+            let mut msg_guard = self.channel.init_default_msg().unwrap();
             msg_guard.reset_tag(AppMsgTag::Connect).unwrap();
             msg_guard.write().await.unwrap();
         }
         loop {
             sleep(config::KEEP_ALIVE_PERIOD).await;
-            println!("keepalive");
-            let mut channel_guard = self.channel.lock().await;
-            println!("lock channel (keepalive)");
-            let mut msg_guard = channel_guard.init_default_msg().unwrap();
+            let mut msg_guard = self.channel.init_default_msg().unwrap();
             msg_guard.reset_tag(AppMsgTag::KeepAlive).unwrap();
-            println!("write msg (keepalive)");
             msg_guard.write().await.unwrap();
         }
     }
