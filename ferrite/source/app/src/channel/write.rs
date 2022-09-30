@@ -40,7 +40,7 @@ impl<M: Portable + ?Sized, W: Write + Unpin> Clone for MsgWriter<M, W> {
     fn clone(&self) -> Self {
         Self {
             writer: self.writer.clone(),
-            buffer: Vec::with_capacity(self.buffer.capacity()),
+            buffer: vec![0; self.buffer.len()],
             _phantom: PhantomData,
         }
     }

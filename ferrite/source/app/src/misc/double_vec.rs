@@ -34,8 +34,11 @@ pub struct Writer<T> {
     ready: AsyncFlag,
 }
 impl<T> Writer<T> {
-    pub async fn write(&self) -> MutexGuard<'_, Vec<T>> {
-        self.buffer.lock().await
+    pub async fn write(&self) -> WriteGuard<'_, T> {
+        WriteGuard {
+            inner: self.buffer.lock().await,
+            ready: &self.ready,
+        }
     }
 }
 
