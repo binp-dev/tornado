@@ -1,6 +1,6 @@
 mod proto;
 
-use async_std::{net::TcpStream, sync::Mutex};
+use async_std::net::TcpStream;
 use ferrite::{
     channel::{MsgReader, MsgWriter},
     entry_point, AnyVariable, Context, Downcast, ReadArrayVariable, ReadVariable, Registry, WriteArrayVariable, WriteVariable,
@@ -44,14 +44,14 @@ async fn async_main(mut ctx: Context) {
     let max_msg_size: usize = 259;
     let stream = TcpStream::connect("127.0.0.1:4884").await.unwrap();
     let mut reader = MsgReader::<InMsg, _>::new(stream.clone(), max_msg_size);
-    let writer = Mutex::new(MsgWriter::<OutMsg, _>::new(stream, max_msg_size));
+    let writer = MsgWriter::<OutMsg, _>::new(stream, max_msg_size);
     println!("[app]: Socket connected");
 
     join!(
         async {
             loop {
-                let msg_guard = reader.read_msg().await.unwrap();
-                match msg_guard.as_ref() {
+                let msg = reader.read_msg().await.unwrap();
+                match msg.as_ref() {
                     InMsgRef::Ai(msg) => {
                         println!("[app]: Msg.Ai");
                         ai.write(msg.value.to_native()).await;
@@ -59,20 +59,20 @@ async fn async_main(mut ctx: Context) {
                     InMsgRef::Aai(msg) => {
                         println!("[app]: Msg.Aai");
                         assert!(msg.values.len() <= aai.max_len());
-                        let mut var_guard = aai.write_in_place().await;
-                        for (src, dst) in msg.values.iter().zip(var_guard.as_uninit_slice().iter_mut()) {
+                        let mut var = aai.write_in_place().await;
+                        for (src, dst) in msg.values.iter().zip(var.as_uninit_slice().iter_mut()) {
                             dst.write(src.to_native());
                         }
-                        var_guard.set_len(msg.values.len());
+                        var.set_len(msg.values.len());
                     }
                     InMsgRef::Waveform(msg) => {
                         println!("[app]: Msg.Waveform");
                         assert!(msg.values.len() <= waveform.max_len());
-                        let mut var_guard = waveform.write_in_place().await;
-                        for (src, dst) in msg.values.iter().zip(var_guard.as_uninit_slice().iter_mut()) {
+                        let mut var = waveform.write_in_place().await;
+                        for (src, dst) in msg.values.iter().zip(var.as_uninit_slice().iter_mut()) {
                             dst.write(src.to_native());
                         }
-                        var_guard.set_len(msg.values.len());
+                        var.set_len(msg.values.len());
                     }
                     InMsgRef::Bi(msg) => {
                         println!("[app]: Msg.Bi");
@@ -86,72 +86,72 @@ async fn async_main(mut ctx: Context) {
             }
         },
         async {
+            let mut writer = writer.clone();
             loop {
                 let value = ao.read().await;
                 println!("[app]: Ioc.Ao");
-                let mut writer_guard = writer.lock().await;
-                let mut msg_guard = writer_guard.init_default_msg().unwrap();
-                msg_guard.reset_tag(OutMsgTag::Ao).unwrap();
-                if let OutMsgMut::Ao(msg) = msg_guard.as_mut() {
+                let mut msg = writer.init_default_msg().unwrap();
+                msg.reset_tag(OutMsgTag::Ao).unwrap();
+                if let OutMsgMut::Ao(msg) = msg.as_mut() {
                     *msg = proto::Ao {
                         value: le::I32::from_native(value),
                     };
                 } else {
                     unreachable!();
                 }
-                msg_guard.write().await.unwrap();
+                msg.write().await.unwrap();
             }
         },
         async {
+            let mut writer = writer.clone();
             loop {
-                let var_guard = aao.read_in_place().await;
+                let var = aao.read_in_place().await;
                 println!("[app]: Ioc.Aao");
-                let mut writer_guard = writer.lock().await;
-                let mut msg_guard = writer_guard.init_default_msg().unwrap();
-                msg_guard.reset_tag(OutMsgTag::Aao).unwrap();
-                let data = if let OutMsgMut::Aao(msg) = msg_guard.as_mut() {
+                let mut msg = writer.init_default_msg().unwrap();
+                msg.reset_tag(OutMsgTag::Aao).unwrap();
+                let data = if let OutMsgMut::Aao(msg) = msg.as_mut() {
                     &mut msg.values
                 } else {
                     unreachable!();
                 };
-                for value in var_guard.as_slice() {
+                for value in var.as_slice() {
                     data.push(le::I32::from_native(*value)).unwrap();
                 }
-                msg_guard.write().await.unwrap();
+                msg.write().await.unwrap();
             }
         },
         async {
+            let mut writer = writer.clone();
             loop {
                 let value = bo.read().await;
                 println!("[app]: Ioc.Bo");
-                let mut writer_guard = writer.lock().await;
-                let mut msg_guard = writer_guard.init_default_msg().unwrap();
-                msg_guard.reset_tag(OutMsgTag::Bo).unwrap();
-                if let OutMsgMut::Bo(msg) = msg_guard.as_mut() {
+                let mut msg = writer.init_default_msg().unwrap();
+                msg.reset_tag(OutMsgTag::Bo).unwrap();
+                if let OutMsgMut::Bo(msg) = msg.as_mut() {
                     *msg = proto::Bo {
                         value: le::U32::from_native(value),
                     };
                 } else {
                     unreachable!();
                 }
-                msg_guard.write().await.unwrap();
+                msg.write().await.unwrap();
             }
         },
         async {
+            let mut writer = writer.clone();
             loop {
                 let value = mbbo_direct.read().await;
                 println!("[app]: Ioc.MbboDirect");
-                let mut writer_guard = writer.lock().await;
-                let mut msg_guard = writer_guard.init_default_msg().unwrap();
-                msg_guard.reset_tag(OutMsgTag::MbboDirect).unwrap();
-                if let OutMsgMut::MbboDirect(msg) = msg_guard.as_mut() {
+                let mut msg = writer.init_default_msg().unwrap();
+                msg.reset_tag(OutMsgTag::MbboDirect).unwrap();
+                if let OutMsgMut::MbboDirect(msg) = msg.as_mut() {
                     *msg = proto::MbboDirect {
                         value: le::U32::from_native(value),
                     };
                 } else {
                     unreachable!();
                 }
-                msg_guard.write().await.unwrap();
+                msg.write().await.unwrap();
             }
         },
     );
