@@ -178,9 +178,5 @@ def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str) -> Non
     handler = Handler(config)
     device = FakeDev(ioc, config, handler)
 
-    async def async_run() -> None:
-        async with device:
-            await test(device.config, handler)
-
     with repeater:
-        loop.run_until_complete(async_run())
+        loop.run_until_complete(device.run_with(test(device.config, handler)))

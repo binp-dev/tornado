@@ -129,6 +129,7 @@ impl MsgSender {
                 self.request.lock().await.write(1).await;
             }
 
+            println!("[app] waiting");
             join!(self.points_to_send.wait(1), async {
                 if self.stream.buffer().is_empty() {
                     self.stream.buffer().wait_ready().await;
@@ -153,6 +154,7 @@ impl MsgSender {
             } else {
                 unreachable!();
             }
+            println!("[app] write msg");
             msg.write().await.unwrap();
         }
     }

@@ -1,13 +1,13 @@
 from __future__ import annotations
-from typing import Any, AsyncGenerator, ClassVar, Optional
+from typing import Awaitable, ClassVar
 
 from dataclasses import dataclass
 import asyncio
-from asyncio import CancelledError
 
 import numpy as np
 from numpy.typing import NDArray
 
+from ferrite.utils.asyncio.task import forever, with_background
 from ferrite.utils.asyncio.net import TcpListener, MsgWriter, MsgReader
 from ferrite.utils.epics.ioc import AsyncIoc
 
@@ -57,7 +57,14 @@ class FakeDev:
 
     async def _sample_chunk(self, dac: NDArray[np.int32]) -> None:
         adcs = await self.handler.transfer_codes(dac)
+
+        points_in_msg = (self.config.rpmsg_max_mcu_msg_len - 3) // (4 * self.config.adc_count)
+        print(f"[fakedev] points_in_msg: {points_in_msg}")
+        while len(adcs) > points_in_msg:
+            await self._send_msg(McuMsg.AdcData(adcs[:points_in_msg]))
+            adcs = adcs[points_in_msg:]
         await self._send_msg(McuMsg.AdcData(adcs))
+
         await self._send_msg(McuMsg.DacRequest(len(dac)))
 
     async def _recv_and_handle_msg(self) -> None:
@@ -88,7 +95,7 @@ class FakeDev:
                 logger.error("Keep-alive timeout reached")
                 raise
 
-    async def run(self) -> None:
+    async def run_with(self, inner: Awaitable[None]) -> None:
         async with TcpListener("127.0.0.1", 8321) as lis:
             async with self.ioc:
                 async for stream in lis:
@@ -96,15 +103,7 @@ class FakeDev:
                     self.reader = MsgReader(AppMsg, stream.reader, self.config.rpmsg_max_app_msg_len)
                     break
                 logger.debug("Fakedev started")
-                await self._loop()
+                await with_background(inner, self._loop())
 
-    async def __aenter__(self) -> FakeDev:
-        self.task = asyncio.get_running_loop().create_task(self.run())
-        return self
-
-    async def __aexit__(self, *args: Any) -> None:
-        self.task.cancel()
-        try:
-            await self.task
-        except CancelledError:
-            pass
+    async def run(self) -> None:
+        await self.run_with(forever())
