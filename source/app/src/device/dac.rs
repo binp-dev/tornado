@@ -47,9 +47,8 @@ impl Dac {
 
         let msg_sender = MsgSender {
             channel: self.channel,
-            stream: read_buffer.into_stream(),
+            stream: BufferReadStream::new(read_buffer, request),
             points_to_send: point_counter,
-            request,
         };
 
         (
@@ -116,29 +115,23 @@ impl ScalarReader {
 
 struct MsgSender {
     channel: MsgWriter<AppMsg, Channel>,
-    stream: double_vec::ReadStream<i32>,
+    stream: BufferReadStream<i32>,
     points_to_send: Arc<AsyncCounter>,
-    request: Arc<Mutex<WriteVariable<u32>>>,
 }
 
 impl MsgSender {
     async fn run(mut self) {
         loop {
-            if !self.stream.buffer().ready() {
-                println!("[app] dac request");
-                self.request.lock().await.write(1).await;
-            }
-
             println!("[app] waiting");
             join!(self.points_to_send.wait(1), async {
-                if self.stream.buffer().is_empty() {
-                    self.stream.buffer().wait_ready().await;
+                if self.stream.buffer.is_empty() {
+                    self.stream.buffer.wait_ready().await;
                 }
             });
 
             let mut msg = self.channel.init_default_msg().unwrap();
             msg.reset_tag(AppMsgTag::DacData).unwrap();
-            if let AppMsgMut::DacData(msg) = msg.as_mut() {
+            let will_send = if let AppMsgMut::DacData(msg) = msg.as_mut() {
                 let mut count = self.points_to_send.sub(None);
                 while count > 0 && !msg.points.is_full() {
                     match self.stream.next().await {
@@ -151,11 +144,52 @@ impl MsgSender {
                 }
                 println!("[app] points_send: {}", msg.points.len());
                 self.points_to_send.add(count);
+                !msg.points.is_empty()
             } else {
                 unreachable!();
-            }
+            };
             println!("[app] write msg");
-            msg.write().await.unwrap();
+            if will_send {
+                msg.write().await.unwrap();
+            }
+        }
+    }
+}
+
+struct BufferReadStream<T: Clone> {
+    buffer: double_vec::Reader<T>,
+    pos: usize,
+    cyclic: bool,
+    request: Arc<Mutex<WriteVariable<u32>>>,
+}
+impl<T: Clone> BufferReadStream<T> {
+    fn new(buffer: double_vec::Reader<T>, request: Arc<Mutex<WriteVariable<u32>>>) -> Self {
+        BufferReadStream {
+            buffer,
+            pos: 0,
+            cyclic: false,
+            request,
+        }
+    }
+    async fn try_swap(&mut self) -> bool {
+        if self.buffer.try_swap().await {
+            self.request.lock().await.write(1).await;
+            true
+        } else {
+            false
+        }
+    }
+    async fn next(&mut self) -> Option<T> {
+        loop {
+            if self.pos < self.buffer.len() {
+                let value = self.buffer[self.pos].clone();
+                self.pos += 1;
+                break Some(value);
+            } else if self.try_swap().await || self.cyclic {
+                self.pos = 0;
+            } else {
+                break None;
+            }
         }
     }
 }
