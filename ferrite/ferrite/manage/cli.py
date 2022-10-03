@@ -167,11 +167,11 @@ def _prepare_for_run(params: RunParams) -> None:
     colorama_init()
 
 
-def setup_logging(params: RunParams, modules: List[str] = ["ferrite"]) -> None:
+def setup_logging(params: RunParams, modules: List[str] = ["ferrite"], level: int = logging.DEBUG) -> None:
     logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.WARNING, force=True)
     if not params.context.capture:
         for mod in modules:
-            logging.getLogger(mod).setLevel(logging.DEBUG)
+            logging.getLogger(mod).setLevel(level)
 
 
 def run_with_params(params: RunParams) -> None:

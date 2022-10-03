@@ -1,214 +1,252 @@
 from __future__ import annotations
-from typing import Any, TypeVar
+from typing import Optional
 
 import os
 from pathlib import Path
+from dataclasses import dataclass
+from random import Random
 import asyncio
 
 import numpy as np
-from numpy.typing import NDArray, DTypeLike
+from numpy.typing import NDArray
 
+from ferrite.utils.asyncio.task import with_background
 from ferrite.utils.asyncio.net import TcpListener, MsgWriter, MsgReader
-from ferrite.utils.epics.pv import Context, Pv, PvType
+from ferrite.utils.epics.pv import Context as Ca, PvType
 from ferrite.utils.epics.ioc import AsyncIoc
 import ferrite.utils.epics.ca as ca
 
+import example.protocol as proto
 from example.protocol import InMsg, OutMsg
+from example.backend.test import WriteTestCase, ReadTestCase, dispatch, assert_eq, assert_array_eq
 
 import logging
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar("T")
+
+def rand_i32(rng: Random) -> int:
+    return rng.randrange(-(2**31), (2**31) - 1)
 
 
-def assert_eq(a: T, b: T) -> None:
-    assert a == b, f"{a} != {b}"
+@dataclass
+class AiTest(WriteTestCase[proto.Ai]):
+    seed: int
+    attempts: int
+
+    async def run(self) -> None:
+        record = await self.ca.connect("ai", PvType.FLOAT)
+
+        async def test(x: int) -> None:
+            assert int(await record.get()) != x
+
+            async with record.monitor() as mon:
+                await self.write_msg(InMsg.Ai(x))
+                logger.debug(f"Msg sent: {x}")
+
+                async for y in mon:
+                    logger.debug(f"Pv get: {y}")
+                    assert_eq(x, int(y))
+                    break
+
+        rng = Random(self.seed)
+        for _ in range(self.attempts):
+            await test(rand_i32(rng))
 
 
-def assert_array_eq(a: NDArray[Any], b: NDArray[Any]) -> None:
-    assert (a == b).all(), f"Arrays differ:\n{a}\n{b}"
+@dataclass
+class AoTest(ReadTestCase[proto.Ao]):
+    seed: int
+    attempts: int
+
+    def _take_msg(self, msg: OutMsg) -> Optional[proto.Ao]:
+        if isinstance(msg.variant, OutMsg.Ao):
+            return msg.variant
+        else:
+            return None
+
+    async def run(self) -> None:
+        record = await self.ca.connect("ao", PvType.FLOAT)
+
+        async def test(x: int) -> None:
+            await record.put(float(x))
+            logger.debug(f"Pv put: {x}")
+
+            msg = await self.read_msg()
+            y = msg.value
+            logger.debug(f"Msg received: {y}")
+
+            assert_eq(x, y)
+
+        rng = Random(self.seed)
+        for _ in range(self.attempts):
+            await test(rand_i32(rng))
 
 
-async def _ai_test(ctx: Context, channel: MsgWriter[InMsg]) -> None:
-    logger.info("Test Ai")
-    record = await ctx.connect("ai", PvType.FLOAT)
+class BiTest(WriteTestCase[proto.Bi]):
 
-    async def test(x: int) -> None:
-        assert int(await record.get()) != x
+    async def run(self) -> None:
+        record = await self.ca.connect("bi", PvType.INT)
 
-        async with record.monitor() as mon:
-            await channel.write_msg(InMsg(InMsg.Ai(x)))
-            logger.debug(f"Msg sent: {x}")
+        async def test(x: bool) -> None:
+            assert int(await record.get()) != x
 
-            async for y in mon:
-                logger.debug(f"Pv get: {y}")
-                assert_eq(x, int(y))
-                break
+            async with record.monitor() as mon:
+                await self.write_msg(InMsg.Bi(int(x)))
+                logger.debug(f"Msg sent: {int(x)}")
 
-    await test(0x789abcde)
+                async for y in mon:
+                    logger.debug(f"Pv get: {y}")
+                    assert_eq(int(x), y)
+                    break
 
-
-async def _ao_test(ctx: Context, channel: MsgReader[OutMsg]) -> None:
-    logger.info("Test Ao")
-    record = await ctx.connect("ao", PvType.FLOAT)
-
-    async def test(x: int) -> None:
-        await record.put(float(x))
-        logger.debug(f"Pv put: {x}")
-
-        msg = (await channel.read_msg()).variant
-        assert isinstance(msg, OutMsg.Ao)
-        y = msg.value
-        logger.debug(f"Msg received: {y}")
-
-        assert_eq(x, y)
-
-    await test(0x12345678)
+        await test(True)
+        await test(False)
 
 
-async def _bi_test(ctx: Context, channel: MsgWriter[InMsg]) -> None:
-    logger.info("Test Bi")
-    record = await ctx.connect("bi", PvType.INT)
+class BoTest(ReadTestCase[proto.Bo]):
 
-    async def test(x: bool) -> None:
-        assert int(await record.get()) != x
+    def _take_msg(self, msg: OutMsg) -> Optional[proto.Bo]:
+        if isinstance(msg.variant, OutMsg.Bo):
+            return msg.variant
+        else:
+            return None
 
-        async with record.monitor() as mon:
-            await channel.write_msg(InMsg(InMsg.Bi(int(x))))
-            logger.debug(f"Msg sent: {int(x)}")
+    async def run(self) -> None:
+        record = await self.ca.connect("bo", PvType.INT)
 
-            async for y in mon:
-                logger.debug(f"Pv get: {y}")
-                assert_eq(int(x), y)
-                break
+        async def test(x: bool) -> None:
+            await record.put(int(x))
+            logger.debug(f"Pv put: {int(x)}")
 
-    await test(True)
-    await test(False)
+            msg = await self.read_msg()
+            y = msg.value
+            logger.debug(f"Msg received: {y}")
 
+            assert_eq(int(x), y)
 
-async def _bo_test(ctx: Context, channel: MsgReader[OutMsg]) -> None:
-    logger.info("Test Bo")
-    record = await ctx.connect("bo", PvType.INT)
-
-    async def test(x: bool) -> None:
-        await record.put(int(x))
-        logger.debug(f"Pv put: {int(x)}")
-
-        msg = (await channel.read_msg()).variant
-        assert isinstance(msg, OutMsg.Bo)
-        y = msg.value
-        logger.debug(f"Msg received: {y}")
-
-        assert_eq(int(x), y)
-
-    await test(True)
-    await test(False)
+        await test(True)
+        await test(False)
 
 
-async def _aai_test(ctx: Context, channel: MsgWriter[InMsg]) -> None:
-    logger.info("Test Aai")
-    record = await ctx.connect("aai", PvType.ARRAY_INT)
+class AaiTest(WriteTestCase[proto.Ai]):
 
-    async def test(ax: NDArray[np.int32]) -> None:
-        async with record.monitor() as mon:
-            await channel.write_msg(InMsg(InMsg.Aai(ax)))
-            logger.debug(f"Msg sent:\n{ax}")
+    async def run(self) -> None:
+        record = await self.ca.connect("aai", PvType.ARRAY_INT)
 
-            async for ay in mon:
-                logger.debug(f"Pv get:\n{ay}")
-                assert_array_eq(ax, ay)
-                break
+        async def test(ax: NDArray[np.int32]) -> None:
+            async with record.monitor() as mon:
+                await self.write_msg(InMsg.Aai(ax))
+                logger.debug(f"Msg sent:\n{ax}")
 
-    await test(np.arange(record.nelm, 0, -1, dtype=np.int32) * 0x1234)
+                async for ay in mon:
+                    logger.debug(f"Pv get:\n{ay}")
+                    assert_array_eq(ax, ay)
+                    break
 
-
-async def _aao_test(ctx: Context, channel: MsgReader[OutMsg]) -> None:
-    logger.info("Test Aao")
-    record = await ctx.connect("aao", PvType.ARRAY_INT)
-
-    async def test(ax: NDArray[np.int32]) -> None:
-        await record.put(ax)
-        logger.debug(f"Pv put:\n{ax}")
-
-        msg = (await channel.read_msg()).variant
-        assert isinstance(msg, OutMsg.Aao)
-        ay = msg.values
-        logger.debug(f"Msg received:\n{ay}")
-
-        assert_array_eq(ax, ay)
-
-    await test(np.arange(record.nelm, dtype=np.int32) * 0x4321)
+        await test(np.arange(record.nelm, 0, -1, dtype=np.int32) * 0x1234)
 
 
-async def _waveform_test(ctx: Context, channel: MsgWriter[InMsg]) -> None:
-    logger.info("Test Waveform")
-    record = await ctx.connect("waveform", PvType.ARRAY_INT)
+class AaoTest(ReadTestCase[proto.Aao]):
 
-    async def test(ax: NDArray[np.int32]) -> None:
-        async with record.monitor() as mon:
-            await channel.write_msg(InMsg(InMsg.Waveform(ax)))
-            logger.debug(f"Msg sent:\n{ax}")
+    def _take_msg(self, msg: OutMsg) -> Optional[proto.Aao]:
+        if isinstance(msg.variant, OutMsg.Aao):
+            return msg.variant
+        else:
+            return None
 
-            async for ay in mon:
-                logger.debug(f"Pv get:\n{ay}")
-                assert_array_eq(ax, ay)
-                break
+    async def run(self) -> None:
+        record = await self.ca.connect("aao", PvType.ARRAY_INT)
 
-    await test(np.arange(record.nelm, dtype=np.int32) * -0x1234)
+        async def test(ax: NDArray[np.int32]) -> None:
+            await record.put(ax)
+            logger.debug(f"Pv put:\n{ax}")
+
+            msg = await self.read_msg()
+            ay = msg.values
+            logger.debug(f"Msg received:\n{ay}")
+
+            assert_array_eq(ax, ay)
+
+        await test(np.arange(record.nelm, dtype=np.int32) * 0x4321)
 
 
-async def _mbbi_direct_test(ctx: Context, channel: MsgWriter[InMsg]) -> None:
-    logger.info("Test MbbiDirect")
+class WaveformTest(WriteTestCase[proto.Waveform]):
 
-    nbits = 16
-    records = list(await asyncio.gather(*[ctx.connect(f"mbbiDirect.B{i:X}", PvType.INT) for i in range(nbits)]))
+    async def run(self) -> None:
+        record = await self.ca.connect("waveform", PvType.ARRAY_INT)
 
-    async def test(x: int, i: int, b: bool) -> int:
-        x = x | (1 << i) if b else x & ~(1 << i)
+        async def test(ax: NDArray[np.int32]) -> None:
+            async with record.monitor() as mon:
+                await self.write_msg(InMsg.Waveform(ax))
+                logger.debug(f"Msg sent:\n{ax}")
 
-        async with records[i].monitor() as mon:
-            await channel.write_msg(InMsg(InMsg.MbbiDirect(x)))
-            logger.debug(f"Msg sent: {x}")
+                async for ay in mon:
+                    logger.debug(f"Pv get:\n{ay}")
+                    assert_array_eq(ax, ay)
+                    break
 
-            async for y in mon:
-                logger.debug(f"Pv[{i}] get: {y}")
-                assert_eq(int(b), y)
-                break
+        await test(np.arange(record.nelm, dtype=np.int32) * -0x1234)
+
+
+class MbbiDirectTest(WriteTestCase[proto.Bi]):
+
+    async def run(self) -> None:
+
+        nbits = 16
+        records = list(await asyncio.gather(*[self.ca.connect(f"mbbiDirect.B{i:X}", PvType.INT) for i in range(nbits)]))
+
+        async def test(x: int, i: int, b: bool) -> int:
+            x = x | (1 << i) if b else x & ~(1 << i)
+
+            async with records[i].monitor() as mon:
+                await self.write_msg(InMsg.MbbiDirect(x))
+                logger.debug(f"Msg sent: {x}")
+
+                async for y in mon:
+                    logger.debug(f"Pv[{i}] get: {y}")
+                    assert_eq(int(b), y)
+                    break
+
+                return x
+
+        x = 0
+        for i in range(nbits):
+            x = await test(x, i, True)
+        for i in range(nbits):
+            x = await test(x, i, False)
+
+
+class MbboDirectTest(ReadTestCase[proto.Bo]):
+
+    def _take_msg(self, msg: OutMsg) -> Optional[proto.MbboDirect]:
+        if isinstance(msg.variant, OutMsg.MbboDirect):
+            return msg.variant
+        else:
+            return None
+
+    async def run(self) -> None:
+
+        nbits = 16
+        records = list(await asyncio.gather(*[self.ca.connect(f"mbboDirect.B{i:X}", PvType.INT) for i in range(nbits)]))
+
+        async def test(x: int, i: int, b: bool) -> int:
+            await records[i].put(int(b))
+            logger.debug(f"Pv[{i}] put: {int(b)}")
+            x = x | (1 << i) if b else x & ~(1 << i)
+
+            msg = await self.read_msg()
+            y = msg.value
+            logger.debug(f"Msg received: {y}")
+            assert_eq(x, y)
 
             return x
 
-    x = 0
-    for i in range(nbits):
-        x = await test(x, i, True)
-    for i in range(nbits):
-        x = await test(x, i, False)
-
-
-async def _mbbo_direct_test(ctx: Context, channel: MsgReader[OutMsg]) -> None:
-    logger.info("Test MbboDirect")
-
-    nbits = 16
-    records = list(await asyncio.gather(*[ctx.connect(f"mbboDirect.B{i:X}", PvType.INT) for i in range(nbits)]))
-
-    async def test(x: int, i: int, b: bool) -> int:
-        await records[i].put(int(b))
-        logger.debug(f"Pv[{i}] put: {int(b)}")
-        x = x | (1 << i) if b else x & ~(1 << i)
-
-        msg = (await channel.read_msg()).variant
-        assert isinstance(msg, OutMsg.MbboDirect)
-        y = msg.value
-        logger.debug(f"Msg received: {y}")
-        assert_eq(x, y)
-
-        return x
-
-    x = 0
-    for i in range(nbits):
-        x = await test(x, i, True)
-    for i in range(nbits):
-        x = await test(x, i, False)
+        x = 0
+        for i in range(nbits):
+            x = await test(x, i, True)
+        for i in range(nbits):
+            x = await test(x, i, False)
 
 
 async def _async_test(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
@@ -221,16 +259,28 @@ async def _async_test(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
             reader = MsgReader(OutMsg, stream.reader, 260)
             logger.info("Socket connected")
 
-            ctx = Context()
-            await _ai_test(ctx, writer),
-            await _ao_test(ctx, reader),
-            await _bi_test(ctx, writer),
-            await _bo_test(ctx, reader),
-            await _aai_test(ctx, writer),
-            await _aao_test(ctx, reader),
-            await _waveform_test(ctx, writer),
-            await _mbbi_direct_test(ctx, writer),
-            await _mbbo_direct_test(ctx, reader),
+            ca = Ca()
+
+            seed = 0xdeadbeef
+            attempts = 16
+
+            tests = [
+                AiTest(ca, writer, seed, attempts),
+                AoTest(ca, seed, attempts),
+                BiTest(ca, writer),
+                BoTest(ca),
+                AaiTest(ca, writer),
+                AaoTest(ca),
+                WaveformTest(ca, writer),
+                MbbiDirectTest(ca, writer),
+                MbboDirectTest(ca),
+            ]
+
+            async def dispatcher() -> None:
+                while True:
+                    dispatch(tests, await reader.read_msg())
+
+            await with_background(asyncio.gather(*[test.run() for test in tests]), dispatcher())
 
             ioc.stop()
 

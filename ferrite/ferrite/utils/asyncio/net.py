@@ -3,7 +3,7 @@ from typing import Any, Type, TypeVar, Generic
 
 from dataclasses import dataclass
 import asyncio
-from asyncio import StreamReader, StreamWriter
+from asyncio import CancelledError, StreamReader, StreamWriter
 
 from ferrite.protogen.base import UnexpectedEof, Value
 
@@ -68,7 +68,11 @@ class MsgReader(Generic[M]):
                 #print(f"- Msg size: {msg.size()}")
                 self.buffer = self.buffer[msg.size():]
                 return msg
-            except UnexpectedEof:
+            except UnexpectedEof as e:
+                exc = e
                 pass
 
-            self.buffer += await self.reader.read(self.chunk_size)
+            chunk = await self.reader.read(self.chunk_size)
+            if len(chunk) == 0:
+                raise exc
+            self.buffer += chunk

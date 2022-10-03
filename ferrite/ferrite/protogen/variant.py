@@ -54,6 +54,9 @@ class Variant(Type):
         for f in self.variants:
             setattr(self, f.name.camel(), f.type)
 
+        # Workaround for type hints
+        self.Variant = Any
+
     def load(self, data: bytes) -> VariantValue:
         if len(data) < self.min_size:
             raise UnexpectedEof(self, data)
