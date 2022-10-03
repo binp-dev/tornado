@@ -7,9 +7,7 @@ use std::{
     task::Waker,
 };
 
-pub use super::import::{
-    FerVarDir as Dir, FerVarKind as Kind, FerVarScalarType as ScalarType, FerVarType as Type,
-};
+pub use super::import::{FerVarDir as Dir, FerVarKind as Kind, FerVarScalarType as ScalarType, FerVarType as Type};
 
 pub(crate) struct VariableUnprotected {
     ptr: *mut FerVar,
@@ -27,6 +25,7 @@ impl VariableUnprotected {
     }
 
     pub unsafe fn request_proc(&mut self) {
+        //println!("[{}] request_proc", String::from_utf8_lossy(self.name().to_bytes()));
         let ps = self.proc_state_mut();
         if !ps.requested {
             ps.requested = true;
@@ -34,6 +33,7 @@ impl VariableUnprotected {
         }
     }
     pub unsafe fn start_proc(&mut self) {
+        //println!("[{}] start_proc", String::from_utf8_lossy(self.name().to_bytes()));
         let ps = self.proc_state_mut();
         if !ps.processing {
             ps.processing = true;
@@ -43,7 +43,9 @@ impl VariableUnprotected {
         }
     }
     pub unsafe fn complete_proc(&mut self) {
+        //println!("[{}] complete_proc", String::from_utf8_lossy(self.name().to_bytes()));
         let ps = self.proc_state_mut();
+        assert!(ps.processing);
         ps.requested = false;
         ps.processing = false;
         fer_var_proc_done(self.ptr);
@@ -177,7 +179,7 @@ pub(crate) struct ProcState {
 
 impl ProcState {
     pub fn set_waker(&self, waker: &Waker) {
-        self.waker.replace(Some(waker.clone()));
+        assert!(self.waker.replace(Some(waker.clone())).is_none());
     }
     pub fn clean_waker(&self) {
         self.waker.take();

@@ -35,8 +35,7 @@ impl<T: Copy> WriteArrayVariable<T> {
         assert!(src.len() <= self.max_len);
         let mut guard = self.write_in_place().await;
         let dst_uninit = guard.as_uninit_slice();
-        let src_uninit =
-            unsafe { slice::from_raw_parts(src.as_ptr() as *const MaybeUninit<T>, src.len()) };
+        let src_uninit = unsafe { slice::from_raw_parts(src.as_ptr() as *const MaybeUninit<T>, src.len()) };
         dst_uninit[..src.len()].copy_from_slice(src_uninit);
         guard.set_len(src.len());
     }
@@ -56,8 +55,10 @@ impl<'a, T: Copy> Future for WriteInPlaceFuture<'a, T> {
         let mut guard = owner.raw.lock_mut();
         let ps = guard.proc_state();
         if !ps.processing {
-            ps.set_waker(cx.waker());
-            unsafe { guard.request_proc() };
+            if !ps.requested {
+                ps.set_waker(cx.waker());
+                unsafe { guard.request_proc() };
+            }
             drop(guard);
             self.owner.replace(owner);
             return Poll::Pending;
@@ -89,10 +90,7 @@ impl<'a, T: Copy> WriteArrayGuard<'a, T> {
         let max_len = self.owner.max_len;
         unsafe {
             let raw_unprotected = self.owner.raw.get_unprotected();
-            std::slice::from_raw_parts_mut(
-                raw_unprotected.data_ptr() as *mut MaybeUninit<T>,
-                max_len,
-            )
+            std::slice::from_raw_parts_mut(raw_unprotected.data_ptr() as *mut MaybeUninit<T>, max_len)
         }
     }
 

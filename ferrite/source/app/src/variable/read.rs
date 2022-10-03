@@ -43,8 +43,10 @@ impl<'a, T: Copy> Future for ReadFuture<'a, T> {
         let mut guard = self.owner.raw.lock_mut();
         let ps = guard.proc_state();
         if !ps.processing {
-            ps.set_waker(cx.waker());
-            unsafe { guard.request_proc() };
+            if !ps.requested {
+                ps.set_waker(cx.waker());
+                unsafe { guard.request_proc() };
+            }
             return Poll::Pending;
         }
         let val = unsafe { *(guard.data_ptr() as *const T) };

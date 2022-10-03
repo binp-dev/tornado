@@ -46,8 +46,10 @@ impl<'a, T: Copy> Future for WriteFuture<'a, T> {
         let mut guard = self.owner.raw.lock_mut();
         let ps = guard.proc_state();
         if !ps.processing {
-            ps.set_waker(cx.waker());
-            unsafe { guard.request_proc() };
+            if !ps.requested {
+                ps.set_waker(cx.waker());
+                unsafe { guard.request_proc() };
+            }
             return Poll::Pending;
         }
         unsafe { *(guard.data_mut_ptr() as *mut T) = val };

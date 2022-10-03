@@ -56,8 +56,10 @@ impl<'a, T: Copy> Future for ReadInPlaceFuture<'a, T> {
         let mut guard = owner.raw.lock_mut();
         let ps = guard.proc_state();
         if !ps.processing {
-            ps.set_waker(cx.waker());
-            unsafe { guard.request_proc() };
+            if !ps.requested {
+                ps.set_waker(cx.waker());
+                unsafe { guard.request_proc() };
+            }
             drop(guard);
             self.owner.replace(owner);
             return Poll::Pending;
@@ -88,10 +90,7 @@ impl<'a, T: Copy> ReadArrayGuard<'a, T> {
     pub fn as_slice(&self) -> &[T] {
         unsafe {
             let raw_unprotected = self.owner.raw.get_unprotected();
-            std::slice::from_raw_parts(
-                raw_unprotected.data_ptr() as *const T,
-                raw_unprotected.array_len(),
-            )
+            std::slice::from_raw_parts(raw_unprotected.data_ptr() as *const T, raw_unprotected.array_len())
         }
     }
 }
