@@ -11,6 +11,10 @@ from ferrite.utils.epics.pv import Context as Ca
 
 from example.protocol import InMsg, OutMsg
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 T = TypeVar("T")
 
 
@@ -31,6 +35,15 @@ class TestCase:
 
     async def run(self) -> None:
         raise NotImplementedError()
+
+    async def run_with_log(self) -> None:
+        try:
+            await self.run()
+        except RuntimeError:
+            logger.info(f"FAILED '{self.name}'")
+            raise
+        else:
+            logger.info(f"Ok '{self.name}'")
 
 
 W = TypeVar("W", bound=InMsg.Variant)

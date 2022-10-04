@@ -7,6 +7,7 @@ from pathlib import Path
 from colorama import init as colorama_init, Fore, Style
 
 from ferrite.components.base import Context, Task, Component
+from ferrite.utils.log import LogLevel
 from ferrite.runner import Runner
 from ferrite.remote.ssh import SshDevice
 
@@ -88,11 +89,6 @@ def add_parser_args(parser: argparse.ArgumentParser, comp: Component) -> None:
         ])
     )
     parser.add_argument(
-        "--no-capture",
-        action="store_true",
-        help="Display task stdout.",
-    )
-    parser.add_argument(
         "--update",
         action="store_true",
         help="Update external dependencies.",
@@ -111,10 +107,24 @@ def add_parser_args(parser: argparse.ArgumentParser, comp: Component) -> None:
         help="Number of parallel process to build. By default automatically determined value is used.",
     )
     parser.add_argument(
-        "-v",
-        "--verbose",
+        "--log-level",
+        type=int,
+        choices=[int(v) for v in LogLevel],
+        default=None,
+        help="\n".join([
+            "Set log level.",
+            "  0 - Trace",
+            "  1 - Debug",
+            "  2 - Info",
+            "  3 - Warning (since this level task output is captured and displayed only in case of error)",
+            "  4 - Error",
+            "Default value is 3 (warning).",
+        ]),
+    )
+    parser.add_argument(
+        "--no-capture",
         action="store_true",
-        help="Whether debug messages should be displayed. Works only with `--no-capture`.",
+        help="[DEPRECATED] The same as `--verbosilty=2`.",
     )
 
 
@@ -127,7 +137,6 @@ class RunParams:
     task: Task
     context: Context
     no_deps: bool
-    verbose: bool
 
 
 def _find_task_by_args(comp: Component, args: argparse.Namespace) -> Task:
@@ -148,10 +157,15 @@ def _make_context_from_args(args: argparse.Namespace) -> Context:
     else:
         device = None
 
+    if args.log_level is not None:
+        log_level = LogLevel(args.log_level)
+    else:
+        log_level = LogLevel.INFO if args.no_capture else LogLevel.WARNING
+
     return Context(
         target_dir,
         device=device,
-        capture=not args.no_capture,
+        log_level=log_level,
         update=args.update,
         hide_artifacts=args.hide_artifacts,
         jobs=args.jobs,
@@ -167,7 +181,7 @@ def read_run_params(args: argparse.Namespace, comp: Component) -> RunParams:
 
     context = _make_context_from_args(args)
 
-    return RunParams(task, context, no_deps=args.no_deps, verbose=args.verbose)
+    return RunParams(task, context, no_deps=args.no_deps)
 
 
 def _prepare_for_run(params: RunParams) -> None:
@@ -177,7 +191,7 @@ def _prepare_for_run(params: RunParams) -> None:
 def setup_logging(params: RunParams, modules: List[str] = ["ferrite"]) -> None:
     logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.WARNING, force=True)
     if not params.context.capture:
-        level = logging.INFO if not params.verbose else logging.DEBUG
+        level = params.context.log_level.level()
         for mod in modules:
             logging.getLogger(mod).setLevel(level)
 

@@ -14,25 +14,34 @@ logger = logging.getLogger(__name__)
 
 class IocBase:
 
-    def __init__(self, epics_base_dir: Path, ioc_dir: Path, arch: str, debug: bool = False):
+    def __init__(
+        self,
+        epics_base_dir: Path,
+        ioc_dir: Path,
+        arch: str,
+        env: Dict[str, str] = {},
+        debug: bool = False,
+    ):
         self.binary = ioc_dir / "bin" / arch / "Fer"
         self.script = ioc_dir / "iocBoot/iocFer/st.cmd"
         self.lib_dirs = [epics_base_dir / "lib" / arch, ioc_dir / "lib" / arch]
+        self._env = env
         self.debug = debug
 
-    def _cmd(self) -> List[str]:
+    def cmd(self) -> List[str]:
         return [
             *(["gdb", "-batch", "-ex", "run", "-ex", "bt", "-args"] if self.debug else []),
             str(self.binary),
             self.script.name,
         ]
 
-    def _cwd(self) -> Path:
+    def cwd(self) -> Path:
         return self.script.parent
 
-    def _env(self) -> Dict[str, str]:
+    def env(self) -> Dict[str, str]:
         return {
             **dict(os.environ),
+            **self._env,
             "LD_LIBRARY_PATH": ":".join([str(p) for p in self.lib_dirs]),
         }
 
@@ -47,8 +56,8 @@ class Ioc(IocBase):
         self.stop()
 
     def start(self) -> None:
-        cmd = self._cmd()
-        self.proc: Optional[Popen[str] | None] = Popen(cmd, cwd=self._cwd(), env=self._env(), text=True)
+        cmd = self.cmd()
+        self.proc: Optional[Popen[str] | None] = Popen(cmd, cwd=self.cwd(), env=self.env(), text=True)
         logger.debug(f"IOC started: {cmd}")
 
     def stop(self) -> None:
@@ -75,9 +84,9 @@ class Ioc(IocBase):
 class AsyncIoc(IocBase):
 
     async def __aenter__(self) -> AsyncIoc:
-        cmd = self._cmd()
+        cmd = self.cmd()
         self.stopped = False
-        self.proc = await asyncio.create_subprocess_exec(*cmd, cwd=self._cwd(), env=self._env())
+        self.proc = await asyncio.create_subprocess_exec(*cmd, cwd=self.cwd(), env=self.env())
         await asyncio.sleep(1.0)
         logger.debug(f"IOC started: {cmd}")
         return self

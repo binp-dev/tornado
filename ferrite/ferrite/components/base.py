@@ -5,6 +5,7 @@ from pathlib import Path
 from dataclasses import dataclass
 
 from ferrite.utils.path import TargetPath
+from ferrite.utils.log import LogLevel
 from ferrite.remote.base import Device
 
 
@@ -12,10 +13,14 @@ from ferrite.remote.base import Device
 class Context:
     target_path: Path
     device: Optional[Device] = None
-    capture: bool = False
+    log_level: LogLevel = LogLevel.WARNING
     update: bool = False
     hide_artifacts: bool = False
     jobs: Optional[int] = None
+
+    @property
+    def capture(self) -> bool:
+        return self.log_level > LogLevel.INFO
 
 
 @dataclass

@@ -96,6 +96,9 @@ class Cargo(Component):
         self.build_task = _CargoBuildTask(self)
         self.test_task = _CargoTestTask(self)
 
+    def log_env(self, ctx: Context) -> Dict[str, str]:
+        return {"RUST_LOG": ctx.log_level.name()}
+
     def env(self, ctx: Context) -> Dict[str, str]:
         return {
             **self.rustc.env(ctx),

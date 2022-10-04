@@ -20,6 +20,7 @@ class TestBackend(Component):
             ctx.target_path / self.frontend.epics_base.install_dir,
             ctx.target_path / self.frontend.install_dir,
             self.frontend.arch,
+            env={**self.frontend.app.log_env(ctx)},
         )
 
 

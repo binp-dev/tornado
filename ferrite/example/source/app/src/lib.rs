@@ -27,7 +27,10 @@ where
 }
 
 async fn async_main(mut ctx: Context) {
-    println!("[app]: IOC started");
+    use env_logger::Env;
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
+    log::info!("IOC started");
 
     let mut ai: WriteVariable<i32> = take_from_registry(&mut ctx.registry, "ai").unwrap();
     let mut ao: ReadVariable<i32> = take_from_registry(&mut ctx.registry, "ao").unwrap();
@@ -45,7 +48,7 @@ async fn async_main(mut ctx: Context) {
     let stream = TcpStream::connect("127.0.0.1:4884").await.unwrap();
     let mut reader = MsgReader::<InMsg, _>::new(stream.clone(), max_msg_size);
     let writer = MsgWriter::<OutMsg, _>::new(stream, max_msg_size);
-    println!("[app]: Socket connected");
+    log::info!("Socket connected");
 
     join!(
         async {
@@ -53,11 +56,11 @@ async fn async_main(mut ctx: Context) {
                 let msg = reader.read_msg().await.unwrap();
                 match msg.as_ref() {
                     InMsgRef::Ai(msg) => {
-                        println!("[app]: Msg.Ai");
+                        log::debug!("Msg.Ai");
                         ai.write(msg.value.to_native()).await;
                     }
                     InMsgRef::Aai(msg) => {
-                        println!("[app]: Msg.Aai");
+                        log::debug!("Msg.Aai");
                         assert!(msg.values.len() <= aai.max_len());
                         let mut var = aai.write_in_place().await;
                         for (src, dst) in msg.values.iter().zip(var.as_uninit_slice().iter_mut()) {
@@ -66,7 +69,7 @@ async fn async_main(mut ctx: Context) {
                         var.set_len(msg.values.len());
                     }
                     InMsgRef::Waveform(msg) => {
-                        println!("[app]: Msg.Waveform");
+                        log::debug!("Msg.Waveform");
                         assert!(msg.values.len() <= waveform.max_len());
                         let mut var = waveform.write_in_place().await;
                         for (src, dst) in msg.values.iter().zip(var.as_uninit_slice().iter_mut()) {
@@ -75,11 +78,11 @@ async fn async_main(mut ctx: Context) {
                         var.set_len(msg.values.len());
                     }
                     InMsgRef::Bi(msg) => {
-                        println!("[app]: Msg.Bi");
+                        log::debug!("Msg.Bi");
                         bi.write(msg.value.to_native()).await;
                     }
                     InMsgRef::MbbiDirect(msg) => {
-                        println!("[app]: Msg.MbbiDirect");
+                        log::debug!("Msg.MbbiDirect");
                         mbbi_direct.write(msg.value.to_native()).await;
                     }
                 }
@@ -89,7 +92,7 @@ async fn async_main(mut ctx: Context) {
             let mut writer = writer.clone();
             loop {
                 let value = ao.read().await;
-                println!("[app]: Ioc.Ao");
+                log::debug!("Ioc.Ao");
                 let mut msg = writer.init_default_msg().unwrap();
                 msg.reset_tag(OutMsgTag::Ao).unwrap();
                 if let OutMsgMut::Ao(msg) = msg.as_mut() {
@@ -106,7 +109,7 @@ async fn async_main(mut ctx: Context) {
             let mut writer = writer.clone();
             loop {
                 let var = aao.read_in_place().await;
-                println!("[app]: Ioc.Aao");
+                log::debug!("Ioc.Aao");
                 let mut msg = writer.init_default_msg().unwrap();
                 msg.reset_tag(OutMsgTag::Aao).unwrap();
                 let data = if let OutMsgMut::Aao(msg) = msg.as_mut() {
@@ -124,7 +127,7 @@ async fn async_main(mut ctx: Context) {
             let mut writer = writer.clone();
             loop {
                 let value = bo.read().await;
-                println!("[app]: Ioc.Bo");
+                log::debug!("Ioc.Bo");
                 let mut msg = writer.init_default_msg().unwrap();
                 msg.reset_tag(OutMsgTag::Bo).unwrap();
                 if let OutMsgMut::Bo(msg) = msg.as_mut() {
@@ -141,7 +144,7 @@ async fn async_main(mut ctx: Context) {
             let mut writer = writer.clone();
             loop {
                 let value = mbbo_direct.read().await;
-                println!("[app]: Ioc.MbboDirect");
+                log::debug!("Ioc.MbboDirect");
                 let mut msg = writer.init_default_msg().unwrap();
                 msg.reset_tag(OutMsgTag::MbboDirect).unwrap();
                 if let OutMsgMut::MbboDirect(msg) = msg.as_mut() {

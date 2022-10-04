@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Dict
 
 import os
 from pathlib import Path
@@ -269,9 +269,9 @@ class MbboDirectTest(ReadTestCase[proto.MbboDirect]):
             x = await test(x, i, False)
 
 
-async def _async_test(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
+async def _async_test(ioc: AsyncIoc) -> None:
     async with TcpListener("127.0.0.1", 4884) as lis:
-        async with AsyncIoc(epics_base_dir, ioc_dir, arch) as ioc:
+        async with ioc:
             logger.info("IOC started")
             async for stream in lis:
                 break
@@ -297,12 +297,16 @@ async def _async_test(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
                 while True:
                     dispatch(tests, await reader.read_msg())
 
-            await with_background(asyncio.gather(*[test.run() for test in tests]), dispatcher())
-
-            ioc.stop()
+            await with_background(asyncio.gather(*[test.run_with_log() for test in tests]), dispatcher())
 
 
-def test(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
+def test(epics_base_dir: Path, ioc_dir: Path, arch: str, env: Dict[str, str] = {}) -> None:
+    old_env = dict(os.environ)
     os.environ.update(ca.local_env())
-    with ca.Repeater(epics_base_dir, arch):
-        asyncio.run(_async_test(epics_base_dir, ioc_dir, arch))
+
+    ioc = AsyncIoc(epics_base_dir, ioc_dir, arch, env={**ca.local_env(), **env})
+    repeater = ca.Repeater(epics_base_dir, arch)
+    with repeater:
+        asyncio.run(_async_test(ioc))
+
+    os.environ = old_env

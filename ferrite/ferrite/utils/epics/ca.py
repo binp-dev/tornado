@@ -58,20 +58,25 @@ def put_array(prefix: Path, pv: str, value: List[int] | List[float]) -> None:
 
 class Repeater:
 
-    def __init__(self, base_dir: Path, arch: str):
+    def __init__(self, base_dir: Path, arch: str, env: Dict[str, str] = {}):
         self.proc: Optional[Popen[bytes]] = None
         self.base_dir = base_dir
         self.arch = arch
+        self._env = env
+
+    def env(self) -> Dict[str, str]:
+        return {
+            **dict(os.environ),
+            **self._env,
+            "LD_LIBRARY_PATH": str(self.base_dir / "lib" / self.arch),
+        }
 
     def __enter__(self) -> None:
         logger.debug("starting caRepeater ...")
 
-        env = dict(os.environ)
-        env["LD_LIBRARY_PATH"] = str(self.base_dir / "lib" / self.arch)
-
         self.proc = Popen(
             [self.base_dir / "bin" / self.arch / "caRepeater"],
-            env=env,
+            env=self.env(),
         )
         time.sleep(1)
         logger.debug("caRepeater started")
