@@ -155,9 +155,14 @@ class _PvArrayInt(PvArray[NDArray[np.int32]]):
 
     @staticmethod
     def _convert(array: Any) -> NDArray[np.int32]:
-        assert isinstance(array, np.ndarray)
-        assert array.dtype == np.int32
-        return array
+        try:
+            assert isinstance(array, np.ndarray)
+        except AssertionError:
+            assert isinstance(array, int)
+            return np.array([array], dtype=np.int32)
+        else:
+            assert array.dtype == np.int32
+            return array
 
 
 class _PvArrayFloat(PvArray[NDArray[np.float64]]):
@@ -166,9 +171,14 @@ class _PvArrayFloat(PvArray[NDArray[np.float64]]):
 
     @staticmethod
     def _convert(array: Any) -> NDArray[np.float64]:
-        assert isinstance(array, np.ndarray)
-        assert array.dtype == np.float64
-        return array
+        try:
+            assert isinstance(array, np.ndarray)
+        except AssertionError:
+            assert isinstance(array, float)
+            return np.array([array], dtype=np.float64)
+        else:
+            assert array.dtype == np.float64
+            return array
 
 
 _PvAny = Union[Pv[bool], Pv[int], Pv[float], Pv[str], PvArray[NDArray[np.int32]], PvArray[NDArray[np.float64]]]

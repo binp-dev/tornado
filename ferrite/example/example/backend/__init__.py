@@ -18,21 +18,34 @@ import ferrite.utils.epics.ca as ca
 
 import example.protocol as proto
 from example.protocol import InMsg, OutMsg
-from example.backend.test import WriteTestCase, ReadTestCase, dispatch, assert_eq, assert_array_eq
+from example.backend.test import TestCase, WriteTestCase, ReadTestCase, dispatch, assert_eq, assert_array_eq
 
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-def rand_i32(rng: Random) -> int:
+def random_i32(rng: Random) -> int:
     return rng.randrange(-(2**31), (2**31) - 1)
 
 
+def random_i32_array(rng: np.random.Generator, max_size: int) -> NDArray[np.int32]:
+    return rng.integers(
+        -(2**31),
+        (2**31) - 1,
+        rng.integers(1, max_size + 1),
+        dtype=np.int32,
+    )
+
+
 @dataclass
-class AiTest(WriteTestCase[proto.Ai]):
-    seed: int
-    attempts: int
+class RandomTest(TestCase):
+    attempts: int = 32
+    seed: int = 0xdeadbeef
+
+
+@dataclass
+class AiTest(RandomTest, WriteTestCase[proto.Ai]):
 
     async def run(self) -> None:
         record = await self.ca.connect("ai", PvType.FLOAT)
@@ -49,15 +62,13 @@ class AiTest(WriteTestCase[proto.Ai]):
                     assert_eq(x, int(y))
                     break
 
-        rng = Random(self.seed)
+        rng = Random(self.seed + 1)
         for _ in range(self.attempts):
-            await test(rand_i32(rng))
+            await test(random_i32(rng))
 
 
 @dataclass
-class AoTest(ReadTestCase[proto.Ao]):
-    seed: int
-    attempts: int
+class AoTest(RandomTest, ReadTestCase[proto.Ao]):
 
     def _take_msg(self, msg: OutMsg) -> Optional[proto.Ao]:
         if isinstance(msg.variant, OutMsg.Ao):
@@ -78,9 +89,9 @@ class AoTest(ReadTestCase[proto.Ao]):
 
             assert_eq(x, y)
 
-        rng = Random(self.seed)
+        rng = Random(self.seed + 2)
         for _ in range(self.attempts):
-            await test(rand_i32(rng))
+            await test(random_i32(rng))
 
 
 class BiTest(WriteTestCase[proto.Bi]):
@@ -129,7 +140,8 @@ class BoTest(ReadTestCase[proto.Bo]):
         await test(False)
 
 
-class AaiTest(WriteTestCase[proto.Ai]):
+@dataclass
+class AaiTest(RandomTest, WriteTestCase[proto.Aai]):
 
     async def run(self) -> None:
         record = await self.ca.connect("aai", PvType.ARRAY_INT)
@@ -144,10 +156,13 @@ class AaiTest(WriteTestCase[proto.Ai]):
                     assert_array_eq(ax, ay)
                     break
 
-        await test(np.arange(record.nelm, 0, -1, dtype=np.int32) * 0x1234)
+        rng = np.random.default_rng(self.seed + 5)
+        for _ in range(self.attempts):
+            await test(random_i32_array(rng, record.nelm))
 
 
-class AaoTest(ReadTestCase[proto.Aao]):
+@dataclass
+class AaoTest(RandomTest, ReadTestCase[proto.Aao]):
 
     def _take_msg(self, msg: OutMsg) -> Optional[proto.Aao]:
         if isinstance(msg.variant, OutMsg.Aao):
@@ -168,10 +183,13 @@ class AaoTest(ReadTestCase[proto.Aao]):
 
             assert_array_eq(ax, ay)
 
-        await test(np.arange(record.nelm, dtype=np.int32) * 0x4321)
+        rng = np.random.default_rng(self.seed + 6)
+        for _ in range(self.attempts):
+            await test(random_i32_array(rng, record.nelm))
 
 
-class WaveformTest(WriteTestCase[proto.Waveform]):
+@dataclass
+class WaveformTest(RandomTest, WriteTestCase[proto.Waveform]):
 
     async def run(self) -> None:
         record = await self.ca.connect("waveform", PvType.ARRAY_INT)
@@ -186,10 +204,12 @@ class WaveformTest(WriteTestCase[proto.Waveform]):
                     assert_array_eq(ax, ay)
                     break
 
-        await test(np.arange(record.nelm, dtype=np.int32) * -0x1234)
+        rng = np.random.default_rng(self.seed + 7)
+        for _ in range(self.attempts):
+            await test(random_i32_array(rng, record.nelm))
 
 
-class MbbiDirectTest(WriteTestCase[proto.Bi]):
+class MbbiDirectTest(WriteTestCase[proto.MbbiDirect]):
 
     async def run(self) -> None:
 
@@ -217,7 +237,7 @@ class MbbiDirectTest(WriteTestCase[proto.Bi]):
             x = await test(x, i, False)
 
 
-class MbboDirectTest(ReadTestCase[proto.Bo]):
+class MbboDirectTest(ReadTestCase[proto.MbboDirect]):
 
     def _take_msg(self, msg: OutMsg) -> Optional[proto.MbboDirect]:
         if isinstance(msg.variant, OutMsg.MbboDirect):
@@ -261,12 +281,9 @@ async def _async_test(epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
 
             ca = Ca()
 
-            seed = 0xdeadbeef
-            attempts = 16
-
             tests = [
-                AiTest(ca, writer, seed, attempts),
-                AoTest(ca, seed, attempts),
+                AiTest(ca, writer),
+                AoTest(ca),
                 BiTest(ca, writer),
                 BoTest(ca),
                 AaiTest(ca, writer),

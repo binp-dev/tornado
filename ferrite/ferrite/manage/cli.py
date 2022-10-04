@@ -110,6 +110,12 @@ def add_parser_args(parser: argparse.ArgumentParser, comp: Component) -> None:
         default=None,
         help="Number of parallel process to build. By default automatically determined value is used.",
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Whether debug messages should be displayed. Works only with `--no-capture`.",
+    )
 
 
 class ReadRunParamsError(RuntimeError):
@@ -120,7 +126,8 @@ class ReadRunParamsError(RuntimeError):
 class RunParams:
     task: Task
     context: Context
-    no_deps: bool = False
+    no_deps: bool
+    verbose: bool
 
 
 def _find_task_by_args(comp: Component, args: argparse.Namespace) -> Task:
@@ -160,16 +167,17 @@ def read_run_params(args: argparse.Namespace, comp: Component) -> RunParams:
 
     context = _make_context_from_args(args)
 
-    return RunParams(task, context, no_deps=args.no_deps)
+    return RunParams(task, context, no_deps=args.no_deps, verbose=args.verbose)
 
 
 def _prepare_for_run(params: RunParams) -> None:
     colorama_init()
 
 
-def setup_logging(params: RunParams, modules: List[str] = ["ferrite"], level: int = logging.DEBUG) -> None:
+def setup_logging(params: RunParams, modules: List[str] = ["ferrite"]) -> None:
     logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.WARNING, force=True)
     if not params.context.capture:
+        level = logging.INFO if not params.verbose else logging.DEBUG
         for mod in modules:
             logging.getLogger(mod).setLevel(level)
 
