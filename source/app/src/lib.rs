@@ -4,9 +4,12 @@ mod device;
 mod epics;
 mod proto;
 
-use async_std::net::TcpStream;
+use async_std::{net::TcpStream, sync::Arc};
 use ferrite::{entry_point, Context};
-use futures::executor::block_on;
+use futures::{
+    executor::{block_on, ThreadPool},
+    future::pending,
+};
 use macro_rules_attribute::apply;
 
 use device::Device;
@@ -17,11 +20,14 @@ pub use ferrite::export;
 
 #[apply(entry_point)]
 fn app_main(mut ctx: Context) {
-    block_on(async_main(ctx));
+    env_logger::init();
+    let exec = Arc::new(ThreadPool::builder().pool_size(2).create().unwrap());
+    exec.spawn_ok(run(exec.clone(), ctx));
+    // TODO: Wait for exec to complete all tasks.
+    block_on(pending::<()>());
 }
 
-async fn async_main(ctx: Context) {
-    env_logger::init();
+async fn run(exec: Arc<ThreadPool>, ctx: Context) {
     log::info!("Start IOC");
 
     log::info!("Establish channel");
@@ -32,7 +38,5 @@ async fn async_main(ctx: Context) {
 
     log::info!("Run device");
     let device = Device::new(channel, epics);
-    device.run().await;
-
-    unreachable!();
+    device.run(exec).await;
 }

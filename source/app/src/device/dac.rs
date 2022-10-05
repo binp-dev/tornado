@@ -15,7 +15,7 @@ use ferrite::{
     WriteVariable,
 };
 use flatty::portable::{le::I32, NativeCast};
-use futures::join;
+use futures::{executor::ThreadPool, join};
 use std::future::Future;
 
 pub struct Dac {
@@ -24,7 +24,7 @@ pub struct Dac {
 }
 
 impl Dac {
-    pub fn run(self) -> (impl Future<Output = ()>, DacHandle) {
+    pub fn run(self, exec: Arc<ThreadPool>) -> (impl Future<Output = ()>, DacHandle) {
         let buffer = DoubleVec::<Point>::new(self.epics.array.max_len());
         let (read_buffer, write_buffer) = buffer.split();
         let point_counter = Arc::new(AsyncCounter::new(0));
@@ -54,7 +54,10 @@ impl Dac {
 
         (
             async move {
-                join!(array_reader.run(), scalar_reader.run(), msg_sender.run(), requester.run());
+                exec.spawn_ok(array_reader.run());
+                exec.spawn_ok(scalar_reader.run());
+                exec.spawn_ok(msg_sender.run());
+                exec.spawn_ok(requester.run());
             },
             handle,
         )

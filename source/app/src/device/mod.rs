@@ -7,10 +7,13 @@ use crate::{
     epics::Epics,
     proto::{AppMsg, AppMsgTag, McuMsg, McuMsgRef},
 };
-use async_std::task::sleep;
+use async_std::{sync::Arc, task::sleep};
 use ferrite::channel::{MsgReader, MsgWriter};
 use flatty::prelude::*;
-use futures::{future::join_all, join};
+use futures::{
+    executor::ThreadPool,
+    future::{join_all, FutureExt},
+};
 
 use adc::{Adc, AdcHandle};
 use dac::{Dac, DacHandle};
@@ -47,16 +50,21 @@ impl Device {
         }
     }
 
-    pub async fn run(self) {
-        let (dac_loops, dac_handles): (Vec<_>, Vec<_>) = self.dacs.into_iter().map(|dac| dac.run()).unzip();
+    pub async fn run(self, exec: Arc<ThreadPool>) {
+        let (dac_loops, dac_handles): (Vec<_>, Vec<_>) = self.dacs.into_iter().map(|dac| dac.run(exec.clone())).unzip();
         let (adc_loops, adc_handles): (Vec<_>, Vec<_>) = self.adcs.into_iter().map(|adc| adc.run()).unzip();
+
         let dispatcher = MsgDispatcher {
             channel: self.reader,
             dacs: dac_handles.try_into().ok().unwrap(),
             adcs: adc_handles.try_into().ok().unwrap(),
         };
         let keepalive = Keepalive { channel: self.writer };
-        join!(join_all(dac_loops), join_all(adc_loops), dispatcher.run(), keepalive.run());
+
+        exec.spawn_ok(join_all(dac_loops).map(|_| ()));
+        exec.spawn_ok(join_all(adc_loops).map(|_| ()));
+        exec.spawn_ok(dispatcher.run());
+        exec.spawn_ok(keepalive.run());
     }
 }
 
