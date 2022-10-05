@@ -13,7 +13,7 @@ pub struct AnyVariable {
 
 impl AnyVariable {
     pub(crate) fn new(raw: raw::Variable) -> Self {
-        let raw_type = raw.lock().data_type();
+        let raw_type = raw.data_type();
         Self {
             raw,
             type_: VariableType::from_raw(raw_type),
@@ -22,7 +22,7 @@ impl AnyVariable {
     }
 
     pub fn name(&self) -> String {
-        self.raw.lock().name().to_str().unwrap().to_owned()
+        self.raw.name().to_str().unwrap().to_owned()
     }
 
     pub fn direction(&self) -> Direction {

@@ -1,9 +1,10 @@
 use super::import::*;
+use futures::task::AtomicWaker;
 use std::{
-    cell::Cell,
     ffi::CStr,
     ops::{Deref, DerefMut},
     os::raw::c_void,
+    sync::atomic::{AtomicBool, Ordering},
     task::Waker,
 };
 
@@ -25,36 +26,34 @@ impl VariableUnprotected {
     }
 
     pub unsafe fn request_proc(&mut self) {
-        //println!("[{}] request_proc", String::from_utf8_lossy(self.name().to_bytes()));
-        let ps = self.proc_state_mut();
-        if !ps.requested {
-            ps.requested = true;
-            fer_var_req_proc(self.ptr);
-        }
+        log::trace!("PV('{:?}').request_proc()", self.name());
+        let ps = self.proc_state();
+        debug_assert!(!ps.requested(), "Variable '{:?}' already requested", self.name());
+        ps.requested.store(true, Ordering::Release);
+        fer_var_req_proc(self.ptr);
     }
     pub unsafe fn start_proc(&mut self) {
-        //println!("[{}] start_proc", String::from_utf8_lossy(self.name().to_bytes()));
-        let ps = self.proc_state_mut();
-        if !ps.processing {
-            ps.processing = true;
-            ps.try_wake();
-        } else {
-            panic!("Variable is already processing");
-        }
+        log::trace!("PV('{:?}').start_proc()", self.name());
+        let ps = self.proc_state();
+        debug_assert!(!ps.processing(), "Variable '{:?}' already processing", self.name());
+        ps.processing.store(true, Ordering::Release);
+        ps.try_wake();
     }
     pub unsafe fn complete_proc(&mut self) {
-        //println!("[{}] complete_proc", String::from_utf8_lossy(self.name().to_bytes()));
-        let ps = self.proc_state_mut();
-        assert!(ps.processing);
-        ps.requested = false;
-        ps.processing = false;
+        log::trace!("PV('{:?}').complete_proc()", self.name());
+        let ps = self.proc_state();
+        debug_assert!(ps.processing(), "Variable '{:?}' isn't processing", self.name());
+        ps.processing.store(false, Ordering::Release);
+        ps.requested.store(false, Ordering::Release);
         fer_var_proc_done(self.ptr);
     }
 
     pub unsafe fn lock(&self) {
+        log::trace!("PV('{:?}').lock()", self.name());
         fer_var_lock(self.ptr);
     }
     pub unsafe fn unlock(&self) {
+        log::trace!("PV('{:?}').unlock()", self.name());
         fer_var_unlock(self.ptr);
     }
 
@@ -80,9 +79,6 @@ impl VariableUnprotected {
 
     pub fn proc_state(&self) -> &ProcState {
         unsafe { (self.user_data() as *const ProcState).as_ref() }.unwrap()
-    }
-    fn proc_state_mut(&mut self) -> &mut ProcState {
-        unsafe { (self.user_data() as *mut ProcState).as_mut() }.unwrap()
     }
     fn user_data(&self) -> *mut c_void {
         unsafe { fer_var_user_data(self.ptr) }
@@ -114,20 +110,26 @@ impl Variable {
         &mut self.var
     }
 
-    pub fn lock(&self) -> Guard<'_> {
-        Guard::new(&self.var)
+    pub fn lock(&mut self) -> Guard<'_> {
+        Guard::new(&mut self.var)
     }
-    pub fn lock_mut(&mut self) -> GuardMut<'_> {
-        GuardMut::new(&mut self.var)
+
+    pub fn proc_state(&self) -> &'_ ProcState {
+        self.var.proc_state()
+    }
+    pub fn name(&self) -> &CStr {
+        self.var.name()
+    }
+    pub fn data_type(&self) -> Type {
+        self.var.data_type()
     }
 }
 
 pub(crate) struct Guard<'a> {
-    var: &'a VariableUnprotected,
+    var: &'a mut VariableUnprotected,
 }
-
 impl<'a> Guard<'a> {
-    fn new(var: &'a VariableUnprotected) -> Self {
+    fn new(var: &'a mut VariableUnprotected) -> Self {
         unsafe { var.lock() };
         Self { var }
     }
@@ -138,33 +140,12 @@ impl<'a> Deref for Guard<'a> {
         self.var
     }
 }
-impl<'a> Drop for Guard<'a> {
-    fn drop(&mut self) {
-        unsafe { self.var.unlock() };
-    }
-}
-
-pub(crate) struct GuardMut<'a> {
-    var: &'a mut VariableUnprotected,
-}
-impl<'a> GuardMut<'a> {
-    fn new(var: &'a mut VariableUnprotected) -> Self {
-        unsafe { var.lock() };
-        Self { var }
-    }
-}
-impl<'a> Deref for GuardMut<'a> {
-    type Target = VariableUnprotected;
-    fn deref(&self) -> &VariableUnprotected {
-        self.var
-    }
-}
-impl<'a> DerefMut for GuardMut<'a> {
+impl<'a> DerefMut for Guard<'a> {
     fn deref_mut(&mut self) -> &mut VariableUnprotected {
         self.var
     }
 }
-impl<'a> Drop for GuardMut<'a> {
+impl<'a> Drop for Guard<'a> {
     fn drop(&mut self) {
         unsafe { self.var.unlock() };
     }
@@ -172,22 +153,27 @@ impl<'a> Drop for GuardMut<'a> {
 
 #[derive(Default)]
 pub(crate) struct ProcState {
-    pub requested: bool,
-    pub processing: bool,
-    waker: Cell<Option<Waker>>,
+    requested: AtomicBool,
+    processing: AtomicBool,
+    waker: AtomicWaker,
 }
 
 impl ProcState {
+    pub fn requested(&self) -> bool {
+        self.requested.load(Ordering::Acquire)
+    }
+    pub fn processing(&self) -> bool {
+        self.processing.load(Ordering::Acquire)
+    }
+
     pub fn set_waker(&self, waker: &Waker) {
-        assert!(self.waker.replace(Some(waker.clone())).is_none());
+        self.waker.register(waker);
     }
     pub fn clean_waker(&self) {
         self.waker.take();
     }
     pub fn try_wake(&self) {
-        if let Some(waker) = self.waker.take() {
-            waker.wake();
-        }
+        self.waker.wake();
     }
 }
 

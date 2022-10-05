@@ -2,7 +2,7 @@ use crate::raw;
 use std::{
     future::Future,
     marker::PhantomData,
-    mem::{drop, MaybeUninit},
+    mem::MaybeUninit,
     pin::Pin,
     slice,
     task::{Context, Poll},
@@ -52,26 +52,24 @@ impl<'a, T: Copy> Future for WriteInPlaceFuture<'a, T> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let owner = self.owner.take().unwrap();
-        let mut guard = owner.raw.lock_mut();
-        let ps = guard.proc_state();
-        if !ps.processing {
-            if !ps.requested {
-                ps.set_waker(cx.waker());
-                unsafe { guard.request_proc() };
+        let ps = owner.raw.proc_state();
+        ps.set_waker(cx.waker());
+        if !ps.processing() {
+            if !ps.requested() {
+                unsafe { owner.raw.lock().request_proc() };
             }
-            drop(guard);
             self.owner.replace(owner);
-            return Poll::Pending;
+            Poll::Pending
+        } else {
+            Poll::Ready(WriteArrayGuard::new(owner))
         }
-        drop(guard);
-        Poll::Ready(WriteArrayGuard::new(owner))
     }
 }
 
 impl<'a, T: Copy> Drop for WriteInPlaceFuture<'a, T> {
     fn drop(&mut self) {
         if let Some(owner) = &self.owner {
-            owner.raw.lock().proc_state().clean_waker();
+            owner.raw.proc_state().clean_waker();
         }
     }
 }

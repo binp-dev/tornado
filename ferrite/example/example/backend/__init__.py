@@ -301,12 +301,13 @@ async def _async_test(ioc: AsyncIoc) -> None:
 
 
 def test(epics_base_dir: Path, ioc_dir: Path, arch: str, env: Dict[str, str] = {}) -> None:
-    old_env = dict(os.environ)
+    old_env = os.environ.copy()
     os.environ.update(ca.local_env())
 
-    ioc = AsyncIoc(epics_base_dir, ioc_dir, arch, env={**ca.local_env(), **env})
+    ioc = AsyncIoc(epics_base_dir, ioc_dir, arch, env=env)
     repeater = ca.Repeater(epics_base_dir, arch)
     with repeater:
         asyncio.run(_async_test(ioc))
 
-    os.environ = old_env
+    os.environ.clear()
+    os.environ.update(old_env)
