@@ -88,7 +88,7 @@ impl ArrayReader {
                 output.extend(input.iter().map(|x| *x as i32));
                 log::debug!("array_read: len={}", input.len());
             }
-            self.request.take();
+            self.request.try_take();
         }
     }
 }
@@ -109,7 +109,7 @@ impl ScalarReader {
                 output.push(value as i32);
                 log::debug!("scalar_read: {}", value);
             }
-            self.request.take();
+            self.request.try_take();
         }
     }
 }
@@ -177,7 +177,7 @@ impl<T: Clone> BufferReadStream<T> {
     pub async fn try_swap(&mut self) -> bool {
         log::info!("try swap");
         if self.buffer.try_swap().await {
-            self.request.set();
+            self.request.try_give();
             true
         } else {
             false
@@ -220,10 +220,11 @@ impl Requester {
         }
     }
     async fn run(mut self) {
-        self.var.write(1).await;
         loop {
-            self.flag.wait().await;
+            self.flag.wait(true).await;
             self.var.write(1).await;
+            self.flag.wait(false).await;
+            self.var.write(0).await;
         }
     }
 }
