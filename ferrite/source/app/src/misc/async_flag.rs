@@ -19,41 +19,89 @@ impl AsyncFlag {
         }
     }
 
-    pub fn set(&self) {
-        self.value.store(true, Ordering::Release);
-        self.waker.wake();
-    }
-
-    pub fn get(&self) -> bool {
+    pub fn value(&self) -> bool {
         self.value.load(Ordering::Acquire)
     }
-    pub fn take(&self) -> bool {
-        self.value.fetch_and(false, Ordering::SeqCst)
-    }
 
-    pub fn wait(&self) -> WaitFuture<'_> {
-        WaitFuture {
-            owner: self,
-            take: false,
+    pub fn try_give(&self) -> bool {
+        if !self.value.fetch_or(true, Ordering::SeqCst) {
+            self.waker.wake();
+            true
+        } else {
+            false
         }
     }
-    pub fn wait_take(&self) -> WaitFuture<'_> {
-        WaitFuture { owner: self, take: true }
+    pub fn try_take(&self) -> bool {
+        if self.value.fetch_and(false, Ordering::SeqCst) {
+            self.waker.wake();
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn wait(&self, value: bool) -> Wait<'_> {
+        Wait {
+            owner: self,
+            target: value,
+        }
+    }
+
+    pub fn give(&self) -> Switch<'_> {
+        Switch {
+            owner: self,
+            trigger: false,
+        }
+    }
+    pub fn take(&self) -> Switch<'_> {
+        Switch {
+            owner: self,
+            trigger: true,
+        }
     }
 }
 
-pub struct WaitFuture<'a> {
+pub struct Wait<'a> {
     owner: &'a AsyncFlag,
-    take: bool,
+    target: bool,
 }
-impl<'a> Unpin for WaitFuture<'a> {}
-impl<'a> Future for WaitFuture<'a> {
+
+impl<'a> Unpin for Wait<'a> {}
+
+impl<'a> Future for Wait<'a> {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
         self.owner.waker.register(cx.waker());
-        let value = if self.take { self.owner.take() } else { self.owner.get() };
-        if value {
+
+        if self.owner.value.load(Ordering::SeqCst) == self.target {
+            Poll::Ready(())
+        } else {
+            Poll::Pending
+        }
+    }
+}
+
+pub struct Switch<'a> {
+    owner: &'a AsyncFlag,
+    trigger: bool,
+}
+
+impl<'a> Unpin for Switch<'a> {}
+
+impl<'a> Future for Switch<'a> {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        self.owner.waker.register(cx.waker());
+
+        let ok = if !self.trigger {
+            !self.owner.value.fetch_or(true, Ordering::SeqCst)
+        } else {
+            self.owner.value.fetch_and(false, Ordering::SeqCst)
+        };
+
+        if ok {
             Poll::Ready(())
         } else {
             Poll::Pending

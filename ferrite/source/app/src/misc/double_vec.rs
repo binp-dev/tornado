@@ -49,14 +49,14 @@ pub struct Reader<T> {
 }
 impl<T> Reader<T> {
     pub fn ready(&self) -> bool {
-        self.write.ready.get()
+        self.write.ready.value()
     }
     pub async fn wait_ready(&self) {
-        self.write.ready.wait().await
+        self.write.ready.wait(true).await
     }
     pub async fn try_swap(&mut self) -> bool {
         let mut guard = self.write.buffer.lock().await;
-        if self.write.ready.take() {
+        if self.write.ready.try_take() {
             self.buffer.clear();
             swap(guard.deref_mut(), &mut self.buffer);
             true
@@ -86,7 +86,7 @@ impl<'a, T> WriteGuard<'a, T> {
 }
 impl<'a, T> Drop for WriteGuard<'a, T> {
     fn drop(&mut self) {
-        self.ready.set();
+        self.ready.try_give();
     }
 }
 impl<'a, T> Deref for WriteGuard<'a, T> {
