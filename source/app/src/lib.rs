@@ -21,15 +21,16 @@ fn app_main(mut ctx: Context) {
 }
 
 async fn async_main(ctx: Context) {
-    println!("[app]: Start IOC");
+    env_logger::init();
+    log::info!("Start IOC");
 
-    println!("[app]: Establish channel");
+    log::info!("Establish channel");
     let channel = TcpStream::connect("127.0.0.1:4884").await.unwrap();
 
-    println!("[app]: Get EPICS PVs");
+    log::info!("Get EPICS PVs");
     let epics = Epics::new(ctx).unwrap();
 
-    println!("[app]: Run device");
+    log::info!("Run device");
     let device = Device::new(channel, epics);
     device.run().await;
 

@@ -47,19 +47,19 @@ class FakeDev:
             return self.adc_volts_to_codes(adcs)
 
     async def _send_msg(self, msg: McuMsg.Variant) -> None:
-        print(f"[fakedev] send_msg: {msg._type.name}")
+        logger.debug(f"send_msg: {msg._type.name}")
         await self.writer.write_msg(McuMsg(msg))
 
     async def _recv_msg(self) -> AppMsg:
         msg = await self.reader.read_msg()
-        print(f"[fakedev] recv_msg: {msg.variant._type.name}")
+        logger.debug(f"recv_msg: {msg.variant._type.name}")
         return msg
 
     async def _sample_chunk(self, dac: NDArray[np.int32]) -> None:
         adcs = await self.handler.transfer_codes(dac)
 
         points_in_msg = (self.config.rpmsg_max_mcu_msg_len - 3) // (4 * self.config.adc_count)
-        print(f"[fakedev] points_in_msg: {points_in_msg}")
+        logger.debug(f"points_in_msg: {points_in_msg}")
         while len(adcs) > points_in_msg:
             await self._send_msg(McuMsg.AdcData(adcs[:points_in_msg]))
             adcs = adcs[points_in_msg:]

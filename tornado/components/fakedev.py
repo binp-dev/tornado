@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Callable
+from typing import List, Dict, Callable
 
 from pathlib import Path
 from dataclasses import dataclass
@@ -25,7 +25,7 @@ class Fakedev(Component):
 
 @dataclass(eq=False)
 class _RunTask(OwnedTask[Fakedev]):
-    run_fn: Callable[[Path, Path, Path, str], None]
+    run_fn: Callable[[Path, Path, Path, str, Dict[str, str]], None]
 
     def run(self, ctx: Context) -> None:
         self.run_fn(
@@ -33,6 +33,7 @@ class _RunTask(OwnedTask[Fakedev]):
             ctx.target_path / self.owner.ioc.epics_base.install_dir,
             ctx.target_path / self.owner.ioc.install_dir,
             self.owner.ioc.arch,
+            self.owner.ioc.app.log_env(ctx),
         )
 
     def dependencies(self) -> List[Task]:

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Awaitable, Callable, List
+from typing import Awaitable, Callable, Dict
 
 import os
 from pathlib import Path
@@ -82,10 +82,12 @@ class Handler(FakeDev.Handler):
 
 async def test(config: Config, handler: Handler) -> None:
     ctx = Context()
-    aais = [await ctx.connect(f"aai{i}", PvType.ARRAY_FLOAT) for i in range(config.adc_count)]
-    aao = await ctx.connect("aao0", PvType.ARRAY_FLOAT)
-    aao_request = await ctx.connect("aao0_request", PvType.BOOL)
-    aao_mode = await ctx.connect("aao0_mode", PvType.BOOL)
+    aais, aao, aao_request, aao_mode = await asyncio.gather(
+        asyncio.gather(*[ctx.connect(f"aai{i}", PvType.ARRAY_FLOAT) for i in range(config.adc_count)]),
+        ctx.connect("aao0", PvType.ARRAY_FLOAT),
+        ctx.connect("aao0_request", PvType.BOOL),
+        ctx.connect("aao0_mode", PvType.BOOL),
+    )
 
     wf_size = aao.nelm
     logger.debug(f"Waveform max size: {wf_size}")
@@ -114,7 +116,7 @@ async def test(config: Config, handler: Handler) -> None:
     async def wait_dac_req() -> None:
         async with aao_request.monitor(current=True) as mon:
             async for flag in mon:
-                print(f"[fakedev] dac request: {flag}")
+                logger.debug(f"dac request: {flag}")
                 if int(flag) != 0:
                     break
 
@@ -139,6 +141,7 @@ async def test(config: Config, handler: Handler) -> None:
         logger.info("Check full-size DAC waveform")
 
         async def check_full() -> None:
+            logger.debug("check_full")
             await wait_dac_req()
             await write_and_check_dac(dac_mag * np.arange(-wf_size, wf_size, 2, dtype=np.float64) / wf_size)
 
@@ -165,13 +168,13 @@ async def test(config: Config, handler: Handler) -> None:
     await with_background(run_check(config), watch_adcs())
 
 
-def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str) -> None:
+def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str, env: Dict[str, str]) -> None:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     os.environ.update(ca.local_env())
 
-    ioc = AsyncIoc(epics_base_dir, ioc_dir, arch)
+    ioc = AsyncIoc(epics_base_dir, ioc_dir, arch, env=env)
     repeater = ca.Repeater(epics_base_dir, arch)
 
     config = read_common_config(source_dir)
