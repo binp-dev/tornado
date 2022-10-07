@@ -41,10 +41,20 @@ pub extern "C" fn fer_var_init(ptr: *mut FerVar) {
 
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
-pub extern "C" fn fer_var_proc_start(ptr: *mut FerVar) {
+pub extern "C" fn fer_var_proc_begin(ptr: *mut FerVar) {
     // No need for lock here - variable is already locked during this call.
     unsafe {
         let mut unvar = VariableUnprotected::from_ptr(ptr);
-        unvar.start_proc();
+        unvar.proc_begin();
+    }
+}
+
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[no_mangle]
+pub extern "C" fn fer_var_proc_end(ptr: *mut FerVar) {
+    // No need for lock here - variable is already locked during this call.
+    unsafe {
+        let mut unvar = VariableUnprotected::from_ptr(ptr);
+        unvar.proc_end();
     }
 }

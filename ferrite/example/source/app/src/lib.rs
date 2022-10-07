@@ -65,20 +65,22 @@ async fn async_main(exec: ThreadPool, mut ctx: Context) {
                 InMsgRef::Aai(msg) => {
                     log::debug!("Msg.Aai");
                     assert!(msg.values.len() <= aai.max_len());
-                    let mut var = aai.write_in_place().await;
+                    let mut var = aai.init_in_place().await;
                     for (src, dst) in msg.values.iter().zip(var.as_uninit_slice().iter_mut()) {
                         dst.write(src.to_native());
                     }
                     var.set_len(msg.values.len());
+                    var.write().await;
                 }
                 InMsgRef::Waveform(msg) => {
                     log::debug!("Msg.Waveform");
                     assert!(msg.values.len() <= waveform.max_len());
-                    let mut var = waveform.write_in_place().await;
+                    let mut var = waveform.init_in_place().await;
                     for (src, dst) in msg.values.iter().zip(var.as_uninit_slice().iter_mut()) {
                         dst.write(src.to_native());
                     }
                     var.set_len(msg.values.len());
+                    var.write().await;
                 }
                 InMsgRef::Bi(msg) => {
                     log::debug!("Msg.Bi");
@@ -124,6 +126,7 @@ async fn async_main(exec: ThreadPool, mut ctx: Context) {
             for value in var.as_slice() {
                 data.push(le::I32::from_native(*value)).unwrap();
             }
+            var.close().await;
             msg.write().await.unwrap();
         }
     });

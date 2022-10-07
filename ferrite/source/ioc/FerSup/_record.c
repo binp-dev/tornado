@@ -80,12 +80,13 @@ void fer_epics_record_request_proc(dbCommon *rec) {
 void fer_epics_record_process(dbCommon *rec) {
     if (!rec->pact) {
         rec->pact = true;
-        fer_var_proc_start((FerVar *)rec);
+        fer_var_proc_begin((FerVar *)rec);
     } else {
         rec->pact = false;
+        fer_var_proc_end((FerVar *)rec);
     }
 }
 
-void fer_epics_record_proc_done(dbCommon *rec) {
+void fer_epics_record_complete_proc(dbCommon *rec) {
     callbackRequest(&fer_epics_record_dpvt(rec)->process);
 }

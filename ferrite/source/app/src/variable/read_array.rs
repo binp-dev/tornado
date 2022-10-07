@@ -1,4 +1,3 @@
-use crate::raw;
 use std::{
     future::Future,
     marker::PhantomData,
@@ -6,6 +5,8 @@ use std::{
     pin::Pin,
     task::{Context, Poll},
 };
+
+use crate::raw::{self, variable::ProcState};
 
 pub struct ReadArrayVariable<T: Copy> {
     raw: raw::Variable,
@@ -52,43 +53,44 @@ impl<'a, T: Copy> Future for ReadInPlaceFuture<'a, T> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let owner = self.owner.take().unwrap();
-        let ps = owner.raw.proc_state();
-        ps.set_waker(cx.waker());
-        if !ps.processing() {
-            if !ps.requested() {
-                unsafe { owner.raw.lock().request_proc() };
-            }
-            self.owner.replace(owner);
-            Poll::Pending
-        } else {
-            Poll::Ready(ReadArrayGuard::new(owner))
+        let info = owner.raw.info();
+        info.set_waker(cx.waker());
+        match info.proc_state() {
+            ProcState::Idle => unsafe { owner.raw.lock().request_proc() },
+            ProcState::Requested => (),
+            ProcState::Processing => return Poll::Ready(ReadArrayGuard::new(owner)),
+            _ => unreachable!(),
         }
-    }
-}
-
-impl<'a, T: Copy> Drop for ReadInPlaceFuture<'a, T> {
-    fn drop(&mut self) {
-        if let Some(owner) = &self.owner {
-            owner.raw.proc_state().clean_waker();
-        }
+        self.owner.replace(owner);
+        Poll::Pending
     }
 }
 
 pub struct ReadArrayGuard<'a, T: Copy> {
-    owner: &'a mut ReadArrayVariable<T>,
+    owner: Option<&'a mut ReadArrayVariable<T>>,
 }
 
 impl<'a, T: Copy> ReadArrayGuard<'a, T> {
     fn new(owner: &'a mut ReadArrayVariable<T>) -> Self {
         unsafe { owner.raw.get_unprotected().lock() };
-        Self { owner }
+        Self { owner: Some(owner) }
     }
 
     pub fn as_slice(&self) -> &[T] {
         unsafe {
-            let raw_unprotected = self.owner.raw.get_unprotected();
+            let raw_unprotected = self.owner.as_ref().unwrap().raw.get_unprotected();
             std::slice::from_raw_parts(raw_unprotected.data_ptr() as *const T, raw_unprotected.array_len())
         }
+    }
+
+    pub fn close(mut self) -> CloseArrayFuture<'a, T> {
+        let owner = self.owner.take().unwrap();
+        unsafe {
+            let raw_unprotected = owner.raw.get_unprotected_mut();
+            raw_unprotected.complete_proc();
+            raw_unprotected.unlock();
+        }
+        CloseArrayFuture { owner: Some(owner) }
     }
 }
 
@@ -101,10 +103,34 @@ impl<'a, T: Copy> Deref for ReadArrayGuard<'a, T> {
 
 impl<'a, T: Copy> Drop for ReadArrayGuard<'a, T> {
     fn drop(&mut self) {
-        unsafe {
-            let raw_unprotected = self.owner.raw.get_unprotected_mut();
-            raw_unprotected.complete_proc();
-            raw_unprotected.unlock();
+        if let Some(_owner) = self.owner.take() {
+            panic!("ReadArrayGuard must be explicitly closed");
         }
+    }
+}
+
+pub struct CloseArrayFuture<'a, T: Copy> {
+    owner: Option<&'a mut ReadArrayVariable<T>>,
+}
+
+impl<'a, T: Copy> Unpin for CloseArrayFuture<'a, T> {}
+
+impl<'a, T: Copy> Future for CloseArrayFuture<'a, T> {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let owner = self.owner.take().unwrap();
+        let info = owner.raw.info();
+        info.set_waker(cx.waker());
+        match info.proc_state() {
+            ProcState::Ready => (),
+            ProcState::Complete => {
+                unsafe { owner.raw.lock().clean_proc() };
+                return Poll::Ready(());
+            }
+            _ => unreachable!(),
+        }
+        self.owner.replace(owner);
+        Poll::Pending
     }
 }

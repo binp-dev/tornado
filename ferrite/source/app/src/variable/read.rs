@@ -1,10 +1,11 @@
-use crate::raw;
 use std::{
     future::Future,
     marker::PhantomData,
     pin::Pin,
     task::{Context, Poll},
 };
+
+use crate::raw::{self, variable::ProcState};
 
 pub struct ReadVariable<T: Copy> {
     raw: raw::Variable,
@@ -22,6 +23,7 @@ impl<T: Copy> ReadVariable<T> {
     pub fn read(&mut self) -> ReadFuture<'_, T> {
         ReadFuture {
             owner: self,
+            value: None,
             complete: false,
         }
     }
@@ -29,6 +31,7 @@ impl<T: Copy> ReadVariable<T> {
 
 pub struct ReadFuture<'a, T: Copy> {
     owner: &'a mut ReadVariable<T>,
+    value: Option<T>,
     complete: bool,
 }
 
@@ -39,30 +42,33 @@ impl<'a, T: Copy> Future for ReadFuture<'a, T> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
         assert!(!self.complete);
-        let ps = self.owner.raw.proc_state();
-        ps.set_waker(cx.waker());
-        if !ps.processing() {
-            if !ps.requested() {
-                unsafe { self.owner.raw.lock().request_proc() };
+        let info = self.owner.raw.info();
+        info.set_waker(cx.waker());
+        match info.proc_state() {
+            ProcState::Idle => unsafe { self.owner.raw.lock().request_proc() },
+            ProcState::Requested => (),
+            ProcState::Processing => {
+                let value;
+                {
+                    let mut guard = self.owner.raw.lock();
+                    value = unsafe { *(guard.data_ptr() as *const T) };
+                    unsafe { guard.complete_proc() };
+                }
+                self.value = Some(value);
             }
-            Poll::Pending
-        } else {
-            let val;
-            {
-                let mut guard = self.owner.raw.lock();
-                val = unsafe { *(guard.data_ptr() as *const T) };
-                unsafe { guard.complete_proc() };
+            ProcState::Ready => (),
+            ProcState::Complete => {
+                unsafe { self.owner.raw.lock().clean_proc() };
+                self.complete = true;
+                return Poll::Ready(self.value.take().unwrap());
             }
-            self.complete = true;
-            Poll::Ready(val)
         }
+        Poll::Pending
     }
 }
 
 impl<'a, T: Copy> Drop for ReadFuture<'a, T> {
     fn drop(&mut self) {
-        if !self.complete {
-            self.owner.raw.proc_state().clean_waker();
-        }
+        log::trace!("ReadFuture::drop()");
     }
 }

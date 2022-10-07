@@ -55,12 +55,15 @@ void fer_app_exit(int code);
 /// Initialize variable.
 extern void fer_var_init(FerVar *var);
 /// Request record processing.
-void fer_var_req_proc(FerVar *var);
-/// Asynchronous variable processing start.
+void fer_var_request_proc(FerVar *var);
+/// Asynchronous variable processing begin.
 /// NOTE: Variable passed to this function is automatically locked during the call.
-extern void fer_var_proc_start(FerVar *var);
+extern void fer_var_proc_begin(FerVar *var);
 /// Notify that asynchronous variable processing complete.
-void fer_var_proc_done(FerVar *var);
+void fer_var_complete_proc(FerVar *var);
+/// Asynchronous variable processing end.
+/// NOTE: Variable passed to this function is automatically locked during the call.
+extern void fer_var_proc_end(FerVar *var);
 
 /// Lock variable.
 /// Following operations require variable to be locked.

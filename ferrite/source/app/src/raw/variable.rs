@@ -1,13 +1,14 @@
-use super::import::*;
+use atomic_enum::atomic_enum;
 use futures::task::AtomicWaker;
 use std::{
     ffi::CStr,
     ops::{Deref, DerefMut},
     os::raw::c_void,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::Ordering,
     task::Waker,
 };
 
+use super::import::*;
 pub use super::import::{FerVarDir as Dir, FerVarKind as Kind, FerVarScalarType as ScalarType, FerVarType as Type};
 
 pub(crate) struct VariableUnprotected {
@@ -21,39 +22,56 @@ impl VariableUnprotected {
         Self { ptr }
     }
     pub fn init(&mut self) {
-        let ps = Box::new(ProcState::default());
+        let ps = Box::new(Info::new());
         self.set_user_data(Box::into_raw(ps) as *mut c_void);
     }
 
     pub unsafe fn request_proc(&mut self) {
-        log::trace!("PV('{:?}').request_proc()", self.name());
-        let ps = self.proc_state();
-        debug_assert!(!ps.requested(), "Variable '{:?}' already requested", self.name());
-        ps.requested.store(true, Ordering::Release);
-        fer_var_req_proc(self.ptr);
+        log::trace!("PV({:?}).request_proc()", self.name());
+        let info = self.info();
+        let ps = info.proc_state();
+        debug_assert_eq!(ps, ProcState::Idle);
+        info.set_proc_state(ProcState::Requested);
+        fer_var_request_proc(self.ptr);
     }
-    pub unsafe fn start_proc(&mut self) {
-        log::trace!("PV('{:?}').start_proc()", self.name());
-        let ps = self.proc_state();
-        debug_assert!(!ps.processing(), "Variable '{:?}' already processing", self.name());
-        ps.processing.store(true, Ordering::Release);
-        ps.try_wake();
+    pub unsafe fn proc_begin(&mut self) {
+        log::trace!("PV({:?}).proc_begin()", self.name());
+        let info = self.info();
+        let ps = info.proc_state();
+        debug_assert!(ps == ProcState::Idle || ps == ProcState::Requested);
+        info.set_proc_state(ProcState::Processing);
+        info.try_wake();
     }
     pub unsafe fn complete_proc(&mut self) {
-        log::trace!("PV('{:?}').complete_proc()", self.name());
-        let ps = self.proc_state();
-        debug_assert!(ps.processing(), "Variable '{:?}' isn't processing", self.name());
-        ps.processing.store(false, Ordering::Release);
-        ps.requested.store(false, Ordering::Release);
-        fer_var_proc_done(self.ptr);
+        log::trace!("PV({:?}).complete_proc()", self.name());
+        let info = self.info();
+        let ps = info.proc_state();
+        debug_assert_eq!(ps, ProcState::Processing);
+        info.set_proc_state(ProcState::Ready);
+        fer_var_complete_proc(self.ptr);
+    }
+    pub unsafe fn proc_end(&mut self) {
+        log::trace!("PV({:?}).proc_end()", self.name());
+        let info = self.info();
+        let ps = info.proc_state();
+        debug_assert_eq!(ps, ProcState::Ready);
+        info.set_proc_state(ProcState::Complete);
+        info.try_wake();
+    }
+    pub unsafe fn clean_proc(&mut self) {
+        log::trace!("PV({:?}).clean_proc()", self.name());
+        let info = self.info();
+        let ps = info.proc_state();
+        debug_assert_eq!(ps, ProcState::Complete);
+        info.set_proc_state(ProcState::Idle);
     }
 
     pub unsafe fn lock(&self) {
-        log::trace!("PV('{:?}').lock()", self.name());
+        log::trace!("PV({:?}).lock()", self.name());
         fer_var_lock(self.ptr);
     }
     pub unsafe fn unlock(&self) {
-        log::trace!("PV('{:?}').unlock()", self.name());
+        log::trace!("PV({:?}).unlock()", self.name());
         fer_var_unlock(self.ptr);
     }
 
@@ -77,8 +95,8 @@ impl VariableUnprotected {
         unsafe { fer_var_array_set_len(self.ptr, new_size) }
     }
 
-    pub fn proc_state(&self) -> &ProcState {
-        unsafe { (self.user_data() as *const ProcState).as_ref() }.unwrap()
+    pub fn info(&self) -> &Info {
+        unsafe { (self.user_data() as *const Info).as_ref() }.unwrap()
     }
     fn user_data(&self) -> *mut c_void {
         unsafe { fer_var_user_data(self.ptr) }
@@ -114,8 +132,8 @@ impl Variable {
         Guard::new(&mut self.var)
     }
 
-    pub fn proc_state(&self) -> &'_ ProcState {
-        self.var.proc_state()
+    pub fn info(&self) -> &'_ Info {
+        self.var.info()
     }
     pub fn name(&self) -> &CStr {
         self.var.name()
@@ -151,30 +169,42 @@ impl<'a> Drop for Guard<'a> {
     }
 }
 
-#[derive(Default)]
-pub(crate) struct ProcState {
-    requested: AtomicBool,
-    processing: AtomicBool,
+#[atomic_enum]
+#[derive(PartialEq)]
+pub(crate) enum ProcState {
+    Idle = 0,
+    Requested,
+    Processing,
+    Ready,
+    Complete,
+}
+
+pub(crate) struct Info {
+    proc_state: AtomicProcState,
     waker: AtomicWaker,
 }
 
-impl ProcState {
-    pub fn requested(&self) -> bool {
-        self.requested.load(Ordering::Acquire)
+impl Info {
+    pub fn new() -> Self {
+        Self {
+            proc_state: AtomicProcState::new(ProcState::Idle),
+            waker: AtomicWaker::new(),
+        }
     }
-    pub fn processing(&self) -> bool {
-        self.processing.load(Ordering::Acquire)
+
+    pub fn proc_state(&self) -> ProcState {
+        self.proc_state.load(Ordering::Acquire)
+    }
+    fn set_proc_state(&self, ps: ProcState) {
+        self.proc_state.store(ps, Ordering::Release);
     }
 
     pub fn set_waker(&self, waker: &Waker) {
         self.waker.register(waker);
     }
-    pub fn clean_waker(&self) {
-        self.waker.take();
-    }
-    pub fn try_wake(&self) {
+    fn try_wake(&self) {
         self.waker.wake();
     }
 }
 
-unsafe impl Send for ProcState {}
+unsafe impl Send for Info {}

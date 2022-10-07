@@ -1,10 +1,11 @@
-use crate::raw;
 use std::{
     future::Future,
     marker::PhantomData,
     pin::Pin,
     task::{Context, Poll},
 };
+
+use crate::raw::{self, variable::ProcState};
 
 pub struct WriteVariable<T: Copy> {
     raw: raw::Variable,
@@ -41,30 +42,24 @@ impl<'a, T: Copy> Future for WriteFuture<'a, T> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
         assert!(!self.complete);
-        let val = self.value;
-        let ps = self.owner.raw.proc_state();
-        ps.set_waker(cx.waker());
-        if !ps.processing() {
-            if !ps.requested() {
-                unsafe { self.owner.raw.lock().request_proc() };
-            }
-            Poll::Pending
-        } else {
-            {
+        let value = self.value;
+        let info = self.owner.raw.info();
+        info.set_waker(cx.waker());
+        match info.proc_state() {
+            ProcState::Idle => unsafe { self.owner.raw.lock().request_proc() },
+            ProcState::Requested => (),
+            ProcState::Processing => {
                 let mut guard = self.owner.raw.lock();
-                unsafe { *(guard.data_mut_ptr() as *mut T) = val };
+                unsafe { *(guard.data_mut_ptr() as *mut T) = value };
                 unsafe { guard.complete_proc() };
             }
-            self.complete = true;
-            Poll::Ready(())
+            ProcState::Ready => (),
+            ProcState::Complete => {
+                unsafe { self.owner.raw.lock().clean_proc() };
+                self.complete = true;
+                return Poll::Ready(());
+            }
         }
-    }
-}
-
-impl<'a, T: Copy> Drop for WriteFuture<'a, T> {
-    fn drop(&mut self) {
-        if !self.complete {
-            self.owner.raw.proc_state().clean_waker();
-        }
+        Poll::Pending
     }
 }

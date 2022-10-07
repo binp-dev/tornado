@@ -1,4 +1,3 @@
-use crate::raw;
 use std::{
     future::Future,
     marker::PhantomData,
@@ -7,6 +6,8 @@ use std::{
     slice,
     task::{Context, Poll},
 };
+
+use crate::raw::{self, variable::ProcState};
 
 pub struct WriteArrayVariable<T: Copy> {
     raw: raw::Variable,
@@ -27,13 +28,13 @@ impl<T: Copy> WriteArrayVariable<T> {
         self.max_len
     }
 
-    pub fn write_in_place(&mut self) -> WriteInPlaceFuture<'_, T> {
-        WriteInPlaceFuture { owner: Some(self) }
+    pub fn init_in_place(&mut self) -> InitInPlaceFuture<'_, T> {
+        InitInPlaceFuture { owner: Some(self) }
     }
 
     pub async fn write_from_slice(&mut self, src: &[T]) {
         assert!(src.len() <= self.max_len);
-        let mut guard = self.write_in_place().await;
+        let mut guard = self.init_in_place().await;
         let dst_uninit = guard.as_uninit_slice();
         let src_uninit = unsafe { slice::from_raw_parts(src.as_ptr() as *const MaybeUninit<T>, src.len()) };
         dst_uninit[..src.len()].copy_from_slice(src_uninit);
@@ -41,69 +42,97 @@ impl<T: Copy> WriteArrayVariable<T> {
     }
 }
 
-pub struct WriteInPlaceFuture<'a, T: Copy> {
+pub struct InitInPlaceFuture<'a, T: Copy> {
     owner: Option<&'a mut WriteArrayVariable<T>>,
 }
 
-impl<'a, T: Copy> Unpin for WriteInPlaceFuture<'a, T> {}
+impl<'a, T: Copy> Unpin for InitInPlaceFuture<'a, T> {}
 
-impl<'a, T: Copy> Future for WriteInPlaceFuture<'a, T> {
+impl<'a, T: Copy> Future for InitInPlaceFuture<'a, T> {
     type Output = WriteArrayGuard<'a, T>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let owner = self.owner.take().unwrap();
-        let ps = owner.raw.proc_state();
-        ps.set_waker(cx.waker());
-        if !ps.processing() {
-            if !ps.requested() {
-                unsafe { owner.raw.lock().request_proc() };
-            }
-            self.owner.replace(owner);
-            Poll::Pending
-        } else {
-            Poll::Ready(WriteArrayGuard::new(owner))
+        let info = owner.raw.info();
+        info.set_waker(cx.waker());
+        match info.proc_state() {
+            ProcState::Idle => unsafe { owner.raw.lock().request_proc() },
+            ProcState::Requested => (),
+            ProcState::Processing => return Poll::Ready(WriteArrayGuard::new(owner)),
+            _ => unreachable!(),
         }
+        self.owner.replace(owner);
+        Poll::Pending
     }
 }
 
-impl<'a, T: Copy> Drop for WriteInPlaceFuture<'a, T> {
-    fn drop(&mut self) {
-        if let Some(owner) = &self.owner {
-            owner.raw.proc_state().clean_waker();
-        }
-    }
-}
-
+#[must_use]
 pub struct WriteArrayGuard<'a, T: Copy> {
-    owner: &'a mut WriteArrayVariable<T>,
+    owner: Option<&'a mut WriteArrayVariable<T>>,
 }
 
 impl<'a, T: Copy> WriteArrayGuard<'a, T> {
     fn new(owner: &'a mut WriteArrayVariable<T>) -> Self {
         unsafe { owner.raw.get_unprotected().lock() };
-        Self { owner }
+        Self { owner: Some(owner) }
     }
 
     pub fn as_uninit_slice(&mut self) -> &mut [MaybeUninit<T>] {
-        let max_len = self.owner.max_len;
+        let owner = self.owner.as_ref().unwrap();
+        let max_len = owner.max_len;
         unsafe {
-            let raw_unprotected = self.owner.raw.get_unprotected();
+            let raw_unprotected = owner.raw.get_unprotected();
             std::slice::from_raw_parts_mut(raw_unprotected.data_ptr() as *mut MaybeUninit<T>, max_len)
         }
     }
 
     pub fn set_len(&mut self, new_len: usize) {
-        assert!(new_len <= self.owner.max_len);
-        unsafe { self.owner.raw.get_unprotected_mut() }.array_set_len(new_len);
+        let owner = self.owner.as_mut().unwrap();
+        assert!(new_len <= owner.max_len);
+        unsafe { owner.raw.get_unprotected_mut() }.array_set_len(new_len);
+    }
+
+    pub fn write(mut self) -> WriteArrayFuture<'a, T> {
+        let owner = self.owner.take().unwrap();
+        unsafe {
+            let raw_unprotected = owner.raw.get_unprotected_mut();
+            raw_unprotected.complete_proc();
+            raw_unprotected.unlock();
+        }
+        WriteArrayFuture { owner: Some(owner) }
     }
 }
 
 impl<'a, T: Copy> Drop for WriteArrayGuard<'a, T> {
     fn drop(&mut self) {
-        unsafe {
-            let raw_unprotected = self.owner.raw.get_unprotected_mut();
-            raw_unprotected.complete_proc();
-            raw_unprotected.unlock();
+        if let Some(_owner) = self.owner.take() {
+            panic!("WriteArrayGuard must be explicitly written");
         }
+    }
+}
+
+pub struct WriteArrayFuture<'a, T: Copy> {
+    owner: Option<&'a mut WriteArrayVariable<T>>,
+}
+
+impl<'a, T: Copy> Unpin for WriteArrayFuture<'a, T> {}
+
+impl<'a, T: Copy> Future for WriteArrayFuture<'a, T> {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let owner = self.owner.take().unwrap();
+        let info = owner.raw.info();
+        info.set_waker(cx.waker());
+        match info.proc_state() {
+            ProcState::Ready => (),
+            ProcState::Complete => {
+                unsafe { owner.raw.lock().clean_proc() };
+                return Poll::Ready(());
+            }
+            _ => unreachable!(),
+        }
+        self.owner.replace(owner);
+        Poll::Pending
     }
 }

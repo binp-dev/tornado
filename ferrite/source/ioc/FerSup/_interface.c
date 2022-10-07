@@ -12,12 +12,12 @@ void fer_app_exit(int code) {
     epicsExit(code);
 }
 
-void fer_var_req_proc(FerVar *var) {
+void fer_var_request_proc(FerVar *var) {
     fer_epics_record_request_proc((dbCommon *)var);
 }
 
-void fer_var_proc_done(FerVar *var) {
-    fer_epics_record_proc_done((dbCommon *)var);
+void fer_var_complete_proc(FerVar *var) {
+    fer_epics_record_complete_proc((dbCommon *)var);
 }
 
 void fer_var_lock(FerVar *var) {

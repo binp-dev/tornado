@@ -57,4 +57,4 @@ void fer_epics_record_request_proc(dbCommon *rec);
 /// Process record.
 void fer_epics_record_process(dbCommon *rec);
 /// Notify that process is done.
-void fer_epics_record_proc_done(dbCommon *rec);
+void fer_epics_record_complete_proc(dbCommon *rec);

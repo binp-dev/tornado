@@ -24,8 +24,6 @@ macro_rules! impl_atomic_variable {
                     loop {
                         handle.event.take().await;
                         let value = handle.value.load(Ordering::Acquire);
-                        //log::info!("value: {}", value);
-                        // FIXME: Frequent writes probably cause data loss.
                         variable.write(value).await;
                     }
                 })?;
