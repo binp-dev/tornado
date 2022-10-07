@@ -6,6 +6,7 @@ mod read_array;
 mod write;
 mod write_array;
 
+pub mod atomic;
 pub mod registry;
 
 pub use typing::VariableType;
