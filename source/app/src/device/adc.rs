@@ -23,13 +23,14 @@ impl Adc {
                     consumer.wait(max_len).await;
                     assert!(consumer.len() >= max_len);
                     {
-                        let mut guard = epics.array.write_in_place().await;
+                        let mut guard = epics.array.init_in_place().await;
                         let mut buffer = consumer.as_mut_sync().postponed();
                         {
                             GenericVec::<_, _>::from_empty(&mut guard.as_uninit_slice()[..max_len])
                                 .extend(buffer.pop_iter().map(|x| x as f64));
                         }
                         guard.set_len(max_len);
+                        guard.write().await;
                     }
                 }
             },

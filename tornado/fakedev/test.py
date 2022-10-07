@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 
 from ferrite.utils.asyncio.task import with_background
 from ferrite.utils.epics.ioc import AsyncIoc
-from ferrite.utils.epics.pv import Context, Pv, PvType
+from ferrite.utils.epics.pv import Context, Pv, PvMonitor, PvType
 from ferrite.utils.progress import CountBar
 import ferrite.utils.epics.ca as ca
 
@@ -82,12 +82,10 @@ class Handler(FakeDev.Handler):
 
 async def test(config: Config, handler: Handler) -> None:
     ctx = Context()
-    aais, aao, aao_request, aao_mode = await asyncio.gather(
-        asyncio.gather(*[ctx.connect(f"aai{i}", PvType.ARRAY_FLOAT) for i in range(config.adc_count)]),
-        ctx.connect("aao0", PvType.ARRAY_FLOAT),
-        ctx.connect("aao0_request", PvType.BOOL),
-        ctx.connect("aao0_mode", PvType.BOOL),
-    )
+    aais = await asyncio.gather(*[ctx.connect(f"aai{i}", PvType.ARRAY_FLOAT, monitor=True) for i in range(config.adc_count)])
+    aao = await ctx.connect("aao0", PvType.ARRAY_FLOAT)
+    aao_request = await ctx.connect("aao0_request", PvType.BOOL, monitor=True)
+    aao_mode = await ctx.connect("aao0_mode", PvType.BOOL)
 
     wf_size = aao.nelm
     logger.debug(f"Waveform max size: {wf_size}")
@@ -101,23 +99,25 @@ async def test(config: Config, handler: Handler) -> None:
 
     adcs_samples_count = [0] * config.adc_count
 
-    async def watch_single_adc(index: int, adc_pv: Pv[NDArray[np.float64]]) -> None:
-        async with adc_pv.monitor() as mon:
-            async for array in mon:
-                if len(array) == 0:
-                    continue
-                await handler.adcs[index].pop_check(array)
-                adcs_samples_count[index] += len(array)
-                #logger.debug(f"ADC[{index}] of size {len(array)} is correct")
+    async def watch_single_adc(index: int, adc_pv: PvMonitor[NDArray[np.float64]]) -> None:
+        async for array in adc_pv:
+            if len(array) == 0:
+                continue
+            await handler.adcs[index].pop_check(array)
+            adcs_samples_count[index] += len(array)
+            #logger.debug(f"ADC[{index}] of size {len(array)} is correct")
 
     async def watch_adcs() -> None:
         await asyncio.gather(*[watch_single_adc(i, pv) for i, pv in enumerate(aais)])
 
     async def wait_dac_req() -> None:
-        async with aao_request.monitor(current=True) as mon:
-            async for flag in mon:
-                logger.debug(f"dac request: {flag}")
-                if int(flag) != 0:
+        # TODO: Clear queue
+        flag = aao_request.get()
+        logger.debug(f"get dac request: {flag}")
+        if not flag:
+            async for flag in aao_request:
+                logger.debug(f"monitor dac request: {flag}")
+                if flag:
                     break
 
     async def run_check(config: Config) -> None:

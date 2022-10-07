@@ -9,10 +9,9 @@ use ferrite::{
     channel::MsgWriter,
     misc::{
         double_vec::{self, DoubleVec},
-        AsyncCounter, AsyncFlag,
+        AsyncCounter,
     },
-    variable::{ReadArrayVariable, ReadVariable},
-    WriteVariable,
+    variable::{atomic::AtomicVariableU32, ReadArrayVariable, ReadVariable},
 };
 use flatty::portable::{le::I32, NativeCast};
 use futures::{executor::ThreadPool, join};
@@ -33,22 +32,22 @@ impl Dac {
             points_to_send: point_counter.clone(),
         };
 
-        let requester = Requester::new(self.epics.request);
+        let request = AtomicVariableU32::new(self.epics.request, &exec).unwrap();
 
         let array_reader = ArrayReader {
             input: self.epics.array,
             output: write_buffer.clone(),
-            request: requester.flag.clone(),
+            request: request.clone(),
         };
         let scalar_reader = ScalarReader {
             input: self.epics.scalar,
             output: write_buffer,
-            request: requester.flag.clone(),
+            request: request.clone(),
         };
 
         let msg_sender = MsgSender {
             channel: self.channel,
-            stream: BufferReadStream::new(read_buffer, requester.flag.clone()),
+            stream: BufferReadStream::new(read_buffer, request),
             points_to_send: point_counter,
         };
 
@@ -57,7 +56,6 @@ impl Dac {
                 exec.spawn_ok(array_reader.run());
                 exec.spawn_ok(scalar_reader.run());
                 exec.spawn_ok(msg_sender.run());
-                exec.spawn_ok(requester.run());
             },
             handle,
         )
@@ -70,7 +68,6 @@ pub struct DacHandle {
 
 impl DacHandle {
     pub fn request(&self, count: usize) {
-        log::debug!("request: {}", count);
         self.points_to_send.add(count);
     }
 }
@@ -78,20 +75,21 @@ impl DacHandle {
 struct ArrayReader {
     input: ReadArrayVariable<f64>,
     output: Arc<double_vec::Writer<i32>>,
-    request: Arc<AsyncFlag>,
+    request: Arc<AtomicVariableU32>,
 }
 
 impl ArrayReader {
     async fn run(mut self) {
         loop {
             let input = self.input.read_in_place().await;
+            self.request.write(0);
             {
                 let mut output = self.output.write().await;
                 output.clear();
                 output.extend(input.iter().map(|x| *x as i32));
                 log::debug!("array_read: len={}", input.len());
             }
-            self.request.try_take();
+            input.close().await;
         }
     }
 }
@@ -99,20 +97,19 @@ impl ArrayReader {
 struct ScalarReader {
     input: ReadVariable<i32>,
     output: Arc<double_vec::Writer<i32>>,
-    request: Arc<AsyncFlag>,
+    request: Arc<AtomicVariableU32>,
 }
 
 impl ScalarReader {
     async fn run(mut self) {
         loop {
             let value = self.input.read().await;
+            self.request.write(0);
             {
                 let mut output = self.output.write().await;
                 output.clear();
                 output.push(value as i32);
-                log::debug!("scalar_read: {}", value);
             }
-            self.request.try_take();
         }
     }
 }
@@ -125,12 +122,11 @@ struct MsgSender {
 
 impl MsgSender {
     async fn run(mut self) {
+        self.stream.request.write(1);
         loop {
-            log::debug!("dac waiting");
             join!(self.points_to_send.wait(1), async {
                 if self.stream.is_empty() {
                     self.stream.wait_ready().await;
-                    log::debug!("buffer ready");
                 }
             });
 
@@ -138,7 +134,7 @@ impl MsgSender {
             msg.reset_tag(AppMsgTag::DacData).unwrap();
             let will_send = if let AppMsgMut::DacData(msg) = msg.as_mut() {
                 let mut count = self.points_to_send.sub(None);
-                log::debug!("points_to_send: {}", count);
+                //log::debug!("points_to_send: {}", count);
                 while count > 0 && !msg.points.is_full() {
                     match self.stream.next().await {
                         Some(value) => {
@@ -148,13 +144,12 @@ impl MsgSender {
                         None => break,
                     }
                 }
-                log::debug!("points_send: {}", msg.points.len());
+                //log::debug!("points_send: {}", msg.points.len());
                 self.points_to_send.add(count);
                 !msg.points.is_empty()
             } else {
                 unreachable!();
             };
-            log::debug!("write msg");
             if will_send {
                 msg.write().await.unwrap();
             }
@@ -166,10 +161,10 @@ struct BufferReadStream<T: Clone> {
     buffer: double_vec::Reader<T>,
     pos: usize,
     cyclic: bool,
-    request: Arc<AsyncFlag>,
+    request: Arc<AtomicVariableU32>,
 }
 impl<T: Clone> BufferReadStream<T> {
-    pub fn new(buffer: double_vec::Reader<T>, request: Arc<AsyncFlag>) -> Self {
+    pub fn new(buffer: double_vec::Reader<T>, request: Arc<AtomicVariableU32>) -> Self {
         BufferReadStream {
             buffer,
             pos: 0,
@@ -178,9 +173,9 @@ impl<T: Clone> BufferReadStream<T> {
         }
     }
     pub async fn try_swap(&mut self) -> bool {
-        log::info!("try swap");
+        //log::info!("try swap");
         if self.buffer.try_swap().await {
-            self.request.try_give();
+            self.request.write(1);
             true
         } else {
             false
@@ -199,7 +194,7 @@ impl<T: Clone> BufferReadStream<T> {
             }
         }
     }
-    pub async fn wait_ready(&self) {
+    pub async fn wait_ready(&mut self) {
         self.buffer.wait_ready().await
     }
     pub fn len(&self) -> usize {
@@ -207,27 +202,5 @@ impl<T: Clone> BufferReadStream<T> {
     }
     pub fn is_empty(&self) -> bool {
         self.len() == 0
-    }
-}
-
-struct Requester {
-    var: WriteVariable<u32>,
-    flag: Arc<AsyncFlag>,
-}
-
-impl Requester {
-    fn new(var: WriteVariable<u32>) -> Self {
-        Self {
-            var,
-            flag: Arc::new(AsyncFlag::new(true)),
-        }
-    }
-    async fn run(mut self) {
-        loop {
-            self.flag.wait(true).await;
-            self.var.write(1).await;
-            self.flag.wait(false).await;
-            self.var.write(0).await;
-        }
     }
 }

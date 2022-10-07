@@ -80,7 +80,7 @@ numpy = "^1.23.2"
 paramiko = "^2.9.2"
 pydantic = "^1.9.0"
 pyepics = "^3.5.1"
-pyepics-asyncio = "^0.1.2"
+pyepics-asyncio = "^0.2.0"
 toml = "^0.10.2"
 types-colorama = "^0.4.4"
 types-paramiko = "^2.8.10"
@@ -180,7 +180,7 @@ python-versions = "*"
 
 [[package]]
 name = "pyepics-asyncio"
-version = "0.1.2"
+version = "0.2.0"
 description = "Async/await wrapper for PyEpics"
 category = "main"
 optional = false
@@ -265,7 +265,7 @@ python-versions = "*"
 
 [[package]]
 name = "typing-extensions"
-version = "4.3.0"
+version = "4.4.0"
 description = "Backported and Experimental Type Hints for Python 3.7+"
 category = "main"
 optional = false
@@ -508,8 +508,8 @@ pyepics = [
     {file = "pyepics-3.5.1.tar.gz", hash = "sha256:a4d0f2d0d163aa34a53f560519f5664a42ba96aeb19bbf92e46228f22fa87ff6"},
 ]
 pyepics-asyncio = [
-    {file = "pyepics-asyncio-0.1.2.tar.gz", hash = "sha256:c9f633d2de6570c0f8e1bd4cbaf5d5053c5c6c9a65701b539b63ca9db18fee9a"},
-    {file = "pyepics_asyncio-0.1.2-py3-none-any.whl", hash = "sha256:b84d7389702894a3f5962290fdbd3765a692d2accfd158f49ae56fe605d1afde"},
+    {file = "pyepics-asyncio-0.2.0.tar.gz", hash = "sha256:770b940fd34b8e93105bc7953875596279e8dee7d8b158b3e291a63a42bb9a38"},
+    {file = "pyepics_asyncio-0.2.0-py3-none-any.whl", hash = "sha256:4dc95c0e656397d33dd4d6f5887f1d6d6e89a7a27ac6480c71d9240d2fccbefb"},
 ]
 pynacl = [
     {file = "PyNaCl-1.5.0-cp36-abi3-macosx_10_10_universal2.whl", hash = "sha256:401002a4aaa07c9414132aaed7f6836ff98f59277a234704ff66878c2ee4a0d1"},
@@ -552,8 +552,8 @@ types-toml = [
     {file = "types_toml-0.10.8-py3-none-any.whl", hash = "sha256:8300fd093e5829eb9c1fba69cee38130347d4b74ddf32d0a7df650ae55c2b599"},
 ]
 typing-extensions = [
-    {file = "typing_extensions-4.3.0-py3-none-any.whl", hash = "sha256:25642c956049920a5aa49edcdd6ab1e06d7e5d467fc00e0506c44ac86fbfca02"},
-    {file = "typing_extensions-4.3.0.tar.gz", hash = "sha256:e6d2677a32f47fc7eb2795db1dd15c1f34eff616bcaf2cfb5e997f854fa1c4a6"},
+    {file = "typing_extensions-4.4.0-py3-none-any.whl", hash = "sha256:16fa4864408f655d35ec496218b85f79b3437c829e93320c7c9215ccfd92489e"},
+    {file = "typing_extensions-4.4.0.tar.gz", hash = "sha256:1511434bb92bf8dd198c12b1cc812e800d4181cfcb867674e0f8279cc93087aa"},
 ]
 yapf = [
     {file = "yapf-0.32.0-py2.py3-none-any.whl", hash = "sha256:8fea849025584e486fd06d6ba2bed717f396080fd3cc236ba10cb97c4c51cf32"},
