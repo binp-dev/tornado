@@ -1,117 +1,77 @@
 from __future__ import annotations
-from typing import Any, AsyncGenerator, AsyncIterator, Generic, List, Literal, Optional, Type, TypeVar, overload, Union
+from typing import Any, List, AsyncIterator, Generic, Literal, Type, TypeVar, overload
 
-from enum import Enum
-from contextlib import asynccontextmanager
-import asyncio
+from enum import IntEnum
 
-import pyepics_asyncio as aepics
+import pyepics_asyncio as ae
 
 import numpy as np
 from numpy.typing import NDArray
 
-from ferrite.utils.asyncio.task import with_timeout
-
 T = TypeVar("T", bool, int, float, str, NDArray[np.int32], NDArray[np.float64])
+S = TypeVar("S", bool, int, float, str)
+A = TypeVar("A", NDArray[np.int32], NDArray[np.float64])
+
+P = TypeVar("P", bound=ae.PvBase, covariant=True)
 
 
-class PvType(Enum):
-    BOOL = 0
-    INT = 1
-    FLOAT = 2
-    STR = 3
-    ARRAY_INT = 4
-    ARRAY_FLOAT = 5
+class PvBase(Generic[P, T]):
 
-    def _type(self) -> Type[_PvAny]:
-        if self == PvType.BOOL:
-            return _PvBool
-        elif self == PvType.INT:
-            return _PvInt
-        elif self == PvType.FLOAT:
-            return _PvFloat
-        elif self == PvType.STR:
-            return _PvStr
-        elif self == PvType.ARRAY_INT:
-            return _PvArrayInt
-        elif self == PvType.ARRAY_FLOAT:
-            return _PvArrayFloat
-        else:
-            raise RuntimeError("Unreachable")
-
-    def _check_pv(self, raw: aepics.Pv) -> None:
-        int_names = ["char", "short", "int", "long", "enum"]
-        float_names = ["float", "double"]
-
-        rtype = raw.raw.type
-        try:
-            if self == PvType.BOOL:
-                assert rtype in int_names
-                assert raw.nelm == 1
-            elif self == PvType.INT:
-                assert rtype in int_names
-                assert raw.nelm == 1
-            elif self == PvType.FLOAT:
-                assert rtype in float_names
-                assert raw.nelm == 1
-            elif self == PvType.STR:
-                assert rtype == "string"
-                assert raw.nelm == 1
-            elif self == PvType.ARRAY_INT:
-                assert rtype in int_names
-                assert raw.nelm > 1
-            elif self == PvType.ARRAY_FLOAT:
-                assert rtype in float_names
-                assert raw.nelm > 1
-            else:
-                raise RuntimeError("Unreachable")
-        except AssertionError:
-            raise AssertionError(
-                f"Actual PV '{raw.name}' type '{raw.raw.type}' (nelm: {raw.nelm}) does not match requested type {self}"
-            )
-
-
-class Pv(Generic[T]):
-    type: PvType
-
-    def __init__(self, raw: aepics.Pv) -> None:
-        self.type._check_pv(raw)
-        self._raw = raw
-
-    @staticmethod
-    def _convert(value: Any) -> T:
-        raise NotImplementedError()
-
-    async def get(self) -> T:
-        return self._convert(await self._raw.get())
-
-    async def put(self, value: T) -> None:
-        await self._raw.put(value)
-
-    async def _generator(self, mon: AsyncGenerator[Any, None]) -> AsyncGenerator[T, None]:
-        async for value in mon:
-            yield self._convert(value)
-
-    @asynccontextmanager
-    async def monitor(self, current: bool = False) -> AsyncIterator[AsyncGenerator[T, None]]:
-        async with self._raw.monitor(current=current) as mon:
-            yield self._generator(mon)
+    def __init__(self, pv: P) -> None:
+        self.pv = pv
 
     @property
     def name(self) -> str:
-        return self._raw.name
+        return self.pv.name
+
+    async def put(self, value: T) -> None:
+        await self.pv.put(value)
+
+    def _convert(self, value: Any) -> T:
+        raise NotImplementedError()
 
 
-class PvArray(Pv[T]):
+class PvArrayBase(PvBase[P, A]):
 
     @property
     def nelm(self) -> int:
-        return self._raw.nelm
+        return self.pv.nelm
 
 
-class _PvBool(Pv[bool]):
+class Pv(PvBase[ae.Pv, T]):
 
-    type: PvType = PvType.BOOL
+    async def get(self) -> T:
+        return self._convert(await self.pv.get())
+
+
+class PvMonitor(PvBase[ae.PvMonitor, T]):
+
+    def get(self) -> T:
+        return self._convert(self.pv.get())
+
+    async def __aiter__(self) -> AsyncIterator[T]:
+        async for value in self.pv:
+            yield self._convert(value)
+
+
+class PvArray(Pv[A], PvArrayBase[ae.Pv, A]):
+    pass
+
+
+class PvArrayMonitor(PvMonitor[A], PvArrayBase[ae.Pv, A]):
+    pass
+
+
+_int_names = ["char", "short", "int", "long", "enum"]
+_float_names = ["float", "double"]
+
+
+class _PvBoolBase(PvBase[P, bool]):
+
+    def __init__(self, pv: P) -> None:
+        assert pv.raw.type in _int_names
+        assert pv.nelm == 1
+        super().__init__(pv)
 
     @staticmethod
     def _convert(value: Any) -> bool:
@@ -119,9 +79,12 @@ class _PvBool(Pv[bool]):
         return bool(value)
 
 
-class _PvInt(Pv[int]):
+class _PvIntBase(PvBase[P, int]):
 
-    type: PvType = PvType.INT
+    def __init__(self, pv: P) -> None:
+        assert pv.raw.type in _int_names
+        assert pv.nelm == 1
+        super().__init__(pv)
 
     @staticmethod
     def _convert(value: Any) -> int:
@@ -129,9 +92,12 @@ class _PvInt(Pv[int]):
         return int(value)
 
 
-class _PvFloat(Pv[float]):
+class _PvFloatBase(PvBase[P, float]):
 
-    type: PvType = PvType.FLOAT
+    def __init__(self, pv: P) -> None:
+        assert pv.raw.type in _float_names
+        assert pv.nelm == 1
+        super().__init__(pv)
 
     @staticmethod
     def _convert(value: Any) -> float:
@@ -139,9 +105,12 @@ class _PvFloat(Pv[float]):
         return float(value)
 
 
-class _PvStr(Pv[str]):
+class _PvStrBase(PvBase[P, str]):
 
-    type: PvType = PvType.STR
+    def __init__(self, pv: P) -> None:
+        assert pv.raw.type == "string"
+        assert pv.nelm == 1
+        super().__init__(pv)
 
     @staticmethod
     def _convert(value: Any) -> str:
@@ -149,9 +118,12 @@ class _PvStr(Pv[str]):
         return str(value)
 
 
-class _PvArrayInt(PvArray[NDArray[np.int32]]):
+class _PvArrayIntBase(PvArrayBase[P, NDArray[np.int32]]):
 
-    type: PvType = PvType.ARRAY_INT
+    def __init__(self, pv: P) -> None:
+        assert pv.raw.type in _int_names
+        assert pv.nelm > 1
+        super().__init__(pv)
 
     @staticmethod
     def _convert(array: Any) -> NDArray[np.int32]:
@@ -165,12 +137,15 @@ class _PvArrayInt(PvArray[NDArray[np.int32]]):
             return array
 
 
-class _PvArrayFloat(PvArray[NDArray[np.float64]]):
+class _PvArrayFloatBase(PvArrayBase[P, NDArray[np.float64]]):
 
-    type: PvType = PvType.ARRAY_FLOAT
+    def __init__(self, pv: P) -> None:
+        assert pv.raw.type in _float_names
+        assert pv.nelm > 1
+        super().__init__(pv)
 
     @staticmethod
-    def _convert(array: Any) -> NDArray[np.float64]:
+    def _convert(array: Any) -> np.ndarray[Any, np.dtype[np.float64]]:
         try:
             assert isinstance(array, np.ndarray)
         except AssertionError:
@@ -181,46 +156,109 @@ class _PvArrayFloat(PvArray[NDArray[np.float64]]):
             return array
 
 
-_PvAny = Union[Pv[bool], Pv[int], Pv[float], Pv[str], PvArray[NDArray[np.int32]], PvArray[NDArray[np.float64]]]
+class PvType(IntEnum):
+    BOOL = 0
+    INT = 1
+    FLOAT = 2
+    STR = 3
+    ARRAY_INT = 4
+    ARRAY_FLOAT = 5
+
+    def base_type(self) -> Type[PvBase[P, T]]:
+        types: List[Type[Any]] = [
+            _PvBoolBase[P],
+            _PvIntBase[P],
+            _PvFloatBase[P],
+            _PvStrBase[P],
+            _PvArrayIntBase[P],
+            _PvArrayFloatBase[P],
+        ]
+        return types[int(self)]
 
 
 class Context:
 
     @overload
-    async def connect(self, name: str, pv_type: Literal[PvType.BOOL]) -> Pv[bool]:
+    async def connect(self, name: str, type: Literal[PvType.BOOL], monitor: Literal[False] = False) -> Pv[bool]:
         ...
 
     @overload
-    async def connect(self, name: str, pv_type: Literal[PvType.INT]) -> Pv[int]:
+    async def connect(self, name: str, type: Literal[PvType.INT], monitor: Literal[False] = False) -> Pv[int]:
         ...
 
     @overload
-    async def connect(self, name: str, pv_type: Literal[PvType.FLOAT]) -> Pv[float]:
+    async def connect(self, name: str, type: Literal[PvType.FLOAT], monitor: Literal[False] = False) -> Pv[float]:
         ...
 
     @overload
-    async def connect(self, name: str, pv_type: Literal[PvType.STR]) -> Pv[str]:
+    async def connect(self, name: str, type: Literal[PvType.STR], monitor: Literal[False] = False) -> Pv[str]:
         ...
 
     @overload
-    async def connect(self, name: str, pv_type: Literal[PvType.ARRAY_INT]) -> PvArray[NDArray[np.int32]]:
+    async def connect(
+        self,
+        name: str,
+        type: Literal[PvType.ARRAY_INT],
+        monitor: Literal[False] = False,
+    ) -> PvArray[NDArray[np.int32]]:
         ...
 
     @overload
-    async def connect(self, name: str, pv_type: Literal[PvType.ARRAY_FLOAT]) -> PvArray[NDArray[np.float64]]:
+    async def connect(
+        self,
+        name: str,
+        type: Literal[PvType.ARRAY_FLOAT],
+        monitor: Literal[False] = False,
+    ) -> PvArray[NDArray[np.float64]]:
         ...
 
-    async def connect(self, name: str, pv_type: PvType, timeout: Optional[float] = 2.0) -> _PvAny:
-        connect_future = aepics.Pv.connect(name)
-        if timeout is not None:
-            try:
-                raw = await with_timeout(connect_future, timeout)
-            except TimeoutError as e:
-                raise TimeoutError(f"Cannot connect to PV '{name}': {e}")
+    @overload
+    async def connect(self, name: str, type: Literal[PvType.BOOL], monitor: Literal[True]) -> PvMonitor[bool]:
+        ...
+
+    @overload
+    async def connect(self, name: str, type: Literal[PvType.INT], monitor: Literal[True]) -> PvMonitor[int]:
+        ...
+
+    @overload
+    async def connect(self, name: str, type: Literal[PvType.FLOAT], monitor: Literal[True]) -> PvMonitor[float]:
+        ...
+
+    @overload
+    async def connect(self, name: str, type: Literal[PvType.STR], monitor: Literal[True]) -> PvMonitor[str]:
+        ...
+
+    @overload
+    async def connect(
+        self,
+        name: str,
+        type: Literal[PvType.ARRAY_INT],
+        monitor: Literal[True],
+    ) -> PvArrayMonitor[NDArray[np.int32]]:
+        ...
+
+    @overload
+    async def connect(
+        self,
+        name: str,
+        type: Literal[PvType.ARRAY_FLOAT],
+        monitor: Literal[True],
+    ) -> PvArrayMonitor[NDArray[np.float64]]:
+        ...
+
+    async def connect(self, name: str, type: PvType, monitor: bool = False) -> PvBase[P, T]:
+        Base: Type[PvBase[P, T]] = type.base_type()
+
+        Kind: Type[PvBase[P, T]]
+        pv: ae.PvBase
+        if not monitor:
+            Kind = Pv[T] # type: ignore
+            pv = await ae.Pv.connect(name)
         else:
-            raw = await connect_future
+            Kind = PvMonitor[T] # type: ignore
+            pv = await ae.PvMonitor.connect(name)
 
-        # Without this workaround calling `monitor()` right after `connect()` sometimes returns initial value.
-        await asyncio.sleep(0.2)
+        class SpecificPv(Base, Kind): # type: ignore
+            pass
 
-        return pv_type._type()(raw)
+        return SpecificPv(pv)

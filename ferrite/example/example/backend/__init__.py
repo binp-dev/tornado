@@ -1,7 +1,8 @@
 from __future__ import annotations
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 import os
+from sys import stdout
 from pathlib import Path
 from dataclasses import dataclass
 from random import Random
@@ -12,7 +13,7 @@ from numpy.typing import NDArray
 
 from ferrite.utils.asyncio.task import with_background
 from ferrite.utils.asyncio.net import TcpListener, MsgWriter, MsgReader
-from ferrite.utils.epics.pv import Context as Ca, PvType
+from ferrite.utils.epics.pv import Context as Ca, PvMonitor, PvType, Pv
 from ferrite.utils.epics.ioc import AsyncIoc
 import ferrite.utils.epics.ca as ca
 
@@ -39,28 +40,45 @@ def random_i32_array(rng: np.random.Generator, max_size: int) -> NDArray[np.int3
 
 
 @dataclass
+class Stepper:
+    period: int | None
+    value: int = 0
+
+    def step(self) -> None:
+        if self.period is not None and self.value % self.period == 0:
+            print("#", end="")
+            stdout.flush()
+        self.value += 1
+
+
+@dataclass
 class RandomTest(TestCase):
-    attempts: int = 32
+    attempts: int = 256
     seed: int = 0xdeadbeef
+
+
+stepper = Stepper(None)
 
 
 @dataclass
 class AiTest(RandomTest, WriteTestCase[proto.Ai]):
 
     async def run(self) -> None:
-        record = await self.ca.connect("ai", PvType.FLOAT)
+        record = await self.ca.connect("ai", PvType.FLOAT, monitor=True)
+        async for _ in record:
+            break
 
         async def test(x: int) -> None:
-            assert int(await record.get()) != x
 
-            async with record.monitor() as mon:
-                await self.write_msg(InMsg.Ai(x))
-                logger.debug(f"Msg sent: {x}")
+            await self.write_msg(InMsg.Ai(x))
+            logger.debug(f"Msg sent: {x}")
 
-                async for y in mon:
-                    logger.debug(f"Pv get: {y}")
-                    assert_eq(x, int(y))
-                    break
+            async for y in record:
+                logger.debug(f"Pv get: {y}")
+                assert_eq(x, int(y))
+                break
+
+            stepper.step()
 
         rng = Random(self.seed + 1)
         for _ in range(self.attempts):
@@ -89,6 +107,8 @@ class AoTest(RandomTest, ReadTestCase[proto.Ao]):
 
             assert_eq(x, y)
 
+            stepper.step()
+
         rng = Random(self.seed + 2)
         for _ in range(self.attempts):
             await test(random_i32(rng))
@@ -97,19 +117,21 @@ class AoTest(RandomTest, ReadTestCase[proto.Ao]):
 class BiTest(WriteTestCase[proto.Bi]):
 
     async def run(self) -> None:
-        record = await self.ca.connect("bi", PvType.INT)
+        record = await self.ca.connect("bi", PvType.BOOL, monitor=True)
+        async for _ in record:
+            break
 
         async def test(x: bool) -> None:
-            assert int(await record.get()) != x
 
-            async with record.monitor() as mon:
-                await self.write_msg(InMsg.Bi(int(x)))
-                logger.debug(f"Msg sent: {int(x)}")
+            await self.write_msg(InMsg.Bi(int(x)))
+            logger.debug(f"Msg sent: {x}")
 
-                async for y in mon:
-                    logger.debug(f"Pv get: {y}")
-                    assert_eq(int(x), y)
-                    break
+            async for y in record:
+                logger.debug(f"Pv get: {y}")
+                assert_eq(x, y)
+                break
+
+            stepper.step()
 
         await test(True)
         await test(False)
@@ -124,17 +146,19 @@ class BoTest(ReadTestCase[proto.Bo]):
             return None
 
     async def run(self) -> None:
-        record = await self.ca.connect("bo", PvType.INT)
+        record = await self.ca.connect("bo", PvType.BOOL)
 
         async def test(x: bool) -> None:
-            await record.put(int(x))
-            logger.debug(f"Pv put: {int(x)}")
+            await record.put(x)
+            logger.debug(f"Pv put: {x}")
 
             msg = await self.read_msg()
             y = msg.value
             logger.debug(f"Msg received: {y}")
 
             assert_eq(int(x), y)
+
+            stepper.step()
 
         await test(True)
         await test(False)
@@ -144,17 +168,18 @@ class BoTest(ReadTestCase[proto.Bo]):
 class AaiTest(RandomTest, WriteTestCase[proto.Aai]):
 
     async def run(self) -> None:
-        record = await self.ca.connect("aai", PvType.ARRAY_INT)
+        record = await self.ca.connect("aai", PvType.ARRAY_INT, monitor=True)
 
         async def test(ax: NDArray[np.int32]) -> None:
-            async with record.monitor() as mon:
-                await self.write_msg(InMsg.Aai(ax))
-                logger.debug(f"Msg sent:\n{ax}")
+            await self.write_msg(InMsg.Aai(ax))
+            logger.debug(f"Msg sent:\n{ax}")
 
-                async for ay in mon:
-                    logger.debug(f"Pv get:\n{ay}")
-                    assert_array_eq(ax, ay)
-                    break
+            async for ay in record:
+                logger.debug(f"Pv get:\n{ay}")
+                assert_array_eq(ax, ay)
+                break
+
+            stepper.step()
 
         rng = np.random.default_rng(self.seed + 5)
         for _ in range(self.attempts):
@@ -183,6 +208,8 @@ class AaoTest(RandomTest, ReadTestCase[proto.Aao]):
 
             assert_array_eq(ax, ay)
 
+            stepper.step()
+
         rng = np.random.default_rng(self.seed + 6)
         for _ in range(self.attempts):
             await test(random_i32_array(rng, record.nelm))
@@ -192,17 +219,18 @@ class AaoTest(RandomTest, ReadTestCase[proto.Aao]):
 class WaveformTest(RandomTest, WriteTestCase[proto.Waveform]):
 
     async def run(self) -> None:
-        record = await self.ca.connect("waveform", PvType.ARRAY_INT)
+        record = await self.ca.connect("waveform", PvType.ARRAY_INT, monitor=True)
 
         async def test(ax: NDArray[np.int32]) -> None:
-            async with record.monitor() as mon:
-                await self.write_msg(InMsg.Waveform(ax))
-                logger.debug(f"Msg sent:\n{ax}")
+            await self.write_msg(InMsg.Waveform(ax))
+            logger.debug(f"Msg sent:\n{ax}")
 
-                async for ay in mon:
-                    logger.debug(f"Pv get:\n{ay}")
-                    assert_array_eq(ax, ay)
-                    break
+            async for ay in record:
+                logger.debug(f"Pv get:\n{ay}")
+                assert_array_eq(ax, ay)
+                break
+
+            stepper.step()
 
         rng = np.random.default_rng(self.seed + 7)
         for _ in range(self.attempts):
@@ -214,21 +242,25 @@ class MbbiDirectTest(WriteTestCase[proto.MbbiDirect]):
     async def run(self) -> None:
 
         nbits = 16
-        records = list(await asyncio.gather(*[self.ca.connect(f"mbbiDirect.B{i:X}", PvType.INT) for i in range(nbits)]))
+        records: List[PvMonitor[bool]] = \
+            await asyncio.gather(*[self.ca.connect(f"mbbiDirect.B{i:X}", PvType.INT, monitor=True) for i in range(nbits)])
+        for rec in records:
+            async for _ in rec:
+                break
 
         async def test(x: int, i: int, b: bool) -> int:
             x = x | (1 << i) if b else x & ~(1 << i)
 
-            async with records[i].monitor() as mon:
-                await self.write_msg(InMsg.MbbiDirect(x))
-                logger.debug(f"Msg sent: {x}")
+            await self.write_msg(InMsg.MbbiDirect(x))
+            logger.debug(f"Msg sent: {x}")
 
-                async for y in mon:
-                    logger.debug(f"Pv[{i}] get: {y}")
-                    assert_eq(int(b), y)
-                    break
+            async for y in records[i]:
+                logger.debug(f"Pv[{i}] get: {y}")
+                assert_eq(b, y)
+                break
 
-                return x
+            stepper.step()
+            return x
 
         x = 0
         for i in range(nbits):
@@ -248,11 +280,12 @@ class MbboDirectTest(ReadTestCase[proto.MbboDirect]):
     async def run(self) -> None:
 
         nbits = 16
-        records = list(await asyncio.gather(*[self.ca.connect(f"mbboDirect.B{i:X}", PvType.INT) for i in range(nbits)]))
+        records: List[Pv[bool]] = \
+            await asyncio.gather(*[self.ca.connect(f"mbboDirect.B{i:X}", PvType.BOOL) for i in range(nbits)])
 
         async def test(x: int, i: int, b: bool) -> int:
-            await records[i].put(int(b))
-            logger.debug(f"Pv[{i}] put: {int(b)}")
+            await records[i].put(b)
+            logger.debug(f"Pv[{i}] put: {b}")
             x = x | (1 << i) if b else x & ~(1 << i)
 
             msg = await self.read_msg()
@@ -260,6 +293,7 @@ class MbboDirectTest(ReadTestCase[proto.MbboDirect]):
             logger.debug(f"Msg received: {y}")
             assert_eq(x, y)
 
+            stepper.step()
             return x
 
         x = 0

@@ -11,7 +11,7 @@ example = { path = "example", develop = true, optional = true }
 toml = "^0.10.2"
 types-toml = "^0.10.4"
 pyepics = "^3.5.1"
-pyepics-asyncio = "^0.1.2"
+pyepics-asyncio = "^0.2.0"
 paramiko = "^2.9.2"
 types-paramiko = "^2.8.10"
 colorama = "^0.4.4"
