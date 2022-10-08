@@ -24,7 +24,7 @@ impl Adc {
                     assert!(consumer.len() >= max_len);
                     {
                         let mut guard = epics.array.init_in_place().await;
-                        let mut buffer = consumer.as_mut_sync().postponed();
+                        let buffer = consumer.as_mut_base();
                         {
                             GenericVec::<_, _>::from_empty(&mut guard.as_uninit_slice()[..max_len])
                                 .extend(buffer.pop_iter().map(|x| x as f64));

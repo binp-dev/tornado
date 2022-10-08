@@ -10,8 +10,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from ferrite.utils.asyncio.task import with_background
-from ferrite.utils.epics.ioc import AsyncIoc
-from ferrite.utils.epics.pv import Context, Pv, PvMonitor, PvType
+from ferrite.utils.epics.ioc import AsyncIoc, RunMode
+from ferrite.utils.epics.pv import Ca, Pv, PvMonitor, PvType
 from ferrite.utils.progress import CountBar
 import ferrite.utils.epics.ca as ca
 
@@ -81,11 +81,11 @@ class Handler(FakeDev.Handler):
 
 
 async def test(config: Config, handler: Handler) -> None:
-    ctx = Context()
-    aais = await asyncio.gather(*[ctx.connect(f"aai{i}", PvType.ARRAY_FLOAT, monitor=True) for i in range(config.adc_count)])
-    aao = await ctx.connect("aao0", PvType.ARRAY_FLOAT)
-    aao_request = await ctx.connect("aao0_request", PvType.BOOL, monitor=True)
-    aao_mode = await ctx.connect("aao0_mode", PvType.BOOL)
+    ca = Ca(timeout=2.0)
+    aais = await asyncio.gather(*[ca.connect(f"aai{i}", PvType.ARRAY_FLOAT, monitor=True) for i in range(config.adc_count)])
+    aao = await ca.connect("aao0", PvType.ARRAY_FLOAT)
+    aao_request = await ca.connect("aao0_request", PvType.BOOL, monitor=True)
+    aao_mode = await ca.connect("aao0_mode", PvType.BOOL)
 
     wf_size = aao.nelm
     logger.debug(f"Waveform max size: {wf_size}")
