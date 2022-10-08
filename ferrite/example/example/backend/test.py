@@ -7,7 +7,7 @@ from asyncio import Queue
 from numpy.typing import NDArray
 
 from ferrite.utils.asyncio.net import MsgWriter
-from ferrite.utils.epics.pv import Context as Ca
+from ferrite.utils.epics.pv import Ca
 
 from example.protocol import InMsg, OutMsg
 

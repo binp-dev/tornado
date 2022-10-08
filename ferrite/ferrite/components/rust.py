@@ -89,6 +89,7 @@ class Cargo(Component):
     rustc: Rustc
     deps: List[Task] = field(default_factory=list)
     features: List[str] = field(default_factory=list)
+    release: bool = False
 
     def __post_init__(self) -> None:
         self.home_dir = Path.cwd() / ".cargo"
@@ -124,6 +125,7 @@ class Cargo(Component):
                 "build",
                 f"--target={self.rustc.target}",
                 f"--features={','.join(self.features)}",
+                *(["--release"] if self.release else []),
             ],
         ]
         for cmd in cmds:

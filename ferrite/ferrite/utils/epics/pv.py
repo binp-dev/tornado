@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import Any, List, AsyncIterator, Generic, Literal, Type, TypeVar, overload
+from typing import Any, List, Optional, Awaitable, AsyncIterator, Generic, Literal, Type, TypeVar, overload
 
+from dataclasses import dataclass
 from enum import IntEnum
-
+import asyncio
 import pyepics_asyncio as ae
 
 import numpy as np
@@ -176,7 +177,11 @@ class PvType(IntEnum):
         return types[int(self)]
 
 
-class Context:
+@dataclass
+class Ca:
+    "Channel Access context"
+
+    timeout: Optional[float] = None
 
     @overload
     async def connect(self, name: str, type: Literal[PvType.BOOL], monitor: Literal[False] = False) -> Pv[bool]:
@@ -250,15 +255,20 @@ class Context:
         Base: Type[PvBase[P, T]] = type.base_type()
 
         Kind: Type[PvBase[P, T]]
-        pv: ae.PvBase
+        apv: Awaitable[ae.PvBase]
         if not monitor:
             Kind = Pv[T] # type: ignore
-            pv = await ae.Pv.connect(name)
+            apv = ae.Pv.connect(name)
         else:
             Kind = PvMonitor[T] # type: ignore
-            pv = await ae.PvMonitor.connect(name)
+            apv = ae.PvMonitor.connect(name)
 
         class SpecificPv(Base, Kind): # type: ignore
             pass
+
+        try:
+            pv = await asyncio.wait_for(apv, timeout=self.timeout)
+        except asyncio.exceptions.TimeoutError:
+            raise TimeoutError(f"Cannot connect to PV '{name}'")
 
         return SpecificPv(pv)

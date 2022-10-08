@@ -5,11 +5,18 @@ import os
 from subprocess import Popen, CalledProcessError
 from pathlib import Path
 from time import sleep
+from enum import Enum
 import asyncio
 
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class RunMode(Enum):
+    NORMAL = 0
+    DEBUGGER = 1
+    PROFILER = 2
 
 
 class IocBase:
@@ -20,17 +27,22 @@ class IocBase:
         ioc_dir: Path,
         arch: str,
         env: Dict[str, str] = {},
-        debug: bool = False,
+        mode: RunMode = RunMode.NORMAL,
     ):
         self.binary = ioc_dir / "bin" / arch / "Fer"
         self.script = ioc_dir / "iocBoot/iocFer/st.cmd"
         self.lib_dirs = [epics_base_dir / "lib" / arch, ioc_dir / "lib" / arch]
         self._env = env
-        self.debug = debug
+        self.mode = mode
 
     def cmd(self) -> List[str]:
+        prefix = []
+        if self.mode == RunMode.DEBUGGER:
+            prefix = ["gdb", "-batch", "-ex", "run", "-ex", "bt", "-args"]
+        elif self.mode == RunMode.PROFILER:
+            prefix = ["perf", "record"]
         return [
-            *(["gdb", "-batch", "-ex", "run", "-ex", "bt", "-args"] if self.debug else []),
+            *prefix,
             str(self.binary),
             self.script.name,
         ]

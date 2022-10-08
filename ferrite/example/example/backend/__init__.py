@@ -13,7 +13,7 @@ from numpy.typing import NDArray
 
 from ferrite.utils.asyncio.task import with_background
 from ferrite.utils.asyncio.net import TcpListener, MsgWriter, MsgReader
-from ferrite.utils.epics.pv import Context as Ca, PvMonitor, PvType, Pv
+from ferrite.utils.epics.pv import Ca, PvMonitor, PvType, Pv
 from ferrite.utils.epics.ioc import AsyncIoc
 import ferrite.utils.epics.ca as ca
 
@@ -313,7 +313,7 @@ async def _async_test(ioc: AsyncIoc) -> None:
             reader = MsgReader(OutMsg, stream.reader, 260)
             logger.info("Socket connected")
 
-            ca = Ca()
+            ca = Ca(timeout=2.0)
 
             tests = [
                 AiTest(ca, writer),
