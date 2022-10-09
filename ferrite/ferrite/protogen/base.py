@@ -19,7 +19,11 @@ class TestInfo:
 @dataclass
 class Context:
     prefix: str
-    default: bool = True
+    default: bool = False
+
+    def set_global(self) -> None:
+        global CONTEXT
+        CONTEXT = self
 
 
 # FIXME: Remove global context
@@ -51,6 +55,9 @@ class Name:
     @staticmethod
     def from_snake(snake: str) -> Name:
         return Name(snake.split("_"))
+
+    def __hash__(self) -> int:
+        return hash(tuple(self.words))
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Name):
@@ -232,6 +239,9 @@ class Type:
     # Tests
 
     def c_check(self, var: str, obj: Any) -> List[str]:
+        raise self.NotImplemented(self)
+
+    def c_object(self, obj: Any) -> str:
         raise self.NotImplemented(self)
 
     def rust_check(self, var: str, obj: Any) -> List[str]:

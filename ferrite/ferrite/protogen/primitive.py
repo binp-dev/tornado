@@ -17,6 +17,7 @@ T = TypeVar('T')
 class Int(Type):
     bits: int
     signed: bool = False
+    portable: bool = True
 
     _np_dtypes: ClassVar[List[List[DTypeLike]]] = [
         [np.uint8, np.int8],
@@ -61,21 +62,14 @@ class Int(Type):
     def np_shape(self) -> List[int]:
         return []
 
-    def _c_literal(self, value: int, hex: bool = False) -> str:
-        if hex:
-            vstr = f"0x{value:x}"
-        else:
-            vstr = str(value)
-        return f"{vstr}{'u' if not self.signed else ''}{'ll' if self.bits > 32 else ''}"
-
     def c_type(self) -> str:
         return self._int_name + "_t"
 
     def rust_type(self) -> str:
-        if self.bits <= 8:
-            return ("i" if self.signed else "u") + str(self.bits)
-        else:
+        if self.portable and self.bits > 8:
             return ("I" if self.signed else "U") + str(self.bits)
+        else:
+            return ("i" if self.signed else "u") + str(self.bits)
 
     def pyi_type(self) -> str:
         return "int"
@@ -84,19 +78,27 @@ class Int(Type):
         return f"np.{self._int_name}"
 
     def c_check(self, var: str, obj: int) -> List[str]:
-        return [f"codegen_assert_eq({var}, {self._c_literal(obj)});"]
+        return [f"codegen_assert_eq({var}, {self.c_object(obj)});"]
+
+    def c_object(self, obj: int, hex: bool = False) -> str:
+        if hex:
+            vstr = f"0x{obj:x}"
+        else:
+            vstr = str(obj)
+        return f"{vstr}{'u' if not self.signed else ''}{'ll' if self.bits > 32 else ''}"
 
     def rust_check(self, var: str, obj: int) -> List[str]:
-        if self.bits <= 8:
-            return [f"assert_eq!(*{var}, {obj});"]
+        if self.portable and self.bits > 8:
+            var = f"{var}.to_native()"
         else:
-            return [f"assert_eq!({var}.to_native(), {obj});"]
+            var = f"*{var}"
+        return [f"assert_eq!({var}, {obj});"]
 
     def rust_object(self, obj: int) -> str:
         return str(obj)
 
     def rust_source(self) -> Optional[Source]:
-        if self.bits <= 8:
+        if self.portable and self.bits > 8:
             return None
         else:
             return Source(Location.IMPORT, [["use flatty::portable::le::*;"]])
@@ -112,11 +114,12 @@ class Float(Type):
         else:
             raise RuntimeError("Float type is neither 'f32' nor 'f64'")
 
-    def __init__(self, bits: int) -> None:
+    def __init__(self, bits: int, portable: bool = True) -> None:
         if bits != 32 and bits != 64:
             raise RuntimeError(f"{bits}-bit float is not supported")
         super().__init__(Name(f"float{bits}"), bits // 8)
         self.bits = bits
+        self.portable = portable
 
     def load(self, data: bytes) -> float:
         if len(data) < self.size:
@@ -146,14 +149,14 @@ class Float(Type):
     def np_shape(self) -> List[int]:
         return []
 
-    def _c_literal(self, value: float) -> str:
-        return f"{value}{self._choose('f', '')}"
-
     def c_type(self) -> str:
         return self._choose("float", "double")
 
     def rust_type(self) -> str:
-        return f"F{self.bits}"
+        if self.portable:
+            return f"F{self.bits}"
+        else:
+            return f"f{self.bits}"
 
     def pyi_type(self) -> str:
         return "float"
@@ -162,16 +165,26 @@ class Float(Type):
         return f"np.float{self.bits}"
 
     def c_check(self, var: str, obj: float) -> List[str]:
-        return [f"codegen_assert_eq({var}, {self._c_literal(obj)});"]
+        return [f"codegen_assert_eq({var}, {self.c_object(obj)});"]
+
+    def c_object(self, obj: float) -> str:
+        return f"{obj}{self._choose('f', '')}"
 
     def rust_check(self, var: str, obj: float) -> List[str]:
-        return [f"assert_eq!({var}.to_native(), {obj});"]
+        if self.portable:
+            var = f"{var}.to_native()"
+        else:
+            var = f"*{var}"
+        return [f"assert_eq!({var}, {self.rust_object(obj)});"]
 
     def rust_object(self, obj: float) -> str:
         return str(obj)
 
     def rust_source(self) -> Optional[Source]:
-        return Source(Location.IMPORT, [["use flatty::portable::le::*;"]])
+        if self.portable:
+            return Source(Location.IMPORT, [["use flatty::portable::le::*;"]])
+        else:
+            return None
 
 
 class Char(Type):
@@ -207,10 +220,13 @@ class Char(Type):
         return obj.encode('ascii')[0]
 
     def c_check(self, var: str, obj: str) -> List[str]:
-        return [f"codegen_assert_eq({var}, '\\x{self._code(obj):02x}');"]
+        return [f"codegen_assert_eq({var}, {self.c_object(obj)});"]
+
+    def c_object(self, obj: str) -> str:
+        return f"'\\x{str(self._code(obj)):02x}'"
 
     def rust_check(self, var: str, obj: str) -> List[str]:
-        return [f"assert_eq!(*{var}, {self._code(obj)});"]
+        return [f"assert_eq!(*{var}, {self.rust_object(obj)});"]
 
     def rust_object(self, obj: str) -> str:
         return str(self._code(obj))

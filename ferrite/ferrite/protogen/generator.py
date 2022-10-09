@@ -17,6 +17,25 @@ def make_variant(name: Name, messages: List[Tuple[Name, List[Field]]]) -> Varian
     )
 
 
+@dataclass
+class Output:
+    files: Dict[Path, str]
+
+    def write(self, base_path: Path) -> None:
+        base_path.mkdir(exist_ok=True)
+        for rel_path, text in self.files.items():
+            path = base_path / rel_path
+            path.parent.mkdir(exist_ok=True, parents=True)
+            content = text + "\n"
+            old_content = None
+            if path.exists():
+                with open(path, "r") as f:
+                    old_content = f.read()
+            if old_content is None or content != old_content:
+                with open(path, "w") as f:
+                    f.write(content)
+
+
 class Generator:
 
     # `Type | type` is used here to suppress typing error while passing classes from generated `.pyi`.
@@ -26,21 +45,14 @@ class Generator:
             assert isinstance(ty, Type)
             self.types.append(ty)
 
-    def _set_context(self, context: Context) -> None:
-        global CONTEXT
-        for attr in dir(context):
-            if attr.startswith('__'):
-                continue
-            setattr(CONTEXT, attr, getattr(context, attr))
-
     def generate(self, context: Context) -> Output:
-        self._set_context(context)
+        context.set_global()
 
         c_source = Source(Location.IMPORT, deps=[ty.c_source() for ty in self.types])
         rust_source = Source(Location.IMPORT, deps=[ty.rust_source() for ty in self.types])
         pyi_source = Source(Location.IMPORT, deps=[ty.pyi_source() for ty in self.types])
 
-        return self.Output({
+        return Output({
             Path(f"c/include/{context.prefix}.h"): "\n".join([
                 "#pragma once",
                 ""
@@ -86,12 +98,12 @@ class Generator:
         })
 
     def generate_tests(self, context: Context, info: TestInfo) -> Output:
-        self._set_context(context)
+        context.set_global()
 
         c_source = Source(Location.IMPORT, deps=[ty.c_test_source(info) for ty in self.types])
         rust_source = Source(Location.IMPORT, deps=[ty.rust_test_source(info) for ty in self.types])
 
-        return self.Output({
+        return Output({
             Path(f"c/src/test.c"): "\n".join([
                 f"#include <{context.prefix}.h>",
                 f"#include \"codegen_assert.h\"",
@@ -110,24 +122,6 @@ class Generator:
                 rust_source.make_source(Location.TEST),
             ]),
         })
-
-    @dataclass
-    class Output:
-        files: Dict[Path, str]
-
-        def write(self, base_path: Path) -> None:
-            base_path.mkdir(exist_ok=True)
-            for rel_path, text in self.files.items():
-                path = base_path / rel_path
-                path.parent.mkdir(exist_ok=True, parents=True)
-                content = text + "\n"
-                old_content = None
-                if path.exists():
-                    with open(path, "r") as f:
-                        old_content = f.read()
-                if old_content is None or content != old_content:
-                    with open(path, "w") as f:
-                        f.write(content)
 
     def self_test(self, info: TestInfo) -> None:
         rng = Random(info.rng_seed)
