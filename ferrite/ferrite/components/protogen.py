@@ -22,11 +22,10 @@ class Protogen(Component):
     name: str
     output_dir: TargetPath
     generator: Generator
-    default_msg: bool # FIXME: Make `True` by default
 
     def __post_init__(self) -> None:
         self.assets_path = self_path / "source/protogen"
-        self.context = ProtogenContext(self.name, default=self.default_msg)
+        self.context = ProtogenContext(self.name)
         self.generate_task = self.GenerateTask()
 
     def GenerateTask(self) -> _GenerateTask[Protogen]:

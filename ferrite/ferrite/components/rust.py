@@ -37,6 +37,7 @@ class Rustc(Compiler):
         cmds = [
             ["rustup", "set", "profile", "minimal"],
             ["rustup", "target", "add", str(self.target)],
+            *([] if not ctx.update else [["rustup", "update"]]),
         ]
         for cmd in cmds:
             run(cmd, add_env=self.env(ctx), quiet=ctx.capture)
@@ -133,7 +134,13 @@ class Cargo(Component):
 
     def test(self, ctx: Context) -> None:
         run(
-            ["cargo", "test", f"--features={','.join(self.features)}"],
+            [
+                "cargo",
+                "test",
+                f"--features={','.join(self.features)}",
+                #"--",
+                #"--nocapture",
+            ],
             cwd=self.src_path(ctx),
             add_env=self.env(ctx),
             quiet=ctx.capture,

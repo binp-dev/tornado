@@ -16,7 +16,7 @@ class Components(ComponentGroup):
     def __init__(self, platform: HostPlatform) -> None:
         self.gcc = platform.gcc
         self.rustc = platform.rustc
-        self.protogen = ProtogenTest("protogen", TargetPath("ferrite/protogen"), make_test_generator(), False, self.rustc)
+        self.protogen = ProtogenTest("protogen", TargetPath("ferrite/protogen"), make_test_generator(), self.rustc)
         self.app = Cargo(self_path / "source/app", TargetPath("ferrite/app"), self.rustc)
         self.all = DictComponent({"test": TaskList([self.protogen.test_task, self.app.test_task])})
 

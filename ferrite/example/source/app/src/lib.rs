@@ -11,8 +11,11 @@ use futures::{
 };
 use macro_rules_attribute::apply;
 
-use flatty::portable::{le, NativeCast};
-use proto::{InMsg, InMsgRef, OutMsg, OutMsgMut, OutMsgTag};
+use flatty::{
+    flat_vec,
+    portable::{le, NativeCast},
+};
+use proto::{InMsg, InMsgRef, OutMsg, OutMsgMut};
 
 /// *Export symbols being called from IOC.*
 pub use ferrite::export;
@@ -99,16 +102,15 @@ async fn async_main(exec: ThreadPool, mut ctx: Context) {
         loop {
             let value = ao.read().await;
             log::debug!("Ioc.Ao");
-            let mut msg = writer.init_default_msg().unwrap();
-            msg.reset_tag(OutMsgTag::Ao).unwrap();
-            if let OutMsgMut::Ao(msg) = msg.as_mut() {
-                *msg = proto::Ao {
+            writer
+                .new_msg()
+                .emplace(proto::OutMsgInitAo(proto::Ao {
                     value: le::I32::from_native(value),
-                };
-            } else {
-                unreachable!();
-            }
-            msg.write().await.unwrap();
+                }))
+                .unwrap()
+                .write()
+                .await
+                .unwrap();
         }
     });
     let mut writer = writer_.clone();
@@ -116,16 +118,18 @@ async fn async_main(exec: ThreadPool, mut ctx: Context) {
         loop {
             let var = aao.read_in_place().await;
             log::debug!("Ioc.Aao");
-            let mut msg = writer.init_default_msg().unwrap();
-            msg.reset_tag(OutMsgTag::Aao).unwrap();
-            let data = if let OutMsgMut::Aao(msg) = msg.as_mut() {
-                &mut msg.values
+            let mut msg = writer
+                .new_msg()
+                .emplace(proto::OutMsgInitAao(proto::AaoInit { values: flat_vec![] }))
+                .unwrap();
+            if let OutMsgMut::Aao(msg) = msg.as_mut() {
+                for value in var.as_slice() {
+                    msg.values.push(le::I32::from_native(*value)).unwrap();
+                }
             } else {
                 unreachable!();
             };
-            for value in var.as_slice() {
-                data.push(le::I32::from_native(*value)).unwrap();
-            }
+
             var.close().await;
             msg.write().await.unwrap();
         }
@@ -136,16 +140,15 @@ async fn async_main(exec: ThreadPool, mut ctx: Context) {
         loop {
             let value = bo.read().await;
             log::debug!("Ioc.Bo");
-            let mut msg = writer.init_default_msg().unwrap();
-            msg.reset_tag(OutMsgTag::Bo).unwrap();
-            if let OutMsgMut::Bo(msg) = msg.as_mut() {
-                *msg = proto::Bo {
+            writer
+                .new_msg()
+                .emplace(proto::OutMsgInitBo(proto::Bo {
                     value: le::U32::from_native(value),
-                };
-            } else {
-                unreachable!();
-            }
-            msg.write().await.unwrap();
+                }))
+                .unwrap()
+                .write()
+                .await
+                .unwrap();
         }
     });
     let writer = writer_.clone();
@@ -154,16 +157,15 @@ async fn async_main(exec: ThreadPool, mut ctx: Context) {
         loop {
             let value = mbbo_direct.read().await;
             log::debug!("Ioc.MbboDirect");
-            let mut msg = writer.init_default_msg().unwrap();
-            msg.reset_tag(OutMsgTag::MbboDirect).unwrap();
-            if let OutMsgMut::MbboDirect(msg) = msg.as_mut() {
-                *msg = proto::MbboDirect {
+            writer
+                .new_msg()
+                .emplace(proto::OutMsgInitMbboDirect(proto::MbboDirect {
                     value: le::U32::from_native(value),
-                };
-            } else {
-                unreachable!();
-            }
-            msg.write().await.unwrap();
+                }))
+                .unwrap()
+                .write()
+                .await
+                .unwrap();
         }
     });
 

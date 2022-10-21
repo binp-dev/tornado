@@ -1,14 +1,15 @@
 use async_ringbuf::AsyncHeapRb;
 use flatty::{
-    make_flat,
+    flat,
     portable::{le, NativeCast},
+    vec::FromIterator,
     FlatVec,
 };
 use futures::join;
 
 use super::{read::MsgReadError, MsgReader, MsgWriter};
 
-#[make_flat(sized = false, portable = true)]
+#[flat(sized = false, portable = true, default = true)]
 enum TestMsg {
     #[default]
     A,
@@ -24,29 +25,26 @@ async fn test() {
         async move {
             let mut writer = MsgWriter::<TestMsg, _>::new(prod, MAX_SIZE);
 
-            writer.init_default_msg().unwrap().write().await.unwrap();
+            writer.new_msg().default().unwrap().write().await.unwrap();
 
             {
-                let mut guard = writer.init_default_msg().unwrap();
-                guard.reset_tag(TestMsgTag::B).unwrap();
-                if let TestMsgMut::B(x) = guard.as_mut() {
-                    *x = 123456.into();
-                } else {
-                    unreachable!();
-                }
-                guard.write().await.unwrap();
+                writer
+                    .new_msg()
+                    .emplace(TestMsgInitB(le::I32::from(123456)))
+                    .unwrap()
+                    .write()
+                    .await
+                    .unwrap();
             }
 
             {
-                let mut guard = writer.new_uninit_msg();
-                TestMsg::set_tag(&mut guard, TestMsgTag::C).unwrap();
-                let mut guard = guard.validate().unwrap();
-                if let TestMsgMut::C(vec) = guard.as_mut() {
-                    assert_eq!(vec.extend_from_iter((0..7).into_iter().map(|x| x.into())), 7);
-                } else {
-                    unreachable!();
-                }
-                guard.write().await.unwrap();
+                writer
+                    .new_msg()
+                    .emplace(TestMsgInitC(FromIterator((0..7).into_iter().map(le::I32::from))))
+                    .unwrap()
+                    .write()
+                    .await
+                    .unwrap();
             }
         },
         async move {
@@ -72,8 +70,7 @@ async fn test() {
                 let guard = reader.read_msg().await.unwrap();
                 match guard.as_ref() {
                     TestMsgRef::C(v) => {
-                        let vn = v.iter().map(|x| x.to_native()).collect::<Vec<_>>();
-                        assert_eq!(&vn, &[0, 1, 2, 3, 4, 5, 6]);
+                        assert!(v.iter().map(|x| x.to_native()).eq((0..7).into_iter()));
                     }
                     _ => panic!(),
                 }

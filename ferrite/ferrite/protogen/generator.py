@@ -66,7 +66,7 @@ class Generator:
                 c_source.make_source(Location.DEFINITION),
             ]),
             Path(f"rust/src/proto.rs"): "\n".join([
-                "use flatty::make_flat;",
+                "use flatty::flat;",
                 rust_source.make_source(Location.IMPORT, separator=""),
                 "",
                 rust_source.make_source(Location.DECLARATION),
