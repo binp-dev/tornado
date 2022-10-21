@@ -5,7 +5,7 @@ use crate::{
     channel::Channel,
     config,
     epics::Epics,
-    proto::{AppMsg, AppMsgTag, McuMsg, McuMsgRef},
+    proto::{self, AppMsg, McuMsg, McuMsgRef},
 };
 use async_std::{sync::Arc, task::sleep};
 use ferrite::channel::{MsgReader, MsgWriter};
@@ -98,15 +98,23 @@ impl MsgDispatcher {
 impl Keepalive {
     async fn run(mut self) {
         {
-            let mut msg_guard = self.channel.init_default_msg().unwrap();
-            msg_guard.reset_tag(AppMsgTag::Connect).unwrap();
-            msg_guard.write().await.unwrap();
+            self.channel
+                .new_msg()
+                .emplace(proto::AppMsgInitConnect(proto::AppMsgConnect {}))
+                .unwrap()
+                .write()
+                .await
+                .unwrap();
         }
         loop {
             sleep(config::KEEP_ALIVE_PERIOD).await;
-            let mut msg_guard = self.channel.init_default_msg().unwrap();
-            msg_guard.reset_tag(AppMsgTag::KeepAlive).unwrap();
-            msg_guard.write().await.unwrap();
+            self.channel
+                .new_msg()
+                .emplace(proto::AppMsgInitKeepAlive(proto::AppMsgKeepAlive {}))
+                .unwrap()
+                .write()
+                .await
+                .unwrap();
         }
     }
 }

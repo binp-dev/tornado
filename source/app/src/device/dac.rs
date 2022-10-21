@@ -2,7 +2,7 @@ use crate::{
     channel::Channel,
     config::Point,
     epics,
-    proto::{AppMsg, AppMsgMut, AppMsgTag},
+    proto::{self, AppMsg, AppMsgMut},
 };
 use async_std::sync::Arc;
 use ferrite::{
@@ -13,7 +13,10 @@ use ferrite::{
     },
     variable::{atomic::AtomicVariableU32, ReadArrayVariable, ReadVariable},
 };
-use flatty::portable::{le::I32, NativeCast};
+use flatty::{
+    flat_vec,
+    portable::{le::I32, NativeCast},
+};
 use futures::{executor::ThreadPool, join};
 use std::future::Future;
 
@@ -130,8 +133,11 @@ impl MsgSender {
                 }
             });
 
-            let mut msg = self.channel.init_default_msg().unwrap();
-            msg.reset_tag(AppMsgTag::DacData).unwrap();
+            let mut msg = self
+                .channel
+                .new_msg()
+                .emplace(proto::AppMsgInitDacData(proto::AppMsgDacDataInit { points: flat_vec![] }))
+                .unwrap();
             let will_send = if let AppMsgMut::DacData(msg) = msg.as_mut() {
                 let mut count = self.points_to_send.sub(None);
                 //log::debug!("points_to_send: {}", count);

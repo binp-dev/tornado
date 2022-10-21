@@ -13,4 +13,4 @@ from tornado.ipp import AppMsg, McuMsg
 class Ipp(ProtogenTest):
 
     def __init__(self, rustc: RustcHost):
-        super().__init__("ipp", TargetPath("tornado/ipp"), Generator([AppMsg, McuMsg]), True, rustc)
+        super().__init__("ipp", TargetPath("tornado/ipp"), Generator([AppMsg, McuMsg]), rustc)
