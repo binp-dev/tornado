@@ -4,12 +4,12 @@ from typing import Any, ClassVar, List, TypeVar, Optional
 from random import Random
 import string
 import struct
-from enum import IntEnum
+from enum import Enum
 
 import numpy as np
 from numpy.typing import DTypeLike
 
-from ferrite.codegen.base import Location, Name, Source, UnexpectedEof
+from ferrite.codegen.base import CONTEXT, Location, Name, Source, UnexpectedEof
 from ferrite.codegen.utils import is_power_of_2
 
 from .base import Type
@@ -19,9 +19,12 @@ T = TypeVar('T')
 
 class Int(Type):
 
-    class Bits(IntEnum):
-        BYTE = 8,
-        SIZE = struct.calcsize("P") * 8,
+    class _Size:
+
+        def __int__(self) -> int:
+            return struct.calcsize("P") * 8
+
+    SIZE = _Size()
 
     _np_dtypes: ClassVar[List[List[DTypeLike]]] = [
         [np.uint8, np.int8],
@@ -30,18 +33,27 @@ class Int(Type):
         [np.uint64, np.int64],
     ]
 
-    def __init__(self, bits: int | Bits, signed: bool = False, portable: Optional[bool] = None) -> None:
+    def __init__(self, _bits: int | _Size, signed: bool = False, portable: Optional[bool] = None) -> None:
+        bits = int(_bits)
         assert is_power_of_2(bits // 8) and bits % 8 == 0
         self._int_name = f"{'u' if not signed else ''}int{bits}"
         super().__init__(Name(self._int_name), bits // 8)
-        self.bits = bits
+        self._bits = _bits
         self.signed = signed
+        self._portable = portable
+        if isinstance(_bits, Int._Size):
+            self._portable = False
 
-        if portable is not None:
-            self.portable = portable
-            assert not isinstance(bits, Int.Bits)
+    @property
+    def bits(self) -> int:
+        return int(self._bits)
+
+    @property
+    def portable(self) -> bool:
+        if self._portable is not None:
+            return self._portable
         else:
-            self.portable = not isinstance(bits, Int.Bits)
+            return CONTEXT.portable
 
     def load(self, data: bytes) -> int:
         assert self.portable
@@ -75,7 +87,7 @@ class Int(Type):
         return []
 
     def c_type(self) -> str:
-        if self.bits != Int.Bits.SIZE:
+        if not isinstance(self._bits, Int._Size):
             return self._int_name + "_t"
         else:
             return ("s" if self.signed else "") + "size_t"
@@ -84,7 +96,7 @@ class Int(Type):
         if self.portable and self.bits > 8:
             return ("I" if self.signed else "U") + str(self.bits)
         else:
-            if self.bits != Int.Bits.SIZE:
+            if not isinstance(self._bits, Int._Size):
                 return ("i" if self.signed else "u") + str(self.bits)
             else:
                 return ("i" if self.signed else "u") + "size"
@@ -132,12 +144,20 @@ class Float(Type):
         else:
             raise RuntimeError("Float type is neither 'f32' nor 'f64'")
 
-    def __init__(self, bits: int, portable: bool = True) -> None:
+    def __init__(self, bits: int, portable: Optional[bool] = None) -> None:
         if bits != 32 and bits != 64:
             raise RuntimeError(f"{bits}-bit float is not supported")
+
         super().__init__(Name(f"float{bits}"), bits // 8)
         self.bits = bits
-        self.portable = portable
+        self._portable = portable
+
+    @property
+    def portable(self) -> bool:
+        if self._portable is not None:
+            return self._portable
+        else:
+            return CONTEXT.portable
 
     def load(self, data: bytes) -> float:
         if len(data) < self.size:

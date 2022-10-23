@@ -14,11 +14,13 @@ class TestInfo:
 @dataclass
 class Context:
     prefix: str
-    default: bool = False
+    portable: bool = False
 
     def set_global(self) -> None:
         global CONTEXT
-        CONTEXT = self
+        for k in dir(self):
+            if not k.startswith("__"):
+                setattr(CONTEXT, k, getattr(self, k))
 
 
 # FIXME: Remove global context

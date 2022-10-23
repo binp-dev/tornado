@@ -32,7 +32,6 @@ class Type:
         name: Name,
         size: Optional[int],
         min_size: Optional[int] = None,
-        portable: bool = True,
     ) -> None:
         self.name = name
         if size is None:
@@ -42,7 +41,6 @@ class Type:
         else:
             self._size = size
             self.min_size = size
-        self.portable = portable
 
     def is_sized(self) -> bool:
         return self._size is not None

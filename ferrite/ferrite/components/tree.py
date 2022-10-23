@@ -29,7 +29,7 @@ class Components(ComponentGroup):
             self.rustc,
         )
         self.app = Cargo(self_path / "source/app", TargetPath("ferrite/app"), self.rustc)
-        self.all = DictComponent({"test": TaskList([self.protogen.test_task, self.protogen.test_task, self.app.test_task])})
+        self.all = DictComponent({"test": TaskList([self.configen.generate_task, self.protogen.test_task, self.app.test_task])})
 
     def components(self) -> Dict[str, Component]:
         return self.__dict__

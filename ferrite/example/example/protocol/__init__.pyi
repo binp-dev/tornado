@@ -1,7 +1,7 @@
 # This file was generatered by Ferrite Protogen.
 from __future__ import annotations
 
-from ferrite.codegen.base import Value
+from ferrite.codegen.types import Value
 
 from dataclasses import dataclass
 import numpy as np

@@ -6,7 +6,7 @@ from random import Random
 from pathlib import Path
 from dataclasses import dataclass
 
-from ferrite.codegen.base import CONTEXT, Context, Location, Name, Source, TestInfo
+from ferrite.codegen.base import Context, Location, Name, Source, TestInfo
 from ferrite.codegen.types import Type, Field, Struct, Variant
 
 
@@ -22,7 +22,7 @@ class Output:
     files: Dict[Path, str]
 
     def write(self, base_path: Path) -> None:
-        base_path.mkdir(exist_ok=True)
+        base_path.mkdir(exist_ok=True, parents=True)
         for rel_path, text in self.files.items():
             path = base_path / rel_path
             path.parent.mkdir(exist_ok=True, parents=True)
@@ -89,7 +89,7 @@ class Protogen:
                 "# This file was generatered by Ferrite Protogen.",
                 "from __future__ import annotations",
                 "",
-                "from ferrite.codegen.base import Value",
+                "from ferrite.codegen.types import Value",
                 "",
                 pyi_source.make_source(Location.IMPORT, separator=""),
                 "",
@@ -124,6 +124,8 @@ class Protogen:
         })
 
     def self_test(self, info: TestInfo) -> None:
+        Context("test", portable=True).set_global()
+
         rng = Random(info.rng_seed)
         for ty in self.types:
             for i in range(info.attempts):

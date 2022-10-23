@@ -191,7 +191,7 @@ class Variant(Type):
             [[
                 f"#[flat(",
                 *indent([
-                    f"portable = true,",
+                    f"portable = {'true' if CONTEXT.portable else 'false'},",
                     f"sized = {'true' if self.is_sized() else 'false'},",
                     f"enum_type = \"{self._id_type.rust_type()}\",",
                 ]),

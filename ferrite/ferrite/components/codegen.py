@@ -47,7 +47,7 @@ class Configen(_Generator):
     config: ConfigGenerator
 
     def context(self) -> GenContext:
-        return GenContext(self.name)
+        return GenContext(self.name, portable=False)
 
     def GenerateTask(self) -> _ConfigenTask:
         return _ConfigenTask(self)
@@ -70,7 +70,7 @@ class Protogen(_Generator):
         self.generate_task = self.GenerateTask()
 
     def context(self) -> GenContext:
-        return GenContext(self.name)
+        return GenContext(self.name, portable=True)
 
     def GenerateTask(self) -> _ProtogenTask[Protogen]:
         return _ProtogenTask(self)
