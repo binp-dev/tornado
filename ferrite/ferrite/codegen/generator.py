@@ -1,13 +1,13 @@
 from __future__ import annotations
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
+from types import ModuleType
 
 from random import Random
 from pathlib import Path
 from dataclasses import dataclass
 
-from ferrite.protogen.base import CONTEXT, Context, Location, Name, Source, TestInfo, Type
-from ferrite.protogen.structure import Field, Struct
-from ferrite.protogen.variant import Variant
+from ferrite.codegen.base import CONTEXT, Context, Location, Name, Source, TestInfo, Type
+from ferrite.codegen.types import Field, Struct, Variant
 
 
 def make_variant(name: Name, messages: List[Tuple[Name, List[Field]]]) -> Variant:
@@ -36,7 +36,7 @@ class Output:
                     f.write(content)
 
 
-class Generator:
+class Protogen:
 
     # `Type | type` is used here to suppress typing error while passing classes from generated `.pyi`.
     def __init__(self, types: List[Type | type]) -> None:
@@ -89,7 +89,7 @@ class Generator:
                 "# This file was generatered by Ferrite Protogen.",
                 "from __future__ import annotations",
                 "",
-                "from ferrite.protogen.base import Value",
+                "from ferrite.codegen.base import Value",
                 "",
                 pyi_source.make_source(Location.IMPORT, separator=""),
                 "",
@@ -129,3 +129,86 @@ class Generator:
             for i in range(info.attempts):
                 data = ty.store(ty.random(rng))
                 assert ty.store(ty.load(data)) == data
+
+
+Constant = Tuple[Type, Any]
+
+
+class Configen:
+
+    def __init__(self, module: ModuleType) -> None:
+        self.module = module
+
+    def typedefs(self) -> Dict[Name, Type]:
+        raise NotImplementedError()
+
+    def constants(self) -> Dict[Name, Constant]:
+        raise NotImplementedError()
+
+    def _deps(self) -> List[Type]:
+        return [
+            *self.typedefs().values(),
+            *[t for t, _ in self.constants().values()],
+        ]
+
+    def c_source(self) -> Source:
+        lines = []
+
+        for n, t in self.typedefs().items():
+            lines.append(f"typedef {t.c_type()} {n.camel()};")
+
+        for n, (t, v) in self.constants().items():
+            lines.append(f"#define {n.snake().upper()} (({t.c_type()}){t.c_object(v)})")
+
+        return Source(
+            Location.DECLARATION,
+            [lines],
+            deps=[d.c_source() for d in self._deps()],
+        )
+
+    def rust_source(self) -> Source:
+        lines = []
+
+        for n, t in self.typedefs().items():
+            lines.append(f"pub type {n.camel()} = {t.rust_type()};")
+
+        for n, (t, v) in self.constants().items():
+            lines.append(f"pub const {n.snake().upper()}: {t.rust_type()} = {t.rust_object(v)};")
+
+        return Source(
+            Location.DECLARATION,
+            [lines],
+            deps=[d.c_source() for d in self._deps()],
+        )
+
+    def generate(self, context: Context) -> Output:
+        context.set_global()
+
+        c_source = self.c_source()
+        rust_source = self.rust_source()
+
+        return Output({
+            Path(f"c/config.h"): "\n".join([
+                "#pragma once",
+                ""
+                "#include <stdlib.h>",
+                "#include <stdint.h>",
+                "",
+                c_source.make_source(Location.IMPORT, separator=""),
+                "",
+                "#ifdef __cplusplus",
+                "extern \"C\" {",
+                "#endif // __cplusplus",
+                "",
+                c_source.make_source(Location.DECLARATION),
+                "",
+                "#ifdef __cplusplus",
+                "}",
+                "#endif // __cplusplus",
+            ]),
+            Path(f"rust/config.rs"): "\n".join([
+                rust_source.make_source(Location.IMPORT, separator=""),
+                "",
+                rust_source.make_source(Location.DECLARATION),
+            ]),
+        })

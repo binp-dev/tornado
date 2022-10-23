@@ -1,12 +1,9 @@
 from __future__ import annotations
 from typing import List
 
-from ferrite.protogen.variant import Variant
-from ferrite.protogen.base import Name, Type
-from ferrite.protogen.primitive import Float, Int
-from ferrite.protogen.container import Array, Vector, String
-from ferrite.protogen.structure import Field, Struct
-from ferrite.protogen.generator import Generator
+from ferrite.codegen.base import Name
+from ferrite.codegen.types import Type, Float, Int, Array, Vector, String, Field, Struct, Variant
+from ferrite.codegen.generator import Protogen
 
 
 class AllDict(dict[str, Type]):
@@ -133,5 +130,5 @@ test_types += [
 ]
 
 
-def make_test_generator() -> Generator:
-    return Generator(list(test_types.values()))
+def make_test_generator() -> Protogen:
+    return Protogen(list(test_types.values()))

@@ -8,9 +8,11 @@ from operator import mul
 import numpy as np
 from numpy.typing import NDArray, DTypeLike
 
-from ferrite.protogen.base import CONTEXT, Location, Name, Type, Source, UnexpectedEof
-from ferrite.protogen.primitive import Char, Int
-from ferrite.protogen.utils import flatten
+from ferrite.codegen.base import CONTEXT, Location, Name, Source, UnexpectedEof
+from ferrite.codegen.utils import flatten
+
+from .base import Type
+from .primitive import Char, Int
 
 _ArrayInstance = Union[List[Any], NDArray[Any]]
 

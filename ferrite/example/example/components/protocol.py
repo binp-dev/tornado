@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from ferrite.utils.path import TargetPath
-from ferrite.components.protogen import ProtogenTest
+from ferrite.components.codegen import ProtogenTest
 from ferrite.components.rust import RustcHost
-from ferrite.protogen.generator import Generator
+from ferrite.codegen.generator import Generator
 
 from example.protocol import InMsg, OutMsg
 

@@ -11,9 +11,8 @@ from ferrite.components.cmake import Cmake
 
 from ferrite.utils.path import TargetPath
 from ferrite.utils.files import substitute
-from ferrite.protogen.base import Context as GenContext, TestInfo
-from ferrite.protogen.configen import Config
-from ferrite.protogen.generator import Generator
+from ferrite.codegen.base import Context as GenContext, TestInfo
+from ferrite.codegen.generator import Protogen as ProtocolGenerator, Configen as ConfigGenerator
 from ferrite.info import path as self_path
 
 
@@ -45,7 +44,7 @@ class _GenerateTask(OwnedTask[O]):
 @dataclass
 class Configen(_Generator):
 
-    config: Config
+    config: ConfigGenerator
 
     def context(self) -> GenContext:
         return GenContext(self.name)
@@ -64,11 +63,11 @@ class _ConfigenTask(_GenerateTask[Configen]):
 @dataclass
 class Protogen(_Generator):
 
-    generator: Generator
+    generator: ProtocolGenerator
     default_msg: bool # FIXME: Make `True` by default
 
     def __post_init__(self) -> None:
-        self.assets_path = self_path / "source/protogen"
+        self.assets_path = self_path / "source/codegen"
         self.generate_task = self.GenerateTask()
 
     def context(self) -> GenContext:
@@ -88,7 +87,7 @@ class _ProtogenTask(_GenerateTask[Op]):
 
         shutil.copytree(self.owner.assets_path, output_path, dirs_exist_ok=True)
         for path in [Path("c/CMakeLists.txt"), Path("rust/Cargo.toml"), Path("rust/build.rs")]:
-            substitute([("{{protogen}}", self.owner.name)], output_path / path)
+            substitute([("{{codegen}}", self.owner.name)], output_path / path)
 
         self.owner.generator.generate(self.owner.context()).write(output_path)
 

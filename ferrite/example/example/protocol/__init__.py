@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ferrite.protogen.base import Name
-from ferrite.protogen.all import Int, Vector, Field, Struct, Variant
+from ferrite.codegen.base import Name
+from ferrite.codegen.all import Int, Vector, Field, Struct, Variant
 
 Ai = Struct(Name("ai"), [
     Field(Name("value"), Int(32, signed=True)),

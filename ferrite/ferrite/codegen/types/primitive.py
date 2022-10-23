@@ -4,20 +4,24 @@ from typing import Any, ClassVar, List, TypeVar, Optional
 from random import Random
 import string
 import struct
+from enum import IntEnum
 
 import numpy as np
 from numpy.typing import DTypeLike
 
-from ferrite.protogen.base import Location, Name, Source, Type, UnexpectedEof
-from ferrite.protogen.utils import is_power_of_2
+from ferrite.codegen.base import Location, Name, Source, UnexpectedEof
+from ferrite.codegen.utils import is_power_of_2
+
+from .base import Type
 
 T = TypeVar('T')
 
 
 class Int(Type):
-    bits: int
-    signed: bool = False
-    portable: bool = True
+
+    class Bits(IntEnum):
+        BYTE = 8,
+        SIZE = struct.calcsize("P") * 8,
 
     _np_dtypes: ClassVar[List[List[DTypeLike]]] = [
         [np.uint8, np.int8],
@@ -26,19 +30,27 @@ class Int(Type):
         [np.uint64, np.int64],
     ]
 
-    def __init__(self, bits: int, signed: bool = False) -> None:
+    def __init__(self, bits: int | Bits, signed: bool = False, portable: Optional[bool] = None) -> None:
         assert is_power_of_2(bits // 8) and bits % 8 == 0
         self._int_name = f"{'u' if not signed else ''}int{bits}"
         super().__init__(Name(self._int_name), bits // 8)
         self.bits = bits
         self.signed = signed
 
+        if portable is not None:
+            self.portable = portable
+            assert not isinstance(bits, Int.Bits)
+        else:
+            self.portable = not isinstance(bits, Int.Bits)
+
     def load(self, data: bytes) -> int:
+        assert self.portable
         if len(data) < self.size:
             raise UnexpectedEof(self, data)
         return int.from_bytes(data[:self.size], byteorder="little", signed=self.signed)
 
     def store(self, value: int) -> bytes:
+        assert self.portable
         return value.to_bytes(self.size, byteorder="little", signed=self.signed)
 
     def default(self) -> int:
@@ -63,13 +75,19 @@ class Int(Type):
         return []
 
     def c_type(self) -> str:
-        return self._int_name + "_t"
+        if self.bits != Int.Bits.SIZE:
+            return self._int_name + "_t"
+        else:
+            return ("s" if self.sized else "") + "size_t"
 
     def rust_type(self) -> str:
         if self.portable and self.bits > 8:
             return ("I" if self.signed else "U") + str(self.bits)
         else:
-            return ("i" if self.signed else "u") + str(self.bits)
+            if self.bits != Int.Bits.SIZE:
+                return ("i" if self.signed else "u") + str(self.bits)
+            else:
+                return ("i" if self.signed else "u") + "size"
 
     def pyi_type(self) -> str:
         return "int"
