@@ -117,9 +117,9 @@ class Int(Type):
 
     def rust_source(self) -> Optional[Source]:
         if self.portable and self.bits > 8:
-            return None
-        else:
             return Source(Location.IMPORT, [["use flatty::portable::le::*;"]])
+        else:
+            return None
 
 
 class Float(Type):

@@ -3,9 +3,10 @@ from typing import Any, Type, TypeVar, Generic
 
 from dataclasses import dataclass
 import asyncio
-from asyncio import CancelledError, StreamReader, StreamWriter
+from asyncio import StreamReader, StreamWriter
 
-from ferrite.codegen.base import UnexpectedEof, Value
+from ferrite.codegen.base import UnexpectedEof
+from ferrite.codegen.types import Value
 
 
 @dataclass
