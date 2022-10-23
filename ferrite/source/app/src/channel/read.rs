@@ -40,7 +40,7 @@ impl<M: Portable + ?Sized, R: Read + Unpin> MsgReader<M, R> {
         mem::swap(&mut buffer, &mut self.buffer);
         let mut window = self.window.clone();
         let result = loop {
-            match M::from_bytes(&buffer[window.clone()]) {
+            match M::from_bytes(&buffer[window.clone()]).and_then(|m| m.validate()) {
                 Ok(_) => break Poll::Ready(Ok(())),
                 Err(err) => match err {
                     flatty::Error {
@@ -120,7 +120,10 @@ impl<'a, M: Portable + ?Sized, R: Read + Unpin> Drop for MsgReadGuard<'a, M, R> 
 impl<'a, M: Portable + ?Sized, R: Read + Unpin> Deref for MsgReadGuard<'a, M, R> {
     type Target = M;
     fn deref(&self) -> &M {
-        M::from_bytes(&self.owner.buffer[self.owner.window.clone()]).unwrap()
+        M::from_bytes(&self.owner.buffer[self.owner.window.clone()])
+            .unwrap()
+            .validate()
+            .unwrap()
     }
 }
 

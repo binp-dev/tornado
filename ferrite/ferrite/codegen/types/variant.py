@@ -189,17 +189,15 @@ class Variant(Type):
         return Source(
             Location.DECLARATION,
             [[
-                f"#[make_flat(",
+                f"#[flat(",
                 *indent([
                     f"portable = true,",
                     f"sized = {'true' if self.is_sized() else 'false'},",
                     f"enum_type = \"{self._id_type.rust_type()}\",",
-                    f"default = {'true' if CONTEXT.default else 'false'},",
                 ]),
                 f")]",
                 f"pub enum {self.rust_type()} {{",
-                *indent(([f"#[default]"] if CONTEXT.default else []) +
-                        [f"{f.name.camel()}({f.type.rust_type()})," for f in self.variants]),
+                *indent([f"{f.name.camel()}({f.type.rust_type()})," for f in self.variants]),
                 f"}}",
             ]],
             deps=[f.type.rust_source() for f in self.variants],

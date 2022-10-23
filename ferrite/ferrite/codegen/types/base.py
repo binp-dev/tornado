@@ -189,7 +189,7 @@ class Type:
                     "",
                     *flatten(
                         [[
-                            f"let obj = <{self.rust_type()}>::from_bytes(&data[{i}]).unwrap();",
+                            f"let obj = <{self.rust_type()}>::from_bytes(&data[{i}]).unwrap().validate().unwrap();",
                             *self.rust_check(f"obj", obj),
                         ] for i, obj in enumerate(objs)],
                         sep=[""],

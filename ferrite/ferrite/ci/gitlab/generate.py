@@ -205,7 +205,7 @@ def default_variables() -> Variables:
     })
 
 
-def default_cache(name: str = "global", lock_deps: bool = False) -> Cache:
+def default_cache(name: str = "global", lock_deps: bool = True) -> Cache:
     if not lock_deps:
         poetry = [PurePath("poetry.lock"), PurePath(".venv/")]
     else:

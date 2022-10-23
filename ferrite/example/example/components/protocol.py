@@ -13,4 +13,4 @@ from example.protocol import InMsg, OutMsg
 class Protocol(ProtogenTest):
 
     def __init__(self, rustc: RustcHost):
-        super().__init__("protocol", TargetPath("example/protocol"), Generator([InMsg, OutMsg]), True, rustc)
+        super().__init__("protocol", TargetPath("example/protocol"), Generator([InMsg, OutMsg]), rustc)

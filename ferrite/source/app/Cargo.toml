@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 lazy_static = "1.4.0"
 atomic_enum = "0.2.0"
-flatty = "0.1.0-alpha.2"
+flatty = "0.1.0-alpha.3"
 futures = "0.3.23"
 async-std = { version = "1.6.4", features = ["attributes"] }
 log = "0.4"

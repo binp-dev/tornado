@@ -64,14 +64,13 @@ class _ConfigenTask(_GenerateTask[Configen]):
 class Protogen(_Generator):
 
     generator: ProtocolGenerator
-    default_msg: bool # FIXME: Make `True` by default
 
     def __post_init__(self) -> None:
         self.assets_path = self_path / "source/protogen"
         self.generate_task = self.GenerateTask()
 
     def context(self) -> GenContext:
-        return GenContext(self.name, default=self.default_msg)
+        return GenContext(self.name)
 
     def GenerateTask(self) -> _ProtogenTask[Protogen]:
         return _ProtogenTask(self)

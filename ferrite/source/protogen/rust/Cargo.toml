@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-flatty = "0.1.0-alpha.2"
+flatty = "0.1.0-alpha.3"

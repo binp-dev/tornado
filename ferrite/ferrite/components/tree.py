@@ -26,7 +26,6 @@ class Components(ComponentGroup):
             "protogen",
             TargetPath("ferrite/protogen"),
             Protogen(proto.types),
-            False,
             self.rustc,
         )
         self.app = Cargo(self_path / "source/app", TargetPath("ferrite/app"), self.rustc)
