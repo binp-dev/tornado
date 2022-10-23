@@ -1,13 +1,13 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 from types import ModuleType
 
 from random import Random
 from pathlib import Path
 from dataclasses import dataclass
 
-from ferrite.codegen.base import CONTEXT, Context, Location, Name, Source, TestInfo, Type
-from ferrite.codegen.types import Field, Struct, Variant
+from ferrite.codegen.base import CONTEXT, Context, Location, Name, Source, TestInfo
+from ferrite.codegen.types import Type, Field, Struct, Variant
 
 
 def make_variant(name: Name, messages: List[Tuple[Name, List[Field]]]) -> Variant:
@@ -39,7 +39,7 @@ class Output:
 class Protogen:
 
     # `Type | type` is used here to suppress typing error while passing classes from generated `.pyi`.
-    def __init__(self, types: List[Type | type]) -> None:
+    def __init__(self, types: Sequence[Type | type]) -> None:
         self.types: List[Type] = []
         for ty in types:
             assert isinstance(ty, Type)
@@ -139,11 +139,29 @@ class Configen:
     def __init__(self, module: ModuleType) -> None:
         self.module = module
 
+    def _globals(self) -> Dict[str, Any]:
+        return {k: getattr(self.module, k) for k in dir(self.module)}
+
     def typedefs(self) -> Dict[Name, Type]:
-        raise NotImplementedError()
+        out = {}
+        for k, v in self._globals().items():
+            if not k.startswith("_") and isinstance(v, Type):
+                n = Name.from_camel(k)
+                out[n] = v
+        return out
 
     def constants(self) -> Dict[Name, Constant]:
-        raise NotImplementedError()
+        out = {}
+        globals = self._globals()
+        for k, ts in self.module.__annotations__.items():
+            if not k.startswith("_"):
+                t = eval(ts, globals)
+                assert isinstance(t, Type)
+                n = Name.from_snake(k.lower())
+                v = globals[k]
+                assert t.is_instance(v)
+                out[n] = (t, v)
+        return out
 
     def _deps(self) -> List[Type]:
         return [
@@ -178,7 +196,7 @@ class Configen:
         return Source(
             Location.DECLARATION,
             [lines],
-            deps=[d.c_source() for d in self._deps()],
+            deps=[d.rust_source() for d in self._deps()],
         )
 
     def generate(self, context: Context) -> Output:

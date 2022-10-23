@@ -1,10 +1,8 @@
 from __future__ import annotations
-from typing import List, Optional, Sequence, Set, Union
+from typing import Any, List, Optional, Sequence, Set, Union
 
 from dataclasses import dataclass
 from enum import Enum
-
-from .types import Type
 
 
 @dataclass
@@ -52,6 +50,17 @@ class Name:
     @staticmethod
     def from_snake(snake: str) -> Name:
         return Name(snake.split("_"))
+
+    @staticmethod
+    def from_camel(camel: str) -> Name:
+        parts = [camel[0].lower()]
+        for c in camel[1:]:
+            cl = c.lower()
+            if c != cl:
+                parts.append(cl)
+            else:
+                parts[-1] += c
+        return Name(parts)
 
     def __hash__(self) -> int:
         return hash(tuple(self.words))
@@ -113,5 +122,5 @@ class Source:
 
 class UnexpectedEof(RuntimeError):
 
-    def __init__(self, type: Type, data: bytes) -> None:
+    def __init__(self, type: Any, data: bytes) -> None:
         super().__init__(f"Unexpected EOF while loading {type._debug_name()} from {data!r}")

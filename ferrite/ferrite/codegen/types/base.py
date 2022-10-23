@@ -42,6 +42,7 @@ class Type:
         else:
             self._size = size
             self.min_size = size
+        self.portable = portable
 
     def is_sized(self) -> bool:
         return self._size is not None

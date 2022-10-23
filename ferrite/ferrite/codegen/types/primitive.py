@@ -78,7 +78,7 @@ class Int(Type):
         if self.bits != Int.Bits.SIZE:
             return self._int_name + "_t"
         else:
-            return ("s" if self.sized else "") + "size_t"
+            return ("s" if self.signed else "") + "size_t"
 
     def rust_type(self) -> str:
         if self.portable and self.bits > 8:
@@ -241,7 +241,7 @@ class Char(Type):
         return [f"codegen_assert_eq({var}, {self.c_object(obj)});"]
 
     def c_object(self, obj: str) -> str:
-        return f"'\\x{str(self._code(obj)):02x}'"
+        return f"'\\x{self._code(obj):02x}'"
 
     def rust_check(self, var: str, obj: str) -> List[str]:
         return [f"assert_eq!(*{var}, {self.rust_object(obj)});"]

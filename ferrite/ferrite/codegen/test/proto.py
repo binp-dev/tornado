@@ -3,7 +3,6 @@ from typing import List
 
 from ferrite.codegen.base import Name
 from ferrite.codegen.types import Type, Float, Int, Array, Vector, String, Field, Struct, Variant
-from ferrite.codegen.generator import Protogen
 
 
 class AllDict(dict[str, Type]):
@@ -16,9 +15,9 @@ class AllDict(dict[str, Type]):
         return self
 
 
-test_types = AllDict()
+_types_dict = AllDict()
 
-test_types += [
+_types_dict += [
     Struct(Name(["empty", "struct"]), []),
     Array(Int(32), 5),
     Struct(
@@ -29,7 +28,7 @@ test_types += [
         ]
     ),
 ]
-test_types += [
+_types_dict += [
     Vector(Int(32)),
     Vector(Int(64)),
     String(),
@@ -68,10 +67,10 @@ test_types += [
         Field(Name("f64_"), Float(64)),
     ]),
     Struct(Name(["vector", "of", "arrays"]), [
-        Field(Name("data"), Vector(test_types["array5_uint32"])),
+        Field(Name("data"), Vector(_types_dict["array5_uint32"])),
     ]),
     Struct(Name(["vector", "of", "structs"]), [
-        Field(Name("data"), Vector(test_types["some_struct"])),
+        Field(Name("data"), Vector(_types_dict["some_struct"])),
     ]),
     Struct(
         Name(["nested", "struct"]), [
@@ -98,7 +97,7 @@ test_types += [
     Variant(
         Name(["sized", "variant"]),
         [
-            Field(Name("empty"), test_types["empty_struct"]),
+            Field(Name("empty"), _types_dict["empty_struct"]),
             Field(Name("value"), Int(32)),
         ],
         sized=True,
@@ -106,7 +105,7 @@ test_types += [
     Variant(
         Name(["unsized", "variant"]),
         [
-            Field(Name("empty"), test_types["empty_struct"]),
+            Field(Name("empty"), _types_dict["empty_struct"]),
             Field(Name("value"), Int(32)),
         ],
         sized=False,
@@ -114,21 +113,19 @@ test_types += [
     Variant(
         Name(["auto", "unsized", "variant"]),
         [
-            Field(Name("empty"), test_types["empty_struct"]),
+            Field(Name("empty"), _types_dict["empty_struct"]),
             Field(Name("value"), Int(32)),
             Field(Name("vector"), Vector(Int(32))),
         ],
     ),
 ]
-test_types += [
+_types_dict += [
     Struct(
         Name(["struct", "of", "unsized", "variant"]), [
             Field(Name("value"), Int(32)),
-            Field(Name("data"), test_types["auto_unsized_variant"]),
+            Field(Name("data"), _types_dict["auto_unsized_variant"]),
         ]
     ),
 ]
 
-
-def make_test_generator() -> Protogen:
-    return Protogen(list(test_types.values()))
+types = list(_types_dict.values())

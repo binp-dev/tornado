@@ -67,7 +67,7 @@ class Protogen(_Generator):
     default_msg: bool # FIXME: Make `True` by default
 
     def __post_init__(self) -> None:
-        self.assets_path = self_path / "source/codegen"
+        self.assets_path = self_path / "source/protogen"
         self.generate_task = self.GenerateTask()
 
     def context(self) -> GenContext:
@@ -87,7 +87,7 @@ class _ProtogenTask(_GenerateTask[Op]):
 
         shutil.copytree(self.owner.assets_path, output_path, dirs_exist_ok=True)
         for path in [Path("c/CMakeLists.txt"), Path("rust/Cargo.toml"), Path("rust/build.rs")]:
-            substitute([("{{codegen}}", self.owner.name)], output_path / path)
+            substitute([("{{protogen}}", self.owner.name)], output_path / path)
 
         self.owner.generator.generate(self.owner.context()).write(output_path)
 
