@@ -56,13 +56,13 @@ class Int(Type):
             return CONTEXT.portable
 
     def load(self, data: bytes) -> int:
-        assert self.portable
+        assert not isinstance(self._bits, Int._Size)
         if len(data) < self.size:
             raise UnexpectedEof(self, data)
         return int.from_bytes(data[:self.size], byteorder="little", signed=self.signed)
 
     def store(self, value: int) -> bytes:
-        assert self.portable
+        assert not isinstance(self._bits, Int._Size)
         return value.to_bytes(self.size, byteorder="little", signed=self.signed)
 
     def default(self) -> int:

@@ -157,8 +157,9 @@ class Configen:
         globals = self._globals()
         for k, ts in self.module.__annotations__.items():
             if not k.startswith("_"):
-                t = eval(ts, globals)
-                assert isinstance(t, Type)
+                assert isinstance(ts, str)
+                t = eval(ts.strip("'"), globals)
+                assert isinstance(t, Type), f"{k}: {repr(t)} is not instance of Type"
                 n = Name.from_snake(k.lower())
                 v = globals[k]
                 assert t.is_instance(v)
