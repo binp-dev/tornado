@@ -201,11 +201,27 @@ class Configen:
             deps=[d.rust_source() for d in self._deps()],
         )
 
+    def pyi_source(self) -> Source:
+        lines = []
+
+        for n, t in self.typedefs().items():
+            lines.append(f"{n.camel()} = {t.pyi_type()}")
+
+        for n, (t, v) in self.constants().items():
+            lines.append(f"{n.snake().upper()}: {t.pyi_type()} = ...")
+
+        return Source(
+            Location.DECLARATION,
+            [lines],
+            deps=[d.pyi_source() for d in self._deps()],
+        )
+
     def generate(self, context: Context) -> Output:
         context.set_global()
 
         c_source = self.c_source()
         rust_source = self.rust_source()
+        pyi_source = self.pyi_source()
 
         return Output({
             Path(f"c/config.h"): "\n".join([
@@ -230,5 +246,15 @@ class Configen:
                 rust_source.make_source(Location.IMPORT, separator=""),
                 "",
                 rust_source.make_source(Location.DECLARATION),
+            ]),
+            Path(f"config.pyi"): "\n".join([
+                "# This file was generatered by Ferrite Configen.",
+                "from __future__ import annotations",
+                "",
+                "from ferrite.codegen.types import Value",
+                "",
+                pyi_source.make_source(Location.IMPORT, separator=""),
+                "",
+                pyi_source.make_source(Location.DECLARATION),
             ]),
         })
