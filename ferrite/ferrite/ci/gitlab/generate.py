@@ -139,7 +139,7 @@ class TaskJob(Job):
         return f"{self.module}.{self.task.name()}"
 
     def script(self, ctx: Context) -> List[str]:
-        return [f"poetry run python -u -m {self.module}.manage --no-capture --hide-artifacts -j4 {self.task.name()}"]
+        return [f"poetry run python -u -m {self.module}.manage --no-capture --local --hide-artifacts -j4 {self.task.name()}"]
 
     def needs(self) -> List[Job]:
         return self.deps

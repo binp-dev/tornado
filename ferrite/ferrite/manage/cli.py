@@ -91,7 +91,12 @@ def add_parser_args(parser: argparse.ArgumentParser, comp: Component) -> None:
     parser.add_argument(
         "--update",
         action="store_true",
-        help="Update external dependencies.",
+        help="Update external dependencies (toolchains, locked dependencies, etc.).",
+    )
+    parser.add_argument(
+        "--local",
+        action="store_true",
+        help="Store cache locally (for rustup, cargo, etc.).",
     )
     parser.add_argument(
         "--hide-artifacts",
@@ -167,6 +172,7 @@ def _make_context_from_args(args: argparse.Namespace) -> Context:
         device=device,
         log_level=log_level,
         update=args.update,
+        local=args.local,
         hide_artifacts=args.hide_artifacts,
         jobs=args.jobs,
     )

@@ -29,7 +29,7 @@ class Rustc(Compiler):
 
     def env(self, ctx: Context) -> Dict[str, str]:
         return {
-            "RUSTUP_HOME": str(ctx.target_path / self.path),
+            **({"RUSTUP_HOME": str(ctx.target_path / self.path)} if ctx.local else {}),
             "RUSTUP_TOOLCHAIN": "stable",
         }
 
@@ -37,7 +37,7 @@ class Rustc(Compiler):
         cmds = [
             ["rustup", "set", "profile", "minimal"],
             ["rustup", "target", "add", str(self.target)],
-            *([] if not ctx.update else [["rustup", "update"]]),
+            *([] if not ctx.update else [["rustup", "update", "--force-non-host", f"stable-{self.target}"]]),
         ]
         for cmd in cmds:
             run(cmd, add_env=self.env(ctx), quiet=ctx.capture)
@@ -104,7 +104,7 @@ class Cargo(Component):
     def env(self, ctx: Context) -> Dict[str, str]:
         return {
             **self.rustc.env(ctx),
-            "CARGO_HOME": str(self.home_dir),
+            **({"CARGO_HOME": str(self.home_dir)} if ctx.local else {}),
             "CARGO_TARGET_DIR": str(ctx.target_path / self.build_dir),
         }
 

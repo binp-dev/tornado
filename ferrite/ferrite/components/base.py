@@ -15,6 +15,7 @@ class Context:
     device: Optional[Device] = None
     log_level: LogLevel = LogLevel.WARNING
     update: bool = False
+    local: bool = False
     hide_artifacts: bool = False
     jobs: Optional[int] = None
 
