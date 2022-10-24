@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ferrite.protogen.base import Name
-from ferrite.protogen.all import Int, Array, Vector, String, Field
-from ferrite.protogen.generator import make_variant
+from ferrite.codegen.base import Name
+from ferrite.codegen.types import Int, Array, Vector, String, Field
+from ferrite.codegen.generator import make_variant
 
 AppMsg = make_variant(
     Name(["app", "msg"]),

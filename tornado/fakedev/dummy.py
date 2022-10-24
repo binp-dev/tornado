@@ -11,8 +11,8 @@ import asyncio
 
 from ferrite.utils.epics.ioc import AsyncIoc
 
-from tornado.common.config import read_common_config
 from tornado.fakedev.base import FakeDev
+from tornado import config
 
 
 @dataclass
@@ -20,23 +20,22 @@ class Handler(FakeDev.Handler):
     time: float = 0.0
 
     async def transfer(self, dac: NDArray[np.float64]) -> NDArray[np.float64]:
-        adc_mag = dac / self.config.dac_max_abs_v * self.config.adc_max_abs_v
-        time = self.time + np.arange(len(dac), dtype=np.float64) / self.config.sample_freq_hz
-        value = 0.5 * adc_mag * np.cos(np.e * time) + 0.5 * self.config.adc_max_abs_v * np.cos(np.pi * time)
+        adc_mag = dac / config.DAC_MAX_ABS_V * config.ADC_MAX_ABS_V
+        time = self.time + np.arange(len(dac), dtype=np.float64) / config.SAMPLE_FREQ_HZ
+        value = 0.5 * adc_mag * np.cos(np.e * time) + 0.5 * config.ADC_MAX_ABS_V * np.cos(np.pi * time)
 
-        delay = len(dac) / self.config.sample_freq_hz
+        delay = len(dac) / config.SAMPLE_FREQ_HZ
         await asyncio.sleep(delay)
         self.time += delay
 
-        return np.stack([dac] + [value] * (self.config.adc_count - 1)).transpose()
+        return np.stack([dac] + [value] * (config.ADC_COUNT - 1)).transpose()
 
 
 def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str, env: Dict[str, str]) -> None:
 
     ioc = AsyncIoc(epics_base_dir, ioc_dir, arch, env=env)
 
-    config = read_common_config(source_dir)
-    handler = Handler(config)
-    device = FakeDev(ioc, config, handler)
+    handler = Handler()
+    device = FakeDev(ioc, handler)
 
     asyncio.run(device.run(), debug=True)

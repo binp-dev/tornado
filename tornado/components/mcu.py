@@ -10,6 +10,7 @@ from ferrite.components.freertos import Freertos
 from ferrite.components.mcu import McuBase, McuDeployer
 from ferrite.info import path as ferrite_path
 
+from tornado.components.config import Config
 from tornado.components.ipp import Ipp
 from tornado.info import path as self_path
 
@@ -21,6 +22,7 @@ class Mcu(McuBase):
         gcc: GccCross,
         freertos: Freertos,
         deployer: McuDeployer,
+        config: Config,
         ipp: Ipp,
     ):
         super().__init__(
@@ -30,8 +32,9 @@ class Mcu(McuBase):
             freertos,
             deployer,
             target="m7image.elf",
-            deps=[ipp.generate_task],
+            deps=[config.generate_task, ipp.generate_task],
         )
+        self.config = config
         self.ipp = ipp
 
     def opt(self, ctx: Context) -> List[str]:

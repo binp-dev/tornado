@@ -15,8 +15,8 @@ from ferrite.utils.epics.pv import Ca, Pv, PvMonitor, PvType
 from ferrite.utils.progress import CountBar
 import ferrite.utils.epics.ca as ca
 
-from tornado.common.config import Config, read_common_config
 from tornado.fakedev.base import FakeDev
+from tornado import config
 
 import logging
 
@@ -61,16 +61,16 @@ class Handler(FakeDev.Handler):
 
     def __post_init__(self) -> None:
         self.dac = Handler.Waveform()
-        self.adcs = [Handler.Waveform() for _ in range(self.config.adc_count + 1)]
+        self.adcs = [Handler.Waveform() for _ in range(config.ADC_COUNT + 1)]
 
     async def transfer(self, dac: NDArray[np.float64]) -> NDArray[np.float64]:
         self.dac.push(dac)
 
-        adcs = [dac / self.config.dac_max_abs_v * self.config.adc_max_abs_v]
+        adcs = [dac / config.DAC_MAX_ABS_V * config.ADC_MAX_ABS_V]
         step = 1e-4
-        for i in range(1, self.config.adc_count):
+        for i in range(1, config.ADC_COUNT):
             array = self.dt + step * np.arange(len(dac), dtype=np.float64)
-            adcs.append(self.config.adc_max_abs_v * np.sin(2.0 * np.pi * i * array))
+            adcs.append(config.ADC_MAX_ABS_V * np.sin(2.0 * np.pi * i * array))
         self.dt += step * len(dac)
 
         for adc, chunk in zip(self.adcs, adcs):
@@ -80,9 +80,9 @@ class Handler(FakeDev.Handler):
         return result
 
 
-async def test(config: Config, handler: Handler) -> None:
+async def test(handler: Handler) -> None:
     ca = Ca(timeout=2.0)
-    aais = await asyncio.gather(*[ca.connect(f"aai{i}", PvType.ARRAY_FLOAT, monitor=True) for i in range(config.adc_count)])
+    aais = await asyncio.gather(*[ca.connect(f"aai{i}", PvType.ARRAY_FLOAT, monitor=True) for i in range(config.ADC_COUNT)])
     aao = await ca.connect("aao0", PvType.ARRAY_FLOAT)
     aao_request = await ca.connect("aao0_request", PvType.BOOL, monitor=True)
     aao_mode = await ca.connect("aao0_mode", PvType.BOOL)
@@ -97,7 +97,7 @@ async def test(config: Config, handler: Handler) -> None:
         await handler.dac.pop_check(array)
         #logger.debug(f"DAC of size {len(array)} is correct")
 
-    adcs_samples_count = [0] * config.adc_count
+    adcs_samples_count = [0] * config.ADC_COUNT
 
     async def watch_single_adc(index: int, adc_pv: PvMonitor[NDArray[np.float64]]) -> None:
         async for array in adc_pv:
@@ -120,8 +120,8 @@ async def test(config: Config, handler: Handler) -> None:
                 if flag:
                     break
 
-    async def run_check(config: Config) -> None:
-        dac_mag = config.dac_max_abs_v
+    async def run_check() -> None:
+        dac_mag = config.DAC_MAX_ABS_V
         attempts = 256
         timeout = 10.0
 
@@ -165,7 +165,7 @@ async def test(config: Config, handler: Handler) -> None:
         # Check total ADCs samples count
         assert all([sc == 2 * wf_size * attempts for sc in adcs_samples_count])
 
-    await with_background(run_check(config), watch_adcs())
+    await with_background(run_check(), watch_adcs())
 
 
 def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str, env: Dict[str, str]) -> None:
@@ -177,9 +177,8 @@ def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str, env: D
     ioc = AsyncIoc(epics_base_dir, ioc_dir, arch, env=env)
     repeater = ca.Repeater(epics_base_dir, arch)
 
-    config = read_common_config(source_dir)
-    handler = Handler(config)
-    device = FakeDev(ioc, config, handler)
+    handler = Handler()
+    device = FakeDev(ioc, handler)
 
     with repeater:
-        loop.run_until_complete(device.run_with(test(device.config, handler)))
+        loop.run_until_complete(device.run_with(test(handler)))
