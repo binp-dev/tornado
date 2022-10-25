@@ -15,8 +15,10 @@
 
 static void process_callback(epicsCallback *callback) {
     dbCommon *rec = (dbCommon *)callback->user;
+    dbScanLock(rec);
     struct typed_rset *rset = (struct typed_rset *)rec->rset;
     rset->process(rec);
+    dbScanUnlock(rec);
 }
 
 void fer_epics_record_init(dbCommon *rec, FerEpicsRecordType type, FerEpicsVar *var_info) {

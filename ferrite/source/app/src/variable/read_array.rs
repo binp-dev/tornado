@@ -125,7 +125,7 @@ impl<'a, T: Copy> Future for CloseArrayFuture<'a, T> {
         match info.proc_state() {
             ProcState::Ready => (),
             ProcState::Complete => {
-                unsafe { owner.raw.lock().clean_proc() };
+                unsafe { owner.raw.clean_proc() };
                 return Poll::Ready(());
             }
             _ => unreachable!(),

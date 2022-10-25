@@ -22,56 +22,42 @@ impl VariableUnprotected {
         Self { ptr }
     }
     pub fn init(&mut self) {
-        let ps = Box::new(Info::new());
-        self.set_user_data(Box::into_raw(ps) as *mut c_void);
+        assert!(self.user_data().is_null());
+        let info = Box::new(Info::new());
+        self.set_user_data(Box::into_raw(info) as *mut c_void);
     }
 
     pub unsafe fn request_proc(&mut self) {
-        log::trace!("PV({:?}).request_proc()", self.name());
-        let info = self.info();
-        let ps = info.proc_state();
-        debug_assert_eq!(ps, ProcState::Idle);
-        info.set_proc_state(ProcState::Requested);
+        let prev = self.info().swap_proc_state(ProcState::Requested);
+        debug_assert_eq!(prev, ProcState::Idle);
         fer_var_request_proc(self.ptr);
     }
     pub unsafe fn proc_begin(&mut self) {
-        log::trace!("PV({:?}).proc_begin()", self.name());
         let info = self.info();
-        let ps = info.proc_state();
-        debug_assert!(ps == ProcState::Idle || ps == ProcState::Requested);
-        info.set_proc_state(ProcState::Processing);
+        let prev = info.swap_proc_state(ProcState::Processing);
+        debug_assert!(prev == ProcState::Idle || prev == ProcState::Requested);
         info.try_wake();
     }
     pub unsafe fn complete_proc(&mut self) {
-        log::trace!("PV({:?}).complete_proc()", self.name());
-        let info = self.info();
-        let ps = info.proc_state();
-        debug_assert_eq!(ps, ProcState::Processing);
-        info.set_proc_state(ProcState::Ready);
+        let prev = self.info().swap_proc_state(ProcState::Ready);
+        debug_assert_eq!(prev, ProcState::Processing);
         fer_var_complete_proc(self.ptr);
     }
     pub unsafe fn proc_end(&mut self) {
-        log::trace!("PV({:?}).proc_end()", self.name());
         let info = self.info();
-        let ps = info.proc_state();
-        debug_assert_eq!(ps, ProcState::Ready);
-        info.set_proc_state(ProcState::Complete);
+        let prev = info.swap_proc_state(ProcState::Complete);
+        debug_assert_eq!(prev, ProcState::Ready);
         info.try_wake();
     }
-    pub unsafe fn clean_proc(&mut self) {
-        log::trace!("PV({:?}).clean_proc()", self.name());
-        let info = self.info();
-        let ps = info.proc_state();
-        debug_assert_eq!(ps, ProcState::Complete);
-        info.set_proc_state(ProcState::Idle);
+    unsafe fn clean_proc(&mut self) {
+        let prev = self.info().swap_proc_state(ProcState::Idle);
+        debug_assert_eq!(prev, ProcState::Complete);
     }
 
     pub unsafe fn lock(&self) {
-        log::trace!("PV({:?}).lock()", self.name());
         fer_var_lock(self.ptr);
     }
     pub unsafe fn unlock(&self) {
-        log::trace!("PV({:?}).unlock()", self.name());
         fer_var_unlock(self.ptr);
     }
 
@@ -141,6 +127,10 @@ impl Variable {
     pub fn data_type(&self) -> Type {
         self.var.data_type()
     }
+
+    pub unsafe fn clean_proc(&mut self) {
+        self.var.clean_proc()
+    }
 }
 
 pub(crate) struct Guard<'a> {
@@ -195,8 +185,8 @@ impl Info {
     pub fn proc_state(&self) -> ProcState {
         self.proc_state.load(Ordering::Acquire)
     }
-    fn set_proc_state(&self, ps: ProcState) {
-        self.proc_state.store(ps, Ordering::Release);
+    fn swap_proc_state(&self, prev: ProcState) -> ProcState {
+        self.proc_state.swap(prev, Ordering::SeqCst)
     }
 
     pub fn set_waker(&self, waker: &Waker) {

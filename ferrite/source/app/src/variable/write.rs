@@ -55,7 +55,7 @@ impl<'a, T: Copy> Future for WriteFuture<'a, T> {
             }
             ProcState::Ready => (),
             ProcState::Complete => {
-                unsafe { self.owner.raw.lock().clean_proc() };
+                unsafe { self.owner.raw.clean_proc() };
                 self.complete = true;
                 return Poll::Ready(());
             }
