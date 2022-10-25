@@ -56,7 +56,7 @@ class FakeDev:
     async def _sample_chunk(self, dac: NDArray[np.int32]) -> None:
         adcs = await self.handler.transfer_codes(dac)
 
-        points_in_msg = (config.RPMSG_MAX_MCU_MSG_LEN - 3) // (4 * config.ADC_COUNT)
+        points_in_msg = (config.MAX_MCU_MSG_LEN - 3) // (4 * config.ADC_COUNT)
         #logger.debug(f"points_in_msg: {points_in_msg}")
         while len(adcs) > points_in_msg:
             await self._send_msg(McuMsg.AdcData(adcs[:points_in_msg]))
@@ -98,7 +98,7 @@ class FakeDev:
             async with self.ioc:
                 async for stream in lis:
                     self.writer = MsgWriter(McuMsg, stream.writer)
-                    self.reader = MsgReader(AppMsg, stream.reader, config.RPMSG_MAX_APP_MSG_LEN)
+                    self.reader = MsgReader(AppMsg, stream.reader, config.MAX_APP_MSG_LEN)
                     break
                 logger.debug("Fakedev started")
                 await with_background(inner, self._loop())

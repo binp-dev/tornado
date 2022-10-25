@@ -1,6 +1,6 @@
 use crate::{
     channel::Channel,
-    config::Point,
+    config::{Point, PointPortable},
     epics,
     proto::{self, AppMsg, AppMsgMut},
 };
@@ -13,10 +13,7 @@ use ferrite::{
     },
     variable::{atomic::AtomicVariableU32, ReadArrayVariable, ReadVariable},
 };
-use flatty::{
-    flat_vec,
-    portable::{le::I32, NativeCast},
-};
+use flatty::{flat_vec, portable::NativeCast};
 use futures::{executor::ThreadPool, join};
 use std::future::Future;
 
@@ -144,7 +141,7 @@ impl MsgSender {
                 while count > 0 && !msg.points.is_full() {
                     match self.stream.next().await {
                         Some(value) => {
-                            msg.points.push(I32::from_native(value)).unwrap();
+                            msg.points.push(PointPortable::from_native(value)).unwrap();
                             count -= 1;
                         }
                         None => break,
