@@ -78,7 +78,7 @@ class Protogen:
                 c_source.make_source(Location.DEFINITION),
             ]),
             Path(f"rust/src/proto.rs"): "\n".join([
-                "use flatty::flat;",
+                "use flatty::{flat, prelude::*};",
                 rust_source.make_source(Location.IMPORT, separator=""),
                 "",
                 rust_source.make_source(Location.DECLARATION),
@@ -244,6 +244,7 @@ class Configen:
                 "#endif // __cplusplus",
             ]),
             Path(f"rust/config.rs"): "\n".join([
+                "use flatty::{flat, prelude::*};",
                 rust_source.make_source(Location.IMPORT, separator=""),
                 "",
                 rust_source.make_source(Location.DECLARATION),

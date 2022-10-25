@@ -125,7 +125,10 @@ class Int(Type):
         return [f"assert_eq!({var}, {obj});"]
 
     def rust_object(self, obj: int) -> str:
-        return str(obj)
+        if self.portable and self.bits > 8:
+            return f"{self.rust_type()}::from_native({obj})"
+        else:
+            return str(obj)
 
     def rust_source(self) -> Optional[Source]:
         if self.portable and self.bits > 8:
@@ -216,7 +219,10 @@ class Float(Type):
         return [f"assert_eq!({var}, {self.rust_object(obj)});"]
 
     def rust_object(self, obj: float) -> str:
-        return str(obj)
+        if self.portable:
+            return f"{self.rust_type()}::from_native({obj})"
+        else:
+            return str(obj)
 
     def rust_source(self) -> Optional[Source]:
         if self.portable:
