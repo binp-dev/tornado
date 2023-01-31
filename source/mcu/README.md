@@ -2,10 +2,10 @@
 
 ## Configure U-Boot (for imx8mn)
 
-+ Load device tree `/boot/fsl-imx-var-som-m7.dtb`
++ Load device tree `/boot/imx8mn-var-som-symphony-m7.dtb`
 
   ```uboot
-  env set fdt_file fsl-imx-var-som-m7.dtb
+  env set fdt_file imx8mn-var-som-symphony-m7.dtb
   ```
 
 + Enable Cortex-M7 core
@@ -32,7 +32,7 @@
   env save
   ```
 
-+ Boot using `boot` command.
++ Boot using `bootcmd` command.
 
 ## Interrupts
 
