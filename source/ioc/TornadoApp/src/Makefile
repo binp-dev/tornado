@@ -17,15 +17,6 @@ DBD += Tornado.dbd
 # Tornado.dbd will be made up from these files:
 Tornado_DBD += base.dbd
 
-# Include dbd files from all support applications:
-Tornado_DBD += devTornado.dbd
-
-# Add all the support libraries needed by this IOC
-Tornado_LIBS += devTornado
-
-# Link app
-include $(TOP)/link_app.mk
-
 # Tornado_registerRecordDeviceDriver.cpp derives from Tornado.dbd
 Tornado_SRCS += Tornado_registerRecordDeviceDriver.cpp
 
@@ -33,8 +24,8 @@ Tornado_SRCS += Tornado_registerRecordDeviceDriver.cpp
 Tornado_SRCS_DEFAULT += TornadoMain.cpp
 
 # Use Ferrite
-Example_DBD += Ferrite.dbd
-Example_LIBS += Ferrite
+Tornado_DBD += Ferrite.dbd
+Tornado_LIBS += Ferrite
 SHRLIB_SEARCH_DIRS += $(TOP)/target/debug
 
 # Workaround to link shared library

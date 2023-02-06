@@ -8,8 +8,8 @@ use crate::{
     proto::{self, AppMsg, McuMsg, McuMsgRef},
 };
 use async_std::{sync::Arc, task::sleep};
-use ferrite::channel::{MsgReader, MsgWriter};
 use flatty::prelude::*;
+use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter};
 use futures::{
     executor::ThreadPool,
     future::{join_all, FutureExt},
@@ -51,15 +51,22 @@ impl Device {
     }
 
     pub async fn run(self, exec: Arc<ThreadPool>) {
-        let (dac_loops, dac_handles): (Vec<_>, Vec<_>) = self.dacs.into_iter().map(|dac| dac.run(exec.clone())).unzip();
-        let (adc_loops, adc_handles): (Vec<_>, Vec<_>) = self.adcs.into_iter().map(|adc| adc.run()).unzip();
+        let (dac_loops, dac_handles): (Vec<_>, Vec<_>) = self
+            .dacs
+            .into_iter()
+            .map(|dac| dac.run(exec.clone()))
+            .unzip();
+        let (adc_loops, adc_handles): (Vec<_>, Vec<_>) =
+            self.adcs.into_iter().map(|adc| adc.run()).unzip();
 
         let dispatcher = MsgDispatcher {
             channel: self.reader,
             dacs: dac_handles.try_into().ok().unwrap(),
             adcs: adc_handles.try_into().ok().unwrap(),
         };
-        let keepalive = Keepalive { channel: self.writer };
+        let keepalive = Keepalive {
+            channel: self.writer,
+        };
 
         exec.spawn_ok(join_all(dac_loops).map(|_| ()));
         exec.spawn_ok(join_all(adc_loops).map(|_| ()));
@@ -73,7 +80,7 @@ impl MsgDispatcher {
         let mut channel = self.channel;
         let mut adcs = self.adcs;
         loop {
-            let msg = channel.read_msg().await.unwrap();
+            let msg = channel.read_message().await.unwrap();
             //log::info!("read_msg: {:?}", msg.tag());
             match msg.as_ref() {
                 McuMsgRef::Empty(_) => (),
@@ -81,14 +88,22 @@ impl MsgDispatcher {
                 McuMsgRef::DacRequest(req) => self.dacs[0].request(req.count.to_native() as usize),
                 McuMsgRef::AdcData(data) => {
                     for (index, adc) in adcs.iter_mut().enumerate() {
-                        adc.push(data.points_arrays.iter().map(|a| a[index].to_native())).await
+                        adc.push(data.points_arrays.iter().map(|a| a[index].to_native()))
+                            .await
                     }
                 }
                 McuMsgRef::Error(error) => {
-                    panic!("Error {}: {}", error.code, String::from_utf8_lossy(error.message.as_slice()))
+                    panic!(
+                        "Error {}: {}",
+                        error.code,
+                        String::from_utf8_lossy(error.message.as_slice())
+                    )
                 }
                 McuMsgRef::Debug(debug) => {
-                    println!("Debug: {}", String::from_utf8_lossy(debug.message.as_slice()))
+                    println!(
+                        "Debug: {}",
+                        String::from_utf8_lossy(debug.message.as_slice())
+                    )
                 }
             }
         }
@@ -99,7 +114,7 @@ impl Keepalive {
     async fn run(mut self) {
         {
             self.channel
-                .new_msg()
+                .new_message()
                 .emplace(proto::AppMsgInitConnect(proto::AppMsgConnect {}))
                 .unwrap()
                 .write()
@@ -109,7 +124,7 @@ impl Keepalive {
         loop {
             sleep(config::KEEP_ALIVE_PERIOD).await;
             self.channel
-                .new_msg()
+                .new_message()
                 .emplace(proto::AppMsgInitKeepAlive(proto::AppMsgKeepAlive {}))
                 .unwrap()
                 .write()

@@ -6,14 +6,15 @@ use crate::{
 };
 use async_std::sync::Arc;
 use ferrite::{
-    channel::MsgWriter,
     misc::{
         double_vec::{self, DoubleVec},
         AsyncCounter,
     },
-    variable::{atomic::AtomicVariableU32, ReadArrayVariable, ReadVariable},
+    variable::{atomic::AtomicVariableU16, ArrayVariable, Variable},
+    VarSync,
 };
 use flatty::{flat_vec, portable::NativeCast};
+use flatty_io::AsyncWriter as MsgWriter;
 use futures::{executor::ThreadPool, join};
 use std::future::Future;
 
@@ -32,7 +33,7 @@ impl Dac {
             points_to_send: point_counter.clone(),
         };
 
-        let request = AtomicVariableU32::new(self.epics.request, &exec).unwrap();
+        let request = AtomicVariableU16::new(self.epics.request, &exec).unwrap();
 
         let array_reader = ArrayReader {
             input: self.epics.array,
@@ -73,15 +74,15 @@ impl DacHandle {
 }
 
 struct ArrayReader {
-    input: ReadArrayVariable<f64>,
+    input: ArrayVariable<f64>,
     output: Arc<double_vec::Writer<i32>>,
-    request: Arc<AtomicVariableU32>,
+    request: Arc<AtomicVariableU16>,
 }
 
 impl ArrayReader {
     async fn run(mut self) {
         loop {
-            let input = self.input.read_in_place().await;
+            let input = self.input.acquire().await;
             self.request.write(0);
             {
                 let mut output = self.output.write().await;
@@ -89,21 +90,21 @@ impl ArrayReader {
                 output.extend(input.iter().map(|x| *x as i32));
                 log::debug!("array_read: len={}", input.len());
             }
-            input.close().await;
+            input.accept().await;
         }
     }
 }
 
 struct ScalarReader {
-    input: ReadVariable<i32>,
+    input: Variable<f64>,
     output: Arc<double_vec::Writer<i32>>,
-    request: Arc<AtomicVariableU32>,
+    request: Arc<AtomicVariableU16>,
 }
 
 impl ScalarReader {
     async fn run(mut self) {
         loop {
-            let value = self.input.read().await;
+            let value = self.input.acquire().await.read().await;
             self.request.write(0);
             {
                 let mut output = self.output.write().await;
@@ -132,8 +133,10 @@ impl MsgSender {
 
             let mut msg = self
                 .channel
-                .new_msg()
-                .emplace(proto::AppMsgInitDacData(proto::AppMsgDacDataInit { points: flat_vec![] }))
+                .new_message()
+                .emplace(proto::AppMsgInitDacData(proto::AppMsgDacDataInit {
+                    points: flat_vec![],
+                }))
                 .unwrap();
             let will_send = if let AppMsgMut::DacData(msg) = msg.as_mut() {
                 let mut count = self.points_to_send.sub(None);
@@ -164,10 +167,10 @@ struct BufferReadStream<T: Clone> {
     buffer: double_vec::Reader<T>,
     pos: usize,
     cyclic: bool,
-    request: Arc<AtomicVariableU32>,
+    request: Arc<AtomicVariableU16>,
 }
 impl<T: Clone> BufferReadStream<T> {
-    pub fn new(buffer: double_vec::Reader<T>, request: Arc<AtomicVariableU32>) -> Self {
+    pub fn new(buffer: double_vec::Reader<T>, request: Arc<AtomicVariableU16>) -> Self {
         BufferReadStream {
             buffer,
             pos: 0,

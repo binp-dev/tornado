@@ -12,7 +12,7 @@ dbLoadDatabase("dbd/Tornado.dbd",0,0)
 Tornado_registerRecordDeviceDriver(pdbbase) 
 
 ## Load record instances
-dbLoadRecords("db/devTornado.db")
+dbLoadRecords("db/Tornado.db")
 
 cd "${TOP}/iocBoot/${IOC}"
 iocInit()
