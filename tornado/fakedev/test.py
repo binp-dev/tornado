@@ -174,7 +174,7 @@ def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str, env: D
 
     os.environ.update(ca.local_env())
 
-    ioc = AsyncIoc(epics_base_dir, ioc_dir, arch, env=env)
+    ioc = AsyncIoc("Tornado", epics_base_dir, ioc_dir, arch, env=env)
     repeater = ca.Repeater(epics_base_dir, arch)
 
     handler = Handler()

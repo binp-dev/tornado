@@ -131,7 +131,7 @@ if(NOT DEFINED IPP)
 endif()
 
 # Generate sync internally
-#add_definitions("-DGENERATE_SYNC")
+add_definitions("-DGENERATE_SYNC")
 
 # Link common code
 add_subdirectory("../common" "common" EXCLUDE_FROM_ALL)

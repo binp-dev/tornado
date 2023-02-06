@@ -1,6 +1,6 @@
 use crate::{config::Point, epics};
 use async_ringbuf::{AsyncHeapRb, AsyncProducer};
-use stavec::GenericVec;
+use ferrite::VarSync;
 use std::{future::Future, iter::ExactSizeIterator, sync::Arc};
 
 pub struct Adc {
@@ -22,16 +22,13 @@ impl Adc {
                 loop {
                     consumer.wait(max_len).await;
                     assert!(consumer.len() >= max_len);
-                    {
-                        let mut guard = epics.array.init_in_place().await;
-                        let buffer = consumer.as_mut_base();
-                        {
-                            GenericVec::<_, _>::from_empty(&mut guard.as_uninit_slice()[..max_len])
-                                .extend(buffer.pop_iter().map(|x| x as f64));
-                        }
-                        guard.set_len(max_len);
-                        guard.write().await;
-                    }
+                    let buffer = consumer.as_mut_base();
+                    epics
+                        .array
+                        .request()
+                        .await
+                        .write_from(buffer.pop_iter().map(|x| x as f64))
+                        .await;
                 }
             },
             AdcHandle { buffer: producer },

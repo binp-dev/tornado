@@ -33,7 +33,7 @@ class Handler(FakeDev.Handler):
 
 def run(source_dir: Path, epics_base_dir: Path, ioc_dir: Path, arch: str, env: Dict[str, str]) -> None:
 
-    ioc = AsyncIoc(epics_base_dir, ioc_dir, arch, env=env)
+    ioc = AsyncIoc("Tornado", epics_base_dir, ioc_dir, arch, env=env)
 
     handler = Handler()
     device = FakeDev(ioc, handler)

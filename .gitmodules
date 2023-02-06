@@ -1,3 +1,9 @@
 [submodule "ferrite"]
 	path = ferrite
 	url = ../ferrite.git
+[submodule "source/ferrite"]
+	path = source/ferrite
+	url = git@github.com:agerasev/ferrite-rs.git
+[submodule "source/ioc/FerriteSup"]
+	path = source/ioc/FerriteSup
+	url = git@github.com:agerasev/ferrite-epics.git
