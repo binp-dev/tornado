@@ -146,8 +146,8 @@ include_directories("${FERRITE}/mcu/hal/include")
 target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC ${HAL_TARGET})
 
 # Link IPP proto
-add_subdirectory(${IPP} "ipp" EXCLUDE_FROM_ALL)
-include_directories("${IPP}/include")
+add_subdirectory("${IPP}/c" "ipp" EXCLUDE_FROM_ALL)
+include_directories("${IPP}/c/include")
 target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC "ipp")
 
 # Workaround to pass include directories to subprojects

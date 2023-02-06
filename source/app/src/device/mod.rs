@@ -18,27 +18,28 @@ use futures::{
 use adc::{Adc, AdcHandle};
 use dac::{Dac, DacHandle};
 
-pub struct Device {
-    reader: MsgReader<McuMsg, Channel>,
-    writer: MsgWriter<AppMsg, Channel>,
-    dacs: [Dac; config::DAC_COUNT],
+pub struct Device<C: Channel> {
+    reader: MsgReader<McuMsg, C::Read>,
+    writer: MsgWriter<AppMsg, C::Write>,
+    dacs: [Dac<C>; config::DAC_COUNT],
     adcs: [Adc; config::ADC_COUNT],
 }
 
-struct MsgDispatcher {
-    channel: MsgReader<McuMsg, Channel>,
+struct MsgDispatcher<C: Channel> {
+    channel: MsgReader<McuMsg, C::Read>,
     dacs: [DacHandle; config::DAC_COUNT],
     adcs: [AdcHandle; config::ADC_COUNT],
 }
 
-struct Keepalive {
-    channel: MsgWriter<AppMsg, Channel>,
+struct Keepalive<C: Channel> {
+    channel: MsgWriter<AppMsg, C::Write>,
 }
 
-impl Device {
-    pub fn new(channel: Channel, epics: Epics) -> Self {
-        let reader = MsgReader::<McuMsg, _>::new(channel.clone(), config::MAX_MCU_MSG_LEN);
-        let writer = MsgWriter::<AppMsg, _>::new(channel, config::MAX_APP_MSG_LEN);
+impl<C: Channel> Device<C> {
+    pub fn new(channel: C, epics: Epics) -> Self {
+        let (br, bw) = channel.split();
+        let reader = MsgReader::<McuMsg, _>::new(br, config::MAX_MCU_MSG_LEN);
+        let writer = MsgWriter::<AppMsg, _>::new(bw, config::MAX_APP_MSG_LEN);
         Self {
             dacs: epics.analog_outputs.map(|epics| Dac {
                 channel: writer.clone(),
@@ -51,22 +52,15 @@ impl Device {
     }
 
     pub async fn run(self, exec: Arc<ThreadPool>) {
-        let (dac_loops, dac_handles): (Vec<_>, Vec<_>) = self
-            .dacs
-            .into_iter()
-            .map(|dac| dac.run(exec.clone()))
-            .unzip();
-        let (adc_loops, adc_handles): (Vec<_>, Vec<_>) =
-            self.adcs.into_iter().map(|adc| adc.run()).unzip();
+        let (dac_loops, dac_handles): (Vec<_>, Vec<_>) = self.dacs.into_iter().map(|dac| dac.run(exec.clone())).unzip();
+        let (adc_loops, adc_handles): (Vec<_>, Vec<_>) = self.adcs.into_iter().map(|adc| adc.run()).unzip();
 
-        let dispatcher = MsgDispatcher {
+        let dispatcher = MsgDispatcher::<C> {
             channel: self.reader,
             dacs: dac_handles.try_into().ok().unwrap(),
             adcs: adc_handles.try_into().ok().unwrap(),
         };
-        let keepalive = Keepalive {
-            channel: self.writer,
-        };
+        let keepalive = Keepalive::<C> { channel: self.writer };
 
         exec.spawn_ok(join_all(dac_loops).map(|_| ()));
         exec.spawn_ok(join_all(adc_loops).map(|_| ()));
@@ -75,7 +69,7 @@ impl Device {
     }
 }
 
-impl MsgDispatcher {
+impl<C: Channel> MsgDispatcher<C> {
     async fn run(self) {
         let mut channel = self.channel;
         let mut adcs = self.adcs;
@@ -84,33 +78,25 @@ impl MsgDispatcher {
             //log::info!("read_msg: {:?}", msg.tag());
             match msg.as_ref() {
                 McuMsgRef::Empty(_) => (),
-                McuMsgRef::DinUpdate(_) => unimplemented!(),
+                McuMsgRef::DinUpdate(_) => (),
                 McuMsgRef::DacRequest(req) => self.dacs[0].request(req.count.to_native() as usize),
                 McuMsgRef::AdcData(data) => {
                     for (index, adc) in adcs.iter_mut().enumerate() {
-                        adc.push(data.points_arrays.iter().map(|a| a[index].to_native()))
-                            .await
+                        adc.push(data.points_arrays.iter().map(|a| a[index].to_native())).await
                     }
                 }
                 McuMsgRef::Error(error) => {
-                    panic!(
-                        "Error {}: {}",
-                        error.code,
-                        String::from_utf8_lossy(error.message.as_slice())
-                    )
+                    panic!("Error {}: {}", error.code, String::from_utf8_lossy(error.message.as_slice()))
                 }
                 McuMsgRef::Debug(debug) => {
-                    println!(
-                        "Debug: {}",
-                        String::from_utf8_lossy(debug.message.as_slice())
-                    )
+                    println!("Debug: {}", String::from_utf8_lossy(debug.message.as_slice()))
                 }
             }
         }
     }
 }
 
-impl Keepalive {
+impl<C: Channel> Keepalive<C> {
     async fn run(mut self) {
         {
             self.channel

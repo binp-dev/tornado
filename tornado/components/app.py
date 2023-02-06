@@ -28,6 +28,7 @@ class AbstractApp(AppBase):
             rustc,
             deps=[config.generate_task, ipp.generate_task],
             features=features,
+            default_features=False,
         )
         self.config = config
         self.ipp = ipp

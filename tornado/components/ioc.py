@@ -16,6 +16,10 @@ class AbstractAppIoc(AppIoc[B]):
     def __init__(self, epics_base: B, app: AppBase):
         super().__init__(self_path / "source/ioc", TargetPath("tornado/ioc"), epics_base, app)
 
+    @property
+    def name(self) -> str:
+        return "Tornado"
+
 
 class AppIocHost(AbstractAppIoc[EpicsBaseHost], IocHost):
 

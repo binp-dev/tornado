@@ -8,10 +8,15 @@ name = "app"
 crate-type = ["cdylib"]
 path = "src/lib.rs"
 
+[features]
+default = ["tcp"]
+rpmsg = ["libc", "termios"]
+tcp = []
+
 [dependencies]
 ferrite = { package = "ferrite-core", path = "../ferrite" }
 futures = { version = "0.3.23", features = ["thread-pool"] }
-async-std = "1.6.4"
+async-std = "1.12.0"
 flatty = "0.1.0-alpha.3"
 flatty-io = "0.1.0-alpha.1"
 macro_rules_attribute = "0.1.2"
@@ -19,8 +24,6 @@ async-ringbuf = "0.1.0"
 log = "0.4"
 env_logger = "0.9.1"
 thiserror = "1.0.38"
-
-[features]
-default = ["tcp"]
-rpmsg = []
-tcp = []
+pin-project = "1.0.12"
+libc = { version = "0.2.139", optional = true }
+termios = { version = "0.3.3", optional = true }

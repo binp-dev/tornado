@@ -4,13 +4,13 @@ mod device;
 mod epics;
 mod proto;
 
-use async_std::{net::TcpStream, sync::Arc};
 use ferrite::{entry_point, Context};
 use futures::{
     executor::{block_on, ThreadPool},
     future::pending,
 };
 use macro_rules_attribute::apply;
+use std::sync::Arc;
 
 use device::Device;
 use epics::Epics;
@@ -31,7 +31,10 @@ async fn run(exec: Arc<ThreadPool>, ctx: Context) {
     log::info!("Start IOC");
 
     log::info!("Establish channel");
-    let channel = TcpStream::connect("127.0.0.1:4884").await.unwrap();
+    #[cfg(feature = "tcp")]
+    let channel = channel::TcpStream::connect("127.0.0.1:4884").await.unwrap();
+    #[cfg(feature = "rpmsg")]
+    let channel = channel::Rpmsg::open("/dev/ttyRPMSG0").await.unwrap();
 
     log::info!("Get EPICS PVs");
     let epics = Epics::new(ctx).unwrap();

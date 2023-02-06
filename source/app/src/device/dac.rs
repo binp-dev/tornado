@@ -4,7 +4,6 @@ use crate::{
     epics,
     proto::{self, AppMsg, AppMsgMut},
 };
-use async_std::sync::Arc;
 use ferrite::{
     misc::{
         double_vec::{self, DoubleVec},
@@ -17,13 +16,14 @@ use flatty::{flat_vec, portable::NativeCast};
 use flatty_io::AsyncWriter as MsgWriter;
 use futures::{executor::ThreadPool, join};
 use std::future::Future;
+use std::sync::Arc;
 
-pub struct Dac {
-    pub channel: MsgWriter<AppMsg, Channel>,
+pub struct Dac<C: Channel> {
+    pub channel: MsgWriter<AppMsg, C::Write>,
     pub epics: epics::Dac,
 }
 
-impl Dac {
+impl<C: Channel> Dac<C> {
     pub fn run(self, exec: Arc<ThreadPool>) -> (impl Future<Output = ()>, DacHandle) {
         let buffer = DoubleVec::<Point>::new(self.epics.array.max_len());
         let (read_buffer, write_buffer) = buffer.split();
@@ -46,7 +46,7 @@ impl Dac {
             request: request.clone(),
         };
 
-        let msg_sender = MsgSender {
+        let msg_sender = MsgSender::<C> {
             channel: self.channel,
             stream: BufferReadStream::new(read_buffer, request),
             points_to_send: point_counter,
@@ -115,13 +115,13 @@ impl ScalarReader {
     }
 }
 
-struct MsgSender {
-    channel: MsgWriter<AppMsg, Channel>,
+struct MsgSender<C: Channel> {
+    channel: MsgWriter<AppMsg, C::Write>,
     stream: BufferReadStream<i32>,
     points_to_send: Arc<AsyncCounter>,
 }
 
-impl MsgSender {
+impl<C: Channel> MsgSender<C> {
     async fn run(mut self) {
         self.stream.request.write(1);
         loop {
@@ -134,9 +134,7 @@ impl MsgSender {
             let mut msg = self
                 .channel
                 .new_message()
-                .emplace(proto::AppMsgInitDacData(proto::AppMsgDacDataInit {
-                    points: flat_vec![],
-                }))
+                .emplace(proto::AppMsgInitDacData(proto::AppMsgDacDataInit { points: flat_vec![] }))
                 .unwrap();
             let will_send = if let AppMsgMut::DacData(msg) = msg.as_mut() {
                 let mut count = self.points_to_send.sub(None);
