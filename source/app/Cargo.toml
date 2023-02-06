@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [dependencies]
-ferrite = { package = "ferrite-app", path = "../../ferrite/source/app" }
+ferrite = { package = "ferrite-core", path = "../ferrite" }
 futures = { version = "0.3.23", features = ["thread-pool"] }
 async-std = "1.6.4"
 flatty = "0.1.0-alpha.3"
