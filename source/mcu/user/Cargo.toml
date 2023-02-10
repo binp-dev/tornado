@@ -1,0 +1,10 @@
+[package]
+name = "tornado-mcu"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "user"
+crate-type = ["staticlib"]
+
+[dependencies]

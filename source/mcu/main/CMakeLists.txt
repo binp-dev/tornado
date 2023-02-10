@@ -147,6 +147,10 @@ add_subdirectory("${IPP}/c" "ipp" EXCLUDE_FROM_ALL)
 include_directories("${IPP}/c/include")
 target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC "ipp")
 
+# Link user lib
+target_link_directories(${MCUX_SDK_PROJECT_NAME} PUBLIC "${USER}")
+target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC "user")
+
 # Workaround to pass include directories to subprojects
 get_target_property(MCUX_SDK_INCLUDE_DIRECTORIES ${MCUX_SDK_PROJECT_NAME} INCLUDE_DIRECTORIES)
 target_include_directories("common" PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})

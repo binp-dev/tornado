@@ -23,6 +23,7 @@ Statistics stats;
 Control control;
 Rpmsg rpmsg;
 
+extern void hello();
 
 int main(void) {
     // M7 has its local cache and enabled by default, need to set smart subsystems (0x28000000 ~ 0x3FFFFFFF) non-cacheable
@@ -46,6 +47,8 @@ int main(void) {
 
     hal_print("\n\r\n\r");
     hal_log_info("** Board started **");
+
+    hello();
 
     stats_reset(&stats);
 #ifdef GENERATE_SYNC
