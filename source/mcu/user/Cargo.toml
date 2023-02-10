@@ -7,4 +7,17 @@ edition = "2021"
 name = "user"
 crate-type = ["staticlib"]
 
+[features]
+default = ["real"]
+real = ["freertos"]
+emul = []
+
 [dependencies]
+lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
+
+[dependencies.freertos]
+package = "freertos-rust"
+path = "../freertos/freertos-rust"
+default-features = false
+features = ["sync"]
+optional = true

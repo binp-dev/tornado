@@ -59,6 +59,7 @@ class McuUser(Cargo):
             self_path / "source/mcu/user",
             build_dir,
             rustc,
+            features=["real"],
             default_features=False,
             release=True,
         )

@@ -150,9 +150,12 @@ target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC "ipp")
 # Link user lib
 target_link_directories(${MCUX_SDK_PROJECT_NAME} PUBLIC "${USER}")
 target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC "user")
+add_library("freertos_rust_shim" OBJECT EXCLUDE_FROM_ALL "../freertos/freertos-rust/src/freertos/shim.c")
+target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC "freertos_rust_shim")
 
 # Workaround to pass include directories to subprojects
 get_target_property(MCUX_SDK_INCLUDE_DIRECTORIES ${MCUX_SDK_PROJECT_NAME} INCLUDE_DIRECTORIES)
 target_include_directories("common" PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})
 target_include_directories(${HAL_TARGET} PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})
 target_include_directories("ipp" PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})
+target_include_directories("freertos_rust_shim" PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})

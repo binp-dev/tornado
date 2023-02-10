@@ -7,3 +7,6 @@
 [submodule "source/ioc/FerriteSup"]
 	path = source/ioc/FerriteSup
 	url = git@github.com:agerasev/ferrite-epics.git
+[submodule "source/mcu/freertos"]
+	path = source/mcu/freertos
+	url = https://github.com/agerasev/freertos-rust.git
