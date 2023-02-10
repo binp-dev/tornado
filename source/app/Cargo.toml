@@ -9,8 +9,8 @@ crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [features]
-default = ["tcp"]
-rpmsg = ["libc", "termios"]
+default = ["rpmsg"]
+rpmsg = ["libc", "termios", "mio"]
 tcp = []
 
 [dependencies]
@@ -27,3 +27,4 @@ thiserror = "1.0.38"
 pin-project = "1.0.12"
 libc = { version = "0.2.139", optional = true }
 termios = { version = "0.3.3", optional = true }
+mio = { version = "0.8.5", features = ["os-ext"], optional = true }
