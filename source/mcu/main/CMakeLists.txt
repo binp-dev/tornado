@@ -123,9 +123,6 @@ ADD_CUSTOM_COMMAND(TARGET ${MCUX_SDK_PROJECT_NAME} POST_BUILD COMMAND ${CMAKE_OB
     ${EXECUTABLE_OUTPUT_PATH}/m7image.bin
 )
 
-if(NOT DEFINED FERRITE)
-    message(FATAL_ERROR "Variable 'FERRITE' is not defined")
-endif()
 if(NOT DEFINED IPP)
     message(FATAL_ERROR "Variable 'IPP' is not defined")
 endif()
@@ -134,15 +131,15 @@ endif()
 add_definitions("-DGENERATE_SYNC")
 
 # Link common code
-add_subdirectory("../common" "common" EXCLUDE_FROM_ALL)
-include_directories("../common/include")
+add_subdirectory("../../common" "common" EXCLUDE_FROM_ALL)
+include_directories("../../common/include")
 target_link_libraries(${MCUX_SDK_PROJECT_NAME} PRIVATE "common")
 
 # Link HAL
 set(HAL_TARGET "hal_imx8mn")
 add_definitions("-DHAL_IMX8MN" "-DHAL_PRINT_UART" "-DHAL_LOG_LEVEL=4")
-add_subdirectory("${FERRITE}/mcu/hal" "hal" EXCLUDE_FROM_ALL)
-include_directories("${FERRITE}/mcu/hal/include")
+add_subdirectory("../hal" "hal" EXCLUDE_FROM_ALL)
+include_directories("../hal/include")
 target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC ${HAL_TARGET})
 
 # Link IPP proto

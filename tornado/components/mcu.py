@@ -26,7 +26,7 @@ class Mcu(McuBase):
         ipp: Ipp,
     ):
         super().__init__(
-            self_path / "source/mcu",
+            self_path / "source/mcu/main",
             TargetPath("tornado/mcu"),
             gcc,
             freertos,
@@ -40,6 +40,5 @@ class Mcu(McuBase):
     def opt(self, ctx: Context) -> List[str]:
         return [
             *super().opt(ctx),
-            f"-DFERRITE={str(ferrite_path / 'source')}",
             f"-DIPP={ctx.target_path / self.ipp.output_dir}",
         ]
