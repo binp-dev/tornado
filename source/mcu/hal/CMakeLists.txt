@@ -22,6 +22,7 @@ set(COMMON_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/panic.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/time.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/rpmsg.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/atomic.c"
 )
 set(IMX7_SRC

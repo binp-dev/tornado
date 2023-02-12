@@ -8,12 +8,15 @@ name = "user"
 crate-type = ["staticlib"]
 
 [features]
-default = ["real"]
-real = ["freertos"]
-emul = []
+default = ["emul"]
+real = ["panic", "freertos", "lazy_static/spin_no_std"]
+emul = ["flatty-io", "flatty/std"]
+panic = []
 
 [dependencies]
-lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
+lazy_static = { version = "1.4.0", optional = true }
+flatty = { path = "../../flatty", default-features = false }
+flatty-io = { path = "../../flatty/io", optional = true }
 
 [dependencies.freertos]
 package = "freertos-rust"
@@ -21,3 +24,7 @@ path = "../freertos/freertos-rust"
 default-features = false
 features = ["sync"]
 optional = true
+
+[dependencies.common]
+package = "tornado-common"
+path = "../../common"

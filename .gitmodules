@@ -10,3 +10,6 @@
 [submodule "source/mcu/freertos"]
 	path = source/mcu/freertos
 	url = https://github.com/agerasev/freertos-rust.git
+[submodule "source/flatty"]
+	path = source/flatty
+	url = https://github.com/agerasev/flatty.git

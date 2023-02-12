@@ -121,7 +121,7 @@ pub fn stdout() -> Stdout {
     Stdout { _unused: [] }
 }
 
-#[macro_export]
+#[macro_use]
 macro_rules! print {
     ($($arg:tt)*) => {{
         use core::{write, fmt::Write};
@@ -129,7 +129,7 @@ macro_rules! print {
     }};
 }
 
-#[macro_export]
+#[macro_use]
 macro_rules! println {
     () => {{
         $crate::print!("\n");
