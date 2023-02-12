@@ -1,13 +1,6 @@
-use core::ffi::c_char;
+use core::{ffi::c_char, time::Duration};
 
-#[repr(transparent)]
-pub struct Timeout(pub u32);
-
-impl Timeout {
-    const NON_BLOCK: u32 = 0;
-    const WAIT_FOREVER: u32 = 0xFFFFFFFF;
-}
-
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum RetCode {
     /// Success
@@ -27,6 +20,24 @@ pub enum RetCode {
     Unimplemented = 0xFE,
     /// Timeout exceeded
     TimedOut = 0xFF,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
+pub struct Timeout(pub u32);
+
+impl Timeout {
+    pub const NON_BLOCK: Timeout = Timeout(0);
+    pub const WAIT_FOREVER: Timeout = Timeout(0xFFFFFFFF);
+}
+
+impl From<Option<Duration>> for Timeout {
+    fn from(src: Option<Duration>) -> Timeout {
+        match src {
+            Some(dur) => Timeout(dur.as_millis() as u32),
+            None => Timeout::WAIT_FOREVER,
+        }
+    }
 }
 
 extern "C" {

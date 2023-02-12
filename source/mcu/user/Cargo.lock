@@ -254,6 +254,7 @@ dependencies = [
 name = "tornado-mcu"
 version = "0.1.0"
 dependencies = [
+ "derive_more",
  "flatty",
  "flatty-io",
  "freertos-rust",

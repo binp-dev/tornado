@@ -1,16 +1,19 @@
 #![no_std]
 
+mod error;
+pub use error::Error;
+
 #[cfg(feature = "real")]
 #[macro_use]
 mod real;
 #[cfg(feature = "real")]
-use real::*;
+pub use real::*;
 
 #[cfg(feature = "emul")]
 #[macro_use]
 mod emul;
 #[cfg(feature = "emul")]
-use emul::*;
+pub use emul::*;
 
 #[no_mangle]
 pub extern "C" fn user_main() {
