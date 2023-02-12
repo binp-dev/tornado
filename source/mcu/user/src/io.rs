@@ -40,31 +40,73 @@ type MutexGuard<'a, T> = freertos::MutexGuard<'a, T, freertos::MutexNormal>;
 
 pub struct StdoutLock<'a> {
     guard: MutexGuard<'a, GlobalStdout>,
+    pos: usize,
 }
 
 impl Stdout {
     pub fn lock(&self) -> StdoutLock<'static> {
         StdoutLock {
             guard: STDOUT.lock(Duration::infinite()).unwrap(),
+            pos: 0,
+        }
+    }
+}
+
+struct LfToCrLf<I: Iterator<Item = u8>> {
+    iter: I,
+    lf: bool,
+}
+
+impl<I: Iterator<Item = u8>> LfToCrLf<I> {
+    fn new(iter: I) -> Self {
+        Self { iter, lf: false }
+    }
+}
+
+impl<I: Iterator<Item = u8>> Iterator for LfToCrLf<I> {
+    type Item = u8;
+    fn next(&mut self) -> Option<u8> {
+        if self.lf {
+            self.lf = false;
+            return Some(b'\n');
+        }
+        let b = self.iter.next()?;
+        if b == b'\n' {
+            self.lf = true;
+            return Some(b'\r');
+        }
+        Some(b)
+    }
+}
+
+impl<'a> StdoutLock<'a> {
+    unsafe fn push_byte_unchecked(&mut self, b: u8) {
+        *self.guard.buffer().get_unchecked_mut(self.pos) = b;
+        self.pos += 1;
+    }
+    fn write_byte(&mut self, b: u8) {
+        unsafe { self.push_byte_unchecked(b) };
+        if self.pos >= GlobalStdout::buffer_len() {
+            self.guard.write_buffer();
+            self.pos = 0;
+        }
+    }
+    fn flush(&mut self) {
+        if self.pos > 0 {
+            unsafe { self.push_byte_unchecked(0) };
+            self.guard.write_buffer();
+            self.pos = 0;
         }
     }
 }
 
 impl<'a> Write for StdoutLock<'a> {
     fn write_str(&mut self, s: &str) -> Result<(), Error> {
-        let mut src = s.as_bytes();
-        let buf_len = GlobalStdout::buffer_len();
-        while src.len() > buf_len {
-            self.guard.buffer().copy_from_slice(&src[..buf_len]);
-            src = &src[buf_len..];
-            self.guard.write_buffer();
+        let src = LfToCrLf::new(s.as_bytes().iter().cloned());
+        for b in src {
+            self.write_byte(b);
         }
-        let dst = self.guard.buffer();
-        dst[..src.len()].copy_from_slice(src);
-        if src.len() < buf_len {
-            dst[src.len()] = 0;
-        }
-        self.guard.write_buffer();
+        self.flush();
         Ok(())
     }
 }
@@ -88,12 +130,11 @@ macro_rules! print {
 
 macro_rules! println {
     () => {{
-        use core::{write, fmt::Write};
-        write!($crate::io::stdout(), "\r\n").unwrap();
+        $crate::print!("\n");
     }};
     ($($arg:tt)*) => {{
         use core::{write, fmt::Write};
         let mut stdout = $crate::io::stdout().lock();
-        write!(stdout, $($arg)*).and_then(|()| write!(stdout, "\r\n")).unwrap();
+        write!(stdout, $($arg)*).and_then(|()| write!(stdout, "\n")).unwrap();
     }};
 }

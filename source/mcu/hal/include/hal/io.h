@@ -12,11 +12,14 @@
 #error "Unknown target"
 #endif
 
+void hal_io_init();
 void hal_io_uart_init(uint32_t index);
 
 #define __HAL_IO_BUFFER_SIZE 0x100
 extern char __hal_io_buffer[];
 
+void __hal_io_lock();
+void __hal_io_unlock();
 void __hal_print_buffer();
 
 #define hal_print(...) \
