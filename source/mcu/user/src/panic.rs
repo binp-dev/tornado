@@ -6,6 +6,6 @@ extern "C" {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    let _ = println!("Panic: {}", info);
+    let _ = println!("PANIC: {}", info);
     unsafe { __hal_panic() }
 }
