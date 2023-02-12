@@ -1,8 +1,6 @@
 mod channel;
-mod config;
 mod device;
 mod epics;
-mod proto;
 
 use ferrite::{entry_point, Context};
 use futures::{

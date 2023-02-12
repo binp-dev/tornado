@@ -1,8 +1,7 @@
-use crate::{
-    channel::Channel,
+use crate::{channel::Channel, epics};
+use common::{
     config::{Point, PointPortable},
-    epics,
-    proto::{self, AppMsg, AppMsgMut},
+    protocol::{self as proto, AppMsg, AppMsgMut},
 };
 use ferrite::{
     misc::{
@@ -134,15 +133,17 @@ impl<C: Channel> MsgSender<C> {
             let mut msg = self
                 .channel
                 .new_message()
-                .emplace(proto::AppMsgInitDacData(proto::AppMsgDacDataInit { points: flat_vec![] }))
+                .emplace(proto::AppMsgInitDacData {
+                    points: flat_vec![],
+                })
                 .unwrap();
-            let will_send = if let AppMsgMut::DacData(msg) = msg.as_mut() {
+            let will_send = if let AppMsgMut::DacData { points } = msg.as_mut() {
                 let mut count = self.points_to_send.sub(None);
                 //log::debug!("points_to_send: {}", count);
-                while count > 0 && !msg.points.is_full() {
+                while count > 0 && !points.is_full() {
                     match self.stream.next().await {
                         Some(value) => {
-                            msg.points.push(PointPortable::from_native(value)).unwrap();
+                            points.push([PointPortable::from_native(value)]).unwrap();
                             count -= 1;
                         }
                         None => break,
@@ -150,7 +151,7 @@ impl<C: Channel> MsgSender<C> {
                 }
                 //log::debug!("points_send: {}", msg.points.len());
                 self.points_to_send.add(count);
-                !msg.points.is_empty()
+                !points.is_empty()
             } else {
                 unreachable!();
             };

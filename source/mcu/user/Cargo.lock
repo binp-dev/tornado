@@ -246,6 +246,9 @@ dependencies = [
 [[package]]
 name = "tornado-common"
 version = "0.0.0"
+dependencies = [
+ "flatty",
+]
 
 [[package]]
 name = "tornado-mcu"

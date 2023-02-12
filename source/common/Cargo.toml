@@ -6,3 +6,7 @@ edition = "2021"
 [features]
 default = []
 app = []
+
+[dependencies.flatty]
+path = "../flatty"
+default-features = false

@@ -1,13 +1,12 @@
 mod adc;
 mod dac;
 
-use crate::{
-    channel::Channel,
-    config,
-    epics::Epics,
-    proto::{self, AppMsg, McuMsg, McuMsgRef},
-};
+use crate::{channel::Channel, epics::Epics};
 use async_std::{sync::Arc, task::sleep};
+use common::{
+    config,
+    protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
+};
 use flatty::prelude::*;
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter};
 use futures::{
@@ -52,15 +51,22 @@ impl<C: Channel> Device<C> {
     }
 
     pub async fn run(self, exec: Arc<ThreadPool>) {
-        let (dac_loops, dac_handles): (Vec<_>, Vec<_>) = self.dacs.into_iter().map(|dac| dac.run(exec.clone())).unzip();
-        let (adc_loops, adc_handles): (Vec<_>, Vec<_>) = self.adcs.into_iter().map(|adc| adc.run()).unzip();
+        let (dac_loops, dac_handles): (Vec<_>, Vec<_>) = self
+            .dacs
+            .into_iter()
+            .map(|dac| dac.run(exec.clone()))
+            .unzip();
+        let (adc_loops, adc_handles): (Vec<_>, Vec<_>) =
+            self.adcs.into_iter().map(|adc| adc.run()).unzip();
 
         let dispatcher = MsgDispatcher::<C> {
             channel: self.reader,
             dacs: dac_handles.try_into().ok().unwrap(),
             adcs: adc_handles.try_into().ok().unwrap(),
         };
-        let keepalive = Keepalive::<C> { channel: self.writer };
+        let keepalive = Keepalive::<C> {
+            channel: self.writer,
+        };
 
         exec.spawn_ok(join_all(dac_loops).map(|_| ()));
         exec.spawn_ok(join_all(adc_loops).map(|_| ()));
@@ -77,19 +83,23 @@ impl<C: Channel> MsgDispatcher<C> {
             let msg = channel.read_message().await.unwrap();
             //log::info!("read_msg: {:?}", msg.tag());
             match msg.as_ref() {
-                McuMsgRef::Empty(_) => (),
-                McuMsgRef::DinUpdate(_) => (),
-                McuMsgRef::DacRequest(req) => self.dacs[0].request(req.count.to_native() as usize),
-                McuMsgRef::AdcData(data) => {
+                McuMsgRef::Empty => (),
+                McuMsgRef::DinUpdate { value: _ } => (),
+                McuMsgRef::DacRequest { count } => self.dacs[0].request(count.to_native() as usize),
+                McuMsgRef::AdcData { points } => {
                     for (index, adc) in adcs.iter_mut().enumerate() {
-                        adc.push(data.points_arrays.iter().map(|a| a[index].to_native())).await
+                        adc.push(points.iter().map(|a| a[index].to_native())).await
                     }
                 }
-                McuMsgRef::Error(error) => {
-                    panic!("Error {}: {}", error.code, String::from_utf8_lossy(error.message.as_slice()))
+                McuMsgRef::Error { code, message } => {
+                    panic!(
+                        "Error {}: {}",
+                        code,
+                        String::from_utf8_lossy(message.as_slice())
+                    )
                 }
-                McuMsgRef::Debug(debug) => {
-                    println!("Debug: {}", String::from_utf8_lossy(debug.message.as_slice()))
+                McuMsgRef::Debug { message } => {
+                    println!("Debug: {}", String::from_utf8_lossy(message.as_slice()))
                 }
             }
         }
@@ -101,7 +111,7 @@ impl<C: Channel> Keepalive<C> {
         {
             self.channel
                 .new_message()
-                .emplace(proto::AppMsgInitConnect(proto::AppMsgConnect {}))
+                .emplace(proto::AppMsgInitConnect)
                 .unwrap()
                 .write()
                 .await
@@ -111,7 +121,7 @@ impl<C: Channel> Keepalive<C> {
             sleep(config::KEEP_ALIVE_PERIOD).await;
             self.channel
                 .new_message()
-                .emplace(proto::AppMsgInitKeepAlive(proto::AppMsgKeepAlive {}))
+                .emplace(proto::AppMsgInitKeepAlive)
                 .unwrap()
                 .write()
                 .await

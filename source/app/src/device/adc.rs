@@ -1,5 +1,6 @@
-use crate::{config::Point, epics};
+use crate::epics;
 use async_ringbuf::{AsyncHeapRb, AsyncProducer};
+use common::config::Point;
 use ferrite::VarSync;
 use std::{future::Future, iter::ExactSizeIterator, sync::Arc};
 

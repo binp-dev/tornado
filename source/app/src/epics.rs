@@ -1,4 +1,4 @@
-use crate::config::{ADC_COUNT, DAC_COUNT};
+use common::config::{ADC_COUNT, DAC_COUNT};
 use ferrite::{
     variable::registry::{CheckEmptyError, GetDowncastError},
     ArrayVariable, Context, Registry, Variable,

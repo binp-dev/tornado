@@ -284,8 +284,6 @@ dependencies = [
 [[package]]
 name = "flatty"
 version = "0.1.0-alpha.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2afaab63e5cae8772d692147cb93d3f17fe117006ad06542ff603289f93589e6"
 dependencies = [
  "flatty-base",
  "flatty-macros",
@@ -295,8 +293,6 @@ dependencies = [
 [[package]]
 name = "flatty-base"
 version = "0.1.0-alpha.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "793b6f5dcf0a9a8b82c8e5637395cfce5c247ed917b104e3fcc029c4f90c3cce"
 dependencies = [
  "stavec",
 ]
@@ -304,8 +300,6 @@ dependencies = [
 [[package]]
 name = "flatty-io"
 version = "0.1.0-alpha.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "083d26c5a4cb418000c204c083ad1917c8ee67752fe2ecce01d31eee9c2d41ae"
 dependencies = [
  "derive_more",
  "flatty",
@@ -315,8 +309,6 @@ dependencies = [
 [[package]]
 name = "flatty-macros"
 version = "0.1.0-alpha.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83009b239e020c1a222c9f10373d06b1f4dee69354bacd5d35182458e2651d90"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -326,8 +318,6 @@ dependencies = [
 [[package]]
 name = "flatty-portable"
 version = "0.1.0-alpha.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e05e79f03a9a4b8c02feb78c3d69081b89b89428d3290e66a8bee1c13ca4fa81"
 dependencies = [
  "flatty-base",
  "num-traits",
@@ -785,6 +775,14 @@ dependencies = [
  "pin-project",
  "termios",
  "thiserror",
+ "tornado-common",
+]
+
+[[package]]
+name = "tornado-common"
+version = "0.0.0"
+dependencies = [
+ "flatty",
 ]
 
 [[package]]
