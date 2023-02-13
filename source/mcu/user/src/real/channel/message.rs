@@ -27,10 +27,10 @@ pub struct ReadGuard<'a, M: Portable + ?Sized> {
 }
 
 impl<M: Portable + ?Sized> Reader<M> {
-    pub fn new(channel: ReadChannel) -> Self {
+    pub fn new(channel: ReadChannel, timeout: Option<Duration>) -> Self {
         Self {
             channel,
-            timeout: None,
+            timeout,
             _p: PhantomData,
         }
     }
@@ -53,10 +53,10 @@ impl<'a, M: Portable + ?Sized> Deref for ReadGuard<'a, M> {
 }
 
 impl<M: Portable + ?Sized> Writer<M> {
-    pub fn new(channel: WriteChannel) -> Self {
+    pub fn new(channel: WriteChannel, timeout: Option<Duration>) -> Self {
         Self {
             channel,
-            timeout: None,
+            timeout,
             _p: PhantomData,
         }
     }

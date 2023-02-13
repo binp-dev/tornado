@@ -131,9 +131,7 @@ endif()
 add_definitions("-DGENERATE_SYNC")
 
 # Link common code
-add_subdirectory("../../common" "common" EXCLUDE_FROM_ALL)
-include_directories("../../common/include")
-target_link_libraries(${MCUX_SDK_PROJECT_NAME} PRIVATE "common")
+include_directories("${CONFIG}")
 
 # Link HAL
 set(HAL_TARGET "hal_imx8mn")
@@ -155,7 +153,6 @@ target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC "freertos_rust_shim")
 
 # Workaround to pass include directories to subprojects
 get_target_property(MCUX_SDK_INCLUDE_DIRECTORIES ${MCUX_SDK_PROJECT_NAME} INCLUDE_DIRECTORIES)
-target_include_directories("common" PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})
 target_include_directories(${HAL_TARGET} PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})
 target_include_directories("ipp" PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})
 target_include_directories("freertos_rust_shim" PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})

@@ -50,6 +50,7 @@ int main(void) {
 
     user_main();
 
+    /*
     stats_reset(&stats);
 #ifdef GENERATE_SYNC
     sync_generator_init(&sync, SYNC_PERIOD_US, &stats);
@@ -70,6 +71,7 @@ int main(void) {
     hal_log_info("Start sync generator");
     sync_generator_run(&sync);
 #endif
+    */
 
     vTaskStartScheduler();
     // Must never return.

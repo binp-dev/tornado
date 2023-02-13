@@ -45,6 +45,7 @@ class Mcu(McuBase):
             *super().opt(ctx),
             f"-DUSER={ctx.target_path / self.user.build_dir / str(self.user.rustc.target) / 'release'}",
             f"-DIPP={ctx.target_path / self.ipp.output_dir}",
+            f"-DCONFIG={ctx.target_path / self.config.output_dir}",
         ]
 
 
@@ -59,7 +60,7 @@ class McuUser(Cargo):
             self_path / "source/mcu/user",
             build_dir,
             rustc,
-            features=["real"],
+            features=["real", "panic"],
             default_features=False,
             release=True,
         )

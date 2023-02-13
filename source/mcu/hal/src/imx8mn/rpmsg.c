@@ -58,8 +58,7 @@ hal_retcode hal_rpmsg_alloc_tx_buffer(hal_rpmsg_channel *channel, uint8_t **tx_b
     uint32_t size_uint = 0;
     char *buffer = rpmsg_lite_alloc_tx_buffer(RPMSG, &size_uint, timeout);
     if (buffer == RL_NULL) {
-        /// TODO: Distinguish bad alloc and timeout.
-        return HAL_BAD_ALLOC;
+        return HAL_TIMED_OUT;
     }
     *size = (size_t)size_uint;
     *tx_buf = (uint8_t *)buffer;

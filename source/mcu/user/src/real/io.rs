@@ -121,6 +121,7 @@ pub fn stdout() -> Stdout {
     Stdout { _unused: [] }
 }
 
+#[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => {{
         use core::{write, fmt::Write};
@@ -128,6 +129,7 @@ macro_rules! print {
     }};
 }
 
+#[macro_export]
 macro_rules! println {
     () => {{
         $crate::print!("\n");
@@ -138,3 +140,6 @@ macro_rules! println {
         write!(stdout, $($arg)*).and_then(|()| write!(stdout, "\n")).unwrap();
     }};
 }
+
+pub use print;
+pub use println;

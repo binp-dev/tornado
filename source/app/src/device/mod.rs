@@ -81,7 +81,7 @@ impl<C: Channel> MsgDispatcher<C> {
         let mut adcs = self.adcs;
         loop {
             let msg = channel.read_message().await.unwrap();
-            //log::info!("read_msg: {:?}", msg.tag());
+            log::info!("read_msg: {:?}", msg.tag());
             match msg.as_ref() {
                 McuMsgRef::Empty => (),
                 McuMsgRef::DinUpdate { value: _ } => (),

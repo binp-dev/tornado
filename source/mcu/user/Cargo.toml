@@ -28,7 +28,7 @@ features = ["from"]
 package = "freertos-rust"
 path = "../freertos/freertos-rust"
 default-features = false
-features = ["sync"]
+features = ["sync", "time"]
 optional = true
 
 [dependencies.common]

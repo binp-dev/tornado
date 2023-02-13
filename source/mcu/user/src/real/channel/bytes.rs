@@ -1,7 +1,7 @@
 extern crate alloc;
 
 use super::raw::{self, HalRpmsgChannel};
-use crate::{hal::RetCode, Error};
+use crate::{hal::RetCode, println, Error};
 use alloc::sync::Arc;
 use core::{
     mem,
@@ -9,16 +9,56 @@ use core::{
     ptr, slice,
     time::Duration,
 };
+use freertos::{Duration as FreeRtosDuration, Mutex, Task};
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref RPMSG: Mutex<GlobalRpmsg> = Mutex::new(GlobalRpmsg::new()).unwrap();
+}
+
+struct GlobalRpmsg {
+    uses: usize,
+}
+impl GlobalRpmsg {
+    fn new() -> Self {
+        Self { uses: 0 }
+    }
+    fn acquire(&mut self, _task: &Task) {
+        if self.uses == 0 {
+            unsafe { raw::hal_rpmsg_init() };
+            println!("RPMsg subsystem initialized");
+        }
+        self.uses += 1;
+    }
+    fn release(&mut self) {
+        self.uses -= 1;
+        if self.uses == 0 {
+            unsafe { raw::hal_rpmsg_deinit() };
+            println!("RPMsg subsystem deinitialized");
+        }
+    }
+}
+impl Drop for GlobalRpmsg {
+    fn drop(&mut self) {}
+}
 
 pub struct Channel {
     raw: *mut HalRpmsgChannel,
 }
 
+unsafe impl Send for Channel {}
+unsafe impl Sync for Channel {}
+
 pub struct ReadChannel(Arc<Channel>);
 pub struct WriteChannel(Arc<Channel>);
 
 impl Channel {
-    pub fn new(remote_id: u32) -> Result<Self, Error> {
+    pub fn new(task: &Task, remote_id: u32) -> Result<Self, Error> {
+        RPMSG
+            .lock(FreeRtosDuration::infinite())
+            .unwrap()
+            .acquire(task);
+
         let raw = unsafe { HalRpmsgChannel::alloc() }.ok_or(Error::Alloc)?;
 
         match unsafe { raw::hal_rpmsg_create_channel(raw, remote_id) } {
@@ -43,6 +83,7 @@ impl Drop for Channel {
         unsafe {
             raw::hal_rpmsg_destroy_channel(self.raw);
             HalRpmsgChannel::dealloc(self.raw);
+            RPMSG.lock(FreeRtosDuration::infinite()).unwrap().release();
         }
     }
 }
@@ -92,17 +133,22 @@ impl ReadChannel {
             )
         } {
             RetCode::Success => (),
-            r => return Err(Error::Hal(r)),
+            r => {
+                buf.ptr = ptr::null_mut();
+                return Err(Error::Hal(r));
+            }
         }
         Ok(buf)
     }
 }
 impl<'a> Drop for ReadBuffer<'a> {
     fn drop(&mut self) {
-        assert_eq!(
-            unsafe { raw::hal_rpmsg_free_rx_buffer(self.channel.raw, self.ptr) },
-            RetCode::Success
-        );
+        if !self.ptr.is_null() {
+            assert_eq!(
+                unsafe { raw::hal_rpmsg_free_rx_buffer(self.channel.raw, self.ptr) },
+                RetCode::Success
+            );
+        }
     }
 }
 
@@ -122,7 +168,10 @@ impl WriteChannel {
             )
         } {
             RetCode::Success => (),
-            r => return Err(Error::Hal(r)),
+            r => {
+                mem::forget(buf);
+                return Err(Error::Hal(r));
+            }
         }
         Ok(buf)
     }
