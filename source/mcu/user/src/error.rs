@@ -9,7 +9,7 @@ use freertos::FreeRtosError;
 #[cfg(feature = "emul")]
 use std::io;
 
-#[derive(Debug, Clone, From)]
+#[derive(Debug, From)]
 pub enum Error {
     Alloc,
     #[cfg(feature = "real")]
