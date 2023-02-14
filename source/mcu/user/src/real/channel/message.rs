@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use super::bytes::{ReadBuffer, ReadChannel, WriteBuffer, WriteChannel};
+use super::wrapper::{ReadBuffer, ReadChannel, WriteBuffer, WriteChannel};
 use crate::Error;
 use core::{
     marker::PhantomData,

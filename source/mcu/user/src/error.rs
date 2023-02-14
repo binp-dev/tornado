@@ -15,9 +15,20 @@ pub enum Error {
     #[cfg(feature = "real")]
     FreeRtos(FreeRtosError),
     #[cfg(feature = "real")]
+    #[from(ignore)]
     Hal(hal::RetCode),
     #[cfg(feature = "emul")]
     Io(io::Error),
     Flatty(flatty::Error),
     Other(&'static str),
+}
+
+impl From<hal::RetCode> for Result<(), Error> {
+    fn from(value: hal::RetCode) -> Self {
+        if value == hal::RetCode::Success {
+            Ok(())
+        } else {
+            Err(Error::Hal(value))
+        }
+    }
 }

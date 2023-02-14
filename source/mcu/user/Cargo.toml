@@ -15,6 +15,7 @@ panic = []
 
 [dependencies]
 lazy_static = { version = "1.4.0", optional = true }
+ringbuf = { version = "0.3.2", default-features = false }
 flatty = { path = "../../flatty", default-features = false }
 flatty-io = { path = "../../flatty/io", optional = true }
 timeout-readwrite = { version = "0.3.3", optional = true }
