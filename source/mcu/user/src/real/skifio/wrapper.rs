@@ -1,5 +1,5 @@
 use super::raw;
-use crate::{hal::RetCode, Error};
+use crate::{hal::RetCode, println, Error};
 use alloc::boxed::Box;
 use core::{
     cell::UnsafeCell,
@@ -8,6 +8,7 @@ use core::{
     sync::atomic::{AtomicBool, AtomicU8, Ordering},
     time::Duration,
 };
+use freertos::InterruptContext;
 use lazy_static::lazy_static;
 
 pub use raw::{Ain, Aout, Din, Dout, XferIn, XferOut, DIN_SIZE, DOUT_SIZE};
@@ -25,14 +26,18 @@ struct GlobalSkifio {
 }
 unsafe impl Sync for GlobalSkifio {}
 
+pub trait DinHandler: FnMut(&mut InterruptContext, Din) + Send + 'static {}
+impl<T: FnMut(&mut InterruptContext, Din) + Send + 'static> DinHandler for T {}
+
 struct SkifioState {
     dac_state: bool,
-    din_handler: Option<NonNull<dyn FnMut(Din)>>,
+    din_handler: Option<NonNull<dyn DinHandler>>,
 }
 unsafe impl Send for SkifioState {}
 
 impl GlobalSkifio {
     fn new() -> Self {
+        println!("SkifIO driver init");
         assert_eq!(unsafe { raw::skifio_init() }, RetCode::Success);
         Self {
             acquired: AtomicBool::new(false),
@@ -58,7 +63,7 @@ impl GlobalSkifio {
 }
 
 impl SkifioState {
-    fn set_din_handler(&mut self, handler_opt: Option<Box<dyn FnMut(Din)>>) -> *mut c_void {
+    fn set_din_handler(&mut self, handler_opt: Option<Box<dyn DinHandler + Send>>) -> *mut c_void {
         if let Some(ptr) = self.din_handler.take() {
             let _ = unsafe { Box::from_raw(ptr.as_ptr()) };
         }
@@ -134,7 +139,7 @@ impl Skifio {
     pub fn read_din(&self) -> Din {
         unsafe { raw::skifio_din_read() }
     }
-    pub fn subscribe_din<F: FnMut(Din) + Send + 'static>(
+    pub fn subscribe_din<F: DinHandler + Send + 'static>(
         &mut self,
         callback: Option<F>,
     ) -> Result<(), Error> {
@@ -149,6 +154,7 @@ impl Skifio {
         }
     }
     extern "C" fn din_callback(data: *mut c_void, value: Din) {
-        unsafe { (**(data as *const *mut dyn FnMut(Din)))(value) };
+        let mut context = InterruptContext::new();
+        unsafe { (**(data as *const *mut dyn DinHandler))(&mut context, value) };
     }
 }

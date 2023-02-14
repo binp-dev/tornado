@@ -13,6 +13,8 @@ mod emul;
 #[cfg(feature = "emul")]
 pub use emul::*;
 
+pub mod control;
+
 extern crate alloc;
 
 use crate::{
@@ -113,3 +115,10 @@ pub extern "C" fn user_main() {
     println!("Starting RPMsg task...\n");
     Task::new().start(rpmsg_init_task).unwrap();
 }
+
+/*
+lazy_static!{
+    static ref DAC_BUFFER: StaticRb<DacPoint, DAC_BUFFER_LEN> = StaticRb::new();
+    static ref ADC_BUFFER: StaticRb<AdcPoint, ADC_BUFFER_LEN> = StaticRb::new();
+}
+*/
