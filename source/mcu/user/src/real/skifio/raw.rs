@@ -16,12 +16,12 @@ pub type DinCallback = extern "C" fn(*mut c_void, Din);
 #[repr(C)]
 #[derive(Clone, Debug, Default)]
 pub struct XferIn {
-    adcs: [Ain; ADC_COUNT],
+    pub adcs: [Ain; ADC_COUNT],
 }
 #[repr(C)]
 #[derive(Clone, Debug, Default)]
 pub struct XferOut {
-    dac: Aout,
+    pub dac: Aout,
 }
 #[repr(C)]
 #[cfg(feature = "skifio-debug")]

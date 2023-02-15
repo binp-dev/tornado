@@ -121,10 +121,10 @@ impl Skifio {
         self.state().dac_state
     }
 
-    pub fn wait_ready(timeout: Option<Duration>) -> Result<(), Error> {
+    pub fn wait_ready(&mut self, timeout: Option<Duration>) -> Result<(), Error> {
         unsafe { raw::skifio_wait_ready(timeout.into()) }.into()
     }
-    pub fn transfer(out: XferOut) -> Result<XferIn, Error> {
+    pub fn transfer(&mut self, out: XferOut) -> Result<XferIn, Error> {
         let mut in_ = XferIn::default();
         match unsafe { raw::skifio_transfer(&out as *const _, &mut in_ as *mut _) } {
             RetCode::Success => Ok(in_),
@@ -132,11 +132,11 @@ impl Skifio {
         }
     }
 
-    pub fn write_dout(dout: Dout) -> Result<(), Error> {
+    pub fn write_dout(&mut self, dout: Dout) -> Result<(), Error> {
         unsafe { raw::skifio_dout_write(dout) }.into()
     }
 
-    pub fn read_din(&self) -> Din {
+    pub fn read_din(&mut self) -> Din {
         unsafe { raw::skifio_din_read() }
     }
     pub fn subscribe_din<F: DinHandler + Send + 'static>(
