@@ -1,55 +1,36 @@
+use super::stats::Statistics;
 use crate::{
     hal::RetCode,
     println,
-    skifio::{self, Aout, AtomicDin, AtomicDout, Din, DinHandler, XferIn, XferOut},
+    skifio::{self, Aout, AtomicDin, AtomicDout, DinHandler, XferIn, XferOut},
     Error,
 };
 use alloc::sync::Arc;
 use common::config::{Point, ADC_COUNT};
 use core::{
-    sync::atomic::{AtomicBool, AtomicU64, Ordering},
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     time::Duration,
 };
-use freertos::{Semaphore, Task, TaskPriority};
-use ringbuf::{StaticConsumer, StaticProducer};
+use freertos::{Duration as FreeRtosDuration, FreeRtosError, Semaphore, Task, TaskPriority};
+use ringbuf::{StaticConsumer, StaticProducer, StaticRb};
+use ux::u4;
 
-pub type DacPoint = Point;
-pub type AdcPoint = [Point; ADC_COUNT];
+pub type Din = u8;
+pub type Dout = u4;
+
+pub type AdcPoints = [Point; ADC_COUNT];
 
 pub const DAC_BUFFER_LEN: usize = 1024;
 pub const ADC_BUFFER_LEN: usize = 384;
 
-pub type DacProducer = StaticProducer<'static, DacPoint, DAC_BUFFER_LEN>;
-pub type DacConsumer = StaticConsumer<'static, DacPoint, DAC_BUFFER_LEN>;
+pub type DacBuffer = StaticRb<Point, DAC_BUFFER_LEN>;
+pub type AdcBuffer = StaticRb<AdcPoints, ADC_BUFFER_LEN>;
 
-pub type AdcProducer = StaticProducer<'static, AdcPoint, ADC_BUFFER_LEN>;
-pub type AdcConsumer = StaticConsumer<'static, AdcPoint, ADC_BUFFER_LEN>;
+pub type DacProducer = StaticProducer<'static, Point, DAC_BUFFER_LEN>;
+pub type DacConsumer = StaticConsumer<'static, Point, DAC_BUFFER_LEN>;
 
-pub struct StatsDac {
-    pub lost_empty: AtomicU64,
-}
-pub struct StatsAdc {
-    pub lost_full: AtomicU64,
-}
-pub struct Statistics {
-    pub sample_count: AtomicU64,
-    pub dac: StatsDac,
-    pub adc: StatsAdc,
-    pub crc_error_count: AtomicU64,
-}
-
-impl StatsAdc {
-    pub fn update_values(&self, _values: AdcPoint) {
-        unimplemented!()
-    }
-}
-
-/// Number of DAC points to write until notified.
-// FIXME: Adjust value.
-const DAC_NOTIFY_EVERY: usize = 100;
-/// Number of ADC points to read until notified.
-// FIXME: Adjust value.
-const ADC_NOTIFY_EVERY: usize = 100;
+pub type AdcProducer = StaticProducer<'static, AdcPoints, ADC_BUFFER_LEN>;
+pub type AdcConsumer = StaticConsumer<'static, AdcPoints, ADC_BUFFER_LEN>;
 
 pub struct ControlHandle {
     /// Semaphore to notify that something is ready.
@@ -64,18 +45,23 @@ pub struct ControlHandle {
     din_changed: AtomicBool,
     /// Discrete output has changed.
     dout_changed: AtomicBool,
+
+    /// Number of DAC points to write until notified.
+    dac_notify_every: AtomicUsize,
+    /// Number of ADC points to read until notified.
+    adc_notify_every: AtomicUsize,
 }
 
 struct ControlDac {
     running: bool,
     buffer: DacConsumer,
-    last_point: DacPoint,
+    last_point: Point,
     counter: usize,
 }
 
 struct ControlAdc {
     buffer: AdcProducer,
-    last_point: AdcPoint,
+    last_point: AdcPoints,
     counter: usize,
 }
 
@@ -83,6 +69,7 @@ pub struct Control {
     dac: ControlDac,
     adc: ControlAdc,
     handle: Arc<ControlHandle>,
+    stats: Arc<Statistics>,
 }
 
 impl ControlHandle {
@@ -94,21 +81,65 @@ impl ControlHandle {
             dout: AtomicDout::new(0),
             din_changed: AtomicBool::new(false),
             dout_changed: AtomicBool::new(false),
+            dac_notify_every: AtomicUsize::new(0),
+            adc_notify_every: AtomicUsize::new(0),
+        }
+    }
+    pub fn configure(&self, dac_notify_every: usize, adc_notify_every: usize) {
+        self.dac_notify_every
+            .store(dac_notify_every, Ordering::Release);
+        self.adc_notify_every
+            .store(adc_notify_every, Ordering::Release);
+    }
+
+    pub fn notify(&self) {
+        self.ready_sem.give();
+    }
+    pub fn wait_ready(&self, timeout: Option<Duration>) -> bool {
+        match self.ready_sem.take(match timeout {
+            Some(dur) => FreeRtosDuration::ms(dur.as_millis() as u32),
+            None => FreeRtosDuration::infinite(),
+        }) {
+            Ok(()) => true,
+            Err(FreeRtosError::Timeout) => false,
+            Err(e) => panic!("{:?}", e),
         }
     }
 
-    fn update_din(&self, din: Din) -> bool {
-        if self.din.swap(din, Ordering::AcqRel) != din {
+    pub fn set_dac_mode(&self, enabled: bool) {
+        self.dac_enabled.store(enabled, Ordering::Release);
+    }
+
+    fn update_din(&self, value: Din) -> bool {
+        if self.din.swap(value, Ordering::AcqRel) != value {
             self.din_changed.fetch_or(true, Ordering::AcqRel);
             true
         } else {
             false
         }
     }
+    pub fn take_din(&self) -> Option<Din> {
+        if self.din_changed.fetch_and(false, Ordering::AcqRel) {
+            Some(self.din.load(Ordering::Acquire))
+        } else {
+            None
+        }
+    }
+
+    pub fn set_dout(&self, value: Dout) {
+        let raw = value.into();
+        if self.dout.swap(raw, Ordering::AcqRel) != raw {
+            self.dout_changed.fetch_or(true, Ordering::AcqRel);
+        }
+    }
 }
 
 impl Control {
-    pub fn new(dac_buf: DacConsumer, adc_buf: AdcProducer) -> (Self, Arc<ControlHandle>) {
+    pub fn new(
+        dac_buf: DacConsumer,
+        adc_buf: AdcProducer,
+        stats: Arc<Statistics>,
+    ) -> (Self, Arc<ControlHandle>) {
         let handle = Arc::new(ControlHandle::new());
         (
             Self {
@@ -120,10 +151,11 @@ impl Control {
                 },
                 adc: ControlAdc {
                     buffer: adc_buf,
-                    last_point: AdcPoint::default(),
+                    last_point: AdcPoints::default(),
                     counter: 0,
                 },
                 handle: handle.clone(),
+                stats,
             },
             handle,
         )
@@ -138,7 +170,10 @@ impl Control {
         }
     }
 
-    fn task_main(&mut self, stats: Arc<Statistics>) {
+    fn task_main(mut self) -> ! {
+        let handle = self.handle.clone();
+        let stats = self.stats.clone();
+
         let mut skifio = skifio::handle().unwrap();
         skifio.subscribe_din(Some(self.make_din_handler())).unwrap();
 
@@ -149,7 +184,7 @@ impl Control {
             let mut ready = false;
 
             skifio
-                .set_dac_state(self.handle.dac_enabled.load(Ordering::Acquire))
+                .set_dac_state(handle.dac_enabled.load(Ordering::Acquire))
                 .unwrap();
 
             // Wait for 10 kHz sync signal
@@ -163,14 +198,14 @@ impl Control {
             }
 
             // Write discrete output
-            if self.handle.dout_changed.fetch_and(false, Ordering::AcqRel) {
+            if handle.dout_changed.fetch_and(false, Ordering::AcqRel) {
                 skifio
-                    .write_dout(self.handle.dout.load(Ordering::Acquire))
+                    .write_dout(handle.dout.load(Ordering::Acquire))
                     .unwrap();
             }
 
             // Read discrete input
-            ready |= self.handle.update_din(skifio.read_din());
+            ready |= handle.update_din(skifio.read_din());
 
             // Statistics: detect 10 kHz sync signal loss
             /*
@@ -191,7 +226,7 @@ impl Control {
                     if self.dac.counter > 0 {
                         self.dac.counter -= 1;
                     } else {
-                        self.dac.counter = DAC_NOTIFY_EVERY - 1;
+                        self.dac.counter = handle.dac_notify_every.load(Ordering::Acquire) - 1;
                         ready = true;
                     }
                 } else {
@@ -219,17 +254,17 @@ impl Control {
                 // Handle ADCs
                 {
                     // Update ADC value statistics
-                    stats.adc.update_values(adcs);
+                    stats.adcs.update_values(adcs);
                     // Push ADC point to buffer.
                     if self.adc.buffer.push(adcs).is_err() {
-                        stats.adc.lost_full.fetch_add(1, Ordering::AcqRel);
+                        stats.adcs.lost_full.fetch_add(1, Ordering::AcqRel);
                     }
 
                     // Decrement ADC notification counter.
                     if self.adc.counter > 0 {
                         self.adc.counter -= 1;
                     } else {
-                        self.adc.counter = ADC_NOTIFY_EVERY - 1;
+                        self.adc.counter = handle.adc_notify_every.load(Ordering::Acquire) - 1;
                         ready = true;
                     }
                 }
@@ -237,18 +272,18 @@ impl Control {
 
             if ready {
                 // Notify
-                self.handle.ready_sem.give();
+                handle.ready_sem.give();
             }
 
             stats.sample_count.fetch_add(1, Ordering::AcqRel);
         }
     }
 
-    pub fn run(mut self, priority: u8, stats: Arc<Statistics>) -> Result<Task, Error> {
+    pub fn run(self, priority: u8) {
         Task::new()
             .name("control")
             .priority(TaskPriority(priority))
-            .start(move |_| self.task_main(stats))
-            .map_err(|e| e.into())
+            .start(move |_| self.task_main())
+            .unwrap();
     }
 }

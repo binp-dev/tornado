@@ -19,6 +19,7 @@ ringbuf = { version = "0.3.2", default-features = false }
 flatty = { path = "../../flatty", default-features = false }
 flatty-io = { path = "../../flatty/io", optional = true }
 timeout-readwrite = { version = "0.3.3", optional = true }
+ux = "0.1.5"
 
 [dependencies.derive_more]
 version = "0.99.17"

@@ -83,7 +83,6 @@ impl<C: Channel> MsgDispatcher<C> {
             let msg = channel.read_message().await.unwrap();
             log::info!("read_msg: {:?}", msg.tag());
             match msg.as_ref() {
-                McuMsgRef::Empty => (),
                 McuMsgRef::DinUpdate { value: _ } => (),
                 McuMsgRef::DacRequest { count } => self.dacs[0].request(count.to_native() as usize),
                 McuMsgRef::AdcData { points } => {

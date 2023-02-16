@@ -1,9 +1,9 @@
-use crate::config::{PointPortable, ADC_COUNT, DAC_COUNT};
+use crate::config::{PointPortable, ADC_COUNT, DAC_COUNT, MAX_APP_MSG_LEN, MAX_MCU_MSG_LEN};
+use core::mem::size_of;
 use flatty::{flat, portable::le, FlatVec};
 
 #[flat(portable = true, sized = false, enum_type = "u8")]
 pub enum AppMsg {
-    Empty,
     Connect,
     KeepAlive,
     DoutUpdate {
@@ -20,7 +20,6 @@ pub enum AppMsg {
 
 #[flat(portable = true, sized = false, enum_type = "u8")]
 pub enum McuMsg {
-    Empty,
     DinUpdate {
         value: u8,
     },
@@ -38,3 +37,8 @@ pub enum McuMsg {
         message: FlatVec<u8, le::U16>,
     },
 }
+
+pub const DAC_MSG_MAX_POINTS: usize =
+    (MAX_APP_MSG_LEN - size_of::<AppMsgTag>()) / (DAC_COUNT * size_of::<PointPortable>());
+pub const ADC_MSG_MAX_POINTS: usize =
+    (MAX_MCU_MSG_LEN - size_of::<McuMsgTag>()) / (ADC_COUNT * size_of::<PointPortable>());

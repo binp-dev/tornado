@@ -13,7 +13,7 @@ mod emul;
 #[cfg(feature = "emul")]
 pub use emul::*;
 
-pub mod control;
+pub mod tasks;
 
 extern crate alloc;
 
@@ -60,7 +60,6 @@ fn rpmsg_recv_task(_: Task, channel: ReadChannel, semaphore: Arc<Semaphore>) {
         use proto::AppMsgRef;
         print!("Message read: ");
         match msg.as_ref() {
-            AppMsgRef::Empty => println!("Empty"),
             AppMsgRef::Connect => {
                 println!("Connect");
                 semaphore.give();
