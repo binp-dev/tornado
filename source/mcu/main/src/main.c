@@ -1,5 +1,4 @@
 #include <FreeRTOS.h>
-#include <task.h>
 
 #include <hal/assert.h>
 #include <hal/io.h>
@@ -8,20 +7,11 @@
 #include "device/clock_config.h"
 #include "device/rsc_table.h"
 
-#include <tasks/stats.h>
-#include <tasks/control.h>
-#include <tasks/rpmsg.h>
-#include <tasks/sync.h>
+#include <drivers/sync.h>
 
-
-// The stack of `main` is tiny, so we store our state as globals.
 #ifdef GENERATE_SYNC
 #define SYNC_PERIOD_US 100
-SyncGenerator sync;
 #endif
-Statistics stats;
-Control control;
-Rpmsg rpmsg;
 
 extern void user_main();
 
@@ -50,28 +40,12 @@ int main(void) {
 
     user_main();
 
-    /*
-    stats_reset(&stats);
 #ifdef GENERATE_SYNC
-    sync_generator_init(&sync, SYNC_PERIOD_US, &stats);
+    SyncGenerator sync;
+    sync_generator_init(&sync);
+    sync_generator_start(&sync, SYNC_PERIOD_US);
+    hal_log_info("Sync generator started");
 #endif
-    control_init(&control, &stats);
-    rpmsg_init(&rpmsg, &control, &stats);
-
-    hal_log_info("Enable statistics report");
-    stats_report_run(&stats);
-
-    hal_log_info("Start SkifIO control process");
-    control_run(&control);
-
-    hal_log_info("Start RPMSG communication");
-    rpmsg_run(&rpmsg);
-
-#ifdef GENERATE_SYNC
-    hal_log_info("Start sync generator");
-    sync_generator_run(&sync);
-#endif
-    */
 
     vTaskStartScheduler();
     // Must never return.

@@ -6,11 +6,7 @@
 
 #include <hal/defs.h>
 
-#include <common/config.h>
-
-#define _SKIFIO_DEBUG
-
-#define SKIFIO_ADC_CHANNEL_COUNT ADC_COUNT
+#define SKIFIO_ADC_CHANNEL_COUNT 6
 
 #define SKIFIO_DIN_SIZE 8
 #define SKIFIO_DOUT_SIZE 4
@@ -44,11 +40,3 @@ hal_retcode skifio_dout_write(SkifioDout value);
 SkifioDin skifio_din_read();
 hal_retcode skifio_din_subscribe(SkifioDinCallback callback, void *data);
 hal_retcode skifio_din_unsubscribe();
-
-#ifdef _SKIFIO_DEBUG
-typedef struct {
-    volatile uint64_t intr_count;
-} _SkifioDebugInfo;
-
-extern _SkifioDebugInfo _SKIFIO_DEBUG_INFO;
-#endif

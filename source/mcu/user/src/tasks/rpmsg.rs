@@ -1,8 +1,6 @@
-use super::{
-    control::{AdcConsumer, ControlHandle, DacBuffer, DacProducer},
-    stats::Statistics,
-};
+use super::{control::ControlHandle, stats::Statistics};
 use crate::{
+    buffers::{AdcConsumer, DacBuffer, DacProducer},
     channel::{Channel, Reader, Writer},
     hal::RetCode,
     println, Error,
@@ -50,25 +48,24 @@ pub struct RpmsgWriter {
     buffer: AdcConsumer,
     common: Arc<RpmsgCommon>,
     control: Arc<ControlHandle>,
-    stats: Arc<Statistics>,
 }
 
 impl Rpmsg {
     pub fn new(
         control: Arc<ControlHandle>,
-        stats: Arc<Statistics>,
         dac_buffer: DacProducer,
         adc_buffer: AdcConsumer,
         dac_observer: &'static DacBuffer,
-    ) -> Result<Self, Error> {
+        stats: Arc<Statistics>,
+    ) -> Self {
         control.configure(proto::DAC_MSG_MAX_POINTS, proto::ADC_MSG_MAX_POINTS);
-        Ok(Self {
+        Self {
             control,
             stats,
             dac_buffer,
             adc_buffer,
             dac_observer,
-        })
+        }
     }
 
     fn connect(task: &Task) -> Channel {
@@ -91,14 +88,13 @@ impl Rpmsg {
                 buffer: self.dac_buffer,
                 common: common.clone(),
                 control: self.control.clone(),
-                stats: self.stats.clone(),
+                stats: self.stats,
             },
             RpmsgWriter {
                 channel: Writer::new(writer, None),
                 buffer: self.adc_buffer,
                 common,
                 control: self.control,
-                stats: self.stats,
             },
         )
     }
@@ -193,13 +189,8 @@ impl RpmsgReader {
 
     fn write_dac(&mut self, points: &[[PointPortable; DAC_COUNT]]) {
         {
-            let count = self
-                .buffer
-                .push_iter(&mut points.iter().map(|[p]| p.to_native()));
-            self.stats
-                .dac
-                .lost_full
-                .fetch_add(points.len() - count, Ordering::AcqRel);
+            let count = self.buffer.push_iter(&mut points.iter().map(|[p]| p.to_native()));
+            self.stats.dac.report_lost_full(points.len() - count);
         }
 
         // Safely decrement requested points counter.
@@ -207,10 +198,7 @@ impl RpmsgReader {
             let mut len = points.len();
             let req = self.common.dac_requested.load(Ordering::Acquire);
             if req < len {
-                self.stats
-                    .dac
-                    .req_exceed
-                    .fetch_add(len - req, Ordering::AcqRel);
+                self.stats.dac.report_req_exceed(len - req);
                 len = req;
             }
             self.common.dac_requested.fetch_sub(len, Ordering::AcqRel);
@@ -257,18 +245,12 @@ impl RpmsgWriter {
                 .channel
                 .new_message()
                 .unwrap()
-                .emplace(proto::McuMsgInitAdcData {
-                    points: flat_vec![],
-                })
+                .emplace(proto::McuMsgInitAdcData { points: flat_vec![] })
                 .unwrap();
 
             let count = if let proto::McuMsgMut::AdcData { points } = msg.as_mut() {
                 assert_eq!(points.capacity(), LEN);
-                points.extend_from_iter(
-                    self.buffer
-                        .pop_iter()
-                        .map(|values| values.map(PointPortable::from)),
-                );
+                points.extend_from_iter(self.buffer.pop_iter().map(|values| values.map(PointPortable::from)));
                 points.len()
             } else {
                 unreachable!()

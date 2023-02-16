@@ -1,4 +1,4 @@
-use core::time::Duration;
+use core::{sync::atomic::AtomicI32, time::Duration};
 use flatty::portable::le;
 
 pub const DAC_COUNT: usize = 1;
@@ -8,6 +8,7 @@ pub const SAMPLE_FREQ_HZ: usize = 10000;
 
 pub type Point = i32;
 pub type PointPortable = le::I32;
+pub type AtomicPoint = AtomicI32;
 
 #[cfg(feature = "app")]
 pub const DAC_MAX_ABS_V: f64 = 10.0;

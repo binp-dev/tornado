@@ -44,23 +44,13 @@ set(SRC
     "${ProjDirPath}/src/device/clock_config.c"
     "${ProjDirPath}/src/device/clock_config.h"
 
-    "${ProjDirPath}/src/utils/macros.h"
     "${ProjDirPath}/src/utils/crc.c"
     "${ProjDirPath}/src/utils/crc.h"
-    "${ProjDirPath}/src/utils/ringbuf.h"
-    "${ProjDirPath}/src/utils/ringbuf.inl"
 
     "${ProjDirPath}/src/drivers/skifio.c"
     "${ProjDirPath}/src/drivers/skifio.h"
-
-    "${ProjDirPath}/src/tasks/stats.c"
-    "${ProjDirPath}/src/tasks/stats.h"
-    "${ProjDirPath}/src/tasks/control.c"
-    "${ProjDirPath}/src/tasks/control.h"
-    "${ProjDirPath}/src/tasks/rpmsg.c"
-    "${ProjDirPath}/src/tasks/rpmsg.h"
-    "${ProjDirPath}/src/tasks/sync.c"
-    "${ProjDirPath}/src/tasks/sync.h"
+    "${ProjDirPath}/src/drivers/sync.c"
+    "${ProjDirPath}/src/drivers/sync.h"
 )
 
 add_executable(${MCUX_SDK_PROJECT_NAME} ${SRC})

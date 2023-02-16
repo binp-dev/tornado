@@ -112,18 +112,13 @@ typedef struct {
 
 static SkifioGlobalState GS;
 
-#ifdef _SKIFIO_DEBUG
-_SkifioDebugInfo _SKIFIO_DEBUG_INFO = {0};
-#endif
-
+extern void user_sample_intr();
 
 static void smp_rdy_handler(void *user_data, HalGpioBlockIndex block, HalGpioPinMask mask) {
     BaseType_t hptw = pdFALSE;
 
     if (GS.sample_skip_counter == 0) {
-#ifdef _SKIFIO_DEBUG
-        _SKIFIO_DEBUG_INFO.intr_count += 1;
-#endif
+        user_sample_intr();
         // Notify target task
         xSemaphoreGiveFromISR(GS.smp_rdy_sem, &hptw);
     } else {
@@ -265,9 +260,6 @@ hal_retcode skifio_init() {
         return ret;
     }
 
-#ifdef _SKIFIO_DEBUG
-    _SKIFIO_DEBUG_INFO.intr_count = 0;
-#endif
     ret = hal_gpio_group_set_intr(&GS.ctrl_pins.group, smp_rdy_handler, NULL);
     if (ret != HAL_SUCCESS) {
         return ret;
