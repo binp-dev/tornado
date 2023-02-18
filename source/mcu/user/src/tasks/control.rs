@@ -7,7 +7,7 @@ use crate::{
     Error,
 };
 use alloc::sync::Arc;
-use common::config::Point;
+use common::config::{Point, DAC_RAW_OFFSET};
 use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     time::Duration,
@@ -39,7 +39,6 @@ pub struct ControlHandle {
 }
 
 struct ControlDac {
-    running: bool,
     buffer: DacConsumer,
     last_point: Point,
     counter: usize,
@@ -124,9 +123,8 @@ impl Control {
         (
             Self {
                 dac: ControlDac {
-                    running: false,
                     buffer: dac_buf,
-                    last_point: 0x7fff,
+                    last_point: DAC_RAW_OFFSET,
                     counter: 0,
                 },
                 adc: ControlAdc {
@@ -184,7 +182,7 @@ impl Control {
 
             // Fetch next DAC value from buffer
             let mut dac_value = self.dac.last_point;
-            if self.dac.running {
+            if handle.dac_enabled.load(Ordering::Acquire) {
                 if let Some(value) = self.dac.buffer.pop() {
                     dac_value = value;
                     self.dac.last_point = value;
@@ -198,6 +196,7 @@ impl Control {
                 } else {
                     stats.dac.report_lost_empty(1);
                 }
+                stats.dac.update_value(dac_value);
             }
 
             // Transfer DAC/ADC values to/from SkifIO board.

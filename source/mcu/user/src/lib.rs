@@ -39,7 +39,10 @@ pub extern "C" fn user_main() {
     let (control, handle) = tasks::Control::new(dac_consumer, adc_producer, stats.clone());
     let rpmsg = tasks::Rpmsg::new(handle, dac_producer, adc_consumer, dac_buffer, stats.clone());
 
+    println!("Running tasks...");
     control.run(CONTROL_TASK_PRIORITY);
     rpmsg.run(RPMSG_READ_TASK_PRIORITY, RPMSG_WRITE_TASK_PRIORITY);
     stats.run_printer(Duration::from_secs(10));
+
+    println!("Done");
 }

@@ -26,13 +26,17 @@ pub struct Adc {
     pub array: ArrayVariable<f64>,
 }
 
+pub struct Debug {
+    pub stats_reset: Variable<u16>,
+}
+
 /// EPICS interface
 pub struct Epics {
-    pub analog_outputs: [Dac; DAC_COUNT],
-    pub analog_inputs: [Adc; ADC_COUNT],
-    pub discrete_output: Variable<u32>,
-    pub discrete_input: Variable<u32>,
-    pub stats_reset: Variable<u16>,
+    pub dac: [Dac; DAC_COUNT],
+    pub adc: [Adc; ADC_COUNT],
+    pub dout: Variable<u32>,
+    pub din: Variable<u32>,
+    pub debug: Debug,
 }
 
 impl Dac {
@@ -56,25 +60,33 @@ impl Adc {
     }
 }
 
+impl Debug {
+    fn new(reg: &mut Registry) -> Result<Self, Error> {
+        Ok(Self {
+            stats_reset: reg.remove_downcast("stats_reset")?,
+        })
+    }
+}
+
 impl Epics {
     pub fn new(mut ctx: Context) -> Result<Self, Error> {
         let reg = &mut ctx.registry;
         let self_ = Self {
-            analog_outputs: (0..DAC_COUNT)
+            dac: (0..DAC_COUNT)
                 .map(|i| Dac::new(reg, &format!("ao{}", i)))
                 .collect::<Result<Vec<_>, _>>()?
                 .try_into()
                 .ok()
                 .unwrap(),
-            analog_inputs: (0..ADC_COUNT)
+            adc: (0..ADC_COUNT)
                 .map(|i| Adc::new(reg, &format!("ai{}", i)))
                 .collect::<Result<Vec<_>, _>>()?
                 .try_into()
                 .ok()
                 .unwrap(),
-            discrete_output: reg.remove_downcast("do0")?,
-            discrete_input: reg.remove_downcast("di0")?,
-            stats_reset: reg.remove_downcast("stats_reset")?,
+            dout: reg.remove_downcast("do0")?,
+            din: reg.remove_downcast("di0")?,
+            debug: Debug::new(reg)?,
         };
         ctx.registry.check_empty()?;
         Ok(self_)

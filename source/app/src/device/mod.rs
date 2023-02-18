@@ -1,5 +1,6 @@
 mod adc;
 mod dac;
+mod debug;
 
 use crate::{channel::Channel, epics::Epics};
 use async_std::{sync::Arc, task::sleep};
@@ -16,12 +17,14 @@ use futures::{
 
 use adc::{Adc, AdcHandle};
 use dac::{Dac, DacHandle};
+use debug::Debug;
 
 pub struct Device<C: Channel> {
     reader: MsgReader<McuMsg, C::Read>,
     writer: MsgWriter<AppMsg, C::Write>,
     dacs: [Dac<C>; config::DAC_COUNT],
     adcs: [Adc; config::ADC_COUNT],
+    debug: Debug<C>,
 }
 
 struct MsgDispatcher<C: Channel> {
@@ -40,11 +43,15 @@ impl<C: Channel> Device<C> {
         let reader = MsgReader::<McuMsg, _>::new(br, config::MAX_MCU_MSG_LEN);
         let writer = MsgWriter::<AppMsg, _>::new(bw, config::MAX_APP_MSG_LEN);
         Self {
-            dacs: epics.analog_outputs.map(|epics| Dac {
+            dacs: epics.dac.map(|epics| Dac {
                 channel: writer.clone(),
                 epics,
             }),
-            adcs: epics.analog_inputs.map(|epics| Adc { epics }),
+            adcs: epics.adc.map(|epics| Adc { epics }),
+            debug: Debug {
+                epics: epics.debug,
+                channel: writer.clone(),
+            },
             reader,
             writer,
         }
@@ -65,13 +72,14 @@ impl<C: Channel> Device<C> {
             adcs: adc_handles.try_into().ok().unwrap(),
         };
         let keepalive = Keepalive::<C> {
-            channel: self.writer,
+            channel: self.writer.clone(),
         };
 
         exec.spawn_ok(join_all(dac_loops).map(|_| ()));
         exec.spawn_ok(join_all(adc_loops).map(|_| ()));
         exec.spawn_ok(dispatcher.run());
         exec.spawn_ok(keepalive.run());
+        exec.spawn_ok(self.debug.run());
     }
 }
 
@@ -81,7 +89,6 @@ impl<C: Channel> MsgDispatcher<C> {
         let mut adcs = self.adcs;
         loop {
             let msg = channel.read_message().await.unwrap();
-            log::info!("read_msg: {:?}", msg.tag());
             match msg.as_ref() {
                 McuMsgRef::DinUpdate { value: _ } => (),
                 McuMsgRef::DacRequest { count } => self.dacs[0].request(count.to_native() as usize),

@@ -53,6 +53,8 @@ pub struct StatsDac {
     lost_full: AtomicU64,
     /// IOC sent more points than were requested.
     req_exceed: AtomicU64,
+
+    value: ValueStats,
 }
 
 #[derive(Default)]
@@ -121,6 +123,8 @@ impl StatsDac {
         self.lost_full.store(0, Ordering::Relaxed);
         self.lost_full.store(0, Ordering::Relaxed);
         fence(Ordering::Release);
+
+        self.value.reset();
     }
 
     pub fn report_lost_empty(&self, count: usize) {
@@ -131,6 +135,9 @@ impl StatsDac {
     }
     pub fn report_req_exceed(&self, count: usize) {
         self.req_exceed.fetch_add(count as u64, Ordering::AcqRel);
+    }
+    pub fn update_value(&self, value: Point) {
+        self.value.update(value);
     }
 }
 
@@ -182,11 +189,13 @@ impl ValueStats {
 impl Display for Statistics {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         fence(Ordering::Acquire);
-        writeln!(f)?;
+        let sync = self.sync_count.load(Ordering::Relaxed);
+        let ready = self.ready_count.load(Ordering::Relaxed);
+        let sample = self.sample_count.load(Ordering::Relaxed);
 
-        writeln!(f, "sync_count: {}", self.sync_count.load(Ordering::Relaxed))?;
-        writeln!(f, "ready_count: {}", self.ready_count.load(Ordering::Relaxed))?;
-        writeln!(f, "sample_count: {}", self.sample_count.load(Ordering::Relaxed))?;
+        writeln!(f, "sync_count: {}", sync)?;
+        writeln!(f, "ready_count: {}", ready)?;
+        writeln!(f, "sample_count: {}", sample)?;
         writeln!(
             f,
             "max_intrs_per_sample: {}",
@@ -195,10 +204,10 @@ impl Display for Statistics {
         writeln!(f, "crc_error_count: {}", self.crc_error_count.load(Ordering::Relaxed))?;
 
         writeln!(f, "dac:")?;
-        writeln!(indented(f).ind(4), "{}", self.dac)?;
+        write!(indented(f), "{}", self.dac)?;
 
         writeln!(f, "adcs:")?;
-        writeln!(indented(f).ind(4), "{}", self.adcs)?;
+        write!(indented(f), "{}", self.adcs)?;
 
         Ok(())
     }
@@ -210,6 +219,10 @@ impl Display for StatsDac {
         writeln!(f, "lost_empty: {}", self.lost_empty.load(Ordering::Relaxed))?;
         writeln!(f, "lost_full: {}", self.lost_full.load(Ordering::Relaxed))?;
         writeln!(f, "req_exceed: {}", self.req_exceed.load(Ordering::Relaxed))?;
+
+        writeln!(f, "value:")?;
+        write!(indented(f), "{}", self.value)?;
+
         Ok(())
     }
 }
@@ -219,7 +232,7 @@ impl Display for StatsAdc {
         writeln!(f, "lost_full: {}", self.lost_full.load(Ordering::Acquire))?;
         for (i, adc) in self.values.iter().enumerate() {
             writeln!(f, "{}:", i)?;
-            writeln!(indented(f).ind(4), "{}", adc)?;
+            write!(indented(f), "{}", adc)?;
         }
         Ok(())
     }
@@ -234,17 +247,19 @@ macro_rules! format_value {
 impl Display for ValueStats {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         fence(Ordering::Acquire);
-        writeln!(f, "last: {}", format_value!(&self.last.load(Ordering::Relaxed)))?;
-        writeln!(f, "min: {}", format_value!(&self.min.load(Ordering::Relaxed)))?;
-        writeln!(f, "max: {}", format_value!(&self.max.load(Ordering::Relaxed)))?;
 
         let count = self.count.load(Ordering::Relaxed);
+        writeln!(f, "count: {}", count)?;
         if count != 0 {
+            writeln!(f, "last: {}", format_value!(&self.last.load(Ordering::Relaxed)))?;
+
+            writeln!(f, "min: {}", format_value!(&self.min.load(Ordering::Relaxed)))?;
+            writeln!(f, "max: {}", format_value!(&self.max.load(Ordering::Relaxed)))?;
+
             let avg = (self.sum.load(Ordering::Relaxed) / count as i64) as Point;
             writeln!(f, "avg: {}", format_value!(&avg))?;
-        } else {
-            writeln!(f, "avg: nan")?;
         }
+
         Ok(())
     }
 }
@@ -258,6 +273,7 @@ impl Statistics {
                 let mut delay = TaskDelay::new();
                 loop {
                     delay.delay_until(FreeRtosDuration::ms(period.as_millis() as u32));
+                    println!();
                     println!("[Statistics]");
                     println!("{}", self);
                 }

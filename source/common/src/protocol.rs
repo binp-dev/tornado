@@ -9,7 +9,7 @@ pub enum AppMsg {
     DoutUpdate {
         value: u8,
     },
-    DacMode {
+    DacState {
         enable: u8,
     },
     DacData {

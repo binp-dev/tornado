@@ -49,7 +49,7 @@ impl GlobalSkifio {
     }
 
     fn try_acquire(&self) -> Option<Skifio> {
-        if self.acquired.fetch_and(false, Ordering::SeqCst) {
+        if !self.acquired.fetch_or(true, Ordering::AcqRel) {
             Some(Skifio::new())
         } else {
             None
@@ -139,10 +139,7 @@ impl Skifio {
     pub fn read_din(&mut self) -> Din {
         unsafe { raw::skifio_din_read() }
     }
-    pub fn subscribe_din<F: DinHandler + Send + 'static>(
-        &mut self,
-        callback: Option<F>,
-    ) -> Result<(), Error> {
+    pub fn subscribe_din<F: DinHandler + Send + 'static>(&mut self, callback: Option<F>) -> Result<(), Error> {
         Into::<Result<(), Error>>::into(unsafe { raw::skifio_din_unsubscribe() })?;
         self.state_mut().set_din_handler(None);
 

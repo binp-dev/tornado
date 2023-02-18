@@ -3,48 +3,36 @@ record(ai, "ai0")
 {
     field(DTYP, "ferrite")
     field(SCAN, ".1 second")
-    field(ASLO, 0.000001354692188)
-    field(LINR, "SLOPE")
     field(PREC, 6)
 }
 record(ai, "ai1")
 {
     field(DTYP, "ferrite")
     field(SCAN, ".1 second")
-    field(ASLO, 0.000001354692188)
-    field(LINR, "SLOPE")
     field(PREC, 6)
 }
 record(ai, "ai2")
 {
     field(DTYP, "ferrite")
     field(SCAN, ".1 second")
-    field(ASLO, 0.000001354692188)
-    field(LINR, "SLOPE")
     field(PREC, 6)
 }
 record(ai, "ai3")
 {
     field(DTYP, "ferrite")
     field(SCAN, ".1 second")
-    field(ASLO, 0.000001354692188)
-    field(LINR, "SLOPE")
     field(PREC, 6)
 }
 record(ai, "ai4")
 {
     field(DTYP, "ferrite")
     field(SCAN, ".1 second")
-    field(ASLO, 0.000001354692188)
-    field(LINR, "SLOPE")
     field(PREC, 6)
 }
 record(ai, "ai5")
 {
     field(DTYP, "ferrite")
     field(SCAN, ".1 second")
-    field(ASLO, 0.000001354692188)
-    field(LINR, "SLOPE")
     field(PREC, 6)
 }
 
@@ -52,13 +40,7 @@ record(ai, "ai5")
 record(ao, "ao0")
 {
     field(DTYP, "ferrite")
-    field(ASLO, 0.0003157445)
-    field(AOFF, -10.346)
-    field(LINR, "SLOPE")
     field(PREC, 6)
-
-    field(RVAL, 32767)
-    #field(PINI, "YES")
 }
 
 # Discrete input
@@ -97,7 +79,7 @@ record(bo, "aao0_state")
 {
     field(DTYP, "ferrite")
 
-    field(RVAL, 0)
+    field(RVAL, 1)
     field(PINI, "YES")
 }
 

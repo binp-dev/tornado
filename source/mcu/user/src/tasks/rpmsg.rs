@@ -159,9 +159,15 @@ impl RpmsgReader {
                 AppMsgRef::Connect => unreachable!(),
                 AppMsgRef::KeepAlive => continue,
                 AppMsgRef::DoutUpdate { value } => self.set_dout(*value),
-                AppMsgRef::DacMode { enable } => self.control.set_dac_mode(*enable != 0),
+                AppMsgRef::DacState { enable } => {
+                    println!("Set DAC state: {}", enable);
+                    self.control.set_dac_mode(*enable != 0);
+                }
                 AppMsgRef::DacData { points } => self.write_dac(points),
-                AppMsgRef::StatsReset => self.stats.reset(),
+                AppMsgRef::StatsReset => {
+                    println!("Reset stats");
+                    self.stats.reset();
+                }
             }
         }
     }

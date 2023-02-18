@@ -32,3 +32,4 @@ mio = { version = "0.8.5", features = ["os-ext"], optional = true }
 [dependencies.common]
 package = "tornado-common"
 path = "../common"
+features = ["app"]
