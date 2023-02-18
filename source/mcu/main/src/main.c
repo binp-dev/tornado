@@ -1,4 +1,5 @@
 #include <FreeRTOS.h>
+#include <task.h>
 
 #include <hal/assert.h>
 #include <hal/io.h>
@@ -7,9 +8,10 @@
 #include "device/clock_config.h"
 #include "device/rsc_table.h"
 
-#include <drivers/sync.h>
 
 #ifdef GENERATE_SYNC
+#include <drivers/sync.h>
+
 #define SYNC_PERIOD_US 100
 #endif
 
@@ -41,9 +43,8 @@ int main(void) {
     user_main();
 
 #ifdef GENERATE_SYNC
-    SyncGenerator sync;
-    sync_generator_init(&sync);
-    sync_generator_start(&sync, SYNC_PERIOD_US);
+    sync_init();
+    sync_start(SYNC_PERIOD_US);
     hal_log_info("Sync generator started");
 #endif
 
