@@ -8,6 +8,9 @@ name = "app"
 crate-type = ["cdylib"]
 path = "src/lib.rs"
 
+[profile.release]
+#lto = true
+
 [features]
 default = ["rpmsg"]
 rpmsg = ["libc", "termios", "mio"]
