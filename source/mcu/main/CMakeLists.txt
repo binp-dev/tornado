@@ -113,15 +113,12 @@ ADD_CUSTOM_COMMAND(TARGET ${MCUX_SDK_PROJECT_NAME} POST_BUILD COMMAND ${CMAKE_OB
     ${EXECUTABLE_OUTPUT_PATH}/m7image.bin
 )
 
-if(NOT DEFINED IPP)
-    message(FATAL_ERROR "Variable 'IPP' is not defined")
+if(NOT DEFINED USER)
+    message(FATAL_ERROR "Variable 'USER' is not defined")
 endif()
 
 # Generate sync internally
 add_definitions("-DGENERATE_SYNC")
-
-# Link common code
-include_directories("${CONFIG}")
 
 # Link HAL
 set(HAL_TARGET "hal_imx8mn")
@@ -129,11 +126,6 @@ add_definitions("-DHAL_IMX8MN" "-DHAL_PRINT_UART" "-DHAL_LOG_LEVEL=4")
 add_subdirectory("../hal" "hal" EXCLUDE_FROM_ALL)
 include_directories("../hal/include")
 target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC ${HAL_TARGET})
-
-# Link IPP proto
-add_subdirectory("${IPP}/c" "ipp" EXCLUDE_FROM_ALL)
-include_directories("${IPP}/c/include")
-target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC "ipp")
 
 # Link user lib
 target_link_directories(${MCUX_SDK_PROJECT_NAME} PUBLIC "${USER}")
@@ -144,5 +136,4 @@ target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC "freertos_rust_shim")
 # Workaround to pass include directories to subprojects
 get_target_property(MCUX_SDK_INCLUDE_DIRECTORIES ${MCUX_SDK_PROJECT_NAME} INCLUDE_DIRECTORIES)
 target_include_directories(${HAL_TARGET} PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})
-target_include_directories("ipp" PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})
 target_include_directories("freertos_rust_shim" PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})

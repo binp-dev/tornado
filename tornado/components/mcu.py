@@ -1,8 +1,6 @@
 from __future__ import annotations
 from typing import List
 
-from pathlib import Path
-
 from ferrite.utils.path import TargetPath
 from ferrite.components.base import Context
 from ferrite.components.compiler import GccCross
@@ -10,8 +8,6 @@ from ferrite.components.freertos import Freertos
 from ferrite.components.mcu import McuBase, McuDeployer
 from ferrite.components.rust import Rustc, RustcHost, RustcCross, Cargo
 
-from tornado.components.config import Config
-from tornado.components.ipp import Ipp
 from tornado.info import path as self_path
 
 
@@ -23,8 +19,6 @@ class Mcu(McuBase):
         rustc: RustcCross,
         freertos: Freertos,
         deployer: McuDeployer,
-        config: Config,
-        ipp: Ipp,
     ):
         user = McuUser(rustc, TargetPath("tornado/mcu/user"))
         super().__init__(
@@ -34,18 +28,14 @@ class Mcu(McuBase):
             freertos,
             deployer,
             target="m7image.elf",
-            deps=[config.generate_task, ipp.generate_task, user.build_task],
+            deps=[user.build_task],
         )
-        self.config = config
-        self.ipp = ipp
         self.user = user
 
     def opt(self, ctx: Context) -> List[str]:
         return [
             *super().opt(ctx),
-            f"-DUSER={ctx.target_path / self.user.build_dir / str(self.user.rustc.target) / 'release'}",
-            f"-DIPP={ctx.target_path / self.ipp.output_dir}",
-            f"-DCONFIG={ctx.target_path / self.config.output_dir}",
+            f"-DUSER={ctx.target_path / self.user.bin_dir}",
         ]
 
 

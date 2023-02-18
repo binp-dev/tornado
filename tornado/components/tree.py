@@ -10,11 +10,9 @@ from ferrite.components.platforms.base import Platform
 from ferrite.components.platforms.host import HostPlatform
 from ferrite.components.platforms.imx8mn import Imx8mnPlatform
 
-from tornado.components.ipp import Ipp
 from tornado.components.app import AppReal, AppFake
 from tornado.components.ioc import AppIocHost, AppIocCross
-from tornado.components.config import Config
-from tornado.components.fakedev import Fakedev
+#from tornado.components.fakedev import Fakedev
 from tornado.components.mcu import Mcu
 
 
@@ -24,14 +22,15 @@ class HostComponents(ComponentGroup):
         self.gcc = platform.gcc
         self.rustc = platform.rustc
         self.epics_base = EpicsBaseHost(self.gcc)
-        self.config = Config()
-        self.ipp = Ipp(self.rustc)
-        self.app = AppFake(self.rustc, self.config, self.ipp)
+        self.app = AppFake(self.rustc)
         self.ioc = AppIocHost(self.epics_base, self.app)
-        self.fakedev = Fakedev(self.ioc, self.ipp)
+        #self.fakedev = Fakedev(self.ioc)
         self.all = DictComponent({
             "build": TaskList([self.epics_base.install_task, self.app.build_task, self.ioc.install_task]),
-            "test": TaskList([self.ipp.test_task, self.app.test_task, self.fakedev.test_task]),
+            "test": TaskList([
+                self.app.test_task,
+                #self.fakedev.test_task,
+            ]),
         })
 
     def components(self) -> Dict[str, Component]:
@@ -47,9 +46,9 @@ class CrossComponents(ComponentGroup):
         self.mcu_rustc = platform.mcu.rustc
         self.freertos = platform.mcu.freertos
         self.epics_base = EpicsBaseCross(self.app_gcc, host.epics_base)
-        self.app = AppReal(self.app_rustc, host.config, host.ipp)
+        self.app = AppReal(self.app_rustc)
         self.ioc = AppIocCross(self.epics_base, self.app)
-        self.mcu = Mcu(self.mcu_gcc, self.mcu_rustc, self.freertos, platform.mcu.deployer, host.config, host.ipp)
+        self.mcu = Mcu(self.mcu_gcc, self.mcu_rustc, self.freertos, platform.mcu.deployer)
 
         build_task = TaskList([self.epics_base.install_task, self.ioc.install_task, self.mcu.build_task])
         deploy_task = TaskList([self.epics_base.deploy_task, self.ioc.deploy_task, self.mcu.deploy_and_reboot_task])
