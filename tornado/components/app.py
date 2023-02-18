@@ -29,6 +29,7 @@ class AbstractApp(AppBase):
             deps=[config.generate_task, ipp.generate_task],
             features=features,
             default_features=False,
+            release=True,
         )
         self.config = config
         self.ipp = ipp

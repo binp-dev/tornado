@@ -1,8 +1,6 @@
 mod channel;
-mod config;
 mod device;
 mod epics;
-mod proto;
 
 use ferrite::{entry_point, Context};
 use futures::{
@@ -20,7 +18,7 @@ pub use ferrite::export;
 
 #[apply(entry_point)]
 fn app_main(mut ctx: Context) {
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let exec = Arc::new(ThreadPool::builder().pool_size(2).create().unwrap());
     exec.spawn_ok(run(exec.clone(), ctx));
     // TODO: Wait for exec to complete all tasks.

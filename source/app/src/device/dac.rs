@@ -1,8 +1,7 @@
-use crate::{
-    channel::Channel,
-    config::{Point, PointPortable},
-    epics,
-    proto::{self, AppMsg, AppMsgMut},
+use crate::{channel::Channel, epics};
+use common::{
+    config::{Point, PointPortable, DAC_RAW_OFFSET, DAC_STEP},
+    protocol::{self as proto, AppMsg, AppMsgMut},
 };
 use ferrite::{
     misc::{
@@ -14,7 +13,7 @@ use ferrite::{
 };
 use flatty::{flat_vec, portable::NativeCast};
 use flatty_io::AsyncWriter as MsgWriter;
-use futures::{executor::ThreadPool, join};
+use futures::{executor::ThreadPool, join, select, FutureExt};
 use std::future::Future;
 use std::sync::Arc;
 
@@ -45,8 +44,13 @@ impl<C: Channel> Dac<C> {
             output: write_buffer,
             request: request.clone(),
         };
+        let state_reader = StateReader::<C> {
+            state: self.epics.state,
+            mode: self.epics.mode,
+            channel: self.channel.clone(),
+        };
 
-        let msg_sender = MsgSender::<C> {
+        let msg_sender = PointSender::<C> {
             channel: self.channel,
             stream: BufferReadStream::new(read_buffer, request),
             points_to_send: point_counter,
@@ -56,6 +60,7 @@ impl<C: Channel> Dac<C> {
             async move {
                 exec.spawn_ok(array_reader.run());
                 exec.spawn_ok(scalar_reader.run());
+                exec.spawn_ok(state_reader.run());
                 exec.spawn_ok(msg_sender.run());
             },
             handle,
@@ -87,7 +92,11 @@ impl ArrayReader {
             {
                 let mut output = self.output.write().await;
                 output.clear();
-                output.extend(input.iter().map(|x| *x as i32));
+                output.extend(
+                    input
+                        .iter()
+                        .map(|x| (*x / DAC_STEP) as Point + DAC_RAW_OFFSET),
+                );
                 log::debug!("array_read: len={}", input.len());
             }
             input.accept().await;
@@ -115,13 +124,46 @@ impl ScalarReader {
     }
 }
 
-struct MsgSender<C: Channel> {
+struct StateReader<C: Channel> {
+    state: Variable<u16>,
+    mode: Variable<u16>,
+    channel: MsgWriter<AppMsg, C::Write>,
+}
+
+impl<C: Channel> StateReader<C> {
+    async fn send_state(&mut self, state: bool) {
+        self.channel
+            .new_message()
+            .emplace(proto::AppMsgInitDacState {
+                enable: state as u8,
+            })
+            .unwrap()
+            .write()
+            .await
+            .unwrap();
+    }
+
+    async fn run(mut self) {
+        loop {
+            select! {
+                state = async { self.state.acquire().await.read().await }.fuse() => {
+                    self.send_state(state != 0).await;
+                },
+                _mode = async { self.mode.acquire().await.read().await }.fuse() => {
+                    unimplemented!()
+                },
+            }
+        }
+    }
+}
+
+struct PointSender<C: Channel> {
     channel: MsgWriter<AppMsg, C::Write>,
     stream: BufferReadStream<i32>,
     points_to_send: Arc<AsyncCounter>,
 }
 
-impl<C: Channel> MsgSender<C> {
+impl<C: Channel> PointSender<C> {
     async fn run(mut self) {
         self.stream.request.write(1);
         loop {
@@ -134,15 +176,17 @@ impl<C: Channel> MsgSender<C> {
             let mut msg = self
                 .channel
                 .new_message()
-                .emplace(proto::AppMsgInitDacData(proto::AppMsgDacDataInit { points: flat_vec![] }))
+                .emplace(proto::AppMsgInitDacData {
+                    points: flat_vec![],
+                })
                 .unwrap();
-            let will_send = if let AppMsgMut::DacData(msg) = msg.as_mut() {
+            let will_send = if let AppMsgMut::DacData { points } = msg.as_mut() {
                 let mut count = self.points_to_send.sub(None);
                 //log::debug!("points_to_send: {}", count);
-                while count > 0 && !msg.points.is_full() {
+                while count > 0 && !points.is_full() {
                     match self.stream.next().await {
                         Some(value) => {
-                            msg.points.push(PointPortable::from_native(value)).unwrap();
+                            points.push([PointPortable::from_native(value)]).unwrap();
                             count -= 1;
                         }
                         None => break,
@@ -150,7 +194,7 @@ impl<C: Channel> MsgSender<C> {
                 }
                 //log::debug!("points_send: {}", msg.points.len());
                 self.points_to_send.add(count);
-                !msg.points.is_empty()
+                !points.is_empty()
             } else {
                 unreachable!();
             };

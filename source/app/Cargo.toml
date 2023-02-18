@@ -1,12 +1,15 @@
 [package]
 name = "tornado-app"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
 
 [lib]
 name = "app"
 crate-type = ["cdylib"]
 path = "src/lib.rs"
+
+[profile.release]
+#lto = true
 
 [features]
 default = ["rpmsg"]
@@ -17,8 +20,8 @@ tcp = []
 ferrite = { package = "ferrite-core", path = "../ferrite" }
 futures = { version = "0.3.23", features = ["thread-pool"] }
 async-std = "1.12.0"
-flatty = "0.1.0-alpha.3"
-flatty-io = "0.1.0-alpha.1"
+flatty = { path = "../flatty" }
+flatty-io = { path = "../flatty/io" }
 macro_rules_attribute = "0.1.2"
 async-ringbuf = "0.1.0"
 log = "0.4"
@@ -28,3 +31,8 @@ pin-project = "1.0.12"
 libc = { version = "0.2.139", optional = true }
 termios = { version = "0.3.3", optional = true }
 mio = { version = "0.8.5", features = ["os-ext"], optional = true }
+
+[dependencies.common]
+package = "tornado-common"
+path = "../common"
+features = ["app"]

@@ -44,11 +44,12 @@ class CrossComponents(ComponentGroup):
         self.app_gcc = platform.app.gcc
         self.app_rustc = platform.app.rustc
         self.mcu_gcc = platform.mcu.gcc
+        self.mcu_rustc = platform.mcu.rustc
         self.freertos = platform.mcu.freertos
         self.epics_base = EpicsBaseCross(self.app_gcc, host.epics_base)
         self.app = AppReal(self.app_rustc, host.config, host.ipp)
         self.ioc = AppIocCross(self.epics_base, self.app)
-        self.mcu = Mcu(self.mcu_gcc, self.freertos, platform.mcu.deployer, host.config, host.ipp)
+        self.mcu = Mcu(self.mcu_gcc, self.mcu_rustc, self.freertos, platform.mcu.deployer, host.config, host.ipp)
 
         build_task = TaskList([self.epics_base.install_task, self.ioc.install_task, self.mcu.build_task])
         deploy_task = TaskList([self.epics_base.deploy_task, self.ioc.deploy_task, self.mcu.deploy_and_reboot_task])
