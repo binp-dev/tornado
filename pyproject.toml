@@ -12,7 +12,7 @@ pydantic = "^1.9.0"
 numpy = "^1.22.3"
 
 [tool.poetry.dev-dependencies]
-ferrite = { path = "ferrite", develop = true, extras = ["example"] }
+ferrite = { path = "ferrite", develop = true }
 toml = "^0.10.2"
 yapf = "^0.32.0"
 mypy = "^0.942"

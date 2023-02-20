@@ -1,41 +1,71 @@
 from __future__ import annotations
+from typing import List
 
+import shutil
 from pathlib import Path
 
 from ferrite.utils.path import TargetPath
-from ferrite.components.epics.epics_base import EpicsBaseCross, EpicsBaseHost
-from ferrite.components.epics.ioc import IocCross, IocHost, HostBuildTask, CrossBuildTask
-from ferrite.components.epics.app_ioc import AppIoc, B, AppBuildTask
-from ferrite.components.app import AppBase
+from ferrite.utils.files import substitute
+from ferrite.components.base import task, Context
+from ferrite.components.epics.epics_base import AbstractEpicsBase, EpicsBaseCross, EpicsBaseHost
+from ferrite.components.epics.ioc import AbstractIoc, IocCross, IocHost
+
+from tornado.components.app import AbstractApp, AppReal, AppFake
 
 from tornado.info import path as self_path
 
 
-class AbstractAppIoc(AppIoc[B]):
+class Ioc(AbstractIoc):
 
-    def __init__(self, epics_base: B, app: AppBase):
-        super().__init__(self_path / "source/ioc", TargetPath("tornado/ioc"), epics_base, app)
+    def __init__(self, epics_base: AbstractEpicsBase, app: AbstractApp):
+        super().__init__(self_path / "source/ioc", TargetPath("tornado/ioc"), epics_base)
+        self.app = app
 
     @property
     def name(self) -> str:
         return "Tornado"
 
+    def _dep_paths(self, ctx: Context) -> List[Path]:
+        return [
+            *super()._dep_paths(ctx),
+            ctx.target_path / self.app.lib_path,
+        ]
 
-class AppIocHost(AbstractAppIoc[EpicsBaseHost], IocHost):
+    def _store_app_lib(self, ctx: Context) -> None:
+        lib_dir = ctx.target_path / self.install_dir / "lib" / self.arch
+        lib_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(
+            ctx.target_path / self.app.lib_path,
+            lib_dir / self.app.lib_name,
+        )
 
-    def BuildTask(self) -> _HostBuildTask:
-        return _HostBuildTask(self)
+    def _configure(self, ctx: Context) -> None:
+        super()._configure(ctx)
+
+        substitute(
+            [("^\\s*#*(\\s*APP_ARCH\\s*=).*$", f"\\1 {self.arch}")],
+            ctx.target_path / self.build_dir / "configure/CONFIG_SITE.local",
+        )
+
+        self._store_app_lib(ctx)
+
+    @task
+    def run(self, ctx: Context) -> None:
+        self.app.build(ctx)
+        try:
+            super().build(ctx)
+        finally:
+            # Copy App shared lib to the IOC even if IOC wasn't built.
+            self._store_app_lib(ctx)
 
 
-class AppIocCross(AbstractAppIoc[EpicsBaseCross], IocCross):
+class AppIocHost(Ioc, IocHost):
 
-    def BuildTask(self) -> _CrossBuildTask:
-        return _CrossBuildTask(self)
-
-
-class _HostBuildTask(AppBuildTask[AppIocHost], HostBuildTask[AppIocHost]):
-    pass
+    def __init__(self, epics_base: EpicsBaseHost, app: AppFake):
+        super().__init__(epics_base, app)
 
 
-class _CrossBuildTask(AppBuildTask[AppIocCross], CrossBuildTask[AppIocCross]):
-    pass
+class AppIocCross(Ioc, IocCross):
+
+    def __init__(self, epics_base: EpicsBaseCross, app: AppReal):
+        super().__init__(epics_base, app)

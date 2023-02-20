@@ -2,13 +2,12 @@ from __future__ import annotations
 from typing import List
 
 from ferrite.utils.path import TargetPath
-from ferrite.components.rust import Rustc, RustcHost, RustcCross
-from ferrite.components.app import AppBase
+from ferrite.components.rust import Rustc, RustcHost, RustcCross, Cargo
 
 from tornado.info import path as self_path
 
 
-class AbstractApp(AppBase):
+class AbstractApp(Cargo):
 
     def __init__(
         self,
@@ -23,6 +22,8 @@ class AbstractApp(AppBase):
             default_features=False,
             release=True,
         )
+        self.lib_name = "libapp.so"
+        self.lib_path = self.bin_dir / self.lib_name
 
 
 class AppFake(AbstractApp):

@@ -169,6 +169,18 @@ ssh = ["bcrypt (>=3.1.5)"]
 test = ["hypothesis (>=1.11.4,!=3.79.2)", "iso8601", "pretend", "pytest (>=6.2.0)", "pytest-benchmark", "pytest-cov", "pytest-subtests", "pytest-xdist", "pytz"]
 
 [[package]]
+name = "dataclass-type-validator"
+version = "0.1.2"
+description = "Dataclass Type Validator Library"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "dataclass-type-validator-0.1.2.tar.gz", hash = "sha256:575f5ea89b5965ab5b3079cd67115b37a75a529fe221c35159e036e99faa0eb4"},
+    {file = "dataclass_type_validator-0.1.2-py3-none-any.whl", hash = "sha256:85b759f17ee106245f8748b9f5381bd9ad225dbeef573feee3ce46cdbfaaa8a7"},
+]
+
+[[package]]
 name = "ferrite"
 version = "0.0.0"
 description = "Power supply controller framework"
@@ -180,9 +192,9 @@ develop = true
 
 [package.dependencies]
 colorama = "^0.4.4"
+dataclass-type-validator = "^0.1.2"
 numpy = "^1.23.2"
 paramiko = "^2.9.2"
-pydantic = "^1.9.0"
 pyepics = "^3.5.1"
 pyepics-asyncio = "^0.2.0"
 toml = "^0.10.2"
@@ -551,4 +563,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "d574d39f23379cca0ef8f2c51446963070b43727c294b6deca0c2ca696c7ff47"
+content-hash = "cb5d1ad43584d59fe4d74218996e0872d58d56c95f7bf05155bc30e39d218b9f"
