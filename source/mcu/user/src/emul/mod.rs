@@ -1,4 +1,4 @@
 pub mod channel;
-pub mod io;
+pub mod skifio;
 
-pub use io::{print, println};
+const IP_ADDR: &str = "localhost:4578";

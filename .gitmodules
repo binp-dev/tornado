@@ -13,3 +13,6 @@
 [submodule "source/flatty"]
 	path = source/flatty
 	url = https://github.com/agerasev/flatty.git
+[submodule "source/mcu/ustd"]
+	path = source/mcu/ustd
+	url = https://github.com/agerasev/ustd-rs.git

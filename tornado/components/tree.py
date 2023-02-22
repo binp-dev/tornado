@@ -12,7 +12,7 @@ from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 from tornado.components.toolchains import AppToolchain, AppRustc, McuToolchain, McuRustc
 from tornado.components.app import AppReal, AppFake
 from tornado.components.ioc import AppIocHost, AppIocCross
-#from tornado.components.fakedev import Fakedev
+from tornado.components.fakedev import Fakedev
 from tornado.components.freertos import Freertos
 from tornado.components.mcu import Mcu
 
@@ -25,11 +25,10 @@ class HostComponents(ComponentGroup):
         self.epics_base = EpicsBaseHost(self.gcc)
         self.app = AppFake(self.rustc)
         self.ioc = AppIocHost(self.epics_base, self.app)
-        #self.fakedev = Fakedev(self.ioc)
+        self.fakedev = Fakedev(self.ioc)
         self.all = DictComponent(
             build=TaskList(self.epics_base.install, self.app.build, self.ioc.install),
-            test=TaskList(self.app.test),
-            #self.fakedev.test,
+            test=TaskList(self.app.test, self.fakedev.test),
         )
 
     def components(self) -> Dict[str, Component]:

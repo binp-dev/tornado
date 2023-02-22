@@ -1,0 +1,11 @@
+[package]
+name = "tornado-fakedev"
+version = "0.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mcu = { package = "tornado-mcu", path = "../mcu/user", features = [
+    "emul",
+], default-features = false }

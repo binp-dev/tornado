@@ -2,8 +2,8 @@ use super::{control::ControlHandle, stats::Statistics};
 use crate::{
     buffers::{AdcConsumer, DacBuffer, DacProducer},
     channel::{Channel, Reader, Writer},
-    hal::RetCode,
-    println, Error,
+    error::ErrorKind,
+    Error,
 };
 use alloc::sync::Arc;
 use common::{
@@ -15,8 +15,8 @@ use core::{
     time::Duration,
 };
 use flatty::{flat_vec, portable::le, prelude::*};
-use freertos::{Task, TaskPriority};
 use ringbuf::ring_buffer::RbBase;
+use ustd::{prelude::*, task};
 
 pub struct Rpmsg {
     control: Arc<ControlHandle>,
@@ -68,13 +68,6 @@ impl Rpmsg {
         }
     }
 
-    fn connect(task: &Task) -> Channel {
-        let id = 0;
-        let channel = Channel::new(task, id).unwrap();
-        println!("RPMSG channel {} created", id);
-        channel
-    }
-
     fn split(self, channel: Channel) -> (RpmsgReader, RpmsgWriter) {
         let common = Arc::new(RpmsgCommon {
             alive: AtomicBool::new(false),
@@ -99,25 +92,14 @@ impl Rpmsg {
         )
     }
 
-    pub fn run(self, read_priority: u8, write_priority: u8) {
-        Task::new()
-            .name("rpmsg_init")
-            .priority(TaskPriority(read_priority.max(write_priority)))
-            .start(move |task| {
-                let channel = Self::connect(&task);
-                let (reader, writer) = self.split(channel);
-                Task::new()
-                    .name("rpmsg_recv")
-                    .priority(TaskPriority(read_priority))
-                    .start(move |_| reader.task_main())
-                    .unwrap();
-                Task::new()
-                    .name("rpmsg_send")
-                    .priority(TaskPriority(write_priority))
-                    .start(move |_| writer.task_main())
-                    .unwrap();
-            })
-            .unwrap();
+    pub fn run(self, read_priority: usize, write_priority: usize) {
+        task::spawn(task::Priority(read_priority.max(write_priority)), move || {
+            let channel = Channel::new(&task::current().unwrap()).unwrap();
+            let (reader, writer) = self.split(channel);
+            task::spawn(task::Priority(read_priority), move || reader.task_main()).unwrap();
+            task::spawn(task::Priority(write_priority), move || writer.task_main()).unwrap();
+        })
+        .unwrap();
     }
 }
 
@@ -133,7 +115,10 @@ impl RpmsgReader {
         loop {
             let message = match channel.read_message() {
                 Ok(msg) => msg,
-                Err(Error::Hal(RetCode::TimedOut)) => {
+                Err(Error {
+                    kind: ErrorKind::TimedOut,
+                    ..
+                }) => {
                     if self.common.is_alive() {
                         println!("Keep-alive timeout reached. RPMSG connection is considered to be dead.");
                         self.disconnect();

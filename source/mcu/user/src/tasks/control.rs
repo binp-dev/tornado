@@ -1,7 +1,7 @@
 use super::stats::Statistics;
 use crate::{
     buffers::{AdcPoints, AdcProducer, DacConsumer},
-    hal::RetCode,
+    error::ErrorKind,
     println,
     skifio::{self, Aout, AtomicDin, AtomicDout, DinHandler, XferIn, XferOut},
     Error,
@@ -12,7 +12,7 @@ use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     time::Duration,
 };
-use freertos::{Duration as FreeRtosDuration, FreeRtosError, Semaphore, Task, TaskPriority};
+use ustd::{sync::Semaphore, task};
 use ux::u4;
 
 pub type Din = u8;
@@ -60,7 +60,7 @@ pub struct Control {
 impl ControlHandle {
     fn new() -> Self {
         Self {
-            ready_sem: Semaphore::new_binary().unwrap(),
+            ready_sem: Semaphore::new().unwrap(),
             dac_enabled: AtomicBool::new(false),
             din: AtomicDin::new(0),
             dout: AtomicDout::new(0),
@@ -76,16 +76,15 @@ impl ControlHandle {
     }
 
     pub fn notify(&self) {
-        self.ready_sem.give();
+        self.ready_sem.try_give();
     }
     pub fn wait_ready(&self, timeout: Option<Duration>) -> bool {
-        match self.ready_sem.take(match timeout {
-            Some(dur) => FreeRtosDuration::ms(dur.as_millis() as u32),
-            None => FreeRtosDuration::infinite(),
-        }) {
-            Ok(()) => true,
-            Err(FreeRtosError::Timeout) => false,
-            Err(e) => panic!("{:?}", e),
+        match timeout {
+            Some(to) => self.ready_sem.take_timeout(to),
+            None => {
+                self.ready_sem.take();
+                true
+            }
         }
     }
 
@@ -143,7 +142,7 @@ impl Control {
         let handle = self.handle.clone();
         move |context, din| {
             if handle.update_din(din) {
-                handle.ready_sem.give_from_isr(context);
+                handle.ready_sem.try_give_from_intr(context);
             }
         }
     }
@@ -165,7 +164,10 @@ impl Control {
             // Wait for 10 kHz sync signal
             match skifio.wait_ready(Some(Duration::from_millis(1000))) {
                 Ok(()) => (),
-                Err(Error::Hal(RetCode::TimedOut)) => {
+                Err(Error {
+                    kind: ErrorKind::TimedOut,
+                    ..
+                }) => {
                     println!("SkifIO timeout {}", iter_counter);
                     continue;
                 }
@@ -208,7 +210,10 @@ impl Control {
                         self.adc.last_point = adcs;
                         adcs
                     }
-                    Err(Error::Hal(RetCode::InvalidData)) => {
+                    Err(Error {
+                        kind: ErrorKind::InvalidData,
+                        ..
+                    }) => {
                         // CRC check error
                         stats.report_crc_error();
                         self.adc.last_point
@@ -237,18 +242,14 @@ impl Control {
 
             if ready {
                 // Notify
-                handle.ready_sem.give();
+                handle.ready_sem.try_give();
             }
 
             stats.report_sample();
         }
     }
 
-    pub fn run(self, priority: u8) {
-        Task::new()
-            .name("control")
-            .priority(TaskPriority(priority))
-            .start(move |_| self.task_main())
-            .unwrap();
+    pub fn run(self, priority: usize) {
+        task::spawn(task::Priority(priority), move || self.task_main()).unwrap();
     }
 }

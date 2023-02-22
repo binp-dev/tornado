@@ -8,10 +8,10 @@ use core::{
     sync::atomic::{fence, AtomicUsize, Ordering},
     time::Duration,
 };
-use freertos::{Duration as FreeRtosDuration, Task, TaskDelay, TaskPriority};
 use indenter::indented;
 use lazy_static::lazy_static;
 use portable_atomic::{AtomicI64, AtomicU64};
+use ustd::task;
 
 lazy_static! {
     pub static ref STATISTICS: Arc<Statistics> = Arc::new(Statistics::new());
@@ -266,18 +266,12 @@ impl Display for ValueStats {
 
 impl Statistics {
     pub fn run_printer(self: Arc<Self>, period: Duration) {
-        Task::new()
-            .name("stats_printer")
-            .priority(TaskPriority(1))
-            .start(move |_| {
-                let mut delay = TaskDelay::new();
-                loop {
-                    delay.delay_until(FreeRtosDuration::ms(period.as_millis() as u32));
-                    println!();
-                    println!("[Statistics]");
-                    println!("{}", self);
-                }
-            })
-            .unwrap();
+        task::spawn(task::Priority(1), move || loop {
+            task::sleep(period);
+            println!();
+            println!("[Statistics]");
+            println!("{}", self);
+        })
+        .unwrap();
     }
 }

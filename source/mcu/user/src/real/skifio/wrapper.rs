@@ -5,16 +5,13 @@ use core::{
     cell::UnsafeCell,
     ffi::c_void,
     ptr::{self, NonNull},
-    sync::atomic::{AtomicBool, AtomicU8, Ordering},
+    sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
 use freertos::InterruptContext;
 use lazy_static::lazy_static;
 
-pub use raw::{Ain, Aout, Din, Dout, XferIn, XferOut, DIN_SIZE, DOUT_SIZE};
-
-pub type AtomicDin = AtomicU8;
-pub type AtomicDout = AtomicU8;
+use crate::skifio::{Din, DinHandler, Dout, XferIn, XferOut};
 
 lazy_static! {
     static ref SKIFIO: GlobalSkifio = GlobalSkifio::new();
@@ -25,9 +22,6 @@ struct GlobalSkifio {
     state: UnsafeCell<SkifioState>,
 }
 unsafe impl Sync for GlobalSkifio {}
-
-pub trait DinHandler: FnMut(&mut InterruptContext, Din) + Send + 'static {}
-impl<T: FnMut(&mut InterruptContext, Din) + Send + 'static> DinHandler for T {}
 
 struct SkifioState {
     dac_state: bool,
@@ -126,10 +120,8 @@ impl Skifio {
     }
     pub fn transfer(&mut self, out: XferOut) -> Result<XferIn, Error> {
         let mut in_ = XferIn::default();
-        match unsafe { raw::skifio_transfer(&out as *const _, &mut in_ as *mut _) } {
-            RetCode::Success => Ok(in_),
-            r => Err(Error::Hal(r)),
-        }
+        let r = unsafe { raw::skifio_transfer(&out as *const _, &mut in_ as *mut _) };
+        Result::<(), Error>::from(r).map(|()| in_)
     }
 
     pub fn write_dout(&mut self, dout: Dout) -> Result<(), Error> {

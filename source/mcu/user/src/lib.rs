@@ -14,15 +14,17 @@ mod emul;
 pub use emul::*;
 
 pub mod buffers;
+pub mod skifio;
 pub mod tasks;
 
 extern crate alloc;
 
 use core::time::Duration;
+use ustd::prelude::*;
 
-const CONTROL_TASK_PRIORITY: u8 = 4;
-const RPMSG_WRITE_TASK_PRIORITY: u8 = 3;
-const RPMSG_READ_TASK_PRIORITY: u8 = 2;
+const CONTROL_TASK_PRIORITY: usize = 4;
+const RPMSG_WRITE_TASK_PRIORITY: usize = 3;
+const RPMSG_READ_TASK_PRIORITY: usize = 2;
 
 #[no_mangle]
 pub extern "C" fn user_main() {

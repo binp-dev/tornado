@@ -89,10 +89,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
-name = "freertos-rust"
-version = "0.1.2"
-
-[[package]]
 name = "futures"
 version = "0.3.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -192,9 +188,6 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
-dependencies = [
- "spin",
-]
 
 [[package]]
 name = "libc"
@@ -276,18 +269,12 @@ dependencies = [
 
 [[package]]
 name = "slab"
-version = "0.4.7"
+version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4614a76b2a8be0058caa9dbbaf66d988527d86d003c11a94fbd335d7661edcef"
+checksum = "6528351c9bc8ab22353f9d776db39a20288e8d6c37ef8cfe3317cf875eecfc2d"
 dependencies = [
  "autocfg",
 ]
-
-[[package]]
-name = "spin"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "static_assertions"
@@ -332,13 +319,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "tornado-fakedev"
+version = "0.0.0"
+dependencies = [
+ "tornado-mcu",
+]
+
+[[package]]
 name = "tornado-mcu"
 version = "0.0.0"
 dependencies = [
  "derive_more",
  "flatty",
  "flatty-io",
- "freertos-rust",
  "indenter",
  "lazy_static",
  "portable-atomic",
@@ -360,7 +353,6 @@ name = "ustd"
 version = "0.0.0"
 dependencies = [
  "fnv",
- "freertos-rust",
  "lazy_static",
 ]
 

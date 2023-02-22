@@ -38,10 +38,7 @@ impl<M: Portable + ?Sized> Reader<M> {
     pub fn read_message(&mut self) -> Result<ReadGuard<'_, M>, Error> {
         let buffer = self.channel.recv(self.timeout)?;
         M::from_bytes(&buffer)?.validate()?;
-        Ok(ReadGuard {
-            buffer,
-            _p: PhantomData,
-        })
+        Ok(ReadGuard { buffer, _p: PhantomData })
     }
 }
 
@@ -64,10 +61,7 @@ impl<M: Portable + ?Sized> Writer<M> {
     pub fn new_message(&mut self) -> Result<UninitWriteGuard<'_, M>, Error> {
         let mut buffer = self.channel.alloc(self.timeout)?;
         M::from_mut_bytes(&mut buffer)?;
-        Ok(UninitWriteGuard {
-            buffer,
-            _p: PhantomData,
-        })
+        Ok(UninitWriteGuard { buffer, _p: PhantomData })
     }
 }
 

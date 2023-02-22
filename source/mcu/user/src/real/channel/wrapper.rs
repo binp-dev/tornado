@@ -1,7 +1,14 @@
 extern crate alloc;
 
-use super::raw::{self, HalRpmsgChannel};
-use crate::{hal::RetCode, println, Error};
+use super::{
+    raw::{self, HalRpmsgChannel},
+    RPMSG_REMOTE_ID,
+};
+use crate::{
+    error::{Error, ErrorKind, ErrorSource},
+    hal::RetCode,
+    println,
+};
 use alloc::sync::Arc;
 use core::{
     mem,
@@ -9,8 +16,9 @@ use core::{
     ptr, slice,
     time::Duration,
 };
-use freertos::{Duration as FreeRtosDuration, Mutex, Task};
+use freertos::{Duration as FreeRtosDuration, Mutex};
 use lazy_static::lazy_static;
+use ustd::task::Task;
 
 lazy_static! {
     static ref RPMSG: Mutex<GlobalRpmsg> = Mutex::new(GlobalRpmsg::new()).unwrap();
@@ -53,23 +61,26 @@ pub struct ReadChannel(Arc<Channel>);
 pub struct WriteChannel(Arc<Channel>);
 
 impl Channel {
-    pub fn new(task: &Task, remote_id: u32) -> Result<Self, Error> {
-        RPMSG
-            .lock(FreeRtosDuration::infinite())
-            .unwrap()
-            .acquire(task);
+    pub fn new(task: &Task) -> Result<Self, Error> {
+        RPMSG.lock(FreeRtosDuration::infinite()).unwrap().acquire(task);
 
-        let raw = unsafe { HalRpmsgChannel::alloc() }.ok_or(Error::Alloc)?;
+        let raw = unsafe { HalRpmsgChannel::alloc() }.ok_or(Error {
+            kind: ErrorKind::BadAlloc,
+            source: ErrorSource::None,
+        })?;
 
-        match unsafe { raw::hal_rpmsg_create_channel(raw, remote_id) } {
-            RetCode::Success => (),
-            r => {
+        let id = RPMSG_REMOTE_ID;
+        let r = unsafe { raw::hal_rpmsg_create_channel(raw, id) };
+        match r.into() {
+            Ok(()) => {
+                println!("RPMSG channel {} created", id);
+                Ok(Self { raw })
+            }
+            Err(e) => {
                 unsafe { HalRpmsgChannel::dealloc(raw) };
-                return Err(Error::Hal(r));
+                Err(e)
             }
         }
-
-        Ok(Self { raw })
     }
 
     pub fn split(self) -> (ReadChannel, WriteChannel) {
@@ -124,21 +135,15 @@ impl ReadChannel {
             ptr: ptr::null_mut(),
             len: 0,
         };
-        match unsafe {
-            raw::hal_rpmsg_recv_nocopy(
-                self.0.raw,
-                &mut buf.ptr as *mut _,
-                &mut buf.len as *mut _,
-                timeout.into(),
-            )
-        } {
-            RetCode::Success => (),
-            r => {
+        let r =
+            unsafe { raw::hal_rpmsg_recv_nocopy(self.0.raw, &mut buf.ptr as *mut _, &mut buf.len as *mut _, timeout.into()) };
+        match r.into() {
+            Ok(()) => Ok(buf),
+            Err(e) => {
                 buf.ptr = ptr::null_mut();
-                return Err(Error::Hal(r));
+                Err(e)
             }
         }
-        Ok(buf)
     }
 }
 impl<'a> Drop for ReadBuffer<'a> {
@@ -159,32 +164,24 @@ impl WriteChannel {
             ptr: ptr::null_mut(),
             len: 0,
         };
-        match unsafe {
-            raw::hal_rpmsg_alloc_tx_buffer(
-                self.0.raw,
-                &mut buf.ptr as *mut _,
-                &mut buf.len as *mut _,
-                timeout.into(),
-            )
-        } {
-            RetCode::Success => (),
-            r => {
+        let r = unsafe {
+            raw::hal_rpmsg_alloc_tx_buffer(self.0.raw, &mut buf.ptr as *mut _, &mut buf.len as *mut _, timeout.into())
+        };
+        match r.into() {
+            Ok(()) => Ok(buf),
+            Err(e) => {
                 mem::forget(buf);
-                return Err(Error::Hal(r));
+                Err(e)
             }
         }
-        Ok(buf)
     }
 }
 impl<'a> WriteBuffer<'a> {
     pub fn send(self, len: usize) -> Result<(), Error> {
         assert!(len <= self.len);
-        let res = match unsafe { raw::hal_rpmsg_send_nocopy(self.channel.raw, self.ptr, len) } {
-            RetCode::Success => Ok(()),
-            r => Err(Error::Hal(r)),
-        };
+        let r = unsafe { raw::hal_rpmsg_send_nocopy(self.channel.raw, self.ptr, len) };
         mem::forget(self);
-        res
+        r.into()
     }
 }
 impl<'a> Drop for WriteBuffer<'a> {
