@@ -30,7 +30,7 @@ portable-atomic = { version = "1.0.1" }
 [dependencies.derive_more]
 version = "0.99.17"
 default-features = false
-features = ["from"]
+features = ["from", "deref", "deref_mut"]
 
 [dependencies.freertos]
 package = "freertos-rust"

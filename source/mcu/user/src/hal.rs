@@ -27,6 +27,7 @@ pub enum RetCode {
 pub struct Timeout(pub u32);
 
 impl Timeout {
+    #[allow(dead_code)]
     pub const NON_BLOCK: Timeout = Timeout(0);
     pub const WAIT_FOREVER: Timeout = Timeout(0xFFFFFFFF);
 }
@@ -41,5 +42,6 @@ impl From<Option<Duration>> for Timeout {
 }
 
 extern "C" {
+    #[allow(dead_code)]
     fn hal_retcode_str(code: RetCode) -> *const c_char;
 }

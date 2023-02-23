@@ -5,9 +5,8 @@ use common::config;
 use core::time::Duration;
 use derive_more::{Deref, DerefMut};
 use flatty::Portable;
-use flatty_io::details;
-use flatty_io::{Reader as InnerReader, Writer as InnerWriter};
-use std::net::TcpStream;
+use flatty_io::{details, Reader as InnerReader, Writer as InnerWriter};
+use std::{io, net::TcpStream};
 use timeout_readwrite::{TimeoutReader, TimeoutWriter};
 use ustd::task::Task;
 
@@ -15,7 +14,7 @@ const IP_ADDR: &str = "localhost:4578";
 
 pub struct Channel(TcpStream);
 impl Channel {
-    pub fn new(task: &Task) -> Result<Self, Error> {
+    pub fn new(_task: &Task) -> Result<Self, Error> {
         Ok(Self(TcpStream::connect(IP_ADDR)?))
     }
     pub fn split(self) -> (ReadChannel, WriteChannel) {
@@ -50,8 +49,11 @@ impl<M: Portable + ?Sized> Writer<M> {
             inner: InnerWriter::new(TimeoutWriter::new(channel, timeout), config::MAX_APP_MSG_LEN),
         }
     }
+    pub fn new_message(&mut self) -> Result<UninitWriteGuard<'_, M>, io::Error> {
+        Ok(self.inner.new_message())
+    }
 }
 
-pub type ReadGuard<'a, M> = details::ReadGuard<'a, M, ReadChannel>;
-pub type UninitWriteGuard<'a, M> = details::UninitWriteGuard<'a, M, TimeoutReader<ReadChannel>>;
+pub type ReadGuard<'a, M> = details::ReadGuard<'a, M, TimeoutReader<ReadChannel>>;
+pub type UninitWriteGuard<'a, M> = details::UninitWriteGuard<'a, M, TimeoutWriter<WriteChannel>>;
 pub type WriteGuard<'a, M> = details::WriteGuard<'a, M, TimeoutWriter<WriteChannel>>;

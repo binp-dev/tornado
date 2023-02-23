@@ -1,9 +1,11 @@
 use super::stats::Statistics;
+#[cfg(feature = "real")]
+use crate::skifio::SkifioIface as _;
 use crate::{
     buffers::{AdcPoints, AdcProducer, DacConsumer},
     error::ErrorKind,
     println,
-    skifio::{self, Aout, AtomicDin, AtomicDout, DinHandler, SkifioIface as _, XferIn, XferOut},
+    skifio::{self, Aout, AtomicDin, AtomicDout, DinHandler, XferIn, XferOut},
     Error,
 };
 use alloc::{boxed::Box, sync::Arc};

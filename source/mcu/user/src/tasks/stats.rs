@@ -161,6 +161,7 @@ impl StatsAdc {
 }
 
 impl ValueStats {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         let this = Self::default();
         this.reset();

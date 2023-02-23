@@ -15,17 +15,15 @@
 void hal_io_init();
 void hal_io_uart_init(uint32_t index);
 
-#define __HAL_IO_BUFFER_SIZE 0x100
-extern char __hal_io_buffer[];
+#define __USTD_IO_BUFFER_SIZE 0x100
+extern char __ustd_io_buffer[];
 
-void __hal_io_lock();
-void __hal_io_unlock();
-void __hal_print_buffer();
+void __ustd_print_buffer();
 
 #define hal_print(...) \
     do { \
-        snprintf(__hal_io_buffer, __HAL_IO_BUFFER_SIZE, __VA_ARGS__); \
-        __hal_print_buffer(); \
+        snprintf(__ustd_io_buffer, __USTD_IO_BUFFER_SIZE, __VA_ARGS__); \
+        __ustd_print_buffer(); \
         PRINTF("\r\n"); \
     } while (0)
 

@@ -113,7 +113,7 @@ impl RpmsgReader {
     fn task_main(mut self) -> ! {
         let mut channel = self.channel.take().unwrap();
         loop {
-            let message = match channel.read_message().map_err(|e| Error::from(e)) {
+            let message = match channel.read_message().map_err(Error::from) {
                 Ok(msg) => msg,
                 Err(Error {
                     kind: ErrorKind::TimedOut,
@@ -197,6 +197,23 @@ impl RpmsgReader {
     }
 }
 
+macro_rules! try_timeout {
+    ($res:expr, $ret:expr) => {
+        match $res.map_err(Error::from) {
+            Ok(msg) => Ok(msg),
+            Err(Error {
+                kind: ErrorKind::TimedOut,
+                ..
+            }) => {
+                println!("RPMSG buffer allocation timed out");
+                #[allow(clippy::unused_unit)]
+                return $ret;
+            }
+            Err(e) => Err(e),
+        }
+    };
+}
+
 impl RpmsgWriter {
     fn task_main(mut self) {
         loop {
@@ -217,8 +234,8 @@ impl RpmsgWriter {
 
     fn send_din(&mut self) {
         if let Some(din) = self.control.take_din() {
-            self.channel
-                .new_message()
+            try_timeout!(self.channel.new_message(), ())
+                .unwrap()
                 .emplace(proto::McuMsgInitDinUpdate { value: din })
                 .unwrap()
                 .write()
@@ -231,9 +248,8 @@ impl RpmsgWriter {
         const LEN: usize = proto::ADC_MSG_MAX_POINTS;
 
         while self.buffer.len() >= LEN {
-            let mut msg = self
-                .channel
-                .new_message()
+            let mut msg = try_timeout!(self.channel.new_message(), total)
+                .unwrap()
                 .emplace(proto::McuMsgInitAdcData { points: flat_vec![] })
                 .unwrap();
 
@@ -263,8 +279,8 @@ impl RpmsgWriter {
         if raw_count >= SIZE {
             // Request number of points that is multiple of `DAC_MSG_MAX_POINTS`.
             let count = (raw_count / SIZE) * SIZE;
-            self.channel
-                .new_message()
+            try_timeout!(self.channel.new_message(), ())
+                .unwrap()
                 .emplace(proto::McuMsgInitDacRequest {
                     count: le::U32::from(count as u32),
                 })

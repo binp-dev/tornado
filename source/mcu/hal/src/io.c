@@ -1,10 +1,10 @@
 #include <hal/io.h>
 
-size_t __hal_io_buffer_size = __HAL_IO_BUFFER_SIZE;
+size_t __ustd_io_buffer_size = __USTD_IO_BUFFER_SIZE;
 
-char __hal_io_buffer[__HAL_IO_BUFFER_SIZE + 1];
+char __ustd_io_buffer[__USTD_IO_BUFFER_SIZE + 1];
 
-void __hal_print_buffer() {
-    __hal_io_buffer[__HAL_IO_BUFFER_SIZE] = '\0';
-    PRINTF("%s", __hal_io_buffer);
+void __ustd_print_buffer() {
+    __ustd_io_buffer[__USTD_IO_BUFFER_SIZE] = '\0';
+    PRINTF("%s", __ustd_io_buffer);
 }
