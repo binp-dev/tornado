@@ -113,7 +113,7 @@ impl RpmsgReader {
     fn task_main(mut self) -> ! {
         let mut channel = self.channel.take().unwrap();
         loop {
-            let message = match channel.read_message() {
+            let message = match channel.read_message().map_err(|e| Error::from(e)) {
                 Ok(msg) => msg,
                 Err(Error {
                     kind: ErrorKind::TimedOut,
@@ -219,7 +219,6 @@ impl RpmsgWriter {
         if let Some(din) = self.control.take_din() {
             self.channel
                 .new_message()
-                .unwrap()
                 .emplace(proto::McuMsgInitDinUpdate { value: din })
                 .unwrap()
                 .write()
@@ -235,7 +234,6 @@ impl RpmsgWriter {
             let mut msg = self
                 .channel
                 .new_message()
-                .unwrap()
                 .emplace(proto::McuMsgInitAdcData { points: flat_vec![] })
                 .unwrap();
 
@@ -267,7 +265,6 @@ impl RpmsgWriter {
             let count = (raw_count / SIZE) * SIZE;
             self.channel
                 .new_message()
-                .unwrap()
                 .emplace(proto::McuMsgInitDacRequest {
                     count: le::U32::from(count as u32),
                 })

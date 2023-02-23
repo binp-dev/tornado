@@ -105,3 +105,17 @@ impl From<flatty::Error> for Error {
         }
     }
 }
+
+#[cfg(feature = "emul")]
+impl From<flatty_io::ReadError> for Error {
+    fn from(err: flatty_io::ReadError) -> Self {
+        match err {
+            flatty_io::ReadError::Io(e) => e.into(),
+            flatty_io::ReadError::Parse(e) => e.into(),
+            flatty_io::ReadError::Eof => Error {
+                kind: ErrorKind::InvalidData,
+                source: ErrorSource::Other("EOF"),
+            },
+        }
+    }
+}

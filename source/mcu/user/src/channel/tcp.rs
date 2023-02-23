@@ -11,10 +11,12 @@ use std::net::TcpStream;
 use timeout_readwrite::{TimeoutReader, TimeoutWriter};
 use ustd::task::Task;
 
+const IP_ADDR: &str = "localhost:4578";
+
 pub struct Channel(TcpStream);
 impl Channel {
     pub fn new(task: &Task) -> Result<Self, Error> {
-        Ok(Self(TcpStream::connect(super::IP_ADDR)?))
+        Ok(Self(TcpStream::connect(IP_ADDR)?))
     }
     pub fn split(self) -> (ReadChannel, WriteChannel) {
         (self.0.try_clone().unwrap(), self.0)

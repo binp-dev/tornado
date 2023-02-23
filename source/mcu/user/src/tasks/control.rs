@@ -3,10 +3,10 @@ use crate::{
     buffers::{AdcPoints, AdcProducer, DacConsumer},
     error::ErrorKind,
     println,
-    skifio::{self, Aout, AtomicDin, AtomicDout, DinHandler, XferIn, XferOut},
+    skifio::{self, Aout, AtomicDin, AtomicDout, DinHandler, SkifioIface as _, XferIn, XferOut},
     Error,
 };
-use alloc::sync::Arc;
+use alloc::{boxed::Box, sync::Arc};
 use common::config::{Point, DAC_RAW_OFFSET};
 use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -138,13 +138,13 @@ impl Control {
         )
     }
 
-    fn make_din_handler(&self) -> impl DinHandler {
+    fn make_din_handler(&self) -> Box<dyn DinHandler> {
         let handle = self.handle.clone();
-        move |context, din| {
+        Box::new(move |context, din| {
             if handle.update_din(din) {
                 handle.ready_sem.try_give_from_intr(context);
             }
-        }
+        })
     }
 
     fn task_main(mut self) -> ! {

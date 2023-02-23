@@ -11,7 +11,7 @@ use core::{
 use freertos::InterruptContext;
 use lazy_static::lazy_static;
 
-use crate::skifio::{Din, DinHandler, Dout, XferIn, XferOut};
+use crate::skifio::{Din, DinHandler, Dout, SkifioIface, XferIn, XferOut};
 
 lazy_static! {
     static ref SKIFIO: GlobalSkifio = GlobalSkifio::new();
@@ -57,7 +57,7 @@ impl GlobalSkifio {
 }
 
 impl SkifioState {
-    fn set_din_handler(&mut self, handler_opt: Option<Box<dyn DinHandler + Send>>) -> *mut c_void {
+    fn set_din_handler(&mut self, handler_opt: Option<Box<dyn DinHandler>>) -> *mut c_void {
         if let Some(ptr) = self.din_handler.take() {
             let _ = unsafe { Box::from_raw(ptr.as_ptr()) };
         }
@@ -96,7 +96,14 @@ impl Skifio {
         unsafe { SKIFIO.state() }
     }
 
-    pub fn set_dac_state(&mut self, enabled: bool) -> Result<(), Error> {
+    extern "C" fn din_callback(data: *mut c_void, value: Din) {
+        let mut context = InterruptContext::new();
+        unsafe { (**(data as *const *mut dyn DinHandler))(&mut context, value) };
+    }
+}
+
+impl SkifioIface for Skifio {
+    fn set_dac_state(&mut self, enabled: bool) -> Result<(), Error> {
         if self.state().dac_state != enabled {
             let r = if enabled {
                 unsafe { raw::skifio_dac_enable() }
@@ -111,39 +118,35 @@ impl Skifio {
             Ok(())
         }
     }
-    pub fn dac_state(&self) -> bool {
+    fn dac_state(&self) -> bool {
         self.state().dac_state
     }
 
-    pub fn wait_ready(&mut self, timeout: Option<Duration>) -> Result<(), Error> {
+    fn wait_ready(&mut self, timeout: Option<Duration>) -> Result<(), Error> {
         unsafe { raw::skifio_wait_ready(timeout.into()) }.into()
     }
-    pub fn transfer(&mut self, out: XferOut) -> Result<XferIn, Error> {
+    fn transfer(&mut self, out: XferOut) -> Result<XferIn, Error> {
         let mut in_ = XferIn::default();
         let r = unsafe { raw::skifio_transfer(&out as *const _, &mut in_ as *mut _) };
         Result::<(), Error>::from(r).map(|()| in_)
     }
 
-    pub fn write_dout(&mut self, dout: Dout) -> Result<(), Error> {
+    fn write_dout(&mut self, dout: Dout) -> Result<(), Error> {
         unsafe { raw::skifio_dout_write(dout) }.into()
     }
 
-    pub fn read_din(&mut self) -> Din {
+    fn read_din(&mut self) -> Din {
         unsafe { raw::skifio_din_read() }
     }
-    pub fn subscribe_din<F: DinHandler + Send + 'static>(&mut self, callback: Option<F>) -> Result<(), Error> {
+    fn subscribe_din(&mut self, callback: Option<Box<dyn DinHandler>>) -> Result<(), Error> {
         Into::<Result<(), Error>>::into(unsafe { raw::skifio_din_unsubscribe() })?;
         self.state_mut().set_din_handler(None);
 
         if let Some(cb) = callback {
-            let cb_ptr = self.state_mut().set_din_handler(Some(Box::new(cb)));
+            let cb_ptr = self.state_mut().set_din_handler(Some(cb));
             unsafe { raw::skifio_din_subscribe(Self::din_callback as *mut _, cb_ptr) }.into()
         } else {
             Ok(())
         }
-    }
-    extern "C" fn din_callback(data: *mut c_void, value: Din) {
-        let mut context = InterruptContext::new();
-        unsafe { (**(data as *const *mut dyn DinHandler))(&mut context, value) };
     }
 }

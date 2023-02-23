@@ -4,16 +4,10 @@ mod error;
 pub use error::Error;
 
 #[cfg(feature = "real")]
-mod real;
-#[cfg(feature = "real")]
-pub use real::*;
-
-#[cfg(feature = "emul")]
-mod emul;
-#[cfg(feature = "emul")]
-pub use emul::*;
+mod hal;
 
 pub mod buffers;
+pub mod channel;
 pub mod skifio;
 pub mod tasks;
 
