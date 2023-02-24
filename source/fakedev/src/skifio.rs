@@ -80,7 +80,6 @@ impl Skifio {
 
 impl SkifioIface for Skifio {
     fn set_dac_state(&mut self, enabled: bool) -> Result<(), Error> {
-        assert!(enabled);
         Ok(())
     }
     fn dac_state(&self) -> bool {

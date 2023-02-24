@@ -13,12 +13,10 @@ use std::{
 use timeout_readwrite::{TimeoutReader, TimeoutWriter};
 use ustd::task::Task;
 
-const LISTEN_ADDR: &str = "localhost:4578";
-
 pub struct Channel(TcpStream);
 impl Channel {
     pub fn new(_task: &Task) -> Result<Self, Error> {
-        let lis = TcpListener::bind(LISTEN_ADDR)?;
+        let lis = TcpListener::bind(config::CHANNEL_ADDR)?;
         let stream = lis.incoming().next().unwrap()?;
         Ok(Self(stream))
     }

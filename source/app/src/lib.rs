@@ -2,6 +2,8 @@ mod channel;
 mod device;
 mod epics;
 
+#[cfg(feature = "tcp")]
+use common::config;
 use ferrite::{entry_point, Context};
 use futures::{
     executor::{block_on, ThreadPool},
@@ -30,9 +32,10 @@ async fn run(exec: Arc<ThreadPool>, ctx: Context) {
 
     log::info!("Establish channel");
     #[cfg(feature = "tcp")]
-    let channel = channel::TcpStream::connect("127.0.0.1:4884").await.unwrap();
+    let channel = channel::connect(config::CHANNEL_ADDR).await.unwrap();
     #[cfg(feature = "rpmsg")]
     let channel = channel::Rpmsg::open("/dev/ttyRPMSG0").await.unwrap();
+    log::info!("Connection established");
 
     log::info!("Get EPICS PVs");
     let epics = Epics::new(ctx).unwrap();

@@ -14,7 +14,13 @@ lto = true
 [features]
 default = ["real"]
 real = ["freertos", "ustd/backend-freertos", "lazy_static/spin_no_std"]
-emul = ["ustd/backend-std", "flatty-io", "flatty/std", "timeout-readwrite"]
+emul = [
+    "ustd/backend-std",
+    "flatty-io",
+    "flatty/std",
+    "timeout-readwrite",
+    "common/fake",
+]
 panic = ["ustd/panic"]
 
 [dependencies]

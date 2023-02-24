@@ -6,17 +6,22 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
+name = "fakedev"
 path = "src/lib.rs"
+
+[[bin]]
+name = "run"
+path = "src/dummy.rs"
 
 [dependencies]
 futures = { version = "0.3.26", features = ["executor"] }
-async-std = "1.12.0"
+async-std = { version = "1.12.0", features = ["attributes"] }
 epics-ca = "0.1.0"
 
 [dependencies.common]
 package = "tornado-common"
 path = "../common"
-default-features = false
+features = ["app"]
 
 [dependencies.mcu]
 package = "tornado-mcu"

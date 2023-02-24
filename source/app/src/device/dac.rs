@@ -1,6 +1,6 @@
 use crate::{channel::Channel, epics};
 use common::{
-    config::{Point, PointPortable, DAC_RAW_OFFSET, DAC_STEP},
+    config::{volt_to_dac, Point, PointPortable},
     protocol::{self as proto, AppMsg, AppMsgMut},
 };
 use ferrite::{
@@ -92,11 +92,7 @@ impl ArrayReader {
             {
                 let mut output = self.output.write().await;
                 output.clear();
-                output.extend(
-                    input
-                        .iter()
-                        .map(|x| (*x / DAC_STEP) as Point + DAC_RAW_OFFSET),
-                );
+                output.extend(input.iter().copied().map(volt_to_dac));
                 log::debug!("array_read: len={}", input.len());
             }
             input.accept().await;

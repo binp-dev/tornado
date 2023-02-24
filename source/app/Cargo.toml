@@ -12,9 +12,9 @@ path = "src/lib.rs"
 #lto = true
 
 [features]
-default = ["rpmsg"]
+default = ["tcp"]
 rpmsg = ["libc", "termios", "mio"]
-tcp = []
+tcp = ["common/fake"]
 
 [dependencies]
 ferrite = { package = "ferrite-core", path = "../ferrite" }

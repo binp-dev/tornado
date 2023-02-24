@@ -1,6 +1,6 @@
 use crate::epics;
 use async_ringbuf::{AsyncHeapRb, AsyncProducer};
-use common::config::{Point, ADC_STEP};
+use common::config::{adc_to_volt, Point};
 use ferrite::VarSync;
 use std::{future::Future, iter::ExactSizeIterator, sync::Arc};
 
@@ -28,7 +28,7 @@ impl Adc {
                         .array
                         .request()
                         .await
-                        .write_from(buffer.pop_iter().map(|x| x as f64 * ADC_STEP))
+                        .write_from(buffer.pop_iter().map(adc_to_volt))
                         .await;
                 }
             },
