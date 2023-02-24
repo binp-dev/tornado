@@ -2,8 +2,7 @@ use super::{control::ControlHandle, stats::Statistics};
 use crate::{
     buffers::{AdcConsumer, DacBuffer, DacProducer},
     channel::{Channel, Reader, Writer},
-    error::ErrorKind,
-    Error,
+    error::{Error, ErrorKind},
 };
 use alloc::sync::Arc;
 use common::{

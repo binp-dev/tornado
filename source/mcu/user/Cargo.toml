@@ -5,7 +5,7 @@ edition = "2021"
 
 [lib]
 name = "user"
-crate-type = ["staticlib"]
+crate-type = ["staticlib", "lib"]
 
 [profile.release]
 lto = true

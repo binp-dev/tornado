@@ -3,10 +3,9 @@ use super::stats::Statistics;
 use crate::skifio::SkifioIface as _;
 use crate::{
     buffers::{AdcPoints, AdcProducer, DacConsumer},
-    error::ErrorKind,
+    error::{Error, ErrorKind},
     println,
     skifio::{self, Aout, AtomicDin, AtomicDout, DinHandler, XferIn, XferOut},
-    Error,
 };
 use alloc::{boxed::Box, sync::Arc};
 use common::config::{Point, DAC_RAW_OFFSET};

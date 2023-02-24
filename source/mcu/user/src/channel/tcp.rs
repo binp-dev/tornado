@@ -6,16 +6,21 @@ use core::time::Duration;
 use derive_more::{Deref, DerefMut};
 use flatty::Portable;
 use flatty_io::{details, Reader as InnerReader, Writer as InnerWriter};
-use std::{io, net::TcpStream};
+use std::{
+    io,
+    net::{TcpListener, TcpStream},
+};
 use timeout_readwrite::{TimeoutReader, TimeoutWriter};
 use ustd::task::Task;
 
-const IP_ADDR: &str = "localhost:4578";
+const LISTEN_ADDR: &str = "localhost:4578";
 
 pub struct Channel(TcpStream);
 impl Channel {
     pub fn new(_task: &Task) -> Result<Self, Error> {
-        Ok(Self(TcpStream::connect(IP_ADDR)?))
+        let lis = TcpListener::bind(LISTEN_ADDR)?;
+        let stream = lis.incoming().next().unwrap()?;
+        Ok(Self(stream))
     }
     pub fn split(self) -> (ReadChannel, WriteChannel) {
         (self.0.try_clone().unwrap(), self.0)

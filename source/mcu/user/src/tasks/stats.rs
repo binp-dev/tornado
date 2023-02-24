@@ -65,7 +65,7 @@ pub struct StatsAdc {
 }
 
 #[derive(Default)]
-struct ValueStats {
+pub struct ValueStats {
     sum: AtomicI64,
     count: AtomicU64,
     last: AtomicPoint,
@@ -161,7 +161,6 @@ impl StatsAdc {
 }
 
 impl ValueStats {
-    #[allow(dead_code)]
     pub fn new() -> Self {
         let this = Self::default();
         this.reset();

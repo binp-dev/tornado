@@ -5,7 +5,26 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+path = "src/lib.rs"
+
 [dependencies]
-mcu = { package = "tornado-mcu", path = "../mcu/user", features = [
-    "emul",
-], default-features = false }
+futures = { version = "0.3.26", features = ["executor"] }
+async-std = "1.12.0"
+epics-ca = "0.1.0"
+
+[dependencies.common]
+package = "tornado-common"
+path = "../common"
+default-features = false
+
+[dependencies.mcu]
+package = "tornado-mcu"
+path = "../mcu/user"
+default-features = false
+features = ["emul"]
+
+[dependencies.ustd]
+path = "../mcu/ustd"
+default-features = false
+features = ["backend-std"]

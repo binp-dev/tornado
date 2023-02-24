@@ -1,6 +1,6 @@
 #![no_std]
 
-mod error;
+pub mod error;
 pub use error::Error;
 
 #[cfg(feature = "real")]
