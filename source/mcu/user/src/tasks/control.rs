@@ -156,7 +156,6 @@ impl Control {
         skifio.subscribe_din(Some(self.make_din_handler())).unwrap();
 
         println!("Enter SkifIO loop");
-        let iter_counter = 0;
         loop {
             let mut ready = false;
 
@@ -169,7 +168,7 @@ impl Control {
                     kind: ErrorKind::TimedOut,
                     ..
                 }) => {
-                    println!("SkifIO timeout {}", iter_counter);
+                    println!("SkifIO timeout");
                     continue;
                 }
                 Err(e) => panic!("{:?}", e),

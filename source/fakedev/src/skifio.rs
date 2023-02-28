@@ -1,5 +1,5 @@
 use async_std::task::{sleep, spawn};
-use common::config::ADC_COUNT;
+use common::config::{self, ADC_COUNT};
 use futures::{
     channel::mpsc::{
         unbounded as channel, UnboundedReceiver as Receiver, UnboundedSender as Sender,
@@ -9,7 +9,7 @@ use futures::{
 };
 use mcu::{
     error::{Error, ErrorKind, ErrorSource},
-    skifio::{self, AtomicDin, SkifioIface, SKIFIO},
+    skifio::{self, Ain, Aout, AtomicDin, Din, DinHandler, Dout, SkifioIface, SKIFIO},
 };
 use std::{
     sync::{Arc, Mutex},
@@ -17,23 +17,24 @@ use std::{
 };
 use ustd::interrupt::InterruptContext;
 
-type Ains = [skifio::Ain; ADC_COUNT];
+type Ains = [Ain; ADC_COUNT];
 
 pub struct SkifioHandle {
-    pub dac: Receiver<skifio::Aout>,
+    pub dac: Receiver<Aout>,
     pub adcs: Sender<Ains>,
-    pub dout: Receiver<skifio::Dout>,
-    pub din: Sender<skifio::Din>,
+    pub dout: Receiver<Dout>,
+    pub din: Sender<Din>,
 }
 
 struct Skifio {
-    dac: Sender<skifio::Aout>,
+    dac: Sender<Aout>,
+    dac_enabled: bool,
     adcs: Receiver<Ains>,
     last_adcs: Option<Ains>,
 
-    dout: Sender<skifio::Dout>,
-    last_din: Arc<skifio::AtomicDin>,
-    din_handler: Arc<Mutex<Option<Box<dyn skifio::DinHandler>>>>,
+    dout: Sender<Dout>,
+    last_din: Arc<AtomicDin>,
+    din_handler: Arc<Mutex<Option<Box<dyn DinHandler>>>>,
 }
 
 impl Skifio {
@@ -43,7 +44,7 @@ impl Skifio {
         let (dout_send, dout_recv) = channel();
         let (din_send, din_recv) = channel();
         let last_din = Arc::new(AtomicDin::default());
-        let din_handler = Arc::new(Mutex::new(None::<Box<dyn skifio::DinHandler>>));
+        let din_handler = Arc::new(Mutex::new(None::<Box<dyn DinHandler>>));
         {
             let mut recv = din_recv;
             let handler = din_handler.clone();
@@ -62,8 +63,9 @@ impl Skifio {
         (
             Self {
                 dac: dac_send,
+                dac_enabled: false,
                 adcs: adcs_recv,
-                last_adcs: None,
+                last_adcs: Some(Ains::default()),
                 dout: dout_send,
                 last_din,
                 din_handler,
@@ -80,10 +82,11 @@ impl Skifio {
 
 impl SkifioIface for Skifio {
     fn set_dac_state(&mut self, enabled: bool) -> Result<(), Error> {
+        self.dac_enabled = enabled;
         Ok(())
     }
     fn dac_state(&self) -> bool {
-        true
+        self.dac_enabled
     }
 
     fn wait_ready(&mut self, timeout: Option<Duration>) -> Result<(), Error> {
@@ -101,7 +104,7 @@ impl SkifioIface for Skifio {
         };
         match block_on(fut) {
             Some(xs) => {
-                self.last_adcs.replace(xs);
+                assert!(self.last_adcs.replace(xs).is_none());
                 Ok(())
             }
             None => Err(Error {
@@ -111,28 +114,27 @@ impl SkifioIface for Skifio {
         }
     }
     fn transfer(&mut self, out: skifio::XferOut) -> Result<skifio::XferIn, Error> {
-        if self.last_adcs.is_none() {
-            self.last_adcs
-                .replace(self.adcs.try_next().unwrap().unwrap());
-        }
-        self.dac.unbounded_send(out.dac).unwrap();
+        assert!(self.last_adcs.is_some());
+        let dac = if self.dac_enabled {
+            out.dac
+        } else {
+            config::DAC_RAW_OFFSET as Aout
+        };
+        self.dac.unbounded_send(dac).unwrap();
         Ok(skifio::XferIn {
             adcs: self.last_adcs.take().unwrap(),
         })
     }
 
-    fn write_dout(&mut self, dout: skifio::Dout) -> Result<(), Error> {
+    fn write_dout(&mut self, dout: Dout) -> Result<(), Error> {
         self.dout.unbounded_send(dout).unwrap();
         Ok(())
     }
 
-    fn read_din(&mut self) -> skifio::Din {
+    fn read_din(&mut self) -> Din {
         self.last_din.load(std::sync::atomic::Ordering::Acquire)
     }
-    fn subscribe_din(
-        &mut self,
-        callback: Option<Box<dyn skifio::DinHandler>>,
-    ) -> Result<(), Error> {
+    fn subscribe_din(&mut self, callback: Option<Box<dyn DinHandler>>) -> Result<(), Error> {
         *self.din_handler.lock().unwrap() = callback;
         Ok(())
     }
