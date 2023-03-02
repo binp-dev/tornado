@@ -1,4 +1,5 @@
 use crate::{channel::Channel, epics};
+use async_std::task::spawn;
 use common::{
     config::{volt_to_dac, Point, PointPortable},
     protocol::{self as proto, AppMsg, AppMsgMut},
@@ -13,7 +14,7 @@ use ferrite::{
 };
 use flatty::{flat_vec, portable::NativeCast};
 use flatty_io::AsyncWriter as MsgWriter;
-use futures::{executor::ThreadPool, join, select, FutureExt};
+use futures::{join, select, FutureExt};
 use std::future::Future;
 use std::sync::Arc;
 
@@ -23,7 +24,7 @@ pub struct Dac<C: Channel> {
 }
 
 impl<C: Channel> Dac<C> {
-    pub fn run(self, exec: Arc<ThreadPool>) -> (impl Future<Output = ()>, DacHandle) {
+    pub fn run(self) -> (impl Future<Output = ()>, DacHandle) {
         let buffer = DoubleVec::<Point>::new(self.epics.array.max_len());
         let (read_buffer, write_buffer) = buffer.split();
         let point_counter = Arc::new(AsyncCounter::new(0));
@@ -32,7 +33,7 @@ impl<C: Channel> Dac<C> {
             points_to_send: point_counter.clone(),
         };
 
-        let request = AtomicVariableU16::new(self.epics.request, &exec).unwrap();
+        let request = AtomicVariableU16::new(self.epics.request).unwrap();
 
         let array_reader = ArrayReader {
             input: self.epics.array,
@@ -58,10 +59,10 @@ impl<C: Channel> Dac<C> {
 
         (
             async move {
-                exec.spawn_ok(array_reader.run());
-                exec.spawn_ok(scalar_reader.run());
-                exec.spawn_ok(state_reader.run());
-                exec.spawn_ok(msg_sender.run());
+                spawn(array_reader.run());
+                spawn(scalar_reader.run());
+                spawn(state_reader.run());
+                spawn(msg_sender.run());
             },
             handle,
         )

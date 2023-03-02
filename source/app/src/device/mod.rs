@@ -3,17 +3,17 @@ mod dac;
 mod debug;
 
 use crate::{channel::Channel, epics::Epics};
-use async_std::{sync::Arc, task::sleep};
+use async_std::{
+    sync::Arc,
+    task::{sleep, spawn},
+};
 use common::{
     config,
     protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
 };
 use flatty::prelude::*;
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter};
-use futures::{
-    executor::ThreadPool,
-    future::{join_all, FutureExt},
-};
+use futures::future::{join_all, FutureExt};
 
 use adc::{Adc, AdcHandle};
 use dac::{Dac, DacHandle};
@@ -57,7 +57,7 @@ impl<C: Channel> Device<C> {
         }
     }
 
-    pub async fn run(self, exec: Arc<ThreadPool>) {
+    pub async fn run(self) {
         let (dac_loops, dac_handles): (Vec<_>, Vec<_>) = self
             .dacs
             .into_iter()
@@ -75,11 +75,11 @@ impl<C: Channel> Device<C> {
             channel: self.writer.clone(),
         };
 
-        exec.spawn_ok(join_all(dac_loops).map(|_| ()));
-        exec.spawn_ok(join_all(adc_loops).map(|_| ()));
-        exec.spawn_ok(dispatcher.run());
-        exec.spawn_ok(keepalive.run());
-        exec.spawn_ok(self.debug.run());
+        spawn(join_all(dac_loops).map(|_| ()));
+        spawn(join_all(adc_loops).map(|_| ()));
+        spawn(dispatcher.run());
+        spawn(keepalive.run());
+        spawn(self.debug.run());
     }
 }
 

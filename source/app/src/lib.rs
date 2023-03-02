@@ -2,15 +2,11 @@ mod channel;
 mod device;
 mod epics;
 
+use async_std::task::block_on;
 #[cfg(feature = "tcp")]
 use common::config;
 use ferrite::{entry_point, Context};
-use futures::{
-    executor::{block_on, ThreadPool},
-    future::pending,
-};
 use macro_rules_attribute::apply;
-use std::sync::Arc;
 
 use device::Device;
 use epics::Epics;
@@ -21,13 +17,10 @@ pub use ferrite::export;
 #[apply(entry_point)]
 fn app_main(mut ctx: Context) {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-    let exec = Arc::new(ThreadPool::builder().pool_size(2).create().unwrap());
-    exec.spawn_ok(run(exec.clone(), ctx));
-    // TODO: Wait for exec to complete all tasks.
-    block_on(pending::<()>());
+    block_on(run(ctx));
 }
 
-async fn run(exec: Arc<ThreadPool>, ctx: Context) {
+async fn run(ctx: Context) {
     log::info!("Start IOC");
 
     log::info!("Establish channel");
