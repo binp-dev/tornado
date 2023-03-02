@@ -15,13 +15,18 @@ use futures::{
     join, pin_mut,
 };
 use mcu::skifio::{Ain, Aout};
-use std::{f64::consts::PI, iter::repeat_with, time::Duration};
+use std::{
+    f64::consts::PI,
+    io::{stdout, Write},
+    iter::repeat_with,
+    time::Duration,
+};
 
 extern "C" {
     fn user_sample_intr();
 }
 
-const ATTEMPTS: usize = 1;
+const ATTEMPTS: usize = 16;
 
 async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
     let len = epics.array.element_count().unwrap();
@@ -29,7 +34,7 @@ async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
         (0..len)
             .into_iter()
             .map(move |i| i as f64 / (len - 1) as f64)
-            .map(move |x| (2.0 * PI * j as f64 * x).sin() * DAC_MAX_ABS)
+            .map(move |x| (2.0 * PI * (j + 1) as f64 * x).sin() * DAC_MAX_ABS)
     });
 
     let prod = spawn({
@@ -46,6 +51,8 @@ async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
                     None => break,
                 };
                 epics.array.put_ref(&wf).unwrap().await.unwrap();
+                print!("O");
+                stdout().flush().unwrap();
             }
             println!("@@ dac prod done");
         }
@@ -93,7 +100,7 @@ async fn test_adc(mut epics: [epics::Adc; ADC_COUNT], device: Sender<[Ain; ADC_C
                     r
                 })
             }
-            .map(move |k| (2.0 * PI * k as f64 * x).sin() * ADC_MAX_ABS * x)
+            .map(move |k| (2.0 * PI * (k + 1) as f64 * x).sin() * ADC_MAX_ABS * x)
         });
 
     let prod = spawn({
@@ -141,6 +148,8 @@ async fn test_adc(mut epics: [epics::Adc; ADC_COUNT], device: Sender<[Ain; ADC_C
                     .zip(data.next().unwrap())
                     .for_each(|(x, y)| assert_abs_diff_eq!(x, y, epsilon = ADC_STEP));
             }
+            print!("I");
+            stdout().flush().unwrap();
             if count == total_len {
                 break;
             }

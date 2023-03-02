@@ -147,6 +147,9 @@ impl SkifioIface for Skifio {
         };
         let adcs = self.last_adcs.take().unwrap();
         self.count += 1;
+        if self.count % 1000 == 0 {
+            sleep(Duration::from_millis(1));
+        }
         self.dac.unbounded_send(dac).unwrap();
         Ok(skifio::XferIn { adcs })
     }

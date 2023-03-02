@@ -18,7 +18,7 @@ pub const DIN_SIZE: usize = 8;
 pub const DOUT_SIZE: usize = 4;
 
 pub type Ain = i32;
-pub type Aout = i16;
+pub type Aout = u16;
 pub type Din = u8;
 pub type Dout = u8;
 
