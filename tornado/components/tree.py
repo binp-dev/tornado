@@ -27,8 +27,8 @@ class HostComponents(ComponentGroup):
         self.ioc = AppIocHost(self.epics_base, self.app)
         self.fakedev = Fakedev(self.ioc, self.rustc)
         self.all = DictComponent(
-            build=TaskList(self.epics_base.install, self.app.build, self.ioc.install),
-            test=TaskList(self.app.test),
+            build=TaskList(self.epics_base.install, self.app.build, self.ioc.install, self.fakedev.build),
+            test=TaskList(self.app.test, self.fakedev.test),
         )
 
     def components(self) -> Dict[str, Component]:

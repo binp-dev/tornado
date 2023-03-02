@@ -1,14 +1,14 @@
 use common::config::{ADC_COUNT, DAC_COUNT};
-use epics_ca::{Context, ValueChannel as Channel};
+use epics_ca::{types::EpicsEnum, Context, ValueChannel as Channel};
 use futures::{stream::iter, StreamExt};
 use std::{ffi::CString, future::Future};
 
 pub struct Dac {
     pub array: Channel<[f64]>,
     pub scalar: Channel<f64>,
-    pub request: Channel<i32>,
-    pub state: Channel<i32>,
-    pub mode: Channel<i32>,
+    pub request: Channel<EpicsEnum>,
+    pub state: Channel<EpicsEnum>,
+    pub mode: Channel<EpicsEnum>,
 }
 
 pub struct Adc {
@@ -19,12 +19,12 @@ pub struct Adc {
 pub struct Epics {
     pub dac: [Dac; DAC_COUNT],
     pub adc: [Adc; ADC_COUNT],
-    pub dout: Channel<f64>,
-    pub din: Channel<f64>,
+    //pub dout: Channel<f64>,
+    //pub din: Channel<f64>,
 }
 
 async fn make_array<T, G: Future<Output = T>, F: Fn(usize) -> G, const N: usize>(f: F) -> [T; N] {
-    let vec: Vec<_> = iter(0..DAC_COUNT).then(f).collect().await;
+    let vec: Vec<_> = iter(0..N).then(f).collect().await;
     assert_eq!(vec.len(), N);
     vec.try_into().ok().unwrap()
 }
@@ -70,8 +70,8 @@ impl Epics {
                 }
             })
             .await,
-            dout: ctx.connect(&CString::new("do0").unwrap()).await.unwrap(),
-            din: ctx.connect(&CString::new("di0").unwrap()).await.unwrap(),
+            //dout: ctx.connect(&CString::new("do0").unwrap()).await.unwrap(),
+            //din: ctx.connect(&CString::new("di0").unwrap()).await.unwrap(),
         }
     }
 }

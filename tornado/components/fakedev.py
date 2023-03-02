@@ -1,9 +1,6 @@
 from __future__ import annotations
 from typing import Dict
 
-import time
-from threading import Thread
-
 from ferrite.utils.path import TargetPath
 from ferrite.components.base import task, Context
 from ferrite.components.rust import Cargo, RustcHost
@@ -20,9 +17,11 @@ class Fakedev(Cargo):
         self.ioc = ioc
 
     def env(self, ctx: Context) -> Dict[str, str]:
+        epics_base = self.ioc.epics_base
         return {
             **super().env(ctx),
-            "EPICS_BASE": str(ctx.target_path / self.ioc.epics_base.install_dir),
+            "EPICS_BASE": str(ctx.target_path / epics_base.install_dir),
+            "LD_LIBRARY_PATH": str(ctx.target_path / epics_base.install_dir / "lib" / epics_base.arch),
         }
 
     @task
@@ -32,11 +31,25 @@ class Fakedev(Cargo):
 
         @task
         def fake_ioc(ctx: Context) -> None:
-            time.sleep(2.0)
             self.ioc.run(ctx)
 
         @task
         def fake_mcu(ctx: Context) -> None:
             super(Fakedev, self).run(ctx, bin="run")
+
+        ConcurrentTaskList(fake_ioc, fake_mcu)(ctx)
+
+    @task
+    def test(self, ctx: Context) -> None:
+        self.ioc.install(ctx)
+        self.build(ctx)
+
+        @task
+        def fake_ioc(ctx: Context) -> None:
+            self.ioc.run(ctx)
+
+        @task
+        def fake_mcu(ctx: Context) -> None:
+            super(Fakedev, self).run(ctx, bin="test")
 
         ConcurrentTaskList(fake_ioc, fake_mcu)(ctx)

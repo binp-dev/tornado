@@ -13,10 +13,15 @@ path = "src/lib.rs"
 name = "run"
 path = "src/dummy.rs"
 
+[[bin]]
+name = "test"
+path = "src/test.rs"
+
 [dependencies]
 futures = { version = "0.3.26", features = ["executor"] }
 async-std = { version = "1.12.0", features = ["attributes"] }
-epics-ca = "0.1.0"
+epics-ca = { path = "../ca" }
+approx = "0.5.1"
 
 [dependencies.common]
 package = "tornado-common"

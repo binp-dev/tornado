@@ -16,3 +16,6 @@
 [submodule "source/mcu/ustd"]
 	path = source/mcu/ustd
 	url = https://github.com/agerasev/ustd-rs.git
+[submodule "source/ca"]
+	path = source/ca
+	url = https://github.com/agerasev/epics-ca.git

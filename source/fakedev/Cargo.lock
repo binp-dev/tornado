@@ -3,6 +3,15 @@
 version = 3
 
 [[package]]
+name = "approx"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "async-attributes"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -225,8 +234,6 @@ dependencies = [
 [[package]]
 name = "epics-ca"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "074730540a91819638a17d5a2addc78dae3e8092bc87eaedc247b5fe63e7f416"
 dependencies = [
  "bitflags",
  "chrono",
@@ -239,8 +246,6 @@ dependencies = [
 [[package]]
 name = "epics-ca-sys"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de6e13e766bb91a8556af2da068431adbc53fd923921876ae34506cd55a7b818"
 dependencies = [
  "libc",
 ]
@@ -687,6 +692,7 @@ dependencies = [
 name = "tornado-fakedev"
 version = "0.0.0"
 dependencies = [
+ "approx",
  "async-std",
  "epics-ca",
  "futures",
