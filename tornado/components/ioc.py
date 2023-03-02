@@ -58,11 +58,6 @@ class Ioc(AbstractIoc):
             # Copy App shared lib to the IOC even if IOC wasn't built.
             self._store_app_lib(ctx)
 
-    @task
-    def run(self, ctx: Context) -> None:
-        self.install(ctx)
-        super().run(ctx)
-
 
 class AppIocHost(Ioc, IocHost):
 

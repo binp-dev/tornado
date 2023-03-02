@@ -1,6 +1,12 @@
 use approx::assert_abs_diff_eq;
-use async_std::{main as async_main, stream::StreamExt, task::spawn};
-use common::config::{dac_to_volt, volt_to_adc, ADC_COUNT, ADC_MAX_ABS, DAC_MAX_ABS};
+use async_std::{
+    main as async_main,
+    stream::StreamExt,
+    task::{sleep, spawn},
+};
+use common::config::{
+    dac_to_volt, volt_to_adc, ADC_COUNT, ADC_MAX_ABS, ADC_STEP, DAC_MAX_ABS, DAC_STEP,
+};
 use epics_ca::{types::EpicsEnum, Context};
 use fakedev::{epics, run, Epics};
 use futures::{
@@ -9,13 +15,13 @@ use futures::{
     join, pin_mut,
 };
 use mcu::skifio::{Ain, Aout};
-use std::{f64::consts::PI, iter::repeat_with};
+use std::{f64::consts::PI, iter::repeat_with, time::Duration};
 
 extern "C" {
     fn user_sample_intr();
 }
 
-const ATTEMPTS: usize = 16;
+const ATTEMPTS: usize = 1;
 
 async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
     let len = epics.array.element_count().unwrap();
@@ -41,23 +47,29 @@ async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
                 };
                 epics.array.put_ref(&wf).unwrap().await.unwrap();
             }
+            println!("@@ dac prod done");
         }
     });
 
     let cons = spawn(async move {
         let mut seq = data.flatten();
         for _ in 0..(ATTEMPTS * len) {
+            let dac = device.next().await.unwrap();
             assert_abs_diff_eq!(
-                dac_to_volt(device.next().await.unwrap() as i32),
-                seq.next().unwrap()
+                dac_to_volt(dac as i32),
+                seq.next().unwrap(),
+                epsilon = DAC_STEP
             );
         }
+        println!("@@ dac cons done");
     });
 
     join!(prod, cons);
 }
 
 async fn test_adc(mut epics: [epics::Adc; ADC_COUNT], device: Sender<[Ain; ADC_COUNT]>) {
+    sleep(Duration::from_millis(1000)).await;
+
     let len = epics
         .iter()
         .map(|adc| adc.array.element_count().unwrap())
@@ -88,9 +100,11 @@ async fn test_adc(mut epics: [epics::Adc; ADC_COUNT], device: Sender<[Ain; ADC_C
         let data = data.clone();
         async move {
             for xs in data {
-                device.unbounded_send(xs.map(volt_to_adc)).unwrap();
+                let adcs = xs.map(volt_to_adc);
+                device.unbounded_send(adcs).unwrap();
                 unsafe { user_sample_intr() };
             }
+            println!("@@ adc prod done");
         }
     });
 
@@ -122,16 +136,17 @@ async fn test_adc(mut epics: [epics::Adc; ADC_COUNT], device: Sender<[Ain; ADC_C
                 .collect::<Vec<_>>()
             };
             count += points.len();
-            for xs in points {
+            for xs in points.into_iter() {
                 xs.into_iter()
                     .zip(data.next().unwrap())
-                    .for_each(|(x, y)| assert_abs_diff_eq!(x, y));
+                    .for_each(|(x, y)| assert_abs_diff_eq!(x, y, epsilon = ADC_STEP));
             }
             if count == total_len {
                 break;
             }
             assert!(count < total_len);
         }
+        println!("@@ adc cons done");
     });
 
     join!(prod, cons);

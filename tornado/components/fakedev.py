@@ -22,6 +22,8 @@ class Fakedev(Cargo):
             **super().env(ctx),
             "EPICS_BASE": str(ctx.target_path / epics_base.install_dir),
             "LD_LIBRARY_PATH": str(ctx.target_path / epics_base.install_dir / "lib" / epics_base.arch),
+            "EPICS_CA_AUTO_ADDR_LIST": "NO",
+            "EPICS_CA_ADDR_LIST": "127.0.0.1",
         }
 
     @task
@@ -46,7 +48,7 @@ class Fakedev(Cargo):
 
         @task
         def fake_ioc(ctx: Context) -> None:
-            self.ioc.run(ctx)
+            self.ioc.run(ctx, addr_list=["127.0.0.1"])
 
         @task
         def fake_mcu(ctx: Context) -> None:

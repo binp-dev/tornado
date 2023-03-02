@@ -94,7 +94,7 @@ impl<C: Channel> MsgDispatcher<C> {
                 McuMsgRef::DacRequest { count } => self.dacs[0].request(count.to_native() as usize),
                 McuMsgRef::AdcData { points } => {
                     for (index, adc) in adcs.iter_mut().enumerate() {
-                        adc.push(points.iter().map(|a| a[index].to_native())).await
+                        adc.push(points.iter().map(|a| a[index].to_native())).await;
                     }
                 }
                 McuMsgRef::Error { code, message } => {

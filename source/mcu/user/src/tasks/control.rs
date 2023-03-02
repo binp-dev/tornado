@@ -188,11 +188,10 @@ impl Control {
                 if let Some(value) = self.dac.buffer.pop() {
                     dac_value = value;
                     self.dac.last_point = value;
-                    // Decrement DAC notification counter.
-                    if self.dac.counter > 0 {
-                        self.dac.counter -= 1;
-                    } else {
-                        self.dac.counter = handle.dac_notify_every.load(Ordering::Acquire) - 1;
+                    // Increment DAC notification counter.
+                    self.dac.counter += 1;
+                    if self.dac.counter >= handle.dac_notify_every.load(Ordering::Acquire) {
+                        self.dac.counter = 0;
                         ready = true;
                     }
                 } else {
@@ -230,11 +229,10 @@ impl Control {
                         stats.adcs.report_lost_full(1);
                     }
 
-                    // Decrement ADC notification counter.
-                    if self.adc.counter > 0 {
-                        self.adc.counter -= 1;
-                    } else {
-                        self.adc.counter = handle.adc_notify_every.load(Ordering::Acquire) - 1;
+                    // Increment ADC notification counter.
+                    self.adc.counter += 1;
+                    if self.adc.counter >= handle.adc_notify_every.load(Ordering::Acquire) {
+                        self.adc.counter = 0;
                         ready = true;
                     }
                 }

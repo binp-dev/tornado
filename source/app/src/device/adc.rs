@@ -9,7 +9,7 @@ pub struct Adc {
 }
 
 pub struct AdcHandle {
-    buffer: AsyncProducer<Point, Arc<AsyncHeapRb<Point>>>,
+    pub buffer: AsyncProducer<Point, Arc<AsyncHeapRb<Point>>>,
 }
 
 impl Adc {
