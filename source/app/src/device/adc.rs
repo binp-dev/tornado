@@ -1,7 +1,6 @@
 use crate::epics;
 use async_ringbuf::{AsyncHeapRb, AsyncProducer};
 use common::config::{adc_to_volt, Point};
-use ferrite::VarSync;
 use std::{future::Future, iter::ExactSizeIterator, sync::Arc};
 
 pub struct Adc {

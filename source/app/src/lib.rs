@@ -35,5 +35,5 @@ async fn run(ctx: Context) {
 
     log::info!("Run device");
     let device = Device::new(channel, epics);
-    device.run(exec).await;
+    device.run().await;
 }

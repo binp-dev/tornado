@@ -3,10 +3,7 @@ mod dac;
 mod debug;
 
 use crate::{channel::Channel, epics::Epics};
-use async_std::{
-    sync::Arc,
-    task::{sleep, spawn},
-};
+use async_std::task::{sleep, spawn};
 use common::{
     config,
     protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
@@ -58,11 +55,8 @@ impl<C: Channel> Device<C> {
     }
 
     pub async fn run(self) {
-        let (dac_loops, dac_handles): (Vec<_>, Vec<_>) = self
-            .dacs
-            .into_iter()
-            .map(|dac| dac.run(exec.clone()))
-            .unzip();
+        let (dac_loops, dac_handles): (Vec<_>, Vec<_>) =
+            self.dacs.into_iter().map(|dac| dac.run()).unzip();
         let (adc_loops, adc_handles): (Vec<_>, Vec<_>) =
             self.adcs.into_iter().map(|adc| adc.run()).unzip();
 
@@ -75,11 +69,14 @@ impl<C: Channel> Device<C> {
             channel: self.writer.clone(),
         };
 
-        spawn(join_all(dac_loops).map(|_| ()));
-        spawn(join_all(adc_loops).map(|_| ()));
-        spawn(dispatcher.run());
-        spawn(keepalive.run());
-        spawn(self.debug.run());
+        join_all([
+            spawn(join_all(dac_loops).map(|_| ())),
+            spawn(join_all(adc_loops).map(|_| ())),
+            spawn(dispatcher.run()),
+            spawn(keepalive.run()),
+            spawn(self.debug.run()),
+        ])
+        .await;
     }
 }
 

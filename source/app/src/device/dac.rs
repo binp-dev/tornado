@@ -5,16 +5,16 @@ use common::{
     protocol::{self as proto, AppMsg, AppMsgMut},
 };
 use ferrite::{
+    atomic::AtomicVariable,
     misc::{
         double_vec::{self, DoubleVec},
         AsyncCounter,
     },
-    variable::{atomic::AtomicVariableU16, ArrayVariable, Variable},
-    VarSync,
+    TypedVariable as Variable,
 };
 use flatty::{flat_vec, portable::NativeCast};
 use flatty_io::AsyncWriter as MsgWriter;
-use futures::{join, select, FutureExt};
+use futures::{future::join_all, join, select, FutureExt};
 use std::future::Future;
 use std::sync::Arc;
 
@@ -33,7 +33,7 @@ impl<C: Channel> Dac<C> {
             points_to_send: point_counter.clone(),
         };
 
-        let request = AtomicVariableU16::new(self.epics.request).unwrap();
+        let request = AtomicVariable::<u16>::new(self.epics.request);
 
         let array_reader = ArrayReader {
             input: self.epics.array,
@@ -59,10 +59,13 @@ impl<C: Channel> Dac<C> {
 
         (
             async move {
-                spawn(array_reader.run());
-                spawn(scalar_reader.run());
-                spawn(state_reader.run());
-                spawn(msg_sender.run());
+                join_all([
+                    spawn(array_reader.run()),
+                    spawn(scalar_reader.run()),
+                    spawn(state_reader.run()),
+                    spawn(msg_sender.run()),
+                ])
+                .await;
             },
             handle,
         )
@@ -80,16 +83,16 @@ impl DacHandle {
 }
 
 struct ArrayReader {
-    input: ArrayVariable<f64>,
+    input: Variable<[f64]>,
     output: Arc<double_vec::Writer<i32>>,
-    request: Arc<AtomicVariableU16>,
+    request: Arc<AtomicVariable<u16>>,
 }
 
 impl ArrayReader {
     async fn run(mut self) {
         loop {
-            let input = self.input.acquire().await;
-            self.request.write(0);
+            let input = self.input.wait().await;
+            self.request.store(0);
             {
                 let mut output = self.output.write().await;
                 output.clear();
@@ -104,14 +107,14 @@ impl ArrayReader {
 struct ScalarReader {
     input: Variable<f64>,
     output: Arc<double_vec::Writer<i32>>,
-    request: Arc<AtomicVariableU16>,
+    request: Arc<AtomicVariable<u16>>,
 }
 
 impl ScalarReader {
     async fn run(mut self) {
         loop {
-            let value = self.input.acquire().await.read().await;
-            self.request.write(0);
+            let value = self.input.wait().await.read().await;
+            self.request.store(0);
             {
                 let mut output = self.output.write().await;
                 output.clear();
@@ -143,10 +146,10 @@ impl<C: Channel> StateReader<C> {
     async fn run(mut self) {
         loop {
             select! {
-                state = async { self.state.acquire().await.read().await }.fuse() => {
+                state = async { self.state.wait().await.read().await }.fuse() => {
                     self.send_state(state != 0).await;
                 },
-                _mode = async { self.mode.acquire().await.read().await }.fuse() => {
+                _mode = async { self.mode.wait().await.read().await }.fuse() => {
                     unimplemented!()
                 },
             }
@@ -162,7 +165,7 @@ struct PointSender<C: Channel> {
 
 impl<C: Channel> PointSender<C> {
     async fn run(mut self) {
-        self.stream.request.write(1);
+        self.stream.request.store(1);
         loop {
             join!(self.points_to_send.wait(1), async {
                 if self.stream.is_empty() {
@@ -206,10 +209,10 @@ struct BufferReadStream<T: Clone> {
     buffer: double_vec::Reader<T>,
     pos: usize,
     cyclic: bool,
-    request: Arc<AtomicVariableU16>,
+    request: Arc<AtomicVariable<u16>>,
 }
 impl<T: Clone> BufferReadStream<T> {
-    pub fn new(buffer: double_vec::Reader<T>, request: Arc<AtomicVariableU16>) -> Self {
+    pub fn new(buffer: double_vec::Reader<T>, request: Arc<AtomicVariable<u16>>) -> Self {
         BufferReadStream {
             buffer,
             pos: 0,
@@ -220,7 +223,7 @@ impl<T: Clone> BufferReadStream<T> {
     pub async fn try_swap(&mut self) -> bool {
         //log::info!("try swap");
         if self.buffer.try_swap().await {
-            self.request.write(1);
+            self.request.store(1);
             true
         } else {
             false

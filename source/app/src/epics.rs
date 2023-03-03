@@ -1,7 +1,7 @@
 use common::config::{ADC_COUNT, DAC_COUNT};
 use ferrite::{
-    variable::registry::{CheckEmptyError, GetDowncastError},
-    ArrayVariable, Context, Registry, Variable,
+    registry::{CheckEmptyError, GetDowncastError},
+    Context, Registry, TypedVariable as Variable,
 };
 use thiserror::Error;
 
@@ -15,7 +15,7 @@ pub enum Error {
 
 pub struct Dac {
     pub scalar: Variable<f64>,
-    pub array: ArrayVariable<f64>,
+    pub array: Variable<[f64]>,
     pub request: Variable<u16>,
     pub mode: Variable<u16>,
     pub state: Variable<u16>,
@@ -23,7 +23,7 @@ pub struct Dac {
 
 pub struct Adc {
     pub scalar: Variable<f64>,
-    pub array: ArrayVariable<f64>,
+    pub array: Variable<[f64]>,
 }
 
 pub struct Debug {

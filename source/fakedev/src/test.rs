@@ -43,7 +43,9 @@ async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
             let request = epics.request.subscribe();
             pin_mut!(request);
             loop {
-                if request.next().await.unwrap().unwrap() == EpicsEnum(0) {
+                let flag = request.next().await.unwrap().unwrap();
+                println!("@@ request.next: {:?}", flag);
+                if flag == EpicsEnum(0) {
                     continue;
                 }
                 let wf = match data.next() {
