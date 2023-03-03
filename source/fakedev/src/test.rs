@@ -26,7 +26,7 @@ extern "C" {
     fn user_sample_intr();
 }
 
-const ATTEMPTS: usize = 16;
+const ATTEMPTS: usize = 64;
 
 async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
     let len = epics.array.element_count().unwrap();
@@ -44,7 +44,7 @@ async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
             pin_mut!(request);
             loop {
                 let flag = request.next().await.unwrap().unwrap();
-                println!("@@ request.next: {:?}", flag);
+                //println!("@@ request.next: {:?}", flag);
                 if flag == EpicsEnum(0) {
                     continue;
                 }
