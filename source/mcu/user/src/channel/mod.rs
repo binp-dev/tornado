@@ -3,7 +3,7 @@ mod rpmsg;
 #[cfg(feature = "real")]
 pub use rpmsg::*;
 
-#[cfg(feature = "emul")]
+#[cfg(feature = "fake")]
 mod tcp;
-#[cfg(feature = "emul")]
+#[cfg(feature = "fake")]
 pub use tcp::*;

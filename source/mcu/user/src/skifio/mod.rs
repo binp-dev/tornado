@@ -3,9 +3,9 @@ mod real;
 #[cfg(feature = "real")]
 pub use real::*;
 
-#[cfg(feature = "emul")]
+#[cfg(feature = "fake")]
 mod emul;
-#[cfg(feature = "emul")]
+#[cfg(feature = "fake")]
 pub use emul::*;
 
 use crate::Error;

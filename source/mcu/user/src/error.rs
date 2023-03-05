@@ -1,4 +1,4 @@
-#[cfg(feature = "emul")]
+#[cfg(feature = "fake")]
 extern crate std;
 
 #[cfg(feature = "real")]
@@ -6,7 +6,7 @@ use crate::hal;
 use derive_more::From;
 #[cfg(feature = "real")]
 use freertos::FreeRtosError;
-#[cfg(feature = "emul")]
+#[cfg(feature = "fake")]
 use std::io;
 
 #[derive(Debug)]
@@ -24,7 +24,7 @@ pub enum ErrorSource {
     Hal(hal::RetCode),
     #[cfg(feature = "real")]
     FreeRtos(FreeRtosError),
-    #[cfg(feature = "emul")]
+    #[cfg(feature = "fake")]
     Io(io::Error),
     Flatty(flatty::Error),
     #[from(ignore)]
@@ -80,7 +80,7 @@ impl From<FreeRtosError> for Error {
     }
 }
 
-#[cfg(feature = "emul")]
+#[cfg(feature = "fake")]
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         let kind = match err.kind() {
@@ -106,7 +106,7 @@ impl From<flatty::Error> for Error {
     }
 }
 
-#[cfg(feature = "emul")]
+#[cfg(feature = "fake")]
 impl From<flatty_io::ReadError> for Error {
     fn from(err: flatty_io::ReadError) -> Self {
         match err {

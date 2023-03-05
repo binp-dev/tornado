@@ -32,7 +32,7 @@ features = ["app"]
 package = "tornado-mcu"
 path = "../mcu/user"
 default-features = false
-features = ["emul"]
+features = ["fake"]
 
 [dependencies.ustd]
 path = "../mcu/ustd"

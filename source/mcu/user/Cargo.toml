@@ -14,7 +14,7 @@ lto = true
 [features]
 default = ["real"]
 real = ["freertos", "ustd/backend-freertos", "lazy_static/spin_no_std"]
-emul = [
+fake = [
     "ustd/backend-std",
     "flatty-io",
     "flatty/std",
