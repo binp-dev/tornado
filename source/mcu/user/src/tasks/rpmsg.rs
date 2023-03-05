@@ -178,9 +178,12 @@ impl RpmsgReader {
     }
 
     fn write_dac(&mut self, points: &[[PointPortable; DAC_COUNT]]) {
+        // Push received points to ring buffer.
         {
             let count = self.buffer.push_iter(&mut points.iter().map(|[p]| p.to_native()));
-            self.stats.dac.report_lost_full(points.len() - count);
+            if points.len() > count {
+                self.stats.dac.report_lost_full(points.len() - count);
+            }
         }
 
         // Safely decrement requested points counter.
@@ -278,6 +281,7 @@ impl RpmsgWriter {
         if raw_count >= SIZE {
             // Request number of points that is multiple of `DAC_MSG_MAX_POINTS`.
             let count = (raw_count / SIZE) * SIZE;
+            self.common.dac_requested.fetch_add(count, Ordering::AcqRel);
             try_timeout!(self.channel.new_message(), ())
                 .unwrap()
                 .emplace(proto::McuMsgInitDacRequest {
@@ -286,7 +290,6 @@ impl RpmsgWriter {
                 .unwrap()
                 .write()
                 .unwrap();
-            self.common.dac_requested.fetch_add(count, Ordering::AcqRel);
         }
     }
 

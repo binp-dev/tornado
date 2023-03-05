@@ -129,12 +129,18 @@ impl StatsDac {
 
     pub fn report_lost_empty(&self, count: usize) {
         self.lost_empty.fetch_add(count as u64, Ordering::AcqRel);
+        #[cfg(feature = "fake")]
+        panic!("DAC ring buffer is empty");
     }
     pub fn report_lost_full(&self, count: usize) {
         self.lost_full.fetch_add(count as u64, Ordering::AcqRel);
+        #[cfg(feature = "fake")]
+        panic!("DAC ring buffer is full");
     }
     pub fn report_req_exceed(&self, count: usize) {
         self.req_exceed.fetch_add(count as u64, Ordering::AcqRel);
+        #[cfg(feature = "fake")]
+        panic!("IOC sent more points than have been requested");
     }
     pub fn update_value(&self, value: Point) {
         self.value.update(value);
@@ -154,6 +160,8 @@ impl StatsAdc {
 
     pub fn report_lost_full(&self, count: usize) {
         self.lost_full.fetch_add(count as u64, Ordering::AcqRel);
+        #[cfg(feature = "fake")]
+        panic!("ADC ring buffer is full");
     }
     pub fn update_values(&self, values: AdcPoints) {
         self.values.iter().zip(values).for_each(|(v, x)| v.update(x));

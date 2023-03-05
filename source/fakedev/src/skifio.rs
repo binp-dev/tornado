@@ -1,9 +1,7 @@
 use async_std::task::{sleep as async_sleep, spawn};
 use common::config::{self, ADC_COUNT};
 use futures::{
-    channel::mpsc::{
-        unbounded as channel, UnboundedReceiver as Receiver, UnboundedSender as Sender,
-    },
+    channel::mpsc::{channel, Receiver, Sender},
     executor::block_on,
     future::pending,
     select_biased, FutureExt, StreamExt,
@@ -13,13 +11,21 @@ use mcu::{
     skifio::{self, Ain, Aout, AtomicDin, Din, DinHandler, Dout, SkifioIface, SKIFIO},
 };
 use std::{
+    future::Future,
+    pin::Pin,
     sync::{Arc, Mutex},
+    task::{Context, Poll},
     thread::{park, sleep},
     time::Duration,
 };
 use ustd::interrupt::InterruptContext;
 
 type Ains = [Ain; ADC_COUNT];
+
+const ADC_CHAN_CAP: usize = 256;
+const DAC_CHAN_CAP: usize = 256;
+const DIN_CHAN_CAP: usize = 16;
+const DOUT_CHAN_CAP: usize = 16;
 
 pub struct SkifioHandle {
     pub dac: Receiver<Aout>,
@@ -43,10 +49,10 @@ struct Skifio {
 
 impl Skifio {
     fn new() -> (Self, SkifioHandle) {
-        let (dac_send, dac_recv) = channel();
-        let (adcs_send, adcs_recv) = channel();
-        let (dout_send, dout_recv) = channel();
-        let (din_send, din_recv) = channel();
+        let (dac_send, dac_recv) = channel(DAC_CHAN_CAP);
+        let (adcs_send, adcs_recv) = channel(ADC_CHAN_CAP);
+        let (dout_send, dout_recv) = channel(DOUT_CHAN_CAP);
+        let (din_send, din_recv) = channel(DIN_CHAN_CAP);
         let last_din = Arc::new(AtomicDin::default());
         let din_handler = Arc::new(Mutex::new(None::<Box<dyn DinHandler>>));
         {
@@ -102,40 +108,50 @@ impl SkifioIface for Skifio {
             return Ok(());
         }
         let fut = async {
+            if self.last_adcs.is_none() {
+                let adcs = match self.adcs.next().await {
+                    Some(xs) => xs,
+                    None => return false,
+                };
+                self.last_adcs = Some(adcs);
+            }
+            WaitReady(&mut self.dac).await
+        };
+        let fut_timed = async {
             match timeout {
                 Some(to) => select_biased! {
-                    xs = self.adcs.next().fuse() => Some(xs),
+                    alive = fut.fuse() => Some(alive),
                     () = async_sleep(to).fuse() => None,
                 },
-                None => Some(self.adcs.next().await),
+                None => Some(fut.await),
             }
         };
-        let res = block_on(fut);
-        let res = match res {
-            Some(Some(xs)) => Some(xs),
-            Some(None) => {
-                // ADC channel closed
-                match timeout {
-                    Some(to) => {
-                        sleep(to);
-                        None
+        let ready = match block_on(fut_timed) {
+            Some(alive) => {
+                if alive {
+                    true
+                } else {
+                    // ADC channel closed
+                    match timeout {
+                        Some(to) => {
+                            sleep(to);
+                            false
+                        }
+                        None => loop {
+                            park();
+                        },
                     }
-                    None => loop {
-                        park();
-                    },
                 }
             }
-            None => None,
+            None => false,
         };
-        match res {
-            Some(xs) => {
-                assert!(self.last_adcs.replace(xs).is_none());
-                Ok(())
-            }
-            None => Err(Error {
+        if ready {
+            Ok(())
+        } else {
+            Err(Error {
                 kind: ErrorKind::TimedOut,
                 source: ErrorSource::None,
-            }),
+            })
         }
     }
     fn transfer(&mut self, out: skifio::XferOut) -> Result<skifio::XferIn, Error> {
@@ -150,12 +166,12 @@ impl SkifioIface for Skifio {
         if self.count % 1000 == 0 {
             sleep(Duration::from_millis(1));
         }
-        self.dac.unbounded_send(dac).unwrap();
+        self.dac.try_send(dac).unwrap();
         Ok(skifio::XferIn { adcs })
     }
 
     fn write_dout(&mut self, dout: Dout) -> Result<(), Error> {
-        self.dout.unbounded_send(dout).unwrap();
+        self.dout.try_send(dout).unwrap();
         Ok(())
     }
 
@@ -172,4 +188,12 @@ pub fn bind() -> SkifioHandle {
     let (skifio, handle) = Skifio::new();
     assert!(SKIFIO.lock().unwrap().replace(Box::new(skifio)).is_none());
     handle
+}
+
+struct WaitReady<'a, T: Send + 'static>(&'a mut Sender<T>);
+impl<'a, T: Send + 'static> Future for WaitReady<'a, T> {
+    type Output = bool;
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.0.poll_ready(cx).map(|r| r.is_ok())
+    }
 }
