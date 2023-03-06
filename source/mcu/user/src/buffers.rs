@@ -8,9 +8,9 @@ pub type AdcPoints = [Point; ADC_COUNT];
 pub const DAC_BUFFER_LEN: usize = 1024;
 #[cfg(feature = "real")]
 pub const ADC_BUFFER_LEN: usize = 384;
-#[cfg(feature = "emul")]
+#[cfg(feature = "fake")]
 pub const DAC_BUFFER_LEN: usize = 16 * 1024;
-#[cfg(feature = "emul")]
+#[cfg(feature = "fake")]
 pub const ADC_BUFFER_LEN: usize = 16 * 384;
 
 pub type DacBuffer = StaticRb<Point, DAC_BUFFER_LEN>;

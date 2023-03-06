@@ -1,6 +1,5 @@
 use crate::{channel::Channel, epics};
 use common::protocol::{self as proto, AppMsg};
-use ferrite::prelude::*;
 use flatty_io::AsyncWriter as MsgWriter;
 
 pub struct Debug<C: Channel> {
@@ -22,7 +21,7 @@ impl<C: Channel> Debug<C> {
     pub async fn run(mut self) {
         self.send().await;
         loop {
-            if self.epics.stats_reset.acquire().await.read().await != 0 {
+            if self.epics.stats_reset.wait().await.read().await != 0 {
                 self.send().await;
             }
         }

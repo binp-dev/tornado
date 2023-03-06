@@ -1,7 +1,6 @@
 use approx::assert_abs_diff_eq;
 use async_std::{
     main as async_main,
-    stream::StreamExt,
     task::{sleep, spawn},
 };
 use common::config::{
@@ -10,11 +9,14 @@ use common::config::{
 use epics_ca::{types::EpicsEnum, Context};
 use fakedev::{epics, run, Epics};
 use futures::{
-    channel::mpsc::{UnboundedReceiver as Receiver, UnboundedSender as Sender},
+    channel::mpsc::{Receiver, Sender},
     future::join_all,
-    join, pin_mut,
+    join, pin_mut, SinkExt, StreamExt,
 };
-use mcu::skifio::{Ain, Aout};
+use mcu::{
+    skifio::{Ain, Aout},
+    tasks::STATISTICS,
+};
 use std::{
     f64::consts::PI,
     io::{stdout, Write},
@@ -26,7 +28,7 @@ extern "C" {
     fn user_sample_intr();
 }
 
-const ATTEMPTS: usize = 16;
+const ATTEMPTS: usize = 64;
 
 async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
     let len = epics.array.element_count().unwrap();
@@ -43,7 +45,9 @@ async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
             let request = epics.request.subscribe();
             pin_mut!(request);
             loop {
-                if request.next().await.unwrap().unwrap() == EpicsEnum(0) {
+                let flag = request.next().await.unwrap().unwrap();
+                //println!("@@ request.next: {:?}", flag);
+                if flag == EpicsEnum(0) {
                     continue;
                 }
                 let wf = match data.next() {
@@ -74,7 +78,7 @@ async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
     join!(prod, cons);
 }
 
-async fn test_adc(mut epics: [epics::Adc; ADC_COUNT], device: Sender<[Ain; ADC_COUNT]>) {
+async fn test_adc(mut epics: [epics::Adc; ADC_COUNT], mut device: Sender<[Ain; ADC_COUNT]>) {
     sleep(Duration::from_millis(1000)).await;
 
     let len = epics
@@ -108,7 +112,7 @@ async fn test_adc(mut epics: [epics::Adc; ADC_COUNT], device: Sender<[Ain; ADC_C
         async move {
             for xs in data {
                 let adcs = xs.map(volt_to_adc);
-                device.unbounded_send(adcs).unwrap();
+                device.send(adcs).await.unwrap();
                 unsafe { user_sample_intr() };
             }
             println!("@@ adc prod done");
@@ -172,4 +176,6 @@ async fn main() {
     };
     let adc = spawn(test_adc(epics.adc, skifio.adcs));
     join!(dac, adc);
+
+    println!("Statistics: {}", STATISTICS.as_ref());
 }

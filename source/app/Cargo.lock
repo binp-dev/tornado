@@ -12,6 +12,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-atomic"
+version = "0.1.0"
+source = "git+https://github.com/agerasev/async-atomic.git#d0d1d3eab2efc612a0b23709a3e856a9ce98dd34"
+dependencies = [
+ "atomic",
+ "futures",
+]
+
+[[package]]
 name = "async-channel"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -124,21 +133,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a40729d2133846d9ed0ea60a8b9541bccddab49cd30f0715a1da672fe9a2524"
 
 [[package]]
+name = "atomic"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b88d82667eca772c4aa12f0f1348b3ae643424c8876448f3f7bd5787032e234c"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "debc29dde2e69f9e47506b525f639ed42300fc014a3e007832592448fa8e4599"
-
-[[package]]
-name = "atomic_enum"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6227a8d6fdb862bcb100c4314d0d9579e5cd73fa6df31a2e6f6e1acd3c5f1207"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "atty"
@@ -266,9 +273,9 @@ dependencies = [
 
 [[package]]
 name = "ferrite-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
- "atomic_enum",
+ "atomic",
  "derive_more",
  "futures",
  "lazy_static",
@@ -765,6 +772,7 @@ dependencies = [
 name = "tornado-app"
 version = "0.0.0"
 dependencies = [
+ "async-atomic",
  "async-ringbuf",
  "async-std",
  "env_logger",

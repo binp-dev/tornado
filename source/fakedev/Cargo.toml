@@ -18,7 +18,7 @@ name = "test"
 path = "src/test.rs"
 
 [dependencies]
-futures = { version = "0.3.26", features = ["executor"] }
+futures = { version = "0.3.26" }
 async-std = { version = "1.12.0", features = ["attributes"] }
 epics-ca = { path = "../ca" }
 approx = "0.5.1"
@@ -32,7 +32,7 @@ features = ["app"]
 package = "tornado-mcu"
 path = "../mcu/user"
 default-features = false
-features = ["emul"]
+features = ["fake"]
 
 [dependencies.ustd]
 path = "../mcu/ustd"

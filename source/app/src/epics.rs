@@ -1,7 +1,7 @@
-use common::config::{ADC_COUNT, DAC_COUNT};
+use common::config::ADC_COUNT;
 use ferrite::{
-    variable::registry::{CheckEmptyError, GetDowncastError},
-    ArrayVariable, Context, Registry, Variable,
+    registry::{CheckEmptyError, GetDowncastError},
+    Context, Registry, TypedVariable as Variable,
 };
 use thiserror::Error;
 
@@ -15,7 +15,7 @@ pub enum Error {
 
 pub struct Dac {
     pub scalar: Variable<f64>,
-    pub array: ArrayVariable<f64>,
+    pub array: Variable<[f64]>,
     pub request: Variable<u16>,
     pub mode: Variable<u16>,
     pub state: Variable<u16>,
@@ -23,7 +23,7 @@ pub struct Dac {
 
 pub struct Adc {
     pub scalar: Variable<f64>,
-    pub array: ArrayVariable<f64>,
+    pub array: Variable<[f64]>,
 }
 
 pub struct Debug {
@@ -32,7 +32,7 @@ pub struct Debug {
 
 /// EPICS interface
 pub struct Epics {
-    pub dac: [Dac; DAC_COUNT],
+    pub dac: Dac,
     pub adc: [Adc; ADC_COUNT],
     pub dout: Variable<u32>,
     pub din: Variable<u32>,
@@ -72,12 +72,7 @@ impl Epics {
     pub fn new(mut ctx: Context) -> Result<Self, Error> {
         let reg = &mut ctx.registry;
         let self_ = Self {
-            dac: (0..DAC_COUNT)
-                .map(|i| Dac::new(reg, &format!("ao{}", i)))
-                .collect::<Result<Vec<_>, _>>()?
-                .try_into()
-                .ok()
-                .unwrap(),
+            dac: Dac::new(reg, "ao0")?,
             adc: (0..ADC_COUNT)
                 .map(|i| Adc::new(reg, &format!("ai{}", i)))
                 .collect::<Result<Vec<_>, _>>()?

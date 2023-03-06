@@ -29,10 +29,10 @@ class AbstractApp(Cargo):
 class AppFake(AbstractApp):
 
     def __init__(self, rustc: RustcHost):
-        super().__init__(rustc, features=["tcp"])
+        super().__init__(rustc, features=["fake"])
 
 
 class AppReal(AbstractApp):
 
     def __init__(self, rustc: RustcCross):
-        super().__init__(rustc, features=["rpmsg"])
+        super().__init__(rustc, features=["real"])

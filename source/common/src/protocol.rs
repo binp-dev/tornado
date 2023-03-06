@@ -38,6 +38,25 @@ pub enum McuMsg {
     },
 }
 
+const fn max(a: usize, b: usize) -> usize {
+    if a > b {
+        a
+    } else {
+        b
+    }
+}
+
+const fn slice_max(slice: &[usize], index: usize) -> usize {
+    if index < slice.len() {
+        max(slice[index], slice_max(slice, index + 1))
+    } else {
+        0
+    }
+}
+
+pub const APP_MSG_MIN_STATIC_SIZE: usize =
+    AppMsg::DATA_OFFSET + slice_max(&AppMsg::DATA_MIN_SIZES, 0);
+
 pub const DAC_MSG_MAX_POINTS: usize =
     (MAX_APP_MSG_LEN - size_of::<AppMsgTag>()) / (DAC_COUNT * size_of::<PointPortable>());
 pub const ADC_MSG_MAX_POINTS: usize =

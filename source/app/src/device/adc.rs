@@ -1,11 +1,13 @@
+use super::Error;
 use crate::epics;
-use async_ringbuf::{AsyncHeapRb, AsyncProducer};
+use async_ringbuf::{AsyncConsumer, AsyncHeapRb, AsyncProducer};
 use common::config::{adc_to_volt, Point};
-use ferrite::VarSync;
-use std::{future::Future, iter::ExactSizeIterator, sync::Arc};
+use ferrite::TypedVariable as Variable;
+use std::{iter::ExactSizeIterator, sync::Arc};
 
 pub struct Adc {
-    pub epics: epics::Adc,
+    input: AsyncConsumer<Point, Arc<AsyncHeapRb<Point>>>,
+    output_array: Variable<[f64]>,
 }
 
 pub struct AdcHandle {
@@ -13,32 +15,37 @@ pub struct AdcHandle {
 }
 
 impl Adc {
-    pub fn run(self) -> (impl Future<Output = ()>, AdcHandle) {
-        let mut epics = self.epics;
-        let max_len = epics.array.max_len();
-        let buffer = AsyncHeapRb::<Point>::new(2 * max_len);
-        let (producer, mut consumer) = buffer.split();
+    pub fn new(epics: epics::Adc) -> (Self, AdcHandle) {
+        let buffer = AsyncHeapRb::<Point>::new(2 * epics.array.max_len());
+        let (producer, consumer) = buffer.split();
         (
-            async move {
-                loop {
-                    consumer.wait(max_len).await;
-                    assert!(consumer.len() >= max_len);
-                    let buffer = consumer.as_mut_base();
-                    epics
-                        .array
-                        .request()
-                        .await
-                        .write_from(buffer.pop_iter().map(adc_to_volt))
-                        .await;
-                }
+            Self {
+                input: consumer,
+                output_array: epics.array,
             },
             AdcHandle { buffer: producer },
         )
     }
+    pub async fn run(mut self) -> Result<(), Error> {
+        let max_len = self.output_array.max_len();
+        loop {
+            self.input.wait(max_len).await;
+            if self.input.is_closed() {
+                break Err(Error::Disconnected);
+            }
+            assert!(self.input.len() >= max_len);
+            let input = self.input.as_mut_base();
+            self.output_array
+                .request()
+                .await
+                .write_from(input.pop_iter().map(adc_to_volt))
+                .await;
+        }
+    }
 }
 
 impl AdcHandle {
-    pub async fn push<I: ExactSizeIterator<Item = Point>>(&mut self, points: I) {
+    pub async fn push_iter<I: ExactSizeIterator<Item = Point>>(&mut self, points: I) {
         self.buffer.push_iter(points).await.ok().unwrap()
     }
 }
