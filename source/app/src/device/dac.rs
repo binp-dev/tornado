@@ -1,90 +1,78 @@
-use crate::{channel::Channel, epics};
+use super::Error;
+use crate::{
+    epics,
+    utils::double_vec::{self, DoubleVec},
+};
+use async_atomic::AsyncAtomic;
 use async_std::task::spawn;
-use common::{
-    config::{volt_to_dac, Point, PointPortable},
-    protocol::{self as proto, AppMsg, AppMsgMut},
-};
-use ferrite::{
-    atomic::AtomicVariable,
-    misc::{
-        double_vec::{self, DoubleVec},
-        AsyncCounter,
-    },
-    TypedVariable as Variable,
-};
-use flatty::{flat_vec, portable::NativeCast};
+use common::config::{volt_to_dac, Point};
+use ferrite::{atomic::AtomicVariable, TypedVariable as Variable};
 use flatty_io::AsyncWriter as MsgWriter;
-use futures::{future::join_all, join, select, FutureExt};
-use std::future::Future;
-use std::sync::Arc;
+use futures::{future::join_all, select, FutureExt};
+use std::{future::Future, sync::Arc};
 
-pub struct Dac<C: Channel> {
-    pub channel: MsgWriter<AppMsg, C::Write>,
-    pub epics: epics::Dac,
+pub struct Dac {
+    epics: epics::Dac,
+    buffer: double_vec::Writer<Point>,
+    request: Arc<AtomicVariable<u16>>,
 }
 
-impl<C: Channel> Dac<C> {
-    pub fn run(self) -> (impl Future<Output = ()>, DacHandle) {
-        let buffer = DoubleVec::<Point>::new(self.epics.array.max_len());
+impl Dac {
+    pub fn new(epics: epics::Dac) -> (Self, DacHandle) {
+        let buffer = DoubleVec::<Point>::new(epics.array.max_len());
         let (read_buffer, write_buffer) = buffer.split();
-        let point_counter = Arc::new(AsyncCounter::new(0));
 
-        let handle = DacHandle {
-            points_to_send: point_counter.clone(),
-        };
+        let request = AtomicVariable::<u16>::new(epics.request);
 
-        let request = AtomicVariable::<u16>::new(self.epics.request);
+        (
+            Self {
+                buffer: write_buffer,
+                epics,
+                request: request.clone(),
+            },
+            DacHandle {
+                buffer: read_buffer,
+                read_ready: Box::new(move || request.store(1)),
+            },
+        )
+    }
 
+    pub fn run(self) -> impl Future<Output = Result<(), Error>> {
         let array_reader = ArrayReader {
             input: self.epics.array,
-            output: write_buffer.clone(),
-            request: request.clone(),
+            output: self.buffer.clone(),
+            request: self.request.clone(),
         };
         let scalar_reader = ScalarReader {
             input: self.epics.scalar,
-            output: write_buffer,
-            request: request.clone(),
+            output: self.buffer,
+            request: self.request,
         };
-        let state_reader = StateReader::<C> {
+        let state_reader = StateReader {
             state: self.epics.state,
             mode: self.epics.mode,
-            channel: self.channel.clone(),
         };
 
-        let msg_sender = PointSender::<C> {
-            channel: self.channel,
-            stream: BufferReadStream::new(read_buffer, request),
-            points_to_send: point_counter,
-        };
-
-        (
-            async move {
-                join_all([
-                    spawn(array_reader.run()),
-                    spawn(scalar_reader.run()),
-                    spawn(state_reader.run()),
-                    spawn(msg_sender.run()),
-                ])
-                .await;
-            },
-            handle,
-        )
+        async move {
+            join_all([
+                spawn(array_reader.run()),
+                spawn(scalar_reader.run()),
+                spawn(state_reader.run()),
+            ])
+            .await;
+            Ok(())
+        }
     }
 }
 
 pub struct DacHandle {
-    points_to_send: Arc<AsyncCounter>,
-}
-
-impl DacHandle {
-    pub fn request(&self, count: usize) {
-        self.points_to_send.add(count);
-    }
+    pub buffer: double_vec::Reader<Point>,
+    pub read_ready: Box<dyn FnMut()>,
 }
 
 struct ArrayReader {
     input: Variable<[f64]>,
-    output: Arc<double_vec::Writer<i32>>,
+    output: Arc<double_vec::Writer<Point>>,
     request: Arc<AtomicVariable<u16>>,
 }
 
@@ -106,7 +94,7 @@ impl ArrayReader {
 
 struct ScalarReader {
     input: Variable<f64>,
-    output: Arc<double_vec::Writer<i32>>,
+    output: Arc<double_vec::Writer<Point>>,
     request: Arc<AtomicVariable<u16>>,
 }
 
@@ -118,137 +106,21 @@ impl ScalarReader {
             {
                 let mut output = self.output.write().await;
                 output.clear();
-                output.push(value as i32);
+                output.push(value as Point);
             }
         }
     }
 }
 
-struct StateReader<C: Channel> {
-    state: Variable<u16>,
-    mode: Variable<u16>,
-    channel: MsgWriter<AppMsg, C::Write>,
+struct VariableReader<T: Copy + From<U>, U> {
+    variable: Variable<U>,
+    value: Arc<AsyncAtomic<T>>,
 }
 
-impl<C: Channel> StateReader<C> {
-    async fn send_state(&mut self, state: bool) {
-        self.channel
-            .new_message()
-            .emplace(proto::AppMsgInitDacState {
-                enable: state as u8,
-            })
-            .unwrap()
-            .write()
-            .await
-            .unwrap();
-    }
-
+impl<T: Copy + From<U>, U> VariableReader<T, U> {
     async fn run(mut self) {
         loop {
-            select! {
-                state = async { self.state.wait().await.read().await }.fuse() => {
-                    self.send_state(state != 0).await;
-                },
-                _mode = async { self.mode.wait().await.read().await }.fuse() => {
-                    unimplemented!()
-                },
-            }
+            self.value.store(self.state.wait().await.read().await);
         }
-    }
-}
-
-struct PointSender<C: Channel> {
-    channel: MsgWriter<AppMsg, C::Write>,
-    stream: BufferReadStream<i32>,
-    points_to_send: Arc<AsyncCounter>,
-}
-
-impl<C: Channel> PointSender<C> {
-    async fn run(mut self) {
-        self.stream.request.store(1);
-        loop {
-            join!(self.points_to_send.wait(1), async {
-                if self.stream.is_empty() {
-                    self.stream.wait_ready().await;
-                }
-            });
-
-            let mut msg = self
-                .channel
-                .new_message()
-                .emplace(proto::AppMsgInitDacData {
-                    points: flat_vec![],
-                })
-                .unwrap();
-            let will_send = if let AppMsgMut::DacData { points } = msg.as_mut() {
-                let mut count = self.points_to_send.sub(None);
-                //log::debug!("points_to_send: {}", count);
-                while count > 0 && !points.is_full() {
-                    match self.stream.next().await {
-                        Some(value) => {
-                            points.push([PointPortable::from_native(value)]).unwrap();
-                            count -= 1;
-                        }
-                        None => break,
-                    }
-                }
-                //log::debug!("points_send: {}", msg.points.len());
-                self.points_to_send.add(count);
-                !points.is_empty()
-            } else {
-                unreachable!();
-            };
-            if will_send {
-                msg.write().await.unwrap();
-            }
-        }
-    }
-}
-
-struct BufferReadStream<T: Clone> {
-    buffer: double_vec::Reader<T>,
-    pos: usize,
-    cyclic: bool,
-    request: Arc<AtomicVariable<u16>>,
-}
-impl<T: Clone> BufferReadStream<T> {
-    pub fn new(buffer: double_vec::Reader<T>, request: Arc<AtomicVariable<u16>>) -> Self {
-        BufferReadStream {
-            buffer,
-            pos: 0,
-            cyclic: false,
-            request,
-        }
-    }
-    pub async fn try_swap(&mut self) -> bool {
-        //log::info!("try swap");
-        if self.buffer.try_swap().await {
-            self.request.store(1);
-            true
-        } else {
-            false
-        }
-    }
-    pub async fn next(&mut self) -> Option<T> {
-        loop {
-            if self.pos < self.buffer.len() {
-                let value = self.buffer[self.pos].clone();
-                self.pos += 1;
-                break Some(value);
-            } else if self.try_swap().await || self.cyclic {
-                self.pos = 0;
-            } else {
-                break None;
-            }
-        }
-    }
-    pub async fn wait_ready(&mut self) {
-        self.buffer.wait_ready().await
-    }
-    pub fn len(&self) -> usize {
-        self.buffer.len() - self.pos
-    }
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
     }
 }

@@ -12,6 +12,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-atomic"
+version = "0.1.0"
+source = "git+https://github.com/agerasev/async-atomic.git#d0d1d3eab2efc612a0b23709a3e856a9ce98dd34"
+dependencies = [
+ "atomic",
+ "futures",
+]
+
+[[package]]
 name = "async-channel"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -266,6 +275,7 @@ dependencies = [
 name = "ferrite-core"
 version = "0.2.0"
 dependencies = [
+ "async-atomic",
  "atomic",
  "derive_more",
  "futures",
@@ -763,6 +773,7 @@ dependencies = [
 name = "tornado-app"
 version = "0.0.0"
 dependencies = [
+ "async-atomic",
  "async-ringbuf",
  "async-std",
  "env_logger",

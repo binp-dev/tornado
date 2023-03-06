@@ -1,3 +1,4 @@
+use super::Error;
 use crate::epics;
 use async_ringbuf::{AsyncHeapRb, AsyncProducer};
 use common::config::{adc_to_volt, Point};
@@ -12,7 +13,7 @@ pub struct AdcHandle {
 }
 
 impl Adc {
-    pub fn run(self) -> (impl Future<Output = ()>, AdcHandle) {
+    pub fn run(self) -> (impl Future<Output = Result<(), Error>>, AdcHandle) {
         let mut epics = self.epics;
         let max_len = epics.array.max_len();
         let buffer = AsyncHeapRb::<Point>::new(2 * max_len);

@@ -1,6 +1,7 @@
 mod adc;
 mod dac;
 mod debug;
+mod dispatch;
 
 use crate::{channel::Channel, epics::Epics};
 use async_std::task::{sleep, spawn};
@@ -10,11 +11,16 @@ use common::{
 };
 use flatty::prelude::*;
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter};
-use futures::future::{join_all, FutureExt};
+use futures::future::{try_join_all, FutureExt};
 
 use adc::{Adc, AdcHandle};
 use dac::{Dac, DacHandle};
 use debug::Debug;
+use dispatch::Dispatcher;
+
+enum Error {
+    Disconnected,
+}
 
 pub struct Device<C: Channel> {
     reader: MsgReader<McuMsg, C::Read>,
@@ -22,16 +28,6 @@ pub struct Device<C: Channel> {
     dacs: [Dac<C>; config::DAC_COUNT],
     adcs: [Adc; config::ADC_COUNT],
     debug: Debug<C>,
-}
-
-struct MsgDispatcher<C: Channel> {
-    channel: MsgReader<McuMsg, C::Read>,
-    dacs: [DacHandle; config::DAC_COUNT],
-    adcs: [AdcHandle; config::ADC_COUNT],
-}
-
-struct Keepalive<C: Channel> {
-    channel: MsgWriter<AppMsg, C::Write>,
 }
 
 impl<C: Channel> Device<C> {
@@ -60,75 +56,24 @@ impl<C: Channel> Device<C> {
         let (adc_loops, adc_handles): (Vec<_>, Vec<_>) =
             self.adcs.into_iter().map(|adc| adc.run()).unzip();
 
-        let dispatcher = MsgDispatcher::<C> {
-            channel: self.reader,
-            dacs: dac_handles.try_into().ok().unwrap(),
-            adcs: adc_handles.try_into().ok().unwrap(),
-        };
-        let keepalive = Keepalive::<C> {
-            channel: self.writer.clone(),
+        let dispatcher = Dispatcher::<C> {
+            reader: dispatch::Reader {
+                channel: self.reader,
+                dacs: dac_handles.try_into().ok().unwrap(),
+                adcs: adc_handles.try_into().ok().unwrap(),
+            },
+            writer: dispatch::Writer {
+                channel: self.writer,
+            },
         };
 
-        join_all([
-            spawn(join_all(dac_loops).map(|_| ())),
-            spawn(join_all(adc_loops).map(|_| ())),
+        let res = try_join_all([
+            spawn(try_join_all(dac_loops).map(|r| r.map(|_| ()))),
+            spawn(try_join_all(adc_loops).map(|r| r.map(|_| ()))),
             spawn(dispatcher.run()),
             spawn(keepalive.run()),
             spawn(self.debug.run()),
         ])
         .await;
-    }
-}
-
-impl<C: Channel> MsgDispatcher<C> {
-    async fn run(self) {
-        let mut channel = self.channel;
-        let mut adcs = self.adcs;
-        loop {
-            let msg = channel.read_message().await.unwrap();
-            match msg.as_ref() {
-                McuMsgRef::DinUpdate { value: _ } => (),
-                McuMsgRef::DacRequest { count } => self.dacs[0].request(count.to_native() as usize),
-                McuMsgRef::AdcData { points } => {
-                    for (index, adc) in adcs.iter_mut().enumerate() {
-                        adc.push(points.iter().map(|a| a[index].to_native())).await;
-                    }
-                }
-                McuMsgRef::Error { code, message } => {
-                    panic!(
-                        "Error {}: {}",
-                        code,
-                        String::from_utf8_lossy(message.as_slice())
-                    )
-                }
-                McuMsgRef::Debug { message } => {
-                    println!("Debug: {}", String::from_utf8_lossy(message.as_slice()))
-                }
-            }
-        }
-    }
-}
-
-impl<C: Channel> Keepalive<C> {
-    async fn run(mut self) {
-        {
-            self.channel
-                .new_message()
-                .emplace(proto::AppMsgInitConnect)
-                .unwrap()
-                .write()
-                .await
-                .unwrap();
-        }
-        loop {
-            sleep(config::KEEP_ALIVE_PERIOD).await;
-            self.channel
-                .new_message()
-                .emplace(proto::AppMsgInitKeepAlive)
-                .unwrap()
-                .write()
-                .await
-                .unwrap();
-        }
     }
 }

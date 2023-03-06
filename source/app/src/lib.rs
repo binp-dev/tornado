@@ -1,6 +1,7 @@
-mod channel;
+//mod channel;
 mod device;
 mod epics;
+mod utils;
 
 use async_std::task::block_on;
 #[cfg(feature = "tcp")]
