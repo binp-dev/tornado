@@ -1,13 +1,10 @@
-use async_atomic::{AsyncAtomic, AtomicSubscriber};
-use futures::lock::{Mutex, MutexGuard};
+use async_atomic::{Atomic, Subscriber};
 use std::{
-    mem::{swap, ManuallyDrop},
+    mem::swap,
     ops::{Deref, DerefMut},
-    ptr,
     sync::Arc,
+    sync::{Mutex, MutexGuard},
 };
-
-type AtomicFlag = AtomicSubscriber<bool, Arc<AsyncAtomic<bool>>>;
 
 pub struct DoubleVec<T> {
     buffers: (Vec<T>, Vec<T>),
@@ -19,14 +16,16 @@ impl<T> DoubleVec<T> {
         }
     }
     pub fn split(self) -> (Reader<T>, Arc<Writer<T>>) {
+        let ready = Atomic::new(false).subscribe();
         let write = Arc::new(Writer {
             buffer: Mutex::new(self.buffers.0),
-            ready: AsyncAtomic::new(false).split().1,
+            ready: ready.clone(),
         });
         (
             Reader {
                 buffer: self.buffers.1,
                 write: write.clone(),
+                ready,
             },
             write,
         )
@@ -35,12 +34,12 @@ impl<T> DoubleVec<T> {
 
 pub struct Writer<T> {
     buffer: Mutex<Vec<T>>,
-    ready: AtomicFlag,
+    ready: Arc<Atomic<bool>>,
 }
 impl<T> Writer<T> {
     pub async fn write(&self) -> WriteGuard<'_, T> {
         WriteGuard {
-            buffer: self.buffer.lock().await,
+            buffer: self.buffer.lock().unwrap(),
             ready: &self.ready,
         }
     }
@@ -49,23 +48,28 @@ impl<T> Writer<T> {
 pub struct Reader<T> {
     buffer: Vec<T>,
     write: Arc<Writer<T>>,
+    ready: Subscriber<bool>,
 }
 impl<T> Reader<T> {
-    pub fn ready(&self) -> bool {
-        self.write.ready.load()
+    pub async fn wait_ready(&mut self) {
+        self.ready.wait(|x| x).await;
     }
-    pub async fn wait_ready(&self) {
-        self.write.ready.wait(|x| x).await;
-    }
-    pub async fn try_swap(&mut self) -> bool {
-        let mut guard = self.write.buffer.lock().await;
-        if self.write.ready.fetch_and(false) {
+    pub fn try_swap(&mut self) -> bool {
+        if self.write.ready.swap(false) {
             self.buffer.clear();
-            swap(guard.deref_mut(), &mut self.buffer);
+            swap(
+                self.write.buffer.lock().unwrap().deref_mut(),
+                &mut self.buffer,
+            );
             true
         } else {
             false
         }
+    }
+}
+impl<T: Copy> Reader<T> {
+    pub fn into_iter(self) -> ReaderIter<T> {
+        ReaderIter::new(self)
     }
 }
 
@@ -78,18 +82,11 @@ impl<T> Deref for Reader<T> {
 
 pub struct WriteGuard<'a, T> {
     buffer: MutexGuard<'a, Vec<T>>,
-    ready: &'a AsyncAtomic<bool>,
-}
-impl<'a, T> WriteGuard<'a, T> {
-    pub fn discard(mut self) {
-        self.buffer.clear();
-        let mut self_ = ManuallyDrop::new(self);
-        unsafe { ptr::drop_in_place(&mut self_.buffer as *mut MutexGuard<'a, _>) };
-    }
+    ready: &'a Atomic<bool>,
 }
 impl<'a, T> Drop for WriteGuard<'a, T> {
     fn drop(&mut self) {
-        self.ready.fetch_or(true);
+        self.ready.swap(true);
     }
 }
 impl<'a, T> Deref for WriteGuard<'a, T> {
@@ -104,16 +101,16 @@ impl<'a, T> DerefMut for WriteGuard<'a, T> {
     }
 }
 
-pub struct ReaderStream<T: Clone> {
+pub struct ReaderIter<T: Copy> {
     buffer: Reader<T>,
     pos: usize,
     pub cyclic: bool,
-    pub on_swap: Box<dyn FnMut()>,
+    pub on_swap: Box<dyn FnMut() + Send>,
 }
 
-impl<T: Clone> ReaderStream<T> {
+impl<T: Copy> ReaderIter<T> {
     fn new(buffer: Reader<T>) -> Self {
-        ReaderStream {
+        ReaderIter {
             buffer,
             pos: 0,
             cyclic: false,
@@ -121,22 +118,22 @@ impl<T: Clone> ReaderStream<T> {
         }
     }
 
-    async fn try_swap(&mut self) -> bool {
+    fn try_swap(&mut self) -> bool {
         //log::info!("try swap");
-        if self.buffer.try_swap().await {
+        if self.buffer.try_swap() {
             (self.on_swap)();
             true
         } else {
             false
         }
     }
-    pub async fn next(&mut self) -> Option<T> {
+    pub fn next(&mut self) -> Option<T> {
         loop {
             if self.pos < self.buffer.len() {
-                let value = self.buffer[self.pos].clone();
+                let value = self.buffer[self.pos];
                 self.pos += 1;
                 break Some(value);
-            } else if self.try_swap().await || self.cyclic {
+            } else if self.try_swap() || self.cyclic {
                 self.pos = 0;
             } else {
                 break None;

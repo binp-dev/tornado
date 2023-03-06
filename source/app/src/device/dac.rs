@@ -3,18 +3,18 @@ use crate::{
     epics,
     utils::double_vec::{self, DoubleVec},
 };
-use async_atomic::AsyncAtomic;
 use async_std::task::spawn;
 use common::config::{volt_to_dac, Point};
-use ferrite::{atomic::AtomicVariable, TypedVariable as Variable};
-use flatty_io::AsyncWriter as MsgWriter;
-use futures::{future::join_all, select, FutureExt};
-use std::{future::Future, sync::Arc};
+use ferrite::{atomic::AtomicVariable, typed::Type, TypedVariable as Variable};
+use futures::{
+    future::join_all,
+    stream::{self, Stream},
+};
+use std::sync::Arc;
 
 pub struct Dac {
-    epics: epics::Dac,
-    buffer: double_vec::Writer<Point>,
-    request: Arc<AtomicVariable<u16>>,
+    array: ArrayReader,
+    scalar: ScalarReader,
 }
 
 impl Dac {
@@ -26,48 +26,47 @@ impl Dac {
 
         (
             Self {
-                buffer: write_buffer,
-                epics,
-                request: request.clone(),
+                array: ArrayReader {
+                    input: epics.array,
+                    output: write_buffer.clone(),
+                    request: request.clone(),
+                },
+                scalar: ScalarReader {
+                    input: epics.scalar,
+                    output: write_buffer,
+                    request: request.clone(),
+                },
             },
             DacHandle {
                 buffer: read_buffer,
                 read_ready: Box::new(move || request.store(1)),
+                state: Box::new(unfold_variable(epics.state, |x| x != 0)),
+                mode: Box::new(unfold_variable(epics.mode, |x| x != 0)),
             },
         )
     }
 
-    pub fn run(self) -> impl Future<Output = Result<(), Error>> {
-        let array_reader = ArrayReader {
-            input: self.epics.array,
-            output: self.buffer.clone(),
-            request: self.request.clone(),
-        };
-        let scalar_reader = ScalarReader {
-            input: self.epics.scalar,
-            output: self.buffer,
-            request: self.request,
-        };
-        let state_reader = StateReader {
-            state: self.epics.state,
-            mode: self.epics.mode,
-        };
-
-        async move {
-            join_all([
-                spawn(array_reader.run()),
-                spawn(scalar_reader.run()),
-                spawn(state_reader.run()),
-            ])
-            .await;
-            Ok(())
-        }
+    pub async fn run(self) -> Result<(), Error> {
+        join_all([spawn(self.array.run()), spawn(self.scalar.run())]).await;
+        Ok(())
     }
 }
 
+// TODO: Remove `Box`es when `impl Trait` stabilized.
 pub struct DacHandle {
     pub buffer: double_vec::Reader<Point>,
-    pub read_ready: Box<dyn FnMut()>,
+    pub read_ready: Box<dyn FnMut() + Send>,
+    pub state: Box<dyn Stream<Item = bool> + Send>,
+    pub mode: Box<dyn Stream<Item = bool> + Send>,
+}
+
+fn unfold_variable<T: Send, V: Type, F: Fn(V) -> T>(
+    var: Variable<V>,
+    map: F,
+) -> impl Stream<Item = T> {
+    stream::unfold((var, map), move |(mut var, map)| async move {
+        Some((map(var.wait().await.read().await), (var, map)))
+    })
 }
 
 struct ArrayReader {
@@ -108,19 +107,6 @@ impl ScalarReader {
                 output.clear();
                 output.push(value as Point);
             }
-        }
-    }
-}
-
-struct VariableReader<T: Copy + From<U>, U> {
-    variable: Variable<U>,
-    value: Arc<AsyncAtomic<T>>,
-}
-
-impl<T: Copy + From<U>, U> VariableReader<T, U> {
-    async fn run(mut self) {
-        loop {
-            self.value.store(self.state.wait().await.read().await);
         }
     }
 }

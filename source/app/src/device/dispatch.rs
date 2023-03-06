@@ -1,63 +1,59 @@
-use std::sync::Arc;
-
 use super::{adc::AdcHandle, dac::DacHandle, Error};
-use crate::{
-    channel::Channel,
-    utils::{double_vec, AsyncCounter},
+use crate::channel::Channel;
+use async_atomic::{Atomic, Subscriber};
+use async_std::{
+    sync::Mutex,
+    task::{sleep, spawn},
 };
-use async_std::task::{sleep, spawn};
 use common::{
-    config::{self, PointPortable, ADC_COUNT, DAC_COUNT},
+    config::{self, PointPortable, ADC_COUNT},
     protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
 };
-use ferrite::atomic::AtomicVariable;
-use flatty::{flat_vec, prelude::*};
+use flatty::{flat_vec, prelude::*, Emplacer};
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter, ReadError};
-use futures::{future::try_join_all, join};
+use futures::{future::try_join_all, join, AsyncWrite};
+use std::{io, sync::Arc};
 
 pub struct Dispatcher<C: Channel> {
-    reader: Reader<C>,
     writer: Writer<C>,
+    reader: Reader<C>,
 }
 
 struct Writer<C: Channel> {
-    channel: MsgWriter<AppMsg, C::Write>,
-    dacs: [DacHandle; DAC_COUNT],
-    dac_write_count: Arc<AsyncCounter>,
-    dac_stream: double_vec::ReaderStream<i32>,
-    dac_read_ready: Box<dyn FnMut()>,
+    channel: Mutex<MsgWriter<AppMsg, C::Write>>,
+    dac: DacHandle,
+    dac_write_count: Subscriber<usize>,
 }
 
 struct Reader<C: Channel> {
     channel: MsgReader<McuMsg, C::Read>,
     adcs: [AdcHandle; ADC_COUNT],
-    dac_write_count: Arc<AsyncCounter>,
+    dac_write_count: Arc<Atomic<usize>>,
 }
 
 impl<C: Channel> Dispatcher<C> {
-    pub async fn new(
-        channel: C,
-        dacs: [DacHandle; DAC_COUNT],
-        adcs: [AdcHandle; ADC_COUNT],
-    ) -> Self {
+    pub async fn new(channel: C, dac: DacHandle, adcs: [AdcHandle; ADC_COUNT]) -> Self {
         let (r, w) = channel.split();
         let reader = MsgReader::<McuMsg, _>::new(r, config::MAX_MCU_MSG_LEN);
-        let writer = MsgWriter::<AppMsg, _>::new(w, config::MAX_APP_MSG_LEN);
-        let dac_write_count = Arc::new(AsyncCounter::new(0));
+        let writer = Mutex::new(MsgWriter::<AppMsg, _>::new(w, config::MAX_APP_MSG_LEN));
+        let dac_write_count = Atomic::new(0).subscribe();
         Self {
             reader: Reader {
                 channel: reader,
                 adcs,
+                dac_write_count: dac_write_count.clone(),
             },
             writer: Writer {
                 channel: writer,
-                dacs,
+                dac,
+                dac_write_count,
             },
         }
     }
     pub async fn run(self) -> Result<(), Error> {
-        try_join_all([spawn(self.reader.run()), spawn(self.writer.run())]).await;
-        Ok(())
+        try_join_all([spawn(self.reader.run()), spawn(self.writer.run())])
+            .await
+            .map(|_| ())
     }
 }
 
@@ -68,14 +64,24 @@ impl<C: Channel> Reader<C> {
         loop {
             let msg = match channel.read_message().await {
                 Err(ReadError::Eof) => return Err(Error::Disconnected),
+                Err(ReadError::Io(err)) => {
+                    if err.kind() == io::ErrorKind::ConnectionReset {
+                        return Err(Error::Disconnected);
+                    } else {
+                        panic!("I/O error: {}", err);
+                    }
+                }
                 other => other.unwrap(),
             };
             match msg.as_ref() {
                 McuMsgRef::DinUpdate { value: _ } => (),
-                McuMsgRef::DacRequest { count } => self.dacs[0].request(count.to_native() as usize),
+                McuMsgRef::DacRequest { count } => {
+                    self.dac_write_count.fetch_add(count.to_native() as usize);
+                }
                 McuMsgRef::AdcData { points } => {
                     for (index, adc) in adcs.iter_mut().enumerate() {
-                        adc.push(points.iter().map(|a| a[index].to_native())).await;
+                        adc.push_iter(points.iter().map(|a| a[index].to_native()))
+                            .await;
                     }
                 }
                 McuMsgRef::Error { code, message } => {
@@ -93,78 +99,84 @@ impl<C: Channel> Reader<C> {
     }
 }
 
+async fn send_message<M: Portable + ?Sized, W: AsyncWrite + Unpin, E: Emplacer<M>>(
+    channel: &Mutex<MsgWriter<M, W>>,
+    emplacer: E,
+) -> Result<(), io::Error> {
+    channel
+        .lock()
+        .await
+        .new_message()
+        .emplace(emplacer)
+        .unwrap()
+        .write()
+        .await
+}
+
 impl<C: Channel> Writer<C> {
     async fn run(mut self) -> Result<(), Error> {
-        {
-            self.channel
-                .new_message()
-                .emplace(proto::AppMsgInitConnect)
-                .unwrap()
-                .write()
-                .await
-                .unwrap();
-        }
-        loop {
-            sleep(config::KEEP_ALIVE_PERIOD).await;
-            self.channel
-                .new_message()
-                .emplace(proto::AppMsgInitKeepAlive)
-                .unwrap()
-                .write()
-                .await
-                .unwrap();
-        }
-    }
-}
-
-struct PointSender<C: Channel> {
-    channel: MsgWriter<AppMsg, C::Write>,
-    request: Arc<AtomicVariable<u16>>,
-}
-
-impl<C: Channel> PointSender<C> {
-    async fn run(mut self) {
-        self.stream.on_swap = Box::new({
-            let req = self.request.clone();
-            move || req.store(1)
-        });
-
-        self.request.store(1);
-        loop {
-            join!(self.points_to_send.wait(1), async {
-                if self.stream.is_empty() {
-                    self.stream.wait_ready().await;
+        let channel = Arc::new(self.channel);
+        let res: Result<_, io::Error> = try_join_all([
+            spawn({
+                let channel = channel.clone();
+                async move {
+                    send_message(&channel, proto::AppMsgInitConnect).await?;
+                    loop {
+                        sleep(config::KEEP_ALIVE_PERIOD).await;
+                        send_message(&channel, proto::AppMsgInitKeepAlive).await?;
+                    }
+                    #[allow(unreachable_code)]
+                    Ok(())
                 }
-            });
-
-            let mut msg = self
-                .channel
-                .new_message()
-                .emplace(proto::AppMsgInitDacData {
-                    points: flat_vec![],
-                })
-                .unwrap();
-            let will_send = if let proto::AppMsgMut::DacData { points } = msg.as_mut() {
-                let mut count = self.points_to_send.sub(None);
-                //log::debug!("points_to_send: {}", count);
-                while count > 0 && !points.is_full() {
-                    match self.stream.next().await {
-                        Some(value) => {
-                            points.push([PointPortable::from_native(value)]).unwrap();
-                            count -= 1;
+            }),
+            spawn(async move {
+                let mut iter = self.dac.buffer.into_iter();
+                iter.on_swap = self.dac.read_ready;
+                (iter.on_swap)();
+                loop {
+                    join!(self.dac_write_count.wait(|x| x >= 1), async {
+                        if iter.is_empty() {
+                            iter.wait_ready().await;
                         }
-                        None => break,
+                    });
+                    let mut guard = channel.lock().await;
+                    let mut msg = guard
+                        .new_message()
+                        .emplace(proto::AppMsgInitDacData {
+                            points: flat_vec![],
+                        })
+                        .unwrap();
+                    let will_send = if let proto::AppMsgMut::DacData { points } = msg.as_mut() {
+                        let mut count = self.dac_write_count.swap(0);
+                        //log::debug!("points_to_send: {}", count);
+                        while count > 0 && !points.is_full() {
+                            match iter.next() {
+                                Some(value) => {
+                                    points.push([PointPortable::from_native(value)]).unwrap();
+                                    count -= 1;
+                                }
+                                None => break,
+                            }
+                        }
+                        //log::debug!("points_send: {}", msg.points.len());
+                        self.dac_write_count.fetch_add(count);
+                        !points.is_empty()
+                    } else {
+                        unreachable!();
+                    };
+                    if will_send {
+                        msg.write().await?;
                     }
                 }
-                //log::debug!("points_send: {}", msg.points.len());
-                self.points_to_send.add(count);
-                !points.is_empty()
-            } else {
-                unreachable!();
-            };
-            if will_send {
-                msg.write().await.unwrap();
-            }
+            }),
+        ])
+        .await;
+        match res {
+            Ok(_) => Ok(()),
+            Err(err) => match err.kind() {
+                io::ErrorKind::BrokenPipe => Err(Error::Disconnected),
+                other => panic!("I/O Error: {}", other),
+            },
         }
     }
 }

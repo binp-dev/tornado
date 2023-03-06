@@ -1,4 +1,4 @@
-//mod channel;
+mod channel;
 mod device;
 mod epics;
 mod utils;
@@ -34,7 +34,8 @@ async fn run(ctx: Context) {
     log::info!("Get EPICS PVs");
     let epics = Epics::new(ctx).unwrap();
 
+    log::info!("Init device");
+    let device = Device::new(channel, epics).await;
     log::info!("Run device");
-    let device = Device::new(channel, epics);
     device.run().await;
 }
