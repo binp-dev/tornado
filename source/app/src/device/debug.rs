@@ -1,29 +1,25 @@
-use crate::{channel::Channel, epics};
-use common::protocol::{self as proto, AppMsg};
-use flatty_io::AsyncWriter as MsgWriter;
+use std::pin::Pin;
 
-pub struct Debug<C: Channel> {
-    pub epics: epics::Debug,
-    pub channel: MsgWriter<AppMsg, C::Write>,
+use crate::{epics, utils::misc::unfold_variable};
+use futures::Stream;
+
+pub enum Debug {}
+
+pub struct DebugHandle {
+    pub stats_reset: Pin<Box<dyn Stream<Item = ()> + Send>>,
 }
 
-impl<C: Channel> Debug<C> {
-    async fn send(&mut self) {
-        self.channel
-            .new_message()
-            .emplace(proto::AppMsgInitStatsReset)
-            .unwrap()
-            .write()
-            .await
-            .unwrap();
-    }
-
-    pub async fn run(mut self) {
-        self.send().await;
-        loop {
-            if self.epics.stats_reset.wait().await.read().await != 0 {
-                self.send().await;
-            }
+impl Debug {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(epics: epics::Debug) -> DebugHandle {
+        DebugHandle {
+            stats_reset: Box::pin(unfold_variable(epics.stats_reset, |x| {
+                if x != 0 {
+                    Some(())
+                } else {
+                    None
+                }
+            })),
         }
     }
 }

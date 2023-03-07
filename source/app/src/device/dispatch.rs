@@ -1,4 +1,4 @@
-use super::{adc::AdcHandle, dac::DacHandle, Error};
+use super::{adc::AdcHandle, dac::DacHandle, debug::DebugHandle, Error};
 use crate::channel::Channel;
 use async_atomic::{Atomic, Subscriber};
 use async_std::{
@@ -11,7 +11,7 @@ use common::{
 };
 use flatty::{flat_vec, prelude::*, Emplacer};
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter, ReadError};
-use futures::{future::try_join_all, join, AsyncWrite};
+use futures::{future::try_join_all, join, AsyncWrite, StreamExt};
 use std::{io, sync::Arc};
 
 pub struct Dispatcher<C: Channel> {
@@ -23,6 +23,7 @@ struct Writer<C: Channel> {
     channel: Mutex<MsgWriter<AppMsg, C::Write>>,
     dac: DacHandle,
     dac_write_count: Subscriber<usize>,
+    debug: DebugHandle,
 }
 
 struct Reader<C: Channel> {
@@ -32,7 +33,12 @@ struct Reader<C: Channel> {
 }
 
 impl<C: Channel> Dispatcher<C> {
-    pub async fn new(channel: C, dac: DacHandle, adcs: [AdcHandle; ADC_COUNT]) -> Self {
+    pub async fn new(
+        channel: C,
+        dac: DacHandle,
+        adcs: [AdcHandle; ADC_COUNT],
+        debug: DebugHandle,
+    ) -> Self {
         let (r, w) = channel.split();
         let reader = MsgReader::<McuMsg, _>::new(r, config::MAX_MCU_MSG_LEN);
         let writer = Mutex::new(MsgWriter::<AppMsg, _>::new(w, config::MAX_APP_MSG_LEN));
@@ -47,6 +53,7 @@ impl<C: Channel> Dispatcher<C> {
                 channel: writer,
                 dac,
                 dac_write_count,
+                debug,
             },
         }
     }
@@ -129,10 +136,19 @@ impl<C: Channel> Writer<C> {
                     Ok(())
                 }
             }),
+            spawn({
+                let channel = channel.clone();
+                async move {
+                    loop {
+                        send_message(&channel, proto::AppMsgInitStatsReset).await?;
+                        self.debug.stats_reset.next().await;
+                    }
+                }
+            }),
             spawn(async move {
                 let mut iter = self.dac.buffer.into_iter();
+                (self.dac.read_ready)();
                 iter.on_swap = self.dac.read_ready;
-                (iter.on_swap)();
                 loop {
                     join!(self.dac_write_count.wait(|x| x >= 1), async {
                         if iter.is_empty() {

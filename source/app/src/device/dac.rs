@@ -1,16 +1,16 @@
 use super::Error;
 use crate::{
     epics,
-    utils::double_vec::{self, DoubleVec},
+    utils::{
+        double_vec::{self, DoubleVec},
+        misc::unfold_variable,
+    },
 };
 use async_std::task::spawn;
 use common::config::{volt_to_dac, Point};
-use ferrite::{atomic::AtomicVariable, typed::Type, TypedVariable as Variable};
-use futures::{
-    future::join_all,
-    stream::{self, Stream},
-};
-use std::sync::Arc;
+use ferrite::{atomic::AtomicVariable, TypedVariable as Variable};
+use futures::{future::join_all, Stream};
+use std::{pin::Pin, sync::Arc};
 
 pub struct Dac {
     array: ArrayReader,
@@ -40,8 +40,8 @@ impl Dac {
             DacHandle {
                 buffer: read_buffer,
                 read_ready: Box::new(move || request.store(1)),
-                state: Box::new(unfold_variable(epics.state, |x| x != 0)),
-                mode: Box::new(unfold_variable(epics.mode, |x| x != 0)),
+                state: Box::pin(unfold_variable(epics.state, |x| Some(x != 0))),
+                mode: Box::pin(unfold_variable(epics.mode, |x| Some(x != 0))),
             },
         )
     }
@@ -56,17 +56,8 @@ impl Dac {
 pub struct DacHandle {
     pub buffer: double_vec::Reader<Point>,
     pub read_ready: Box<dyn FnMut() + Send>,
-    pub state: Box<dyn Stream<Item = bool> + Send>,
-    pub mode: Box<dyn Stream<Item = bool> + Send>,
-}
-
-fn unfold_variable<T: Send, V: Type, F: Fn(V) -> T>(
-    var: Variable<V>,
-    map: F,
-) -> impl Stream<Item = T> {
-    stream::unfold((var, map), move |(mut var, map)| async move {
-        Some((map(var.wait().await.read().await), (var, map)))
-    })
+    pub state: Pin<Box<dyn Stream<Item = bool> + Send>>,
+    pub mode: Pin<Box<dyn Stream<Item = bool> + Send>>,
 }
 
 struct ArrayReader {
