@@ -1,4 +1,7 @@
-use crate::config::{PointPortable, ADC_COUNT, DAC_COUNT, MAX_APP_MSG_LEN, MAX_MCU_MSG_LEN};
+use crate::{
+    config::{ADC_COUNT, MAX_APP_MSG_LEN, MAX_MCU_MSG_LEN},
+    units::{AdcPoint, DacPoint, Unit},
+};
 use core::mem::size_of;
 use flatty::{flat, portable::le, FlatVec};
 
@@ -13,7 +16,7 @@ pub enum AppMsg {
         enable: u8,
     },
     DacData {
-        points: FlatVec<[PointPortable; DAC_COUNT], le::U16>,
+        points: FlatVec<<DacPoint as Unit>::Portable, le::U16>,
     },
     StatsReset,
 }
@@ -27,7 +30,7 @@ pub enum McuMsg {
         count: le::U32,
     },
     AdcData {
-        points: FlatVec<[PointPortable; ADC_COUNT], le::U16>,
+        points: FlatVec<[<AdcPoint as Unit>::Portable; ADC_COUNT], le::U16>,
     },
     Error {
         code: u8,
@@ -58,6 +61,6 @@ pub const APP_MSG_MIN_STATIC_SIZE: usize =
     AppMsg::DATA_OFFSET + slice_max(&AppMsg::DATA_MIN_SIZES, 0);
 
 pub const DAC_MSG_MAX_POINTS: usize =
-    (MAX_APP_MSG_LEN - size_of::<AppMsgTag>()) / (DAC_COUNT * size_of::<PointPortable>());
-pub const ADC_MSG_MAX_POINTS: usize =
-    (MAX_MCU_MSG_LEN - size_of::<McuMsgTag>()) / (ADC_COUNT * size_of::<PointPortable>());
+    (MAX_APP_MSG_LEN - size_of::<AppMsgTag>()) / size_of::<<DacPoint as Unit>::Portable>();
+pub const ADC_MSG_MAX_POINTS: usize = (MAX_MCU_MSG_LEN - size_of::<McuMsgTag>())
+    / (ADC_COUNT * size_of::<<AdcPoint as Unit>::Portable>());

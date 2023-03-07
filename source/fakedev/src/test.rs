@@ -3,8 +3,9 @@ use async_std::{
     main as async_main,
     task::{sleep, spawn},
 };
-use common::config::{
-    dac_to_volt, volt_to_adc, ADC_COUNT, ADC_MAX_ABS, ADC_STEP, DAC_MAX_ABS, DAC_STEP,
+use common::{
+    config::ADC_COUNT,
+    units::{AdcPoint, DacPoint, Voltage},
 };
 use epics_ca::{types::EpicsEnum, Context};
 use fakedev::{epics, run, Epics};
@@ -13,10 +14,7 @@ use futures::{
     future::join_all,
     join, pin_mut, SinkExt, StreamExt,
 };
-use mcu::{
-    skifio::{Ain, Aout},
-    tasks::STATISTICS,
-};
+use mcu::tasks::STATISTICS;
 use std::{
     f64::consts::PI,
     io::{stdout, Write},
@@ -30,13 +28,18 @@ extern "C" {
 
 const ATTEMPTS: usize = 64;
 
-async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
+fn scale<T: Voltage>(x: f64) -> f64 {
+    let (min, max) = (T::MIN.to_voltage(), T::MAX.to_voltage());
+    (x + 1.0) / 2.0 * (max - min) + min
+}
+
+async fn test_dac(mut epics: epics::Dac, mut device: Receiver<DacPoint>) {
     let len = epics.array.element_count().unwrap();
     let data = (0..ATTEMPTS).into_iter().map(move |j| {
         (0..len)
             .into_iter()
             .map(move |i| i as f64 / (len - 1) as f64)
-            .map(move |x| (2.0 * PI * (j + 1) as f64 * x).sin() * DAC_MAX_ABS)
+            .map(move |x| scale::<DacPoint>((2.0 * PI * (j + 1) as f64 * x).sin()))
     });
 
     let prod = spawn({
@@ -46,7 +49,6 @@ async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
             pin_mut!(request);
             loop {
                 let flag = request.next().await.unwrap().unwrap();
-                //println!("@@ request.next: {:?}", flag);
                 if flag == EpicsEnum(0) {
                     continue;
                 }
@@ -67,9 +69,9 @@ async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
         for _ in 0..(ATTEMPTS * len) {
             let dac = device.next().await.unwrap();
             assert_abs_diff_eq!(
-                dac_to_volt(dac as i32),
+                dac.to_voltage(),
                 seq.next().unwrap(),
-                epsilon = DAC_STEP
+                epsilon = DacPoint::STEP
             );
         }
         println!("@@ dac cons done");
@@ -78,8 +80,8 @@ async fn test_dac(mut epics: epics::Dac, mut device: Receiver<Aout>) {
     join!(prod, cons);
 }
 
-async fn test_adc(mut epics: [epics::Adc; ADC_COUNT], mut device: Sender<[Ain; ADC_COUNT]>) {
-    sleep(Duration::from_millis(1000)).await;
+async fn test_adc(mut epics: [epics::Adc; ADC_COUNT], mut device: Sender<[AdcPoint; ADC_COUNT]>) {
+    sleep(Duration::from_millis(100)).await;
 
     let len = epics
         .iter()
@@ -94,7 +96,7 @@ async fn test_adc(mut epics: [epics::Adc; ADC_COUNT], mut device: Sender<[Ain; A
     let total_len = len * ATTEMPTS;
     let mut data = (0..total_len)
         .into_iter()
-        .map(move |i| i as f64 / (len - 1) as f64)
+        .map(move |i| i as f64 / (total_len - 1) as f64)
         .map(move |x| {
             {
                 let mut k = 0;
@@ -104,14 +106,16 @@ async fn test_adc(mut epics: [epics::Adc; ADC_COUNT], mut device: Sender<[Ain; A
                     r
                 })
             }
-            .map(move |k| (2.0 * PI * (k + 1) as f64 * x).sin() * ADC_MAX_ABS * x)
+            .map(move |k| {
+                scale::<AdcPoint>((2.0 * PI * (k + 1) as f64 * x * ATTEMPTS as f64).sin()) * x
+            })
         });
 
     let prod = spawn({
         let data = data.clone();
         async move {
             for xs in data {
-                let adcs = xs.map(volt_to_adc);
+                let adcs = xs.map(|x| AdcPoint::try_from_voltage(x).unwrap());
                 device.send(adcs).await.unwrap();
                 unsafe { user_sample_intr() };
             }
@@ -150,7 +154,7 @@ async fn test_adc(mut epics: [epics::Adc; ADC_COUNT], mut device: Sender<[Ain; A
             for xs in points.into_iter() {
                 xs.into_iter()
                     .zip(data.next().unwrap())
-                    .for_each(|(x, y)| assert_abs_diff_eq!(x, y, epsilon = ADC_STEP));
+                    .for_each(|(x, y)| assert_abs_diff_eq!(x, y, epsilon = AdcPoint::STEP));
             }
             print!("I");
             stdout().flush().unwrap();
@@ -170,10 +174,7 @@ async fn main() {
     let skifio = run();
     let ctx = Context::new().unwrap();
     let epics = Epics::connect(&ctx).await;
-    let dac = {
-        let [dac] = epics.dac;
-        spawn(test_dac(dac, skifio.dac))
-    };
+    let dac = spawn(test_dac(epics.dac, skifio.dac));
     let adc = spawn(test_adc(epics.adc, skifio.adcs));
     join!(dac, adc);
 

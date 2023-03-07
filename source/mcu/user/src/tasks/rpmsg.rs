@@ -6,14 +6,15 @@ use crate::{
 };
 use alloc::sync::Arc;
 use common::{
-    config::{self, PointPortable, DAC_COUNT},
+    config,
     protocol::{self as proto, AppMsg, McuMsg},
+    units::{AdcPoint, DacPoint, Unit},
 };
 use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     time::Duration,
 };
-use flatty::{flat_vec, portable::le, prelude::*};
+use flatty::{flat_vec, portable::le};
 use ringbuf::ring_buffer::RbBase;
 use ustd::{prelude::*, task};
 
@@ -177,10 +178,12 @@ impl RpmsgReader {
         }
     }
 
-    fn write_dac(&mut self, points: &[[PointPortable; DAC_COUNT]]) {
+    fn write_dac(&mut self, points: &[<DacPoint as Unit>::Portable]) {
         // Push received points to ring buffer.
         {
-            let count = self.buffer.push_iter(&mut points.iter().map(|[p]| p.to_native()));
+            let count = self
+                .buffer
+                .push_iter(&mut points.iter().copied().map(DacPoint::from_portable));
             if points.len() > count {
                 self.stats.dac.report_lost_full(points.len() - count);
             }
@@ -257,7 +260,7 @@ impl RpmsgWriter {
 
             let count = if let proto::McuMsgMut::AdcData { points } = msg.as_mut() {
                 assert_eq!(points.capacity(), LEN);
-                points.extend_from_iter(self.buffer.pop_iter().map(|values| values.map(PointPortable::from)));
+                points.extend_from_iter(self.buffer.pop_iter().map(|values| values.map(AdcPoint::to_portable)));
                 points.len()
             } else {
                 unreachable!()

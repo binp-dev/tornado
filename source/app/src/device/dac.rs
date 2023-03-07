@@ -7,7 +7,7 @@ use crate::{
     },
 };
 use async_std::task::spawn;
-use common::config::{volt_to_dac, Point};
+use common::units::{DacPoint, Voltage};
 use ferrite::{atomic::AtomicVariable, TypedVariable as Variable};
 use futures::{future::join_all, Stream};
 use std::{pin::Pin, sync::Arc};
@@ -19,7 +19,7 @@ pub struct Dac {
 
 impl Dac {
     pub fn new(epics: epics::Dac) -> (Self, DacHandle) {
-        let buffer = DoubleVec::<Point>::new(epics.array.max_len());
+        let buffer = DoubleVec::<DacPoint>::new(epics.array.max_len());
         let (read_buffer, write_buffer) = buffer.split();
 
         let request = AtomicVariable::<u16>::new(epics.request);
@@ -54,7 +54,7 @@ impl Dac {
 
 // TODO: Remove `Box`es when `impl Trait` stabilized.
 pub struct DacHandle {
-    pub buffer: double_vec::Reader<Point>,
+    pub buffer: double_vec::Reader<DacPoint>,
     pub read_ready: Box<dyn FnMut() + Send>,
     pub state: Pin<Box<dyn Stream<Item = bool> + Send>>,
     pub mode: Pin<Box<dyn Stream<Item = bool> + Send>>,
@@ -62,7 +62,7 @@ pub struct DacHandle {
 
 struct ArrayReader {
     input: Variable<[f64]>,
-    output: Arc<double_vec::Writer<Point>>,
+    output: Arc<double_vec::Writer<DacPoint>>,
     request: Arc<AtomicVariable<u16>>,
 }
 
@@ -74,7 +74,7 @@ impl ArrayReader {
             {
                 let mut output = self.output.write().await;
                 output.clear();
-                output.extend(input.iter().copied().map(volt_to_dac));
+                output.extend(input.iter().copied().map(DacPoint::from_voltage_saturating));
                 log::debug!("array_read: len={}", input.len());
             }
             input.accept().await;
@@ -84,7 +84,7 @@ impl ArrayReader {
 
 struct ScalarReader {
     input: Variable<f64>,
-    output: Arc<double_vec::Writer<Point>>,
+    output: Arc<double_vec::Writer<DacPoint>>,
     request: Arc<AtomicVariable<u16>>,
 }
 
@@ -96,7 +96,7 @@ impl ScalarReader {
             {
                 let mut output = self.output.write().await;
                 output.clear();
-                output.push(value as Point);
+                output.push(DacPoint::from_voltage_saturating(value));
             }
         }
     }

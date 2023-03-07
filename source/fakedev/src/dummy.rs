@@ -2,7 +2,10 @@ use async_std::{
     main as async_main,
     task::{sleep, spawn},
 };
-use common::config::{dac_to_volt, volt_to_adc, Point, ADC_COUNT, SAMPLE_PERIOD};
+use common::{
+    config::{ADC_COUNT, SAMPLE_PERIOD},
+    units::{AdcPoint, Unit, Voltage},
+};
 use fakedev::run;
 use futures::{SinkExt, StreamExt};
 use std::{f64::consts::PI, time::Duration};
@@ -20,11 +23,11 @@ async fn main() {
     spawn(async move {
         let mut counter: u64 = 0;
         loop {
-            let mut adcs = [0; ADC_COUNT];
-            let dac = dac_to_volt(skifio.dac.next().await.unwrap() as Point);
-            adcs[0] = volt_to_adc(dac);
+            let mut adcs = [AdcPoint::ZERO; ADC_COUNT];
+            let dac = skifio.dac.next().await.unwrap().to_voltage();
+            adcs[0] = AdcPoint::try_from_voltage(dac).unwrap();
             for i in 1..ADC_COUNT {
-                adcs[i] = volt_to_adc(phases[i].sin());
+                adcs[i] = AdcPoint::try_from_voltage(phases[i].sin()).unwrap();
                 phases[i] = 2.0 * PI * FREQS[i] * counter as f64 * SAMPLE_PERIOD.as_secs_f64();
             }
             skifio.adcs.send(adcs).await.unwrap();

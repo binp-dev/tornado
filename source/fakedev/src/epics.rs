@@ -1,4 +1,5 @@
-use common::config::{ADC_COUNT, DAC_COUNT};
+use common::config::ADC_COUNT;
+use cstr::cstr;
 use epics_ca::{types::EpicsEnum, Context, ValueChannel as Channel};
 use futures::{stream::iter, StreamExt};
 use std::{ffi::CString, future::Future};
@@ -17,7 +18,7 @@ pub struct Adc {
 }
 
 pub struct Epics {
-    pub dac: [Dac; DAC_COUNT],
+    pub dac: Dac,
     pub adc: [Adc; ADC_COUNT],
     pub dout: Channel<i32>,
     pub din: Channel<i32>,
@@ -32,31 +33,13 @@ async fn make_array<T, G: Future<Output = T>, F: Fn(usize) -> G, const N: usize>
 impl Epics {
     pub async fn connect(ctx: &Context) -> Self {
         Self {
-            dac: make_array(|i| async move {
-                Dac {
-                    array: ctx
-                        .connect(&CString::new(format!("aao{}", i)).unwrap())
-                        .await
-                        .unwrap(),
-                    scalar: ctx
-                        .connect(&CString::new(format!("ao{}", i)).unwrap())
-                        .await
-                        .unwrap(),
-                    request: ctx
-                        .connect(&CString::new(format!("aao{}_request", i)).unwrap())
-                        .await
-                        .unwrap(),
-                    state: ctx
-                        .connect(&CString::new(format!("aao{}_state", i)).unwrap())
-                        .await
-                        .unwrap(),
-                    mode: ctx
-                        .connect(&CString::new(format!("aao{}_mode", i)).unwrap())
-                        .await
-                        .unwrap(),
-                }
-            })
-            .await,
+            dac: Dac {
+                array: ctx.connect(cstr!("aao0")).await.unwrap(),
+                scalar: ctx.connect(cstr!("ao0")).await.unwrap(),
+                request: ctx.connect(cstr!("aao0_request")).await.unwrap(),
+                state: ctx.connect(cstr!("aao0_state")).await.unwrap(),
+                mode: ctx.connect(cstr!("aao0_mode")).await.unwrap(),
+            },
             adc: make_array(|i| async move {
                 Adc {
                     array: ctx
@@ -70,8 +53,8 @@ impl Epics {
                 }
             })
             .await,
-            dout: ctx.connect(&CString::new("do0").unwrap()).await.unwrap(),
-            din: ctx.connect(&CString::new("di0").unwrap()).await.unwrap(),
+            dout: ctx.connect(cstr!("do0")).await.unwrap(),
+            din: ctx.connect(cstr!("di0")).await.unwrap(),
         }
     }
 }

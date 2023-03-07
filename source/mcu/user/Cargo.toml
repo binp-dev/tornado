@@ -31,7 +31,8 @@ flatty-io = { path = "../../flatty/io", optional = true }
 timeout-readwrite = { version = "0.3.3", optional = true }
 ux = { version = "0.1.5", default-features = false }
 indenter = "0.3.3"
-portable-atomic = { version = "1.0.1" }
+portable-atomic = "1.0.1"
+atomic-traits = { path = "../../atomic-traits" }
 
 [dependencies.derive_more]
 version = "0.99.17"

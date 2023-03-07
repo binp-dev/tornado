@@ -19,3 +19,6 @@
 [submodule "source/ca"]
 	path = source/ca
 	url = https://github.com/agerasev/epics-ca.git
+[submodule "source/atomic-traits"]
+	path = source/atomic-traits
+	url = https://github.com/agerasev/rust-atomic-traits.git

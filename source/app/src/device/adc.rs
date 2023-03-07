@@ -1,22 +1,22 @@
 use super::Error;
 use crate::epics;
-use async_ringbuf::{AsyncConsumer, AsyncHeapRb, AsyncProducer};
-use common::config::{adc_to_volt, Point};
+use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
+use common::units::{AdcPoint, Voltage};
 use ferrite::TypedVariable as Variable;
-use std::{iter::ExactSizeIterator, sync::Arc};
+use std::iter::ExactSizeIterator;
 
 pub struct Adc {
-    input: AsyncConsumer<Point, Arc<AsyncHeapRb<Point>>>,
+    input: AsyncHeapConsumer<AdcPoint>,
     output_array: Variable<[f64]>,
 }
 
 pub struct AdcHandle {
-    pub buffer: AsyncProducer<Point, Arc<AsyncHeapRb<Point>>>,
+    pub buffer: AsyncHeapProducer<AdcPoint>,
 }
 
 impl Adc {
     pub fn new(epics: epics::Adc) -> (Self, AdcHandle) {
-        let buffer = AsyncHeapRb::<Point>::new(2 * epics.array.max_len());
+        let buffer = AsyncHeapRb::<AdcPoint>::new(2 * epics.array.max_len());
         let (producer, consumer) = buffer.split();
         (
             Self {
@@ -38,14 +38,14 @@ impl Adc {
             self.output_array
                 .request()
                 .await
-                .write_from(input.pop_iter().map(adc_to_volt))
+                .write_from(input.pop_iter().map(AdcPoint::to_voltage))
                 .await;
         }
     }
 }
 
 impl AdcHandle {
-    pub async fn push_iter<I: ExactSizeIterator<Item = Point>>(&mut self, points: I) {
+    pub async fn push_iter<I: ExactSizeIterator<Item = AdcPoint>>(&mut self, points: I) {
         self.buffer.push_iter(points).await.ok().unwrap()
     }
 }

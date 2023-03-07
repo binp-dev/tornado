@@ -2,13 +2,16 @@ use super::stats::Statistics;
 #[cfg(feature = "real")]
 use crate::skifio::SkifioIface as _;
 use crate::{
-    buffers::{AdcPoints, AdcProducer, DacConsumer},
+    buffers::{AdcProducer, DacConsumer},
     error::{Error, ErrorKind},
     println,
-    skifio::{self, Aout, AtomicDin, AtomicDout, DinHandler, XferIn, XferOut},
+    skifio::{self, AtomicDin, AtomicDout, DinHandler, XferIn, XferOut},
 };
 use alloc::{boxed::Box, sync::Arc};
-use common::config::{Point, DAC_RAW_OFFSET};
+use common::{
+    config::ADC_COUNT,
+    units::{AdcPoint, DacPoint, Unit},
+};
 use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     time::Duration,
@@ -41,13 +44,13 @@ pub struct ControlHandle {
 
 struct ControlDac {
     buffer: DacConsumer,
-    last_point: Point,
+    last_point: DacPoint,
     counter: usize,
 }
 
 struct ControlAdc {
     buffer: AdcProducer,
-    last_point: AdcPoints,
+    last_point: [AdcPoint; ADC_COUNT],
     counter: usize,
 }
 
@@ -124,12 +127,12 @@ impl Control {
             Self {
                 dac: ControlDac {
                     buffer: dac_buf,
-                    last_point: DAC_RAW_OFFSET,
+                    last_point: DacPoint::ZERO,
                     counter: 0,
                 },
                 adc: ControlAdc {
                     buffer: adc_buf,
-                    last_point: AdcPoints::default(),
+                    last_point: [AdcPoint::default(); ADC_COUNT],
                     counter: 0,
                 },
                 handle: handle.clone(),
@@ -183,10 +186,10 @@ impl Control {
             ready |= handle.update_din(skifio.read_din());
 
             // Fetch next DAC value from buffer
-            let mut dac_value = self.dac.last_point;
+            let mut dac = self.dac.last_point;
             if handle.dac_enabled.load(Ordering::Acquire) {
                 if let Some(value) = self.dac.buffer.pop() {
-                    dac_value = value;
+                    dac = value;
                     self.dac.last_point = value;
                     // Increment DAC notification counter.
                     self.dac.counter += 1;
@@ -197,13 +200,12 @@ impl Control {
                 } else {
                     stats.dac.report_lost_empty(1);
                 }
-                stats.dac.update_value(dac_value);
+                stats.dac.update_value(dac);
             }
 
             // Transfer DAC/ADC values to/from SkifIO board.
             {
                 // TODO: Check for overflow.
-                let dac = dac_value as Aout;
                 let adcs = match skifio.transfer(XferOut { dac }) {
                     Ok(XferIn { adcs }) => {
                         self.adc.last_point = adcs;

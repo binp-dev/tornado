@@ -10,6 +10,10 @@ mcu = []
 real = []
 fake = []
 
+[dependencies]
+atomic-traits = { path = "../atomic-traits" }
+derive_more = "0.99.17"
+
 [dependencies.flatty]
 path = "../flatty"
 default-features = false

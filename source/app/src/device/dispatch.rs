@@ -6,8 +6,9 @@ use async_std::{
     task::{sleep, spawn},
 };
 use common::{
-    config::{self, PointPortable, ADC_COUNT},
+    config::{self, ADC_COUNT},
     protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
+    units::{AdcPoint, Unit},
 };
 use flatty::{flat_vec, prelude::*, Emplacer};
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter, ReadError};
@@ -87,7 +88,7 @@ impl<C: Channel> Reader<C> {
                 }
                 McuMsgRef::AdcData { points } => {
                     for (index, adc) in adcs.iter_mut().enumerate() {
-                        adc.push_iter(points.iter().map(|a| a[index].to_native()))
+                        adc.push_iter(points.iter().map(|a| AdcPoint::from_portable(a[index])))
                             .await;
                     }
                 }
@@ -123,7 +124,7 @@ async fn send_message<M: Portable + ?Sized, W: AsyncWrite + Unpin, E: Emplacer<M
 impl<C: Channel> Writer<C> {
     async fn run(mut self) -> Result<(), Error> {
         let channel = Arc::new(self.channel);
-        let res: Result<_, io::Error> = try_join_all([
+        let res: Result<Vec<()>, io::Error> = try_join_all([
             spawn({
                 let channel = channel.clone();
                 async move {
@@ -132,8 +133,6 @@ impl<C: Channel> Writer<C> {
                         sleep(config::KEEP_ALIVE_PERIOD).await;
                         send_message(&channel, proto::AppMsgInitKeepAlive).await?;
                     }
-                    #[allow(unreachable_code)]
-                    Ok(())
                 }
             }),
             spawn({
@@ -164,17 +163,15 @@ impl<C: Channel> Writer<C> {
                         .unwrap();
                     let will_send = if let proto::AppMsgMut::DacData { points } = msg.as_mut() {
                         let mut count = self.dac_write_count.swap(0);
-                        //log::debug!("points_to_send: {}", count);
                         while count > 0 && !points.is_full() {
                             match iter.next() {
                                 Some(value) => {
-                                    points.push([PointPortable::from_native(value)]).unwrap();
+                                    points.push(value.to_portable()).unwrap();
                                     count -= 1;
                                 }
                                 None => break,
                             }
                         }
-                        //log::debug!("points_send: {}", msg.points.len());
                         self.dac_write_count.fetch_add(count);
                         !points.is_empty()
                     } else {

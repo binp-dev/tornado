@@ -10,27 +10,28 @@ pub use emul::*;
 
 use crate::Error;
 use alloc::boxed::Box;
-use common::config::ADC_COUNT;
+use common::{
+    config::ADC_COUNT,
+    units::{AdcPoint, DacPoint},
+};
 use core::{sync::atomic::AtomicU8, time::Duration};
 use ustd::interrupt::InterruptContext;
 
 pub const DIN_SIZE: usize = 8;
 pub const DOUT_SIZE: usize = 4;
 
-pub type Ain = i32;
-pub type Aout = u16;
 pub type Din = u8;
 pub type Dout = u8;
 
 #[repr(C)]
 #[derive(Clone, Debug, Default)]
 pub struct XferIn {
-    pub adcs: [Ain; ADC_COUNT],
+    pub adcs: [AdcPoint; ADC_COUNT],
 }
 #[repr(C)]
 #[derive(Clone, Debug, Default)]
 pub struct XferOut {
-    pub dac: Aout,
+    pub dac: DacPoint,
 }
 
 pub type AtomicDin = AtomicU8;

@@ -1,5 +1,8 @@
 use async_std::task::{sleep as async_sleep, spawn};
-use common::config::{self, ADC_COUNT};
+use common::{
+    config::ADC_COUNT,
+    units::{AdcPoint, DacPoint, Unit},
+};
 use futures::{
     channel::mpsc::{channel, Receiver, Sender},
     executor::block_on,
@@ -8,7 +11,7 @@ use futures::{
 };
 use mcu::{
     error::{Error, ErrorKind, ErrorSource},
-    skifio::{self, Ain, Aout, AtomicDin, Din, DinHandler, Dout, SkifioIface, SKIFIO},
+    skifio::{self, AtomicDin, Din, DinHandler, Dout, SkifioIface, SKIFIO},
 };
 use std::{
     future::Future,
@@ -20,25 +23,23 @@ use std::{
 };
 use ustd::interrupt::InterruptContext;
 
-type Ains = [Ain; ADC_COUNT];
-
 const ADC_CHAN_CAP: usize = 256;
 const DAC_CHAN_CAP: usize = 256;
 const DIN_CHAN_CAP: usize = 16;
 const DOUT_CHAN_CAP: usize = 16;
 
 pub struct SkifioHandle {
-    pub dac: Receiver<Aout>,
-    pub adcs: Sender<Ains>,
+    pub dac: Receiver<DacPoint>,
+    pub adcs: Sender<[AdcPoint; ADC_COUNT]>,
     pub dout: Receiver<Dout>,
     pub din: Sender<Din>,
 }
 
 struct Skifio {
-    dac: Sender<Aout>,
+    dac: Sender<DacPoint>,
     dac_enabled: bool,
-    adcs: Receiver<Ains>,
-    last_adcs: Option<Ains>,
+    adcs: Receiver<[AdcPoint; ADC_COUNT]>,
+    last_adcs: Option<[AdcPoint; ADC_COUNT]>,
 
     dout: Sender<Dout>,
     last_din: Arc<AtomicDin>,
@@ -159,7 +160,7 @@ impl SkifioIface for Skifio {
         let dac = if self.dac_enabled {
             out.dac
         } else {
-            config::DAC_RAW_OFFSET as Aout
+            DacPoint::ZERO
         };
         let adcs = self.last_adcs.take().unwrap();
         self.count += 1;
