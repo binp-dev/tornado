@@ -43,4 +43,4 @@ class AppRustc(RustcCross):
 class McuRustc(RustcCross):
 
     def __init__(self, gcc: GccCross):
-        super().__init__(gcc.name, Target.from_str("thumbv7em-none-eabihf"), gcc, toolchain="beta")
+        super().__init__(gcc.name, Target.from_str("thumbv7em-none-eabihf"), gcc)
