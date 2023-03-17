@@ -35,9 +35,8 @@ fn scale<T: Voltage>(x: f64) -> f64 {
 
 async fn test_dac(mut epics: epics::Dac, mut device: Receiver<DacPoint>) {
     let len = epics.array.element_count().unwrap();
-    let data = (0..ATTEMPTS).into_iter().map(move |j| {
+    let data = (0..ATTEMPTS).map(move |j| {
         (0..len)
-            .into_iter()
             .map(move |i| i as f64 / (len - 1) as f64)
             .map(move |x| scale::<DacPoint>((2.0 * PI * (j + 1) as f64 * x).sin()))
     });
@@ -95,7 +94,6 @@ async fn test_adc(mut epics: [epics::Adc; ADC_COUNT], mut device: Sender<[AdcPoi
         .unwrap();
     let total_len = len * ATTEMPTS;
     let mut data = (0..total_len)
-        .into_iter()
         .map(move |i| i as f64 / (total_len - 1) as f64)
         .map(move |x| {
             {

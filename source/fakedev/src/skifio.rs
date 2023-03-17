@@ -21,7 +21,7 @@ use std::{
     thread::{park, sleep},
     time::Duration,
 };
-use ustd::interrupt::InterruptContext;
+use ustd::task::InterruptContext;
 
 const ADC_CHAN_CAP: usize = 256;
 const DAC_CHAN_CAP: usize = 256;

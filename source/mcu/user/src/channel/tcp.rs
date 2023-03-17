@@ -11,11 +11,11 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 use timeout_readwrite::{TimeoutReader, TimeoutWriter};
-use ustd::task::Task;
+use ustd::task::TaskContext;
 
 pub struct Channel(TcpStream);
 impl Channel {
-    pub fn new(_task: &Task) -> Result<Self, Error> {
+    pub fn new(_cx: &TaskContext) -> Result<Self, Error> {
         let lis = TcpListener::bind(config::CHANNEL_ADDR)?;
         let stream = lis.incoming().next().unwrap()?;
         Ok(Self(stream))

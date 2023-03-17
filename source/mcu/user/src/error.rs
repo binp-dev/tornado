@@ -4,10 +4,10 @@ extern crate std;
 #[cfg(feature = "real")]
 use crate::hal;
 use derive_more::From;
-#[cfg(feature = "real")]
-use freertos::FreeRtosError;
 #[cfg(feature = "fake")]
 use std::io;
+#[cfg(feature = "real")]
+use ustd::freertos::FreeRtosError;
 
 #[derive(Debug)]
 pub enum ErrorKind {

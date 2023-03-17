@@ -13,7 +13,7 @@ lto = true
 
 [features]
 default = ["real"]
-real = ["freertos", "ustd/backend-freertos", "lazy_static/spin_no_std"]
+real = ["ustd/backend-freertos", "lazy_static/spin_no_std"]
 fake = [
     "ustd/backend-std",
     "flatty-io",
@@ -38,13 +38,6 @@ atomic-traits = { path = "../../atomic-traits" }
 version = "0.99.17"
 default-features = false
 features = ["from", "deref", "deref_mut"]
-
-[dependencies.freertos]
-package = "freertos-rust"
-path = "../freertos/freertos-rust"
-default-features = false
-features = ["sync", "time", "interrupt"]
-optional = true
 
 [dependencies.ustd]
 path = "../ustd"

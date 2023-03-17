@@ -8,8 +8,8 @@ use core::{
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
-use freertos::InterruptContext;
 use lazy_static::lazy_static;
+use ustd::task::InterruptContext;
 
 use crate::skifio::{Din, DinHandler, Dout, SkifioIface, XferIn, XferOut};
 

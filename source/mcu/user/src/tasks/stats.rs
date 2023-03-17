@@ -17,7 +17,7 @@ use core::{
 use indenter::indented;
 use lazy_static::lazy_static;
 use portable_atomic::{AtomicI64, AtomicU64};
-use ustd::task;
+use ustd::task::{self, BlockingContext};
 
 lazy_static! {
     pub static ref STATISTICS: Arc<Statistics> = Arc::new(Statistics::new());
@@ -281,12 +281,15 @@ impl<T: Unit> Display for ValueStats<T> {
 
 impl Statistics {
     pub fn run_printer(self: Arc<Self>, period: Duration) {
-        task::spawn(task::Priority(1), move || loop {
-            task::sleep(period);
-            println!();
-            println!("[Statistics]");
-            println!("{}", self);
-        })
-        .unwrap();
+        task::Builder::new()
+            .name("stats")
+            .priority(1)
+            .spawn(move |cx| loop {
+                cx.sleep(Some(period));
+                println!();
+                println!("[Statistics]");
+                println!("{}", self);
+            })
+            .unwrap();
     }
 }

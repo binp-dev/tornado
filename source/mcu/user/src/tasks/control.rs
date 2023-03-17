@@ -16,7 +16,10 @@ use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     time::Duration,
 };
-use ustd::{sync::Semaphore, task};
+use ustd::{
+    sync::Semaphore,
+    task::{self, BlockingContext, Context, Priority, TaskContext},
+};
 use ux::u4;
 
 pub type Din = u8;
@@ -79,17 +82,11 @@ impl ControlHandle {
         self.adc_notify_every.store(adc_notify_every, Ordering::Release);
     }
 
-    pub fn notify(&self) {
-        self.ready_sem.try_give();
+    pub fn notify(&self, cx: &mut impl Context) {
+        self.ready_sem.try_give(cx);
     }
-    pub fn wait_ready(&self, timeout: Option<Duration>) -> bool {
-        match timeout {
-            Some(to) => self.ready_sem.take_timeout(to),
-            None => {
-                self.ready_sem.take();
-                true
-            }
-        }
+    pub fn wait_ready(&self, cx: &mut impl BlockingContext, timeout: Option<Duration>) -> bool {
+        self.ready_sem.take(cx, timeout)
     }
 
     pub fn set_dac_mode(&self, enabled: bool) {
@@ -144,14 +141,14 @@ impl Control {
 
     fn make_din_handler(&self) -> Box<dyn DinHandler> {
         let handle = self.handle.clone();
-        Box::new(move |context, din| {
+        Box::new(move |cx, din| {
             if handle.update_din(din) {
-                handle.ready_sem.try_give_from_intr(context);
+                handle.ready_sem.try_give(cx);
             }
         })
     }
 
-    fn task_main(mut self) -> ! {
+    fn task_main(mut self, cx: &mut TaskContext) -> ! {
         let handle = self.handle.clone();
         let stats = self.stats.clone();
 
@@ -242,14 +239,18 @@ impl Control {
 
             if ready {
                 // Notify
-                handle.ready_sem.try_give();
+                handle.ready_sem.try_give(cx);
             }
 
             stats.report_sample();
         }
     }
 
-    pub fn run(self, priority: usize) {
-        task::spawn(task::Priority(priority), move || self.task_main()).unwrap();
+    pub fn run(self, priority: Priority) {
+        task::Builder::new()
+            .name("control")
+            .priority(priority)
+            .spawn(move |cx| self.task_main(cx))
+            .unwrap();
     }
 }

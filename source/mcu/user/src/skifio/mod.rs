@@ -15,7 +15,7 @@ use common::{
     units::{AdcPoint, DacPoint},
 };
 use core::{sync::atomic::AtomicU8, time::Duration};
-use ustd::interrupt::InterruptContext;
+use ustd::task::InterruptContext;
 
 pub const DIN_SIZE: usize = 8;
 pub const DOUT_SIZE: usize = 4;

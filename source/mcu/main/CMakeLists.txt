@@ -130,7 +130,7 @@ target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC ${HAL_TARGET})
 # Link user lib
 target_link_directories(${MCUX_SDK_PROJECT_NAME} PUBLIC "${USER}")
 target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC "user")
-add_library("freertos_rust_shim" OBJECT EXCLUDE_FROM_ALL "../freertos/freertos-rust/src/freertos/shim.c")
+add_library("freertos_rust_shim" OBJECT EXCLUDE_FROM_ALL "../ustd/freertos-rust/freertos-rust/src/freertos/shim.c")
 target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC "freertos_rust_shim")
 
 # Workaround to pass include directories to subprojects

@@ -16,9 +16,11 @@ use core::{
     ptr, slice,
     time::Duration,
 };
-use freertos::{Duration as FreeRtosDuration, Mutex};
 use lazy_static::lazy_static;
-use ustd::task::Task;
+use ustd::{
+    freertos::{Duration as FreeRtosDuration, Mutex},
+    task::TaskContext,
+};
 
 lazy_static! {
     static ref RPMSG: Mutex<GlobalRpmsg> = Mutex::new(GlobalRpmsg::new()).unwrap();
@@ -31,7 +33,7 @@ impl GlobalRpmsg {
     fn new() -> Self {
         Self { uses: 0 }
     }
-    fn acquire(&mut self, _task: &Task) {
+    fn acquire(&mut self, _cx: &mut TaskContext) {
         if self.uses == 0 {
             unsafe { raw::hal_rpmsg_init() };
             println!("RPMsg subsystem initialized");
@@ -61,8 +63,8 @@ pub struct ReadChannel(Arc<Channel>);
 pub struct WriteChannel(Arc<Channel>);
 
 impl Channel {
-    pub fn new(task: &Task) -> Result<Self, Error> {
-        RPMSG.lock(FreeRtosDuration::infinite()).unwrap().acquire(task);
+    pub fn new(cx: &mut TaskContext) -> Result<Self, Error> {
+        RPMSG.lock(FreeRtosDuration::infinite()).unwrap().acquire(cx);
 
         let raw = unsafe { HalRpmsgChannel::alloc() }.ok_or(Error {
             kind: ErrorKind::BadAlloc,

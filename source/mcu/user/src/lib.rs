@@ -14,11 +14,11 @@ pub mod tasks;
 extern crate alloc;
 
 use core::time::Duration;
-use ustd::prelude::*;
+use ustd::{println, task::Priority};
 
-const CONTROL_TASK_PRIORITY: usize = 4;
-const RPMSG_WRITE_TASK_PRIORITY: usize = 3;
-const RPMSG_READ_TASK_PRIORITY: usize = 2;
+const CONTROL_TASK_PRIORITY: Priority = 4 as Priority;
+const RPMSG_WRITE_TASK_PRIORITY: Priority = 3 as Priority;
+const RPMSG_READ_TASK_PRIORITY: Priority = 2 as Priority;
 
 #[no_mangle]
 pub extern "C" fn user_main() {
@@ -35,10 +35,8 @@ pub extern "C" fn user_main() {
     let (control, handle) = tasks::Control::new(dac_consumer, adc_producer, stats.clone());
     let rpmsg = tasks::Rpmsg::new(handle, dac_producer, adc_consumer, dac_buffer, stats.clone());
 
-    println!("Running tasks...");
+    println!("Starting tasks ...");
     control.run(CONTROL_TASK_PRIORITY);
     rpmsg.run(RPMSG_READ_TASK_PRIORITY, RPMSG_WRITE_TASK_PRIORITY);
     stats.run_printer(Duration::from_secs(10));
-
-    println!("Done");
 }

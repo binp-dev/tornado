@@ -16,7 +16,10 @@ use core::{
 };
 use flatty::{flat_vec, portable::le};
 use ringbuf::ring_buffer::RbBase;
-use ustd::{prelude::*, task};
+use ustd::{
+    println,
+    task::{self, BlockingContext, Context, Priority, TaskContext},
+};
 
 pub struct Rpmsg {
     control: Arc<ControlHandle>,
@@ -92,14 +95,25 @@ impl Rpmsg {
         )
     }
 
-    pub fn run(self, read_priority: usize, write_priority: usize) {
-        task::spawn(task::Priority(read_priority.max(write_priority)), move || {
-            let channel = Channel::new(&task::current().unwrap()).unwrap();
-            let (reader, writer) = self.split(channel);
-            task::spawn(task::Priority(read_priority), move || reader.task_main()).unwrap();
-            task::spawn(task::Priority(write_priority), move || writer.task_main()).unwrap();
-        })
-        .unwrap();
+    pub fn run(self, read_priority: Priority, write_priority: Priority) {
+        task::Builder::new()
+            .name("rpmsg_init")
+            .priority(read_priority.max(write_priority))
+            .spawn(move |cx| {
+                let channel = Channel::new(cx).unwrap();
+                let (reader, writer) = self.split(channel);
+                task::Builder::new()
+                    .name("rpmsg")
+                    .priority(read_priority)
+                    .spawn(move |cx| reader.task_main(cx))
+                    .unwrap();
+                task::Builder::new()
+                    .name("rpmsg")
+                    .priority(write_priority)
+                    .spawn(move |cx| writer.task_main(cx))
+                    .unwrap();
+            })
+            .unwrap();
     }
 }
 
@@ -110,7 +124,7 @@ impl RpmsgCommon {
 }
 
 impl RpmsgReader {
-    fn task_main(mut self) -> ! {
+    fn task_main(mut self, cx: &mut TaskContext) -> ! {
         let mut channel = self.channel.take().unwrap();
         loop {
             let message = match channel.read_message().map_err(Error::from) {
@@ -131,7 +145,7 @@ impl RpmsgReader {
             use proto::AppMsgRef;
             match message.as_ref() {
                 AppMsgRef::Connect => {
-                    self.connect();
+                    self.connect(cx);
                     continue;
                 }
                 _ => {
@@ -157,11 +171,11 @@ impl RpmsgReader {
         }
     }
 
-    fn connect(&mut self) {
+    fn connect(&mut self, cx: &mut impl Context) {
         self.common.dac_requested.store(0, Ordering::Release);
         self.control.set_dac_mode(true);
         self.common.alive.store(true, Ordering::Release);
-        self.control.notify();
+        self.control.notify(cx);
         println!("IOC connected");
     }
 
@@ -220,24 +234,24 @@ macro_rules! try_timeout {
 }
 
 impl RpmsgWriter {
-    fn task_main(mut self) {
+    fn task_main(mut self, cx: &mut TaskContext) {
         loop {
-            if !self.control.wait_ready(Some(Duration::from_secs(10))) {
+            if !self.control.wait_ready(cx, Some(Duration::from_secs(10))) {
                 println!("RPMSG send task timed out");
                 continue;
             }
 
             if self.common.is_alive() {
-                self.send_din();
-                self.send_adcs();
-                self.send_dac_request();
+                self.send_din(cx);
+                self.send_adcs(cx);
+                self.send_dac_request(cx);
             } else {
                 self.discard_adcs();
             }
         }
     }
 
-    fn send_din(&mut self) {
+    fn send_din(&mut self, _cx: &mut impl BlockingContext) {
         if let Some(din) = self.control.take_din() {
             try_timeout!(self.channel.new_message(), ())
                 .unwrap()
@@ -248,7 +262,7 @@ impl RpmsgWriter {
         }
     }
 
-    fn send_adcs(&mut self) -> usize {
+    fn send_adcs(&mut self, _cx: &mut impl BlockingContext) -> usize {
         let mut total = 0;
         const LEN: usize = proto::ADC_MSG_MAX_POINTS;
 
@@ -273,7 +287,7 @@ impl RpmsgWriter {
         total
     }
 
-    fn send_dac_request(&mut self) {
+    fn send_dac_request(&mut self, _cx: &mut impl BlockingContext) {
         const SIZE: usize = proto::DAC_MSG_MAX_POINTS;
         let vacant = self.common.dac_observer.vacant_len();
         let requested = self.common.dac_requested.load(Ordering::Acquire);
