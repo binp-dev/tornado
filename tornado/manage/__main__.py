@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-import ferrite.manage.cli as cli
+import ferrite.cli as cli
 
 from tornado.components.tree import make_components
 

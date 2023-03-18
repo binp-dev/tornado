@@ -1,0 +1,9 @@
+[Unit]
+Description=IOC
+
+[Service]
+ExecStart=/usr/bin/sh /opt/run_ioc.sh
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
