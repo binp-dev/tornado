@@ -7,34 +7,21 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-ferrite = { path = "ferrite", develop = true }
-pydantic = "^1.9.0"
-numpy = "^1.22.3"
+magnetite = { path = "magnetite", develop = true }
 
 [tool.poetry.dev-dependencies]
-ferrite = { path = "ferrite", develop = true }
 toml = "^0.10.2"
-yapf = "^0.32.0"
 mypy = "^0.942"
+black = "^23.1.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.yapf]
-based_on_style = "yapf"
-column_limit = 128
-indent_width = 4
-continuation_indent_width = 4
-spaces_before_comment = 1
-continuation_align_style = "space"
-dedent_closing_brackets = true
-coalesce_brackets = true
-allow_split_before_dict_value = false
-indent_dictionary_value = false
-each_dict_entry_on_separate_line = false
+[tool.black]
+line-width = 128
 
 [tool.mypy]
-mypy_path = "ferrite"
+mypy_path = "magnetite"
 strict = true
 namespace_packages = true
