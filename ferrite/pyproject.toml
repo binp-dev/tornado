@@ -1,0 +1,55 @@
+[tool.poetry]
+name = "ferrite"
+version = "0.0.0"
+description = "Power supply controller framework"
+authors = ["Alexey Gerasev <a.v.gerasyov@inp.nsk.su>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+example = { path = "example", develop = true, optional = true }
+toml = "^0.10.2"
+types-toml = "^0.10.4"
+pyepics = "^3.5.1"
+pyepics-asyncio = "^0.2.0"
+paramiko = "^2.9.2"
+types-paramiko = "^2.8.10"
+colorama = "^0.4.4"
+types-colorama = "^0.4.4"
+pydantic = "^1.9.0"
+numpy = "^1.23.2"
+
+[tool.poetry.dev-dependencies]
+example = { path = "example", develop = true }
+yapf = "^0.32.0"
+mypy = "^0.942"
+pytest = "^7.0.1"
+pytest-asyncio = "^0.18.2"
+
+[tool.poetry.extras]
+example = ["example"]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.yapf]
+based_on_style = "yapf"
+column_limit = 128
+indent_width = 4
+continuation_indent_width = 4
+spaces_before_comment = 1
+continuation_align_style = "space"
+dedent_closing_brackets = true
+coalesce_brackets = true
+allow_split_before_dict_value = false
+indent_dictionary_value = false
+each_dict_entry_on_separate_line = false
+
+[tool.mypy]
+strict = true
+namespace_packages = true
+
+[tool.pytest.ini_options]
+testpaths = ["ferrite/tests"]
+asyncio_mode = "auto"
