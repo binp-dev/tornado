@@ -1,0 +1,144 @@
+# ADC channels
+record(ai, "ai0")
+{
+    field(DTYP, "ferrite")
+    field(SCAN, ".1 second")
+    field(PREC, 6)
+}
+record(ai, "ai1")
+{
+    field(DTYP, "ferrite")
+    field(SCAN, ".1 second")
+    field(PREC, 6)
+}
+record(ai, "ai2")
+{
+    field(DTYP, "ferrite")
+    field(SCAN, ".1 second")
+    field(PREC, 6)
+}
+record(ai, "ai3")
+{
+    field(DTYP, "ferrite")
+    field(SCAN, ".1 second")
+    field(PREC, 6)
+}
+record(ai, "ai4")
+{
+    field(DTYP, "ferrite")
+    field(SCAN, ".1 second")
+    field(PREC, 6)
+}
+record(ai, "ai5")
+{
+    field(DTYP, "ferrite")
+    field(SCAN, ".1 second")
+    field(PREC, 6)
+}
+
+# DAC scalar channel
+record(ao, "ao0")
+{
+    field(DTYP, "ferrite")
+    field(PREC, 6)
+}
+
+# Discrete input
+record(mbbiDirect, "di0") {
+	field(DTYP, "ferrite")
+	field(NOBT, 8)
+	field(SCAN, "I/O Intr")
+}
+
+# Discrete output
+record(mbboDirect, "do0") {
+	field(DTYP, "ferrite")
+	field(NOBT, 4)
+}
+
+# DAC waveform channel
+record(aao, "aao0") {
+    field(DTYP, "ferrite")
+    field(NELM, 10000)
+    field(FTVL, "DOUBLE")
+}
+
+# DAC next waveform request
+record(bi, "aao0_request")
+{
+    field(DTYP, "ferrite")
+    field(SCAN, "I/O Intr")
+
+    field(PINI, "YES")
+}
+
+# DAC operation state
+# 0 - stopped
+# 1 - running
+record(bo, "aao0_state")
+{
+    field(DTYP, "ferrite")
+
+    field(RVAL, 1)
+    field(PINI, "YES")
+}
+
+# DAC playback mode
+# 0 - one-shot
+# 1 - cyclic
+record(bo, "aao0_mode")
+{
+    field(DTYP, "ferrite")
+
+    field(RVAL, 0)
+    field(PINI, "YES")
+}
+
+# ADC waveform channels
+record(aai, "aai0") {
+    field(DTYP, "ferrite")
+    field(NELM, 10000)
+    field(FTVL, "DOUBLE")
+    field(SCAN, "I/O Intr")
+}
+
+record(aai, "aai1") {
+    field(DTYP, "ferrite")
+    field(NELM, 10000)
+    field(FTVL, "DOUBLE")
+    field(SCAN, "I/O Intr")
+}
+
+record(aai, "aai2") {
+    field(DTYP, "ferrite")
+    field(NELM, 10000)
+    field(FTVL, "DOUBLE")
+    field(SCAN, "I/O Intr")
+}
+
+record(aai, "aai3") {
+    field(DTYP, "ferrite")
+    field(NELM, 10000)
+    field(FTVL, "DOUBLE")
+    field(SCAN, "I/O Intr")
+}
+
+record(aai, "aai4") {
+    field(DTYP, "ferrite")
+    field(NELM, 10000)
+    field(FTVL, "DOUBLE")
+    field(SCAN, "I/O Intr")
+}
+
+record(aai, "aai5") {
+    field(DTYP, "ferrite")
+    field(NELM, 10000)
+    field(FTVL, "DOUBLE")
+    field(SCAN, "I/O Intr")
+}
+
+# Write 1 to this record to reset MCU statistics
+record(bo, "stats_reset")
+{
+    field(DTYP, "ferrite")
+}

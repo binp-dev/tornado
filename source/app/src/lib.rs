@@ -1,16 +1,14 @@
 mod channel;
-mod config;
 mod device;
 mod epics;
-mod proto;
 
-use async_std::{net::TcpStream, sync::Arc};
 use ferrite::{entry_point, Context};
 use futures::{
     executor::{block_on, ThreadPool},
     future::pending,
 };
 use macro_rules_attribute::apply;
+use std::sync::Arc;
 
 use device::Device;
 use epics::Epics;
@@ -20,7 +18,7 @@ pub use ferrite::export;
 
 #[apply(entry_point)]
 fn app_main(mut ctx: Context) {
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let exec = Arc::new(ThreadPool::builder().pool_size(2).create().unwrap());
     exec.spawn_ok(run(exec.clone(), ctx));
     // TODO: Wait for exec to complete all tasks.
@@ -31,7 +29,10 @@ async fn run(exec: Arc<ThreadPool>, ctx: Context) {
     log::info!("Start IOC");
 
     log::info!("Establish channel");
-    let channel = TcpStream::connect("127.0.0.1:4884").await.unwrap();
+    #[cfg(feature = "tcp")]
+    let channel = channel::TcpStream::connect("127.0.0.1:4884").await.unwrap();
+    #[cfg(feature = "rpmsg")]
+    let channel = channel::Rpmsg::open("/dev/ttyRPMSG0").await.unwrap();
 
     log::info!("Get EPICS PVs");
     let epics = Epics::new(ctx).unwrap();

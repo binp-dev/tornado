@@ -7,15 +7,12 @@ from dataclasses import dataclass
 from ferrite.components.base import Component, Task, OwnedTask, Context
 
 from tornado.components.ioc import AppIocHost
-from tornado.components.ioc import AppIocHost
-from tornado.components.ipp import Ipp
 from tornado.info import path as self_path
 
 
 @dataclass
 class Fakedev(Component):
     ioc: AppIocHost
-    ipp: Ipp
 
     def __post_init__(self) -> None:
         from tornado.fakedev import dummy, test
@@ -40,5 +37,4 @@ class _RunTask(OwnedTask[Fakedev]):
         return [
             self.owner.ioc.epics_base.install_task,
             self.owner.ioc.install_task,
-            self.owner.ipp.generate_task,
         ]

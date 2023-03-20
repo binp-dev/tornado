@@ -1,28 +1,28 @@
-use crate::{
-    channel::Channel,
-    config::{Point, PointPortable},
-    epics,
-    proto::{self, AppMsg, AppMsgMut},
+use crate::{channel::Channel, epics};
+use common::{
+    config::{Point, PointPortable, DAC_RAW_OFFSET, DAC_STEP},
+    protocol::{self as proto, AppMsg, AppMsgMut},
 };
-use async_std::sync::Arc;
 use ferrite::{
-    channel::MsgWriter,
     misc::{
         double_vec::{self, DoubleVec},
         AsyncCounter,
     },
-    variable::{atomic::AtomicVariableU32, ReadArrayVariable, ReadVariable},
+    variable::{atomic::AtomicVariableU16, ArrayVariable, Variable},
+    VarSync,
 };
 use flatty::{flat_vec, portable::NativeCast};
-use futures::{executor::ThreadPool, join};
+use flatty_io::AsyncWriter as MsgWriter;
+use futures::{executor::ThreadPool, join, select, FutureExt};
 use std::future::Future;
+use std::sync::Arc;
 
-pub struct Dac {
-    pub channel: MsgWriter<AppMsg, Channel>,
+pub struct Dac<C: Channel> {
+    pub channel: MsgWriter<AppMsg, C::Write>,
     pub epics: epics::Dac,
 }
 
-impl Dac {
+impl<C: Channel> Dac<C> {
     pub fn run(self, exec: Arc<ThreadPool>) -> (impl Future<Output = ()>, DacHandle) {
         let buffer = DoubleVec::<Point>::new(self.epics.array.max_len());
         let (read_buffer, write_buffer) = buffer.split();
@@ -32,7 +32,7 @@ impl Dac {
             points_to_send: point_counter.clone(),
         };
 
-        let request = AtomicVariableU32::new(self.epics.request, &exec).unwrap();
+        let request = AtomicVariableU16::new(self.epics.request, &exec).unwrap();
 
         let array_reader = ArrayReader {
             input: self.epics.array,
@@ -44,8 +44,13 @@ impl Dac {
             output: write_buffer,
             request: request.clone(),
         };
+        let state_reader = StateReader::<C> {
+            state: self.epics.state,
+            mode: self.epics.mode,
+            channel: self.channel.clone(),
+        };
 
-        let msg_sender = MsgSender {
+        let msg_sender = PointSender::<C> {
             channel: self.channel,
             stream: BufferReadStream::new(read_buffer, request),
             points_to_send: point_counter,
@@ -55,6 +60,7 @@ impl Dac {
             async move {
                 exec.spawn_ok(array_reader.run());
                 exec.spawn_ok(scalar_reader.run());
+                exec.spawn_ok(state_reader.run());
                 exec.spawn_ok(msg_sender.run());
             },
             handle,
@@ -73,37 +79,41 @@ impl DacHandle {
 }
 
 struct ArrayReader {
-    input: ReadArrayVariable<f64>,
+    input: ArrayVariable<f64>,
     output: Arc<double_vec::Writer<i32>>,
-    request: Arc<AtomicVariableU32>,
+    request: Arc<AtomicVariableU16>,
 }
 
 impl ArrayReader {
     async fn run(mut self) {
         loop {
-            let input = self.input.read_in_place().await;
+            let input = self.input.acquire().await;
             self.request.write(0);
             {
                 let mut output = self.output.write().await;
                 output.clear();
-                output.extend(input.iter().map(|x| *x as i32));
+                output.extend(
+                    input
+                        .iter()
+                        .map(|x| (*x / DAC_STEP) as Point + DAC_RAW_OFFSET),
+                );
                 log::debug!("array_read: len={}", input.len());
             }
-            input.close().await;
+            input.accept().await;
         }
     }
 }
 
 struct ScalarReader {
-    input: ReadVariable<i32>,
+    input: Variable<f64>,
     output: Arc<double_vec::Writer<i32>>,
-    request: Arc<AtomicVariableU32>,
+    request: Arc<AtomicVariableU16>,
 }
 
 impl ScalarReader {
     async fn run(mut self) {
         loop {
-            let value = self.input.read().await;
+            let value = self.input.acquire().await.read().await;
             self.request.write(0);
             {
                 let mut output = self.output.write().await;
@@ -114,13 +124,46 @@ impl ScalarReader {
     }
 }
 
-struct MsgSender {
-    channel: MsgWriter<AppMsg, Channel>,
+struct StateReader<C: Channel> {
+    state: Variable<u16>,
+    mode: Variable<u16>,
+    channel: MsgWriter<AppMsg, C::Write>,
+}
+
+impl<C: Channel> StateReader<C> {
+    async fn send_state(&mut self, state: bool) {
+        self.channel
+            .new_message()
+            .emplace(proto::AppMsgInitDacState {
+                enable: state as u8,
+            })
+            .unwrap()
+            .write()
+            .await
+            .unwrap();
+    }
+
+    async fn run(mut self) {
+        loop {
+            select! {
+                state = async { self.state.acquire().await.read().await }.fuse() => {
+                    self.send_state(state != 0).await;
+                },
+                _mode = async { self.mode.acquire().await.read().await }.fuse() => {
+                    unimplemented!()
+                },
+            }
+        }
+    }
+}
+
+struct PointSender<C: Channel> {
+    channel: MsgWriter<AppMsg, C::Write>,
     stream: BufferReadStream<i32>,
     points_to_send: Arc<AsyncCounter>,
 }
 
-impl MsgSender {
+impl<C: Channel> PointSender<C> {
     async fn run(mut self) {
         self.stream.request.write(1);
         loop {
@@ -132,16 +175,18 @@ impl MsgSender {
 
             let mut msg = self
                 .channel
-                .new_msg()
-                .emplace(proto::AppMsgInitDacData(proto::AppMsgDacDataInit { points: flat_vec![] }))
+                .new_message()
+                .emplace(proto::AppMsgInitDacData {
+                    points: flat_vec![],
+                })
                 .unwrap();
-            let will_send = if let AppMsgMut::DacData(msg) = msg.as_mut() {
+            let will_send = if let AppMsgMut::DacData { points } = msg.as_mut() {
                 let mut count = self.points_to_send.sub(None);
                 //log::debug!("points_to_send: {}", count);
-                while count > 0 && !msg.points.is_full() {
+                while count > 0 && !points.is_full() {
                     match self.stream.next().await {
                         Some(value) => {
-                            msg.points.push(PointPortable::from_native(value)).unwrap();
+                            points.push([PointPortable::from_native(value)]).unwrap();
                             count -= 1;
                         }
                         None => break,
@@ -149,7 +194,7 @@ impl MsgSender {
                 }
                 //log::debug!("points_send: {}", msg.points.len());
                 self.points_to_send.add(count);
-                !msg.points.is_empty()
+                !points.is_empty()
             } else {
                 unreachable!();
             };
@@ -164,10 +209,10 @@ struct BufferReadStream<T: Clone> {
     buffer: double_vec::Reader<T>,
     pos: usize,
     cyclic: bool,
-    request: Arc<AtomicVariableU32>,
+    request: Arc<AtomicVariableU16>,
 }
 impl<T: Clone> BufferReadStream<T> {
-    pub fn new(buffer: double_vec::Reader<T>, request: Arc<AtomicVariableU32>) -> Self {
+    pub fn new(buffer: double_vec::Reader<T>, request: Arc<AtomicVariableU16>) -> Self {
         BufferReadStream {
             buffer,
             pos: 0,
