@@ -3,72 +3,43 @@ from typing import Any, Dict, List
 
 from pathlib import Path
 
-from ferrite.components.app import AppBase, AppBaseHost, AppBaseCross
-from ferrite.components.toolchain import Toolchain, HostToolchain, CrossToolchain
+from ferrite.utils.path import TargetPath
+from ferrite.components.base import Context
+from ferrite.components.rust import Rustc, RustcHost, RustcCross
+from ferrite.components.app import AppBase
 
+from tornado.components.config import Config
 from tornado.components.ipp import Ipp
+from tornado.info import path as self_path
 
 
-class AppCommon(AppBase):
+class AbstractApp(AppBase):
 
     def __init__(
         self,
-        src_dir: Path,
-        ferrite_source_dir: Path,
-        build_dir: Path,
-        toolchain: Toolchain,
+        rustc: Rustc,
+        config: Config,
         ipp: Ipp,
-        **kwargs: Any,
-    ):
+        features: List[str],
+    ) -> None:
         super().__init__(
-            src_dir,
-            build_dir,
-            toolchain,
-            target="app",
-            opts=[
-                f"-DFERRITE={ferrite_source_dir}",
-                f"-DIPP={ipp.gen_dir}",
-            ],
-            deps=[ipp.generate_task],
-            **kwargs
+            self_path / "source/app",
+            TargetPath("tornado/app"),
+            rustc,
+            deps=[config.generate_task, ipp.generate_task],
+            features=features,
         )
+        self.config = config
         self.ipp = ipp
 
 
-class AppReal(AppCommon, AppBaseCross):
+class AppFake(AbstractApp):
 
-    def __init__(
-        self,
-        source_dir: Path,
-        ferrite_source_dir: Path,
-        target_dir: Path,
-        toolchain: CrossToolchain,
-        ipp: Ipp,
-    ):
-        super().__init__(
-            source_dir / "app" / "real",
-            ferrite_source_dir,
-            target_dir / f"app_{toolchain.name}",
-            toolchain,
-            ipp,
-            cmake_toolchain_path=(ferrite_source_dir / "app" / "cmake" / "toolchain.cmake"),
-        )
+    def __init__(self, rustc: RustcHost, config: Config, ipp: Ipp):
+        super().__init__(rustc, config, ipp, features=["tcp"])
 
 
-class AppFake(AppCommon, AppBaseHost):
+class AppReal(AbstractApp):
 
-    def __init__(
-        self,
-        source_dir: Path,
-        ferrite_source_dir: Path,
-        target_dir: Path,
-        toolchain: HostToolchain,
-        ipp: Ipp,
-    ):
-        super().__init__(
-            source_dir / "app" / "fake",
-            ferrite_source_dir,
-            target_dir / f"app_fakedev",
-            toolchain,
-            ipp,
-        )
+    def __init__(self, rustc: RustcCross, config: Config, ipp: Ipp):
+        super().__init__(rustc, config, ipp, features=["rpmsg"])

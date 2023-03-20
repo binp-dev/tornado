@@ -5,5 +5,9 @@ __pycache__
 .mypy_cache
 .pytest_cache
 
+/.cargo
+
 .vscode
 *.code-workspace
+
+perf.data

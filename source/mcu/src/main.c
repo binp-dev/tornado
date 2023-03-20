@@ -11,12 +11,14 @@
 #include <tasks/stats.h>
 #include <tasks/control.h>
 #include <tasks/rpmsg.h>
-#ifdef GENERATE_SYNC
 #include <tasks/sync.h>
-#endif
 
 
 // The stack of `main` is tiny, so we store our state as globals.
+#ifdef GENERATE_SYNC
+#define SYNC_PERIOD_US 100
+SyncGenerator sync;
+#endif
 Statistics stats;
 Control control;
 Rpmsg rpmsg;
@@ -46,6 +48,9 @@ int main(void) {
     hal_log_info("** Board started **");
 
     stats_reset(&stats);
+#ifdef GENERATE_SYNC
+    sync_generator_init(&sync, SYNC_PERIOD_US, &stats);
+#endif
     control_init(&control, &stats);
     rpmsg_init(&rpmsg, &control, &stats);
 
@@ -60,7 +65,7 @@ int main(void) {
 
 #ifdef GENERATE_SYNC
     hal_log_info("Start sync generator");
-    sync_generator_run(&stats);
+    sync_generator_run(&sync);
 #endif
 
     vTaskStartScheduler();

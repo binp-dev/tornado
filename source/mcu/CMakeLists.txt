@@ -1,6 +1,6 @@
 # CROSS COMPILER SETTING
 SET(CMAKE_SYSTEM_NAME Generic)
-CMAKE_MINIMUM_REQUIRED (VERSION 3.1.1)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.10.0)
 
 # THE VERSION NUMBER
 SET (Tutorial_VERSION_MAJOR 1)
@@ -24,8 +24,6 @@ SET(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 
 project(m7image)
 
-option(INTERNAL_SYNC "Whether sync signal should be generated internally" ON)
-
 set(MCUX_SDK_PROJECT_NAME m7image.elf)
 
 include(${ProjDirPath}/flags.cmake)
@@ -36,6 +34,7 @@ set(SRC
     "${ProjDirPath}/src/main.c"
     
     "${ProjDirPath}/src/device/FreeRTOSConfig.h"
+    "${ProjDirPath}/src/device/freertos_impl.c"
     "${ProjDirPath}/src/device/rpmsg_config.h"
     "${ProjDirPath}/src/device/rsc_table.c"
     "${ProjDirPath}/src/device/rsc_table.h"
@@ -45,10 +44,11 @@ set(SRC
     "${ProjDirPath}/src/device/clock_config.c"
     "${ProjDirPath}/src/device/clock_config.h"
 
-    "${ProjDirPath}/src/utils/ringbuf.c"
-    "${ProjDirPath}/src/utils/ringbuf.h"
+    "${ProjDirPath}/src/utils/macros.h"
     "${ProjDirPath}/src/utils/crc.c"
     "${ProjDirPath}/src/utils/crc.h"
+    "${ProjDirPath}/src/utils/ringbuf.h"
+    "${ProjDirPath}/src/utils/ringbuf.inl"
 
     "${ProjDirPath}/src/drivers/skifio.c"
     "${ProjDirPath}/src/drivers/skifio.h"
@@ -62,10 +62,6 @@ set(SRC
     "${ProjDirPath}/src/tasks/sync.c"
     "${ProjDirPath}/src/tasks/sync.h"
 )
-
-if(${INTERNAL_SYNC})
-add_definitions("-DGENERATE_SYNC")
-endif()
 
 add_executable(${MCUX_SDK_PROJECT_NAME} ${SRC})
 
@@ -83,7 +79,7 @@ set(CMAKE_MODULE_PATH
     $ENV{FREERTOS_DIR}/components/uart
     $ENV{FREERTOS_DIR}/components/serial_manager
     $ENV{FREERTOS_DIR}/components/lists
-    $ENV{FREERTOS_DIR}/CMSIS/Include
+    $ENV{FREERTOS_DIR}/CMSIS/Core/Include
 )
 
 # include modules
@@ -105,9 +101,7 @@ include(device_MIMX8MN6_startup_MIMX8MN6)
 include(utility_assert_MIMX8MN6)
 include(middleware_multicore_rpmsg_lite_MIMX8MN6)
 include(middleware_freertos-kernel_extension_MIMX8MN6)
-include(CMSIS_Include_core_cm7_MIMX8MN6)
-include(CMSIS_Include_common_MIMX8MN6)
-include(CMSIS_Include_dsp_MIMX8MN6)
+include(CMSIS_Include_core_cm_MIMX8MN6)
 include(utilities_misc_utilities_MIMX8MN6)
 include(device_MIMX8MN6_system_MIMX8MN6)
 include(driver_ecspi_MIMX8MN6)
@@ -135,6 +129,9 @@ endif()
 if(NOT DEFINED IPP)
     message(FATAL_ERROR "Variable 'IPP' is not defined")
 endif()
+
+# Generate sync internally
+#add_definitions("-DGENERATE_SYNC")
 
 # Link common code
 add_subdirectory("../common" "common" EXCLUDE_FROM_ALL)

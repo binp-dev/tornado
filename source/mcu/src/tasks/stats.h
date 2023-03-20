@@ -11,33 +11,31 @@
 
 typedef volatile struct {
     int64_t sum;
-    size_t count;
+    uint32_t count;
     point_t last;
     point_t min;
     point_t max;
 } ValueStats;
 
 typedef struct {
-    size_t lost_empty;
-    size_t lost_full;
-    size_t req_exceed;
+    uint32_t lost_empty;
+    uint32_t lost_full;
+    uint32_t req_exceed;
 } DacStats;
 
 typedef struct {
-    ValueStats value;
-    size_t lost_full;
+    ValueStats values[ADC_COUNT];
+    uint32_t lost_full;
 } AdcStats;
 
 typedef volatile struct {
-#ifdef GENERATE_SYNC
-    size_t clock_count;
-#endif
-    size_t sample_count;
-    size_t max_intrs_per_sample;
+    uint64_t clock_count;
+    uint64_t sample_count;
+    uint32_t max_intrs_per_sample;
 
-    size_t crc_error_count;
+    uint32_t crc_error_count;
     DacStats dac;
-    AdcStats adcs[ADC_COUNT];
+    AdcStats adc;
 } Statistics;
 
 void value_stats_reset(ValueStats *self);

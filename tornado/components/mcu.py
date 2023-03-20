@@ -1,36 +1,45 @@
 from __future__ import annotations
+from typing import List
 
 from pathlib import Path
 
-from ferrite.components.toolchain import CrossToolchain
+from ferrite.utils.path import TargetPath
+from ferrite.components.base import Context
+from ferrite.components.compiler import GccCross
 from ferrite.components.freertos import Freertos
 from ferrite.components.mcu import McuBase, McuDeployer
+from ferrite.info import path as ferrite_path
 
+from tornado.components.config import Config
 from tornado.components.ipp import Ipp
+from tornado.info import path as self_path
 
 
 class Mcu(McuBase):
 
     def __init__(
         self,
-        source_dir: Path,
-        ferrite_source_dir: Path,
-        target_dir: Path,
-        toolchain: CrossToolchain,
+        gcc: GccCross,
         freertos: Freertos,
         deployer: McuDeployer,
+        config: Config,
         ipp: Ipp,
     ):
         super().__init__(
-            "mcu",
-            source_dir / f"mcu",
-            target_dir,
-            toolchain,
+            self_path / "source/mcu",
+            TargetPath("tornado/mcu"),
+            gcc,
             freertos,
             deployer,
             target="m7image.elf",
-            opts=[f"-DFERRITE={ferrite_source_dir}", f"-DIPP={ipp.gen_dir}"],
-            deps=[ipp.generate_task],
+            deps=[config.generate_task, ipp.generate_task],
         )
-        self.ferrite_source_dir = ferrite_source_dir
+        self.config = config
         self.ipp = ipp
+
+    def opt(self, ctx: Context) -> List[str]:
+        return [
+            *super().opt(ctx),
+            f"-DFERRITE={str(ferrite_path / 'source')}",
+            f"-DIPP={ctx.target_path / self.ipp.output_dir}",
+        ]

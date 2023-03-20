@@ -59,3 +59,20 @@ To get more information about `manage` scripts run:
 ```bash
 poetry run python -m tornado.manage --help
 ```
+
+## Hints
+
+### VSCode config
+
+To properly configure rust-analyzer add the following items to VSCode settings:
+
+```json
+"rust-analyzer.linkedProjects": [
+    "source/app/Cargo.toml",
+    "ferrite/source/app/Cargo.toml",
+    "ferrite/example/source/app/Cargo.toml",
+],
+"rust-analyzer.server.extraEnv": {
+    "TARGET_DIR": "${workspaceFolder}/target"
+},
+```

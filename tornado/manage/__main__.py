@@ -1,19 +1,13 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 import ferrite.manage.cli as cli
 
-from tornado.manage.tree import make_components
+from tornado.components.tree import make_components
 
 if __name__ == "__main__":
-    base_dir = Path.cwd()
-    ferrite_dir = base_dir / "ferrite"
-    target_dir = base_dir / "target"
-    target_dir.mkdir(exist_ok=True)
-
-    components = make_components(base_dir, ferrite_dir, target_dir)
+    components = make_components()
 
     parser = argparse.ArgumentParser(
         description="Tornado power supply controller development automation tool",

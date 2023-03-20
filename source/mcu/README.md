@@ -20,10 +20,10 @@
   env set m7_addr 0x7e0000
   ```
 
-+ Set executable file name to `/boot/rpmsg_echo.bin`
++ Set executable file name to `/boot/m7image.bin`
 
   ```uboot
-  env set m7_bin rpmsg_echo.bin
+  env set m7_bin m7image.bin
   ```
 
 + Save configuration

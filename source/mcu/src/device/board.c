@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 NXP
+ * Copyright 2018-2021 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -20,19 +20,23 @@
  * Code
  ******************************************************************************/
 /* Initialize debug console. */
-void BOARD_InitDebugConsole(void) {
+void BOARD_InitDebugConsole(void)
+{
     uint32_t uartClkSrcFreq = BOARD_DEBUG_UART_CLK_FREQ;
     CLOCK_EnableClock(kCLOCK_Uart3);
     DbgConsole_Init(BOARD_DEBUG_UART_INSTANCE, BOARD_DEBUG_UART_BAUDRATE, BOARD_DEBUG_UART_TYPE, uartClkSrcFreq);
 }
 
 /* Initialize MPU, configure memory attributes for each region */
-void BOARD_InitMemory(void) {
+void BOARD_InitMemory(void)
+{
     /* Disable I cache and D cache */
-    if (SCB_CCR_IC_Msk == (SCB_CCR_IC_Msk & SCB->CCR)) {
+    if (SCB_CCR_IC_Msk == (SCB_CCR_IC_Msk & SCB->CCR))
+    {
         SCB_DisableICache();
     }
-    if (SCB_CCR_DC_Msk == (SCB_CCR_DC_Msk & SCB->CCR)) {
+    if (SCB_CCR_DC_Msk == (SCB_CCR_DC_Msk & SCB->CCR))
+    {
         SCB_DisableDCache();
     }
 
@@ -99,7 +103,7 @@ void BOARD_InitMemory(void) {
     MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 1, 1, 0, 0, 0, ARM_MPU_REGION_SIZE_1GB);
 
     /* Region 5 DDR[0x8000_0000 - 0xF000_0000]: Memory with Normal type, shareable, non-cacheable */
-    MPU->RBAR = ARM_MPU_RBAR(5, 0x80000000U);
+    MPU->RBAR = ARM_MPU_RBAR(5, 0x7E000000U);
     MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 1, 1, 0, 0, 0, ARM_MPU_REGION_SIZE_1GB);
 
     /*
@@ -113,15 +117,27 @@ void BOARD_InitMemory(void) {
     /* Configure the force_incr programmable bit in GPV_5 of PL301_display, which fixes partial write issue.
      * The AXI2AHB bridge is used for masters that access the TCM through system bus.
      * Please refer to errata ERR050362 for more information */
-    *(uint32_t *)(GPV5_BASE_ADDR + FORCE_INCR_OFFSET) = *(uint32_t *)(GPV5_BASE_ADDR + FORCE_INCR_OFFSET) | FORCE_INCR_BIT_MASK;
+    /* Only configure the GPV5 if the M core access type is secure. */
+    if ((*(uint32_t *)(CSU_SA_ADDR)&CSU_SA_NSN_M_BIT_MASK) == 0U)
+    {
+        *(uint32_t *)(GPV5_BASE_ADDR + FORCE_INCR_OFFSET) =
+            *(uint32_t *)(GPV5_BASE_ADDR + FORCE_INCR_OFFSET) | FORCE_INCR_BIT_MASK;
+    }
 }
 
-void BOARD_RdcInit(void) {
+void BOARD_RdcInit(void)
+{
     /* Move M7 core to specific RDC domain 1 */
     rdc_domain_assignment_t assignment = {0};
+    uint8_t domainId                   = 0U;
 
-    assignment.domainId = BOARD_DOMAIN_ID;
-    RDC_SetMasterDomainAssignment(RDC, kRDC_Master_M7, &assignment);
+    domainId = RDC_GetCurrentMasterDomainId(RDC);
+    /* Only configure the RDC if RDC peripheral write access is allowed. */
+    if ((0x1U & RDC_GetPeriphAccessPolicy(RDC, kRDC_Periph_RDC, domainId)) != 0U)
+    {
+        assignment.domainId = BOARD_DOMAIN_ID;
+        RDC_SetMasterDomainAssignment(RDC, kRDC_Master_M7, &assignment);
+    }
 
     /*
      * The M7 core is running at domain 1, now enable the clock gate of the following IP/BUS/PLL in domain 1 in the CCM.
@@ -139,9 +155,9 @@ void BOARD_RdcInit(void) {
     CLOCK_EnableClock(kCLOCK_Qspi);
 #endif
 
-    CLOCK_ControlGate(kCLOCK_SysPll1Gate, kCLOCK_ClockNeededAll); /* Enable the CCGR gate for SysPLL1 in Domain 1 */
-    CLOCK_ControlGate(kCLOCK_SysPll2Gate, kCLOCK_ClockNeededAll); /* Enable the CCGR gate for SysPLL2 in Domain 1 */
-    CLOCK_ControlGate(kCLOCK_SysPll3Gate, kCLOCK_ClockNeededAll); /* Enable the CCGR gate for SysPLL3 in Domain 1 */
+    CLOCK_ControlGate(kCLOCK_SysPll1Gate, kCLOCK_ClockNeededAll);   /* Enable the CCGR gate for SysPLL1 in Domain 1 */
+    CLOCK_ControlGate(kCLOCK_SysPll2Gate, kCLOCK_ClockNeededAll);   /* Enable the CCGR gate for SysPLL2 in Domain 1 */
+    CLOCK_ControlGate(kCLOCK_SysPll3Gate, kCLOCK_ClockNeededAll);   /* Enable the CCGR gate for SysPLL3 in Domain 1 */
     CLOCK_ControlGate(kCLOCK_AudioPll1Gate, kCLOCK_ClockNeededAll); /* Enable the CCGR gate for AudioPLL1 in Domain 1 */
     CLOCK_ControlGate(kCLOCK_AudioPll2Gate, kCLOCK_ClockNeededAll); /* Enable the CCGR gate for AudioPLL2 in Domain 1 */
     CLOCK_ControlGate(kCLOCK_VideoPll1Gate, kCLOCK_ClockNeededAll); /* Enable the CCGR gate for VideoPLL1 in Domain 1 */

@@ -2,26 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ferrite.components.toolchain import HostToolchain
-from ferrite.components.codegen import CodegenWithTest
+from ferrite.utils.path import TargetPath
+from ferrite.components.codegen import ProtogenTest
+from ferrite.components.rust import RustcHost
+from ferrite.codegen.generator import Protogen
+
+from tornado.ipp import AppMsg, McuMsg
 
 
-class Ipp(CodegenWithTest):
+class Ipp(ProtogenTest):
 
-    def __init__(
-        self,
-        source_dir: Path,
-        ferrite_source_dir: Path,
-        target_dir: Path,
-        toolchain: HostToolchain,
-    ):
-        from tornado.ipp import generate
-
-        super().__init__(
-            source_dir / "ipp",
-            ferrite_source_dir,
-            target_dir,
-            toolchain,
-            "ipp",
-            generate,
-        )
+    def __init__(self, rustc: RustcHost):
+        super().__init__("ipp", TargetPath("tornado/ipp"), Protogen([AppMsg, McuMsg]), rustc)

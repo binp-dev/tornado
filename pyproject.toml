@@ -7,14 +7,15 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-pydantic = "^1.9.0"
-pyzmq = "^23.0.0b1"
 ferrite = { path = "ferrite", develop = true }
+pydantic = "^1.9.0"
+numpy = "^1.22.3"
 
 [tool.poetry.dev-dependencies]
+ferrite = { path = "ferrite", develop = true, extras = ["example"] }
 toml = "^0.10.2"
 yapf = "^0.32.0"
-mypy = "^0.931"
+mypy = "^0.942"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

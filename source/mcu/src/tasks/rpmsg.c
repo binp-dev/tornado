@@ -4,6 +4,9 @@
 
 
 void rpmsg_init(Rpmsg *self, Control *control, Statistics *stats) {
+    // The layouts of `AdcArray` and `IppArray6Int32` must be the same.
+    hal_assert(sizeof(*(AdcArray *)NULL) == sizeof(*(IppArray6Int32 *)NULL));
+
     self->alive = false;
 
     self->send_sem = xSemaphoreCreateBinary();
@@ -73,33 +76,27 @@ static void rpmsg_send_message(Rpmsg *self, void (*write_message)(Rpmsg *, void 
 }
 
 static void write_adc_message(Rpmsg *self, void *user_data, IppMcuMsg *basic_message) {
-    size_t index = *(const size_t *)user_data;
     static const size_t SIZE = ADC_MSG_MAX_POINTS;
 
     basic_message->type = IPP_MCU_MSG_ADC_DATA;
     IppMcuMsgAdcData *message = &basic_message->adc_data;
-    message->index = (uint8_t)index;
-    message->points.len = (uint16_t)SIZE;
+    message->points_arrays.len = (uint16_t)SIZE;
     // It must be guaranteed that ADC buffer contains at least `ADC_MSG_MAX_POINTS` points.
-    hal_assert(rb_read(&self->control->adc.buffers[index], message->points.data, SIZE) == SIZE);
+    hal_assert(adc_rb_read(&self->control->adc.buffer, (AdcArray *)message->points_arrays.data, SIZE) == SIZE);
 }
 
 static void rpmsg_send_adcs(Rpmsg *self) {
-    for (size_t i = 0; i < ADC_COUNT; ++i) {
-        RingBuffer *rb = &self->control->adc.buffers[i];
-        while (rb_occupied(rb) >= ADC_MSG_MAX_POINTS) {
-            rpmsg_send_message(self, write_adc_message, (void *)&i);
-        }
+    AdcRingBuffer *rb = &self->control->adc.buffer;
+    while (adc_rb_occupied(rb) >= ADC_MSG_MAX_POINTS) {
+        rpmsg_send_message(self, write_adc_message, NULL);
     }
 }
 
 static void rpmsg_discard_adcs(Rpmsg *self) {
     static const size_t SIZE = ADC_MSG_MAX_POINTS;
-    for (size_t i = 0; i < ADC_COUNT; ++i) {
-        RingBuffer *rb = &self->control->adc.buffers[i];
-        while (rb_occupied(rb) >= SIZE) {
-            hal_assert(rb_skip(rb, SIZE) == SIZE);
-        }
+    AdcRingBuffer *rb = &self->control->adc.buffer;
+    while (adc_rb_occupied(rb) >= SIZE) {
+        hal_assert(adc_rb_skip(rb, SIZE) == SIZE);
     }
 }
 
@@ -112,7 +109,7 @@ static void write_dac_req_message(Rpmsg *self, void *user_data, IppMcuMsg *messa
 static void rpmsg_send_dac_request(Rpmsg *self) {
     static const size_t SIZE = DAC_MSG_MAX_POINTS;
 
-    size_t vacant = rb_vacant(&self->control->dac.buffer);
+    size_t vacant = dac_rb_vacant(&self->control->dac.buffer);
     size_t requested = hal_atomic_size_load(&self->dac_requested);
     size_t req_count_raw = 0;
     if (requested <= vacant) {
@@ -155,10 +152,6 @@ static void rpmsg_send_task(void *param) {
     }
 }
 
-static void read_hello_world(Rpmsg *self, void *user_data, const IppAppMsg *str) {
-    hal_assert(strncmp((const char *)str, "hello world!", 13) == 0);
-}
-
 static void connect(Rpmsg *self) {
     hal_atomic_size_store(&self->dac_requested, 0);
     control_dac_start(self->control);
@@ -183,7 +176,7 @@ static void set_dout(Rpmsg *self, SkifioDout value) {
 }
 
 static void write_dac(Rpmsg *self, const point_t *data, size_t len) {
-    size_t wlen = rb_write(&self->control->dac.buffer, data, len);
+    size_t wlen = dac_rb_write(&self->control->dac.buffer, data, len);
     self->stats->dac.lost_full += len - wlen;
 
     // Safely decrement requested points counter.
@@ -238,10 +231,6 @@ static void rpmsg_recv_task(void *param) {
     hal_io_rpmsg_init(&RPMSG_CHANNEL);
 #endif
     hal_log_info("RPMSG channel created");
-
-    // Receive `hello world!` message
-    rpmsg_recv_message(self, read_hello_world, NULL, false, HAL_WAIT_FOREVER);
-    hal_log_info("`hello world!` received");
 
     for (;;) {
         // Receive message
