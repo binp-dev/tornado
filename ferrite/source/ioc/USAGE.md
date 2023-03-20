@@ -98,7 +98,7 @@ Also you can specify `INSTALL_LOCATION` variable in `CONFIG_SITE` of EPICS base 
 export EPICS_BASE=/path/to/epics-base
 export EPICS_HOST_ARCH=$($EPICS_BASE/startup/EpicsHostArch)
 
-export TOP=/path/to/psc-ioc
+export TOP=/path/to/ioc
 
 export PATH=$PATH:$EPICS_BASE/bin/$EPICS_HOST_ARCH/
 export LD_LIBRARY_PATH=$EPICS_BASE/lib/$EPICS_HOST_ARCH:$TOP/lib/$EPICS_HOST_ARCH:$LD_LIBRARY_PATH
@@ -107,6 +107,6 @@ export LD_LIBRARY_PATH=$EPICS_BASE/lib/$EPICS_HOST_ARCH:$TOP/lib/$EPICS_HOST_ARC
 ### Run IOC
 
 ```bash
-cd $TOP/iocBoot/iocPSC/
-../../bin/$EPICS_HOST_ARCH/PSC st.cmd
+cd $TOP/iocBoot/iocFer/
+../../bin/$EPICS_HOST_ARCH/Fer st.cmd
 ```

@@ -5,9 +5,10 @@ from typing import Dict, List
 import shutil
 from pathlib import Path
 
-from ferrite.components.base import Artifact, Component, Task, Context, TaskWrapper
+from ferrite.utils.path import TargetPath
+from ferrite.components.base import Task, OwnedTask, Context, TaskWrapper
 from ferrite.components.cmake import Cmake
-from ferrite.components.toolchain import CrossToolchain
+from ferrite.components.compiler import GccCross
 from ferrite.components.freertos import Freertos
 from ferrite.remote.base import Device
 from ferrite.remote.tasks import RebootTask
@@ -21,53 +22,30 @@ class McuDeployer:
 
 class McuBase(Cmake):
 
-    @dataclass
-    class DeployTask(Task):
-        owner: McuBase
-        deployer: McuDeployer
-
-        def run(self, ctx: Context) -> None:
-            assert ctx.device is not None
-            self.deployer.deploy(self.owner.build_dir, ctx.device)
-
-        def dependencies(self) -> List[Task]:
-            return [self.owner.build_task]
-
     def configure(self, ctx: Context) -> None:
+        build_path = ctx.target_path / self.build_dir
+
         # Workaround to disable cmake caching (incremental build is broken anyway)
-        if self.build_dir.exists():
-            shutil.rmtree(self.build_dir)
+        if build_path.exists():
+            shutil.rmtree(build_path)
 
         super().configure(ctx)
 
     def __init__(
         self,
-        name: str,
         src_dir: Path,
-        target_dir: Path,
-        toolchain: CrossToolchain,
+        build_dir: TargetPath,
+        cc: GccCross,
         freertos: Freertos,
         deployer: McuDeployer,
-        opts: List[str] = [],
-        envs: Dict[str, str] = {},
+        target: str,
         deps: List[Task] = [],
     ):
-        toolchain = toolchain
-
         super().__init__(
             src_dir,
-            target_dir / name,
-            toolchain,
-            opts=[
-                "-DCMAKE_TOOLCHAIN_FILE={}".format(freertos.path / "tools/cmake_toolchain_files/armgcc.cmake"),
-                "-DCMAKE_BUILD_TYPE=Release",
-                *opts,
-            ],
-            envs={
-                "FREERTOS_DIR": str(freertos.path),
-                "ARMGCC_DIR": str(toolchain.path),
-                **envs,
-            },
+            build_dir,
+            cc,
+            target=target,
             deps=[
                 freertos.clone_task,
                 *deps,
@@ -75,13 +53,32 @@ class McuBase(Cmake):
         )
         self.freertos = freertos
 
-        self.deploy_task = self.DeployTask(self, deployer)
+        self.deploy_task = _DeployTask(self, deployer)
         self.deploy_and_reboot_task = TaskWrapper(RebootTask(), deps=[self.deploy_task])
 
-    def tasks(self) -> Dict[str, Task]:
-        tasks = super().tasks()
-        tasks.update({
-            "deploy": self.deploy_task,
-            "deploy_and_reboot": self.deploy_and_reboot_task,
-        })
-        return tasks
+    def env(self, ctx: Context) -> Dict[str, str]:
+        assert isinstance(self.cc, GccCross)
+        return {
+            **super().env(ctx),
+            "FREERTOS_DIR": str(ctx.target_path / self.freertos.path),
+            "ARMGCC_DIR": str(ctx.target_path / self.cc.path),
+        }
+
+    def opt(self, ctx: Context) -> List[str]:
+        return [
+            *super().opt(ctx),
+            f"-DCMAKE_TOOLCHAIN_FILE={ctx.target_path / self.freertos.path / 'tools/cmake_toolchain_files/armgcc.cmake'}",
+            "-DCMAKE_BUILD_TYPE=Release",
+        ]
+
+
+@dataclass
+class _DeployTask(OwnedTask[McuBase]):
+    deployer: McuDeployer
+
+    def run(self, ctx: Context) -> None:
+        assert ctx.device is not None
+        self.deployer.deploy(ctx.target_path / self.owner.build_dir, ctx.device)
+
+    def dependencies(self) -> List[Task]:
+        return [self.owner.build_task]

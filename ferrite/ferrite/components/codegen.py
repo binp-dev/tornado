@@ -1,78 +1,132 @@
 from __future__ import annotations
-from typing import Callable, Dict, List
+from typing import List, TypeVar
 
 import shutil
 from pathlib import Path
 from dataclasses import dataclass
-from ferrite.components.cmake import CmakeWithTest
 
-from ferrite.components.base import Artifact, Task, Context
-from ferrite.components.conan import CmakeWithConan
-from ferrite.components.toolchain import CrossToolchain, HostToolchain, Toolchain
+from ferrite.components.base import Artifact, CallTask, Component, OwnedTask, Context, TaskList
+from ferrite.components.rust import RustcHost, Cargo
+from ferrite.components.cmake import Cmake
+
+from ferrite.utils.path import TargetPath
+from ferrite.utils.files import substitute
+from ferrite.codegen.base import Context as GenContext, TestInfo
+from ferrite.codegen.generator import Protogen as ProtocolGenerator, Configen as ConfigGenerator
+from ferrite.info import path as self_path
 
 
-class Codegen(CmakeWithConan, CmakeWithTest):
+@dataclass
+class _Generator(Component):
 
-    @dataclass
-    class GenerateTask(Task):
+    name: str
+    output_dir: TargetPath
 
-        owner: Codegen
-        generate: Callable[[Path], None]
+    def __post_init__(self) -> None:
+        self.generate_task = self.GenerateTask()
 
-        def run(self, ctx: Context) -> None:
-            self.generate(self.owner.gen_dir)
-            shutil.copytree(self.owner.assets_dir, self.owner.gen_dir, dirs_exist_ok=True)
+    def context(self) -> GenContext:
+        raise NotImplementedError()
 
-        def artifacts(self) -> List[Artifact]:
-            return [Artifact(self.owner.gen_dir)]
+    def GenerateTask(self) -> _GenerateTask[_Generator]:
+        raise NotImplementedError()
 
-    def __init__(
-        self,
-        source_dir: Path,
-        target_dir: Path,
-        toolchain: Toolchain,
-        prefix: str,
-        generate: Callable[[Path], None],
-    ):
-        self.prefix = prefix
-        self.executable = f"{self.prefix}_test"
 
-        self.assets_dir = source_dir / self.prefix
-        self.gen_dir = target_dir / f"{self.prefix}_generated"
-        build_dir = target_dir / f"{self.prefix}_{toolchain.name}"
+O = TypeVar("O", bound=_Generator, covariant=True)
 
-        self.generate = generate
-        self.generate_task = self.GenerateTask(self, self.generate)
 
-        super().__init__(
-            self.gen_dir,
-            build_dir,
-            toolchain,
-            opts=[
-                "-DCMAKE_BUILD_TYPE=Debug",
-                f"-D{self.prefix.upper()}_TEST=1",
-            ],
+class _GenerateTask(OwnedTask[O]):
+
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.owner.output_dir)]
+
+
+@dataclass
+class Configen(_Generator):
+
+    config: ConfigGenerator
+
+    def context(self) -> GenContext:
+        return GenContext(self.name, portable=False)
+
+    def GenerateTask(self) -> _ConfigenTask:
+        return _ConfigenTask(self)
+
+
+class _ConfigenTask(_GenerateTask[Configen]):
+
+    def run(self, ctx: Context) -> None:
+        output_path = ctx.target_path / self.owner.output_dir
+        self.owner.config.generate(self.owner.context()).write(output_path)
+
+
+@dataclass
+class Protogen(_Generator):
+
+    generator: ProtocolGenerator
+
+    def __post_init__(self) -> None:
+        self.assets_path = self_path / "source/protogen"
+        self.generate_task = self.GenerateTask()
+
+    def context(self) -> GenContext:
+        return GenContext(self.name, portable=True)
+
+    def GenerateTask(self) -> _ProtogenTask[Protogen]:
+        return _ProtogenTask(self)
+
+
+Op = TypeVar("Op", bound=Protogen, covariant=True)
+
+
+class _ProtogenTask(_GenerateTask[Op]):
+
+    def run(self, ctx: Context) -> None:
+        output_path = ctx.target_path / self.owner.output_dir
+
+        shutil.copytree(self.owner.assets_path, output_path, dirs_exist_ok=True)
+        for path in [Path("c/CMakeLists.txt"), Path("rust/Cargo.toml"), Path("rust/build.rs")]:
+            substitute([("{{protogen}}", self.owner.name)], output_path / path)
+
+        self.owner.generator.generate(self.owner.context()).write(output_path)
+
+
+@dataclass
+class ProtogenTest(Protogen):
+    rustc: RustcHost
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        self.test_info = TestInfo(16)
+
+        self.c_test = Cmake(
+            self.output_dir / "c",
+            self.output_dir / "c/build",
+            self.rustc.cc,
+            target=f"{self.name}_test",
             deps=[self.generate_task],
-            target=self.executable,
-            disable_conan=isinstance(toolchain, CrossToolchain)
         )
+        self.rust_test = Cargo(
+            self.output_dir / "rust",
+            self.output_dir / "rust/target",
+            self.rustc,
+            deps=[self.generate_task, self.c_test.build_task],
+        )
+        self.build_task = self.rust_test.build_task
+        self.test_task = TaskList([
+            self.rust_test.test_task,
+            CallTask(lambda: self.generator.self_test(self.test_info)),
+        ])
 
-    def tasks(self) -> Dict[str, Task]:
-        return {
-            "generate": self.generate_task,
-            "build": self.build_task,
-            "test": self.test_task,
-        }
+    def GenerateTask(self) -> _GenerateTestTask:
+        return _GenerateTestTask(self)
 
 
-class CodegenTest(Codegen):
+class _GenerateTestTask(_ProtogenTask[ProtogenTest]):
 
-    def __init__(
-        self,
-        source_dir: Path,
-        target_dir: Path,
-        toolchain: HostToolchain,
-    ):
-        from ferrite.codegen.test import generate
-
-        super().__init__(source_dir, target_dir, toolchain, "codegen", generate)
+    def run(self, ctx: Context) -> None:
+        super().run(ctx)
+        self.owner.generator.generate_tests(
+            self.owner.context(),
+            self.owner.test_info,
+        ).write(ctx.target_path / self.owner.output_dir)

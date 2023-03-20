@@ -1,28 +1,31 @@
 from __future__ import annotations
-from typing import List, Dict, Optional
+from typing import Sequence, List, Dict, Optional
 
 import os
 import sys
-import logging
 import subprocess
 from pathlib import Path
 
 RunError = subprocess.CalledProcessError
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def run(
-    cmd: List[str | Path],
+    cmd: Sequence[str | Path],
     cwd: Optional[Path] = None,
     add_env: Optional[Dict[str, str]] = None,
     capture: bool = False,
     quiet: bool = False,
     timeout: Optional[float] = None,
 ) -> Optional[str]:
-    logging.debug(f"run({cmd}, cwd={cwd})")
+    logger.debug(f"run({cmd}, cwd={cwd})")
     env = dict(os.environ)
     if add_env:
         env.update(add_env)
-        logging.debug(f"additional env: {add_env}")
+        logger.debug(f"additional env: {add_env}")
 
     stdout = None
     if capture or quiet:

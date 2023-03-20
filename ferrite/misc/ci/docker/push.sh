@@ -2,4 +2,4 @@
 
 cd "$(dirname "$0")"
 
-docker push agerasev/debian-psc
+docker push agerasev/debian-psc:0.3

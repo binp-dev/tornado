@@ -1,76 +1,71 @@
 from __future__ import annotations
-from typing import List
+from typing import List, TypeVar
 
 import shutil
 from pathlib import Path
 
+from ferrite.utils.path import TargetPath
 from ferrite.utils.files import substitute
-from ferrite.components.base import Task
+from ferrite.components.base import Context, Task
+from ferrite.components.compiler import Gcc
 from ferrite.components.app import AppBase
 from ferrite.components.epics.epics_base import AbstractEpicsBase
-from ferrite.components.epics.ioc import AbstractIoc
+from ferrite.components.epics.ioc import AbstractIoc, AbstractBuildTask, B as B
+from ferrite.info import path as self_path
 
 
-class AbstractAppIoc(AbstractIoc):
+class AppIoc(AbstractIoc[B]):
 
-    class BuildTask(AbstractIoc.BuildTask):
-
-        def __init__(
-            self,
-            owner: AbstractAppIoc,
-            deps: List[Task],
-            app_lib_name: str = "libapp.so",
-        ):
-            self._app_owner = owner
-            super().__init__(owner, deps=deps)
-
-            self.app_lib_src_dir = self.owner.app.lib_src_dir
-            self.app_src_dir = self.owner.app.src_dir
-            self.app_build_dir = self.owner.app.build_dir
-            self.app_lib_name = app_lib_name
-
-        @property
-        def owner(self) -> AbstractAppIoc:
-            return self._app_owner
-
-        def _configure(self) -> None:
-            super()._configure()
-
-            substitute(
-                [
-                    ("^\\s*#*(\\s*APP_LIB_SRC\\s*=).*$", f"\\1 {self.app_lib_src_dir}"),
-                    ("^\\s*#*(\\s*APP_BUILD_DIR\\s*=).*$", f"\\1 {self.app_build_dir}"),
-                    ("^\\s*#*(\\s*APP_ARCH\\s*=).*$", f"\\1 {self.owner.arch}"),
-                ],
-                self.build_dir / "configure/CONFIG_SITE.local",
-            )
-
-            lib_dir = self.install_dir / "lib" / self.owner.arch
-            lib_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(
-                self.app_build_dir / self.app_lib_name,
-                lib_dir / self.app_lib_name,
-            )
-
-    def _build_deps(self) -> List[Task]:
-        deps = super()._build_deps()
-        deps.append(self.app.build_task)
-        return deps
-
-    def _make_build_task(self) -> AbstractAppIoc.BuildTask:
-        return self.BuildTask(self, deps=self._build_deps())
-
-    def __init__(
-        self,
-        ioc_dirs: List[Path],
-        target_dir: Path,
-        epics_base: AbstractEpicsBase,
-        app: AppBase,
-    ):
+    def __init__(self, ioc_dirs: List[Path], target_dir: TargetPath, epics_base: B, app: AppBase):
+        super().__init__([self_path / "source/ioc", *ioc_dirs], target_dir, epics_base)
         self.app = app
-        super().__init__(
-            "ioc",
-            ioc_dirs,
-            target_dir,
-            epics_base,
+
+
+O = TypeVar("O", bound=AppIoc[AbstractEpicsBase[Gcc]], covariant=True)
+
+
+class AppBuildTask(AbstractBuildTask[O]):
+
+    def __init__(self, owner: O, app_lib_name: str = "libapp.so"):
+        super().__init__(owner)
+        self.app_lib_name = app_lib_name
+
+    @property
+    def app_lib_path(self) -> TargetPath:
+        return self.owner.app.bin_dir / self.app_lib_name
+
+    def _dep_paths(self, ctx: Context) -> List[Path]:
+        return [
+            *super()._dep_paths(ctx),
+            ctx.target_path / self.app_lib_path,
+        ]
+
+    def _store_app_lib(self, ctx: Context) -> None:
+        lib_dir = ctx.target_path / self.owner.install_dir / "lib" / self.owner.arch
+        lib_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(
+            ctx.target_path / self.app_lib_path,
+            lib_dir / self.app_lib_name,
         )
+
+    def _configure(self, ctx: Context) -> None:
+        super()._configure(ctx)
+
+        substitute(
+            [("^\\s*#*(\\s*APP_ARCH\\s*=).*$", f"\\1 {self.owner.arch}")],
+            ctx.target_path / self.owner.build_dir / "configure/CONFIG_SITE.local",
+        )
+
+        self._store_app_lib(ctx)
+
+    def run(self, ctx: Context) -> None:
+        super().run(ctx)
+
+        # Copy App shared lib to the IOC even if IOC wasn't built.
+        self._store_app_lib(ctx)
+
+    def dependencies(self) -> List[Task]:
+        return [
+            *super().dependencies(),
+            self.owner.app.build_task,
+        ]

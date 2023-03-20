@@ -3,28 +3,25 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from ferrite.manage.tree import make_components
-from ferrite.manage.cli import add_parser_args, read_run_params, ReadRunParamsError, run_with_params
+import ferrite.manage.cli as cli
+from ferrite.components.tree import make_components
 
 if __name__ == "__main__":
-    base_dir = Path.cwd()
-    target_dir = base_dir / "target"
-    target_dir.mkdir(exist_ok=True)
-
-    components = make_components(base_dir, target_dir)
+    components = make_components()
 
     parser = argparse.ArgumentParser(
-        description="Power supply controller software development automation tool",
+        description="Power supply controller software development automation library",
         usage="python -m ferrite.manage <task> [options...]",
     )
-    add_parser_args(parser, components)
+    cli.add_parser_args(parser, components)
 
     args = parser.parse_args()
 
     try:
-        params = read_run_params(args, components)
-    except ReadRunParamsError as e:
+        params = cli.read_run_params(args, components)
+    except cli.ReadRunParamsError as e:
         print(e)
         exit(1)
 
-    run_with_params(params)
+    cli.setup_logging(params)
+    cli.run_with_params(params)

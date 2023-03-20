@@ -1,107 +1,100 @@
 from __future__ import annotations
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from pathlib import Path
 from dataclasses import dataclass, field
 
+from ferrite.utils.path import TargetPath
 from ferrite.utils.run import run
-from ferrite.components.base import Artifact, Component, Task, Context
-from ferrite.components.toolchain import CrossToolchain, Toolchain
+from ferrite.components.base import Artifact, Component, OwnedTask, Context, Task
+from ferrite.components.compiler import Gcc
 
 
 @dataclass
 class Cmake(Component):
 
-    @dataclass
-    class BuildTask(Task):
-        owner: Cmake
-
-        def run(self, ctx: Context) -> None:
-            self.owner.configure(ctx)
-            self.owner.build(ctx, self.owner.target)
-
-        def dependencies(self) -> List[Task]:
-            deps: List[Task] = []
-            if isinstance(self.owner.toolchain, CrossToolchain):
-                deps.append(self.owner.toolchain.download_task)
-            deps.extend(self.owner.deps)
-            return deps
-
-        def artifacts(self) -> List[Artifact]:
-            return [Artifact(self.owner.build_dir)]
-
-    src_dir: Path
-    build_dir: Path
-    toolchain: Toolchain
-    opts: List[str] = field(default_factory=list)
-    envs: Dict[str, str] = field(default_factory=dict)
+    src_dir: Path | TargetPath
+    build_dir: TargetPath
+    cc: Gcc
+    target: str # TODO: Rename to `cmake_target`
     deps: List[Task] = field(default_factory=list)
-    target: Optional[str] = None
 
     def __post_init__(self) -> None:
-        self.build_task = self.BuildTask(self)
+        self.build_task = _BuildTask(self)
 
-    def create_build_dir(self) -> None:
-        self.build_dir.mkdir(exist_ok=True)
+    def create_build_dir(self, ctx: Context) -> None:
+        (ctx.target_path / self.build_dir).mkdir(exist_ok=True)
+
+    def env(self, ctx: Context) -> Dict[str, str]:
+        return {}
+
+    def opt(self, ctx: Context) -> List[str]:
+        return []
 
     def configure(self, ctx: Context) -> None:
-        self.create_build_dir()
+        self.create_build_dir(ctx)
         run(
             [
                 "cmake",
-                *self.opts,
-                self.src_dir,
+                *self.opt(ctx),
+                self.src_dir if isinstance(self.src_dir, Path) else ctx.target_path / self.src_dir,
             ],
-            cwd=self.build_dir,
-            add_env=self.envs,
+            cwd=(ctx.target_path / self.build_dir),
+            add_env=self.env(ctx),
             quiet=ctx.capture,
         )
 
-    def build(self, ctx: Context, target: Optional[str] = None, verbose: bool = False) -> None:
-        if target is None:
-            target = self.target
+    def build(self, ctx: Context, verbose: bool = False) -> None:
         run(
             [
                 "cmake",
                 "--build",
-                self.build_dir,
-                *(["--target", target] if target else []),
+                ctx.target_path / self.build_dir,
+                *["--target", self.target],
                 "--parallel",
+                *([str(ctx.jobs)] if ctx.jobs is not None else []),
                 *(["--verbose"] if verbose else []),
             ],
-            cwd=self.build_dir,
+            cwd=(ctx.target_path / self.build_dir),
             quiet=ctx.capture,
         )
 
-    def tasks(self) -> Dict[str, Task]:
-        return {"build": self.build_task}
+
+class _BuildTask(OwnedTask[Cmake]):
+
+    def run(self, ctx: Context) -> None:
+        self.owner.configure(ctx)
+        self.owner.build(ctx)
+
+    def dependencies(self) -> List[Task]:
+        return [
+            *self.owner.deps,
+            self.owner.cc.install_task,
+        ]
+
+    def artifacts(self) -> List[Artifact]:
+        return [Artifact(self.owner.build_dir)]
 
 
 @dataclass
-class CmakeWithTest(Cmake):
-
-    @dataclass
-    class TestTask(Task):
-        owner: CmakeWithTest
-
-        def run(self, ctx: Context) -> None:
-            self.owner.test(ctx)
-
-        def dependencies(self) -> List[Task]:
-            return [self.owner.build_task]
+class CmakeRunnable(Cmake):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.test_task = self.TestTask(self)
+        self.run_task = _RunTask(self)
 
-    def test(self, ctx: Context) -> None:
+    def run(self, ctx: Context) -> None:
         run(
-            [f"./{self.target}"] if self.target else ["ctest", "--verbose"],
-            cwd=self.build_dir,
+            [f"./{self.target}"],
+            cwd=(ctx.target_path / self.build_dir),
             quiet=ctx.capture,
         )
 
-    def tasks(self) -> Dict[str, Task]:
-        tasks = super().tasks()
-        tasks["test"] = self.test_task
-        return tasks
+
+class _RunTask(OwnedTask[CmakeRunnable]):
+
+    def run(self, ctx: Context) -> None:
+        self.owner.run(ctx)
+
+    def dependencies(self) -> List[Task]:
+        return [self.owner.build_task]

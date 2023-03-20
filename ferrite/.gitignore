@@ -1,9 +1,13 @@
-/target
+/target*/
 
 __pycache__
-/poetry.lock
+poetry.lock
+~/poetry.lock
 .venv
 .mypy_cache
+.pytest_cache
+
+/.cargo
 
 .vscode
 *.code-workspace

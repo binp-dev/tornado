@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
-
+from ferrite.utils.path import TargetPath
 from ferrite.components.git import RepoSource, RepoList
 
 
 class Freertos(RepoList):
 
-    def __init__(self, dst_dir: Path, branch: str) -> None:
+    def __init__(self, dst_dir: TargetPath, branch: str) -> None:
         super().__init__(
             dst_dir,
             [

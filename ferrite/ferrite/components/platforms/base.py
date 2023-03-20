@@ -2,21 +2,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ferrite.components.toolchain import CrossToolchain
+from ferrite.components.compiler import GccCross
 from ferrite.components.freertos import Freertos
 from ferrite.components.mcu import McuDeployer
+from ferrite.components.rust import RustcCross
 
 
 @dataclass
 class McuPlatform:
-    toolchain: CrossToolchain
+    gcc: GccCross
     freertos: Freertos
     deployer: McuDeployer
 
 
 @dataclass
 class AppPlatform:
-    toolchain: CrossToolchain
+    gcc: GccCross
+    rustc: RustcCross
 
 
 @dataclass

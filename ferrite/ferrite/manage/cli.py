@@ -2,12 +2,16 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 import argparse
-import logging
 from dataclasses import dataclass
+from pathlib import Path
 from colorama import init as colorama_init, Fore, Style
 
 from ferrite.components.base import Context, Task, Component
+from ferrite.utils.log import LogLevel
+from ferrite.runner import Runner
 from ferrite.remote.ssh import SshDevice
+
+import logging
 
 
 def _make_task_tree(tasks: List[str]) -> List[str]:
@@ -60,6 +64,13 @@ def add_parser_args(parser: argparse.ArgumentParser, comp: Component) -> None:
         ]),
     )
     parser.add_argument(
+        "-t",
+        "--target-dir",
+        type=str,
+        default="target",
+        help="Path to directory to place build artifacts. ('$PWD/target' by default)",
+    )
+    parser.add_argument(
         "--no-deps",
         action="store_true",
         help="Run only specified task without dependencies.",
@@ -70,16 +81,55 @@ def add_parser_args(parser: argparse.ArgumentParser, comp: Component) -> None:
         metavar="<address>[:port]",
         default=None,
         help="\n".join([
-            "Device to deploy and run tests.", "Requirements:",
+            "Device to deploy and run tests.",
+            "Requirements:",
             "+ Debian Linux running on the device (another distros are not tested).",
             "+ SSH server running on the device on the specified port (or 22 if the port is not specified).",
-            "+ Possibility to log in to the device via SSH by user 'root' without password (e.g. using public key)."
+            "+ Possibility to log in to the device via SSH by user 'root' without password (e.g. using public key).",
         ])
+    )
+    parser.add_argument(
+        "--update",
+        action="store_true",
+        help="Update external dependencies (toolchains, locked dependencies, etc.).",
+    )
+    parser.add_argument(
+        "--local",
+        action="store_true",
+        help="Store cache locally (for rustup, cargo, etc.).",
+    )
+    parser.add_argument(
+        "--hide-artifacts",
+        action="store_true",
+        help="Hide artifacts which are unused by task. Useful to test task dependencies list.",
+    )
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        metavar="<N>",
+        default=None,
+        help="Number of parallel process to build. By default automatically determined value is used.",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=int,
+        choices=[int(v) for v in LogLevel],
+        default=None,
+        help="\n".join([
+            "Set log level.",
+            "  0 - Trace",
+            "  1 - Debug",
+            "  2 - Info",
+            "  3 - Warning (since this level task output is captured and displayed only in case of error)",
+            "  4 - Error",
+            "Default value is 3 (warning).",
+        ]),
     )
     parser.add_argument(
         "--no-capture",
         action="store_true",
-        help="Display task stdout.",
+        help="[DEPRECATED] The same as `--verbosilty=2`.",
     )
 
 
@@ -91,7 +141,7 @@ class ReadRunParamsError(RuntimeError):
 class RunParams:
     task: Task
     context: Context
-    no_deps: bool = False
+    no_deps: bool
 
 
 def _find_task_by_args(comp: Component, args: argparse.Namespace) -> Task:
@@ -105,15 +155,26 @@ def _find_task_by_args(comp: Component, args: argparse.Namespace) -> Task:
 
 
 def _make_context_from_args(args: argparse.Namespace) -> Context:
-    device = None
+    target_dir = Path(args.target_dir).resolve()
+
     if args.device:
         device = SshDevice(args.device)
+    else:
+        device = None
 
-    capture = not args.no_capture
+    if args.log_level is not None:
+        log_level = LogLevel(args.log_level)
+    else:
+        log_level = LogLevel.INFO if args.no_capture else LogLevel.WARNING
 
     return Context(
+        target_dir,
         device=device,
-        capture=capture,
+        log_level=log_level,
+        update=args.update,
+        local=args.local,
+        hide_artifacts=args.hide_artifacts,
+        jobs=args.jobs,
     )
 
 
@@ -132,49 +193,15 @@ def read_run_params(args: argparse.Namespace, comp: Component) -> RunParams:
 def _prepare_for_run(params: RunParams) -> None:
     colorama_init()
 
-    if params.context.capture:
-        log_level = logging.WARNING
-    else:
-        log_level = logging.DEBUG
-    logging.basicConfig(format='[%(levelname)s] %(message)s', level=log_level, force=True)
 
-
-def _print_title(text: str, style: Optional[str] = None, end: bool = True) -> None:
-    if style is not None:
-        text = style + text + Style.RESET_ALL
-    print(text, flush=True, end=("" if not end else None))
-
-
-def _run_task(context: Context, task: Task, complete_tasks: Dict[str, Task], no_deps: bool = False) -> None:
-    if task.name() in complete_tasks:
-        return
-
-    if not no_deps:
-        for dep in task.dependencies():
-            _run_task(context, dep, complete_tasks, no_deps=no_deps)
-
-    if context.capture:
-        _print_title(f"{task.name()} ... ", end=False)
-    else:
-        _print_title(f"\nTask '{task.name()}' started ...", Style.BRIGHT)
-
-    try:
-        task.run(context)
-    except:
-        if context.capture:
-            _print_title(f"FAIL", Fore.RED)
-        else:
-            _print_title(f"Task '{task.name()}' FAILED:", Style.BRIGHT + Fore.RED)
-        raise
-    else:
-        if context.capture:
-            _print_title(f"ok", Fore.GREEN)
-        else:
-            _print_title(f"Task '{task.name()}' successfully completed", Style.BRIGHT + Fore.GREEN)
-
-    complete_tasks[task.name()] = task
+def setup_logging(params: RunParams, modules: List[str] = ["ferrite"]) -> None:
+    logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.WARNING, force=True)
+    if not params.context.capture:
+        level = params.context.log_level.level()
+        for mod in modules:
+            logging.getLogger(mod).setLevel(level)
 
 
 def run_with_params(params: RunParams) -> None:
     _prepare_for_run(params)
-    _run_task(params.context, params.task, {}, no_deps=params.no_deps)
+    Runner(params.task, no_deps=params.no_deps).run(params.context)
