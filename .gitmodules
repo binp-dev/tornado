@@ -1,6 +1,6 @@
 [submodule "vortex"]
 	path = vortex
-	url = ../ferrite.git
+	url = ../vortex.git
 [submodule "ferrite-rs"]
 	path = source/app/ferrite
 	url = https://github.com/agerasev/ferrite-rs.git
