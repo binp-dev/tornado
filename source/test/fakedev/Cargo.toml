@@ -26,16 +26,16 @@ cstr = "0.2.11"
 
 [dependencies.common]
 package = "tornado-common"
-path = "../common"
+path = "../../common/user"
 features = ["app"]
 
 [dependencies.mcu]
 package = "tornado-mcu"
-path = "../mcu/user"
+path = "../../mcu/user"
 default-features = false
 features = ["fake"]
 
 [dependencies.ustd]
-path = "../mcu/ustd"
+path = "../../mcu/ustd"
 default-features = false
 features = ["backend-std"]

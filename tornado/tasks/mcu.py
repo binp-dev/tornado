@@ -3,16 +3,14 @@ from typing import Dict, List
 
 import shutil
 from pathlib import Path, PurePosixPath
-from dataclasses import dataclass
 
 from vortex.utils.path import TargetPath
-from vortex.tasks.base import task, Task, Context
+from vortex.tasks.base import task, Context, ComponentGroup
 from vortex.tasks.compiler import GccCross
 from vortex.tasks.rust import Rustc, RustcCross, Cargo
 from vortex.tasks.cmake import Cmake
 
 from tornado.tasks.freertos import Freertos
-from tornado.manage.info import path as self_path
 
 
 class McuBase(Cmake):
@@ -32,7 +30,6 @@ class McuBase(Cmake):
         cc: GccCross,
         freertos: Freertos,
         build_target: str,
-        deps: List[Task] = [],
     ):
         super().__init__(src_dir, build_dir, cc, build_target=build_target)
         self.freertos = freertos
@@ -73,21 +70,10 @@ class McuBase(Cmake):
         ctx.device.reboot()
 
 
-class Mcu(McuBase):
-    def __init__(
-        self,
-        gcc: GccCross,
-        rustc: RustcCross,
-        freertos: Freertos,
-    ):
-        super().__init__(
-            self_path / "source/mcu/main",
-            TargetPath("tornado/mcu/main"),
-            gcc,
-            freertos,
-            build_target="m7image.elf",
-        )
-        self.user = McuUser(rustc, TargetPath("tornado/mcu/user"))
+class McuMain(McuBase):
+    def __init__(self, gcc: GccCross, freertos: Freertos, user: McuUser, src: Path, dst: TargetPath):
+        super().__init__(src / "main", dst / "main", gcc, freertos, build_target="m7image.elf")
+        self.user = user
 
     def opt(self, ctx: Context) -> List[str]:
         return [
@@ -102,16 +88,33 @@ class Mcu(McuBase):
 
 
 class McuUser(Cargo):
-    def __init__(
-        self,
-        rustc: Rustc,
-        build_dir: TargetPath,
-    ) -> None:
+    def __init__(self, rustc: Rustc, src: Path, dst: TargetPath) -> None:
         super().__init__(
-            self_path / "source/mcu/user",
-            build_dir,
+            src / "user",
+            dst / "user",
             rustc,
             features=["real", "panic"],
             default_features=False,
             release=True,
         )
+
+
+class McuGroup(ComponentGroup):
+    def __init__(self, gcc: GccCross, rustc: RustcCross, freertos: Freertos, src: Path, dst: TargetPath):
+        assert gcc is rustc.cc
+        self.gcc = gcc
+        self.rustc = rustc
+        self.user = McuUser(rustc, src, dst)
+        self.main = McuMain(gcc, freertos, self.user, src, dst)
+
+    @task
+    def build(self, ctx: Context) -> None:
+        self.main.build(ctx)
+
+    @task
+    def deploy(self, ctx: Context) -> None:
+        self.main.deploy(ctx)
+
+    @task
+    def deploy_and_reboot(self, ctx: Context) -> None:
+        self.main.deploy_and_reboot(ctx)

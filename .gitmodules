@@ -1,21 +1,21 @@
 [submodule "vortex"]
 	path = vortex
 	url = ../ferrite.git
-[submodule "source/ferrite"]
-	path = source/ferrite
-	url = git@github.com:agerasev/ferrite-rs.git
-[submodule "source/ioc/FerriteSup"]
-	path = source/ioc/FerriteSup
-	url = git@github.com:agerasev/ferrite-epics.git
-[submodule "source/flatty"]
-	path = source/flatty
+[submodule "ferrite-rs"]
+	path = source/app/ferrite
+	url = https://github.com/agerasev/ferrite-rs.git
+[submodule "ferrite-epics"]
+	path = source/app/ioc/FerriteSup
+	url = https://github.com/agerasev/ferrite-epics.git
+[submodule "flatty"]
+	path = source/common/flatty
 	url = https://github.com/agerasev/flatty.git
-[submodule "source/mcu/ustd"]
+[submodule "ustd"]
 	path = source/mcu/ustd
 	url = https://github.com/agerasev/ustd-rs.git
-[submodule "source/ca"]
-	path = source/ca
+[submodule "ca"]
+	path = source/test/ca
 	url = https://github.com/agerasev/epics-ca.git
-[submodule "source/atomic-traits"]
-	path = source/atomic-traits
+[submodule "atomic-traits"]
+	path = source/common/atomic-traits
 	url = https://github.com/agerasev/rust-atomic-traits.git

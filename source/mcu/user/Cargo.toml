@@ -26,13 +26,13 @@ panic = ["ustd/panic"]
 [dependencies]
 lazy_static = { version = "1.4.0" }
 ringbuf = { version = "0.3.2", default-features = false }
-flatty = { path = "../../flatty", default-features = false }
-flatty-io = { path = "../../flatty/io", optional = true }
+flatty = { path = "../../common/flatty", default-features = false }
+flatty-io = { path = "../../common/flatty/io", optional = true }
 timeout-readwrite = { version = "0.3.3", optional = true }
 ux = { version = "0.1.5", default-features = false }
 indenter = "0.3.3"
 portable-atomic = "1.0.1"
-atomic-traits = { path = "../../atomic-traits" }
+atomic-traits = { path = "../../common/atomic-traits" }
 
 [dependencies.derive_more]
 version = "0.99.17"
@@ -45,4 +45,4 @@ default-features = false
 
 [dependencies.common]
 package = "tornado-common"
-path = "../../common"
+path = "../../common/user"

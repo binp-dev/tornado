@@ -14,7 +14,8 @@ dependencies = [
 [[package]]
 name = "async-atomic"
 version = "0.1.0"
-source = "git+https://github.com/agerasev/async-atomic.git#d0d1d3eab2efc612a0b23709a3e856a9ce98dd34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78cb6efc6645e98a4fbe7fdb7076f695779a037a52b7d598a9123c592113cc48"
 dependencies = [
  "atomic",
  "futures",

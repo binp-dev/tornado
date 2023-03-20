@@ -10,9 +10,7 @@ class Freertos(RepoList):
         super().__init__(
             TargetPath(branch),
             [
-                RepoSource(
-                    "https://gitlab.inp.nsk.su/psc/freertos-variscite.git", branch
-                ),
+                RepoSource("https://gitlab.inp.nsk.su/psc/freertos-variscite.git", branch),
                 RepoSource("https://github.com/varigit/freertos-variscite.git", branch),
             ],
         )

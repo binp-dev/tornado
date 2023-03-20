@@ -4,7 +4,7 @@ from vortex.tasks.compiler import Target, GccCross
 from vortex.tasks.rust import RustcCross
 
 
-class AppToolchain(GccCross):
+class AppGcc(GccCross):
     def __init__(self) -> None:
         super().__init__(
             name="app",
@@ -18,7 +18,7 @@ class AppToolchain(GccCross):
         )
 
 
-class McuToolchain(GccCross):
+class McuGcc(GccCross):
     def __init__(self) -> None:
         super().__init__(
             name="mcu",
