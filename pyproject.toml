@@ -7,7 +7,7 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-magnetite = { path = "magnetite", develop = true }
+vortex = { path = "vortex", develop = true }
 
 [tool.poetry.dev-dependencies]
 toml = "^0.10.2"
@@ -22,6 +22,6 @@ build-backend = "poetry.core.masonry.api"
 line-width = 128
 
 [tool.mypy]
-mypy_path = "magnetite"
+mypy_path = "vortex"
 strict = true
 namespace_packages = true

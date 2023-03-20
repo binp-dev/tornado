@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from ferrite.components.compiler import Target, GccHost, GccCross
-from ferrite.components.rust import RustcHost, RustcCross
+from vortex.tasks.compiler import Target, GccCross
+from vortex.tasks.rust import RustcCross
 
 
 class AppToolchain(GccCross):
-
     def __init__(self) -> None:
         super().__init__(
             name="app",
@@ -20,7 +19,6 @@ class AppToolchain(GccCross):
 
 
 class McuToolchain(GccCross):
-
     def __init__(self) -> None:
         super().__init__(
             name="mcu",
@@ -35,12 +33,10 @@ class McuToolchain(GccCross):
 
 
 class AppRustc(RustcCross):
-
     def __init__(self, gcc: GccCross):
         super().__init__(gcc.name, Target.from_str("aarch64-unknown-linux-gnu"), gcc)
 
 
 class McuRustc(RustcCross):
-
     def __init__(self, gcc: GccCross):
         super().__init__(gcc.name, Target.from_str("thumbv7em-none-eabihf"), gcc)

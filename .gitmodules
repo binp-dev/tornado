@@ -1,5 +1,5 @@
-[submodule "magnetite"]
-	path = magnetite
+[submodule "vortex"]
+	path = vortex
 	url = ../ferrite.git
 [submodule "source/ferrite"]
 	path = source/ferrite

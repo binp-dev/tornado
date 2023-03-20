@@ -5,19 +5,17 @@ import shutil
 from pathlib import Path, PurePosixPath
 from dataclasses import dataclass
 
-from ferrite.utils.path import TargetPath
-from ferrite.components.base import task, Task, Context
-from ferrite.components.compiler import GccCross
-from ferrite.components.rust import Rustc, RustcCross, Cargo
-from ferrite.components.cmake import Cmake
+from vortex.utils.path import TargetPath
+from vortex.tasks.base import task, Task, Context
+from vortex.tasks.compiler import GccCross
+from vortex.tasks.rust import Rustc, RustcCross, Cargo
+from vortex.tasks.cmake import Cmake
 
-from tornado.components.freertos import Freertos
-
-from tornado.info import path as self_path
+from tornado.tasks.freertos import Freertos
+from tornado.manage.info import path as self_path
 
 
 class McuBase(Cmake):
-
     def configure(self, ctx: Context) -> None:
         build_path = ctx.target_path / self.build_dir
 
@@ -76,7 +74,6 @@ class McuBase(Cmake):
 
 
 class Mcu(McuBase):
-
     def __init__(
         self,
         gcc: GccCross,
@@ -105,7 +102,6 @@ class Mcu(McuBase):
 
 
 class McuUser(Cargo):
-
     def __init__(
         self,
         rustc: Rustc,

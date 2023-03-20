@@ -4,21 +4,27 @@ from typing import Dict
 from pathlib import Path
 from dataclasses import dataclass
 
-from ferrite.components.base import task, TaskList, Context, Component, ComponentGroup, DictComponent
-from ferrite.components.compiler import GccHost
-from ferrite.components.rust import RustcHost
-from ferrite.components.epics.epics_base import EpicsBaseHost, EpicsBaseCross
+from vortex.tasks.base import (
+    task,
+    TaskList,
+    Context,
+    Component,
+    ComponentGroup,
+    DictComponent,
+)
+from vortex.tasks.compiler import GccHost
+from vortex.tasks.rust import RustcHost
+from vortex.tasks.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 
-from tornado.components.toolchains import AppToolchain, AppRustc, McuToolchain, McuRustc
-from tornado.components.app import AppReal, AppFake
-from tornado.components.ioc import AppIocHost, AppIocCross
-from tornado.components.fakedev import Fakedev
-from tornado.components.freertos import Freertos
-from tornado.components.mcu import Mcu
+from tornado.tasks.toolchains import AppToolchain, AppRustc, McuToolchain, McuRustc
+from tornado.tasks.app import AppReal, AppFake
+from tornado.tasks.ioc import AppIocHost, AppIocCross
+from tornado.tasks.fakedev import Fakedev
+from tornado.tasks.freertos import Freertos
+from tornado.tasks.mcu import Mcu
 
 
-class HostComponents(ComponentGroup):
-
+class HostTasks(ComponentGroup):
     def __init__(self) -> None:
         self.gcc = GccHost()
         self.rustc = RustcHost(self.gcc)
@@ -27,7 +33,12 @@ class HostComponents(ComponentGroup):
         self.ioc = AppIocHost(self.epics_base, self.app)
         self.fakedev = Fakedev(self.ioc, self.rustc)
         self.all = DictComponent(
-            build=TaskList(self.epics_base.install, self.app.build, self.ioc.install, self.fakedev.build),
+            build=TaskList(
+                self.epics_base.install,
+                self.app.build,
+                self.ioc.install,
+                self.fakedev.build,
+            ),
             test=TaskList(self.app.test, self.fakedev.test),
         )
 
@@ -35,9 +46,8 @@ class HostComponents(ComponentGroup):
         return self.__dict__
 
 
-class CrossComponents(ComponentGroup):
-
-    def __init__(self, host: HostComponents) -> None:
+class CrossTasks(ComponentGroup):
+    def __init__(self, host: HostTasks) -> None:
         self.app_gcc = AppToolchain()
         self.app_rustc = AppRustc(self.app_gcc)
         self.mcu_gcc = McuToolchain()
@@ -49,7 +59,9 @@ class CrossComponents(ComponentGroup):
         self.mcu = Mcu(self.mcu_gcc, self.mcu_rustc, self.freertos)
 
         build = TaskList(self.epics_base.install, self.ioc.install, self.mcu.build)
-        deploy = TaskList(self.epics_base.deploy, self.ioc.deploy, self.mcu.deploy_and_reboot)
+        deploy = TaskList(
+            self.epics_base.deploy, self.ioc.deploy, self.mcu.deploy_and_reboot
+        )
 
         @task
         def run(ctx: Context) -> None:
@@ -63,15 +75,10 @@ class CrossComponents(ComponentGroup):
 
 
 @dataclass
-class AllComponents(ComponentGroup):
-
+class AllTasks(ComponentGroup):
     def __init__(self) -> None:
-        self.host = HostComponents()
-        self.device = CrossComponents(self.host)
+        self.host = HostTasks()
+        self.device = CrossTasks(self.host)
 
     def components(self) -> Dict[str, Component]:
         return self.__dict__
-
-
-def make_components() -> ComponentGroup:
-    return AllComponents()
