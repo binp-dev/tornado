@@ -1,33 +1,62 @@
 from __future__ import annotations
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import argparse
 import logging
 from dataclasses import dataclass
 from colorama import init as colorama_init, Fore, Style
 
-from ferrite.components.base import Context, Task
+from ferrite.components.base import Context, Task, Component
 from ferrite.remote.ssh import SshDevice
-from ferrite.manage.tree import ComponentsDict
 
 
-def _comp_list_text(comps: ComponentsDict) -> str:
+def _make_task_tree(tasks: List[str]) -> List[str]:
+    output: List[str] = []
+    groups: Dict[str, List[str] | None] = {}
+    for task in tasks:
+        spl = task.split(".", 1)
+        if len(spl) == 1:
+            key = spl[0]
+            assert key not in groups
+            groups[key] = None
+        elif len(spl) == 2:
+            key, value = spl
+            if key in groups:
+                values = groups[key]
+                assert values is not None
+                values.append(value)
+            else:
+                groups[key] = [value]
+
+    for key, values in sorted(groups.items(), key=lambda x: x[0]):
+        if values is None:
+            output.append(f"{Style.BRIGHT}{key}{Style.NORMAL}")
+        else:
+            assert len(values) > 0
+            subtree = _make_task_tree(values)
+            output.append(f"{Style.BRIGHT}{key}.{subtree[0]}{Style.NORMAL}")
+            output.extend([f"{Style.DIM}{key}.{Style.NORMAL}{value}" for value in subtree[1:]])
+
+    return output
+
+
+def _available_tasks_text(comp: Component) -> str:
     return "\n".join([
-        "Available components:",
-        *[f"\t{name}" for name in comps.keys()],
+        "Available tasks:",
+        *[(" " * 2) + task for task in _make_task_tree(list(comp.tasks().keys()))],
     ])
 
 
-def add_parser_args(parser: argparse.ArgumentParser, comps: ComponentsDict) -> None:
+def add_parser_args(parser: argparse.ArgumentParser, comp: Component) -> None:
     parser.formatter_class = argparse.RawTextHelpFormatter
 
     parser.add_argument(
-        "comptask",
+        "task",
         type=str,
-        metavar="<component>.<task>",
+        metavar="<task>",
         help="\n".join([
-            "Component and task you want to run.",
-            _comp_list_text(comps),
+            "Task you want to run.",
+            _available_tasks_text(comp),
         ]),
     )
     parser.add_argument(
@@ -65,34 +94,12 @@ class RunParams:
     no_deps: bool = False
 
 
-def _find_task_by_args(comps: ComponentsDict, args: argparse.Namespace) -> Task:
-    names = args.comptask.rsplit(".", 1)
-    comp_name = names[0]
+def _find_task_by_args(comp: Component, args: argparse.Namespace) -> Task:
+    task_name = args.task
     try:
-        comp = comps[comp_name]
+        task = comp.tasks()[task_name]
     except KeyError:
-        raise ReadRunParamsError("\n".join([f"Unknown component '{comp_name}'.", _comp_list_text(comps)]))
-
-    tasks_list_text = "\n".join([
-        f"Available tasks for component '{comp_name}':",
-        *[f"\t{name}" for name in comp.tasks().keys()],
-    ])
-    if len(names) == 1:
-        raise ReadRunParamsError("\n".join([
-            "No task provided.",
-            tasks_list_text,
-        ]))
-    elif len(names) == 2:
-        task_name = names[1]
-        try:
-            task = comp.tasks()[task_name]
-        except KeyError:
-            raise ReadRunParamsError("\n".join([
-                f"Unknown task '{task_name}'.",
-                tasks_list_text,
-            ]))
-    else:
-        raise ReadRunParamsError("Bad action syntax. Expected format: '<component>.<task>'.")
+        raise ReadRunParamsError("\n".join([f"Unknown task '{task_name}'.", _available_tasks_text(comp)]))
 
     return task
 
@@ -110,9 +117,9 @@ def _make_context_from_args(args: argparse.Namespace) -> Context:
     )
 
 
-def read_run_params(args: argparse.Namespace, comps: ComponentsDict) -> RunParams:
+def read_run_params(args: argparse.Namespace, comp: Component) -> RunParams:
     try:
-        task = _find_task_by_args(comps, args)
+        task = _find_task_by_args(comp, args)
     except ReadRunParamsError as e:
         print(e)
         exit(1)

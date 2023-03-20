@@ -16,17 +16,3 @@ class Freertos(RepoList):
             ],
             cached=True,
         )
-
-
-class FreertosImx7(Freertos):
-
-    def __init__(self, target_dir: Path) -> None:
-        branch = "freertos_bsp_1.0.1_imx7d-var01"
-        super().__init__(target_dir / branch, branch)
-
-
-class FreertosImx8mn(Freertos):
-
-    def __init__(self, target_dir: Path) -> None:
-        branch = "mcuxpresso_sdk_2.9.x-var01"
-        super().__init__(target_dir / branch, branch)

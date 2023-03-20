@@ -10,7 +10,7 @@
 
 #include "base.hpp"
 
-template <typename T, typename Raw>
+template <typename Raw>
 class EpicsValueRecordBase : public EpicsRecord
 {
 public:
@@ -27,10 +27,10 @@ public:
 template <typename T, typename Raw>
 class EpicsInputValueRecord :
     public virtual InputValueRecord<T>,
-    public EpicsValueRecordBase<T, Raw>
+    public EpicsValueRecordBase<Raw>
 {
 public:
-    explicit EpicsInputValueRecord(Raw *raw) : EpicsValueRecordBase<T, Raw>(raw) {}
+    explicit EpicsInputValueRecord(Raw *raw) : EpicsValueRecordBase<Raw>(raw) {}
 
 protected:
     const InputValueHandler<T> *handler() const {
@@ -72,10 +72,10 @@ public:
 template <typename T, typename Raw>
 class EpicsOutputValueRecord :
     public virtual OutputValueRecord<T>,
-    public EpicsValueRecordBase<T, Raw>
+    public EpicsValueRecordBase<Raw>
 {
 public:
-    explicit EpicsOutputValueRecord(Raw *raw) : EpicsValueRecordBase<T, Raw>(raw) {}
+    explicit EpicsOutputValueRecord(Raw *raw) : EpicsValueRecordBase<Raw>(raw) {}
 
 protected:
     const OutputValueHandler<T> *handler() const {

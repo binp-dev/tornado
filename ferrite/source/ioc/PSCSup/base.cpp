@@ -135,6 +135,7 @@ void EpicsRecord::request_processing() {
     scan_list_->scan();
 }
 
+// TODO make true virtual?
 void EpicsRecord::register_processing_request() {
     unreachable();
 }

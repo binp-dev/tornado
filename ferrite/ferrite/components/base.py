@@ -103,3 +103,22 @@ class Component:
 
     def tasks(self) -> Dict[str, Task]:
         raise NotImplementedError()
+
+    def _update_names(self) -> None:
+        for task_name, task in self.tasks().items():
+            task._name = f"{task_name}"
+
+
+class ComponentGroup(Component):
+
+    def components(self) -> Dict[str, Component | ComponentGroup]:
+        raise NotImplementedError()
+
+    def tasks(self) -> Dict[str, Task]:
+        tasks: Dict[str, Task] = {}
+        for comp_name, comp in self.components().items():
+            for task_name, task in comp.tasks().items():
+                key = f"{comp_name}.{task_name}"
+                assert key not in tasks
+                tasks[key] = task
+        return tasks

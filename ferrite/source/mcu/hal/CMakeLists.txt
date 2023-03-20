@@ -51,6 +51,3 @@ target_compile_definitions(${IMX7_NAME} PRIVATE "HAL_IMX7")
 set(IMX8MN_NAME "${PROJECT_NAME}_imx8mn")
 add_library(${IMX8MN_NAME} OBJECT ${IMX8MN_SRC})
 target_compile_definitions(${IMX8MN_NAME} PRIVATE "HAL_IMX8MN")
-
-# Include IPP
-include_directories("${IPP_GENERATED}/include")

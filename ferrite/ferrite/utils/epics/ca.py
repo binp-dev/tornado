@@ -1,4 +1,6 @@
 from __future__ import annotations
+from math import fabs
+from sqlite3 import OptimizedUnicode
 from typing import Any, Dict, List, Optional, Union
 
 import os
@@ -17,14 +19,21 @@ def _env() -> Dict[str, str]:
     }
 
 
-def get(prefix: Path, pv: str) -> float:
+def get(prefix: Path, pv: str, array: bool = False) -> Union[float, List[int]]:
     logging.debug(f"caget {pv} ...")
     out = capture([prefix / "caget", "-t", "-f 3", pv], add_env=_env())
     logging.debug(f"  {out}")
+    
+    if array:
+        out = out.split()[1:]
+        out = list(map(int, out))
+        print(out)
+        return out
+    
     return float(out)
 
 
-def put(prefix: Path, pv: str, value: Union[int, float, List[float]], array: bool = False) -> None:
+def put(prefix: Path, pv: str, value: Union[int, float, List[int]], array: bool = False) -> None:
     logging.debug(f"caput {pv} {value} ...")
 
     args: List[str | Path] = [prefix / "caput", "-t"]

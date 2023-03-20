@@ -1,14 +1,18 @@
 from __future__ import annotations
-from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 import os
 import zlib
 from pathlib import Path
 from dataclasses import dataclass
 
-from ferrite.components.base import Artifact, Task
-from ferrite.manage.tree import ComponentsDict, make_components
+from ferrite.components.base import Artifact, Component, Task
 from ferrite.utils.strings import quote
+
+
+@dataclass
+class Context:
+    module: str
 
 
 @dataclass
@@ -114,14 +118,12 @@ class Job:
         return lines
 
 
+@dataclass
 class TaskJob(Job):
-
-    def __init__(self, task: Task, level: int, deps: List[Job]):
-        super().__init__()
-        self.task = task
-        self.level = level
-        self.deps = deps
-        self.cache = cache
+    context: Context
+    task: Task
+    level: int
+    deps: List[Job]
 
     def name(self) -> str:
         return self.task.name()
@@ -130,7 +132,7 @@ class TaskJob(Job):
         return self.level
 
     def script(self) -> List[str]:
-        return [f"poetry run python -u -m ferrite.manage --no-deps --no-capture {self.name()}"]
+        return [f"poetry run python -u -m {self.context.module}.manage --no-deps --no-capture {self.name()}"]
 
     def needs(self) -> List[Job]:
         return self.deps
@@ -141,19 +143,19 @@ class TaskJob(Job):
 
 @dataclass
 class ScriptJob(Job):
-    name_: str
-    stage_: int
-    script_: List[str]
+    _name: str
+    _stage: int
+    _script: List[str]
     allow_failure: bool = False
 
     def name(self) -> str:
-        return self.name_
+        return self._name
 
     def stage(self) -> int:
-        return self.stage_
+        return self._stage
 
     def script(self) -> List[str]:
-        return self.script_
+        return self._script
 
     def attributes(self) -> Dict[str, Job.Attribute]:
         attrs: Dict[str, Job.Attribute] = {}
@@ -164,7 +166,8 @@ class ScriptJob(Job):
 
 class Graph:
 
-    def __init__(self) -> None:
+    def __init__(self, context: Context) -> None:
+        self.context = context
         self.jobs: Dict[str, Job] = {}
 
     def add_task_with_deps(self, task: Task) -> TaskJob:
@@ -179,7 +182,7 @@ class Graph:
             dj = self.add_task_with_deps(dep)
             level = max(level, dj.stage() + 1)
             deps.append(dj)
-        job = TaskJob(task, level, deps)
+        job = TaskJob(self.context, task, level, deps)
         self.add_job(job)
         return job
 
@@ -206,17 +209,16 @@ class Graph:
         return lines
 
 
-def make_graph(components: ComponentsDict, end_tasks: List[str]) -> Graph:
-    graph = Graph()
+def make_graph(context: Context, components: Component, end_tasks: List[str]) -> Graph:
+    graph = Graph(context)
 
-    for etn in end_tasks:
-        cn, tn = etn.split(".")
-        task = components[cn].tasks()[tn]
+    for task_name in end_tasks:
+        task = components.tasks()[task_name]
         graph.add_task_with_deps(task)
 
     stage = min(graph.stages()) - 1
-    graph.add_job(ScriptJob("yapf", stage, ["poetry run yapf --diff --recursive ferrite"], allow_failure=True))
-    graph.add_job(ScriptJob("mypy", stage, ["poetry run mypy -p ferrite"], allow_failure=True))
+    graph.add_job(ScriptJob("yapf", stage, [f"poetry run yapf --diff --recursive {context.module}"], allow_failure=True))
+    graph.add_job(ScriptJob("mypy", stage, [f"poetry run mypy -p {context.module}"], allow_failure=True))
 
     return graph
 
@@ -241,27 +243,39 @@ def generate(
     ])
 
 
-if __name__ == "__main__":
-    end_tasks = [
-        "host_all.test",
-        #"imx7_all.build",
-        "imx8mn_all.build",
-    ]
-    vars = Variables({
+def default_variables() -> Variables:
+    return Variables({
+        "GIT_SUBMODULE_STRATEGY": "recursive",
         "POETRY_VIRTUALENVS_IN_PROJECT": "true",
     })
-    cache = Cache("global_cache", [
-        (["pyproject.toml"], ["poetry.lock", ".venv/"]),
+
+
+def default_cache(lock_deps: bool = False) -> Cache:
+    if not lock_deps:
+        poetry = (["pyproject.toml"], ["poetry.lock", ".venv/"])
+    else:
+        poetry = (["pyproject.toml", "poetry.lock"], [".venv/"])
+
+    return Cache("global_cache", [
+        poetry,
     ])
 
+
+def main(
+    module: str,
+    base_dir: Path,
+    components: Component,
+    end_tasks: List[str],
+    variables: Variables,
+    cache: Cache,
+) -> None:
+    context = Context(module)
+
     print("Generating script ...")
-    base_dir = Path.cwd()
-    target_dir = base_dir / "target"
-    components = make_components(base_dir, target_dir)
     text = generate(
         base_dir,
-        make_graph(components, end_tasks),
-        vars=vars,
+        make_graph(context, components, end_tasks),
+        vars=variables,
         cache=cache,
     )
 
@@ -271,3 +285,17 @@ if __name__ == "__main__":
         f.write(text)
 
     print("Done.")
+
+
+if __name__ == "__main__":
+    from ferrite.manage.tree import make_components
+
+    end_tasks = [
+        "all.test",
+    ]
+
+    base_dir = Path.cwd()
+    target_dir = base_dir / "target"
+    components = make_components(base_dir, target_dir)
+
+    main("ferrite", base_dir, components, end_tasks, default_variables(), default_cache())

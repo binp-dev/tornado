@@ -36,7 +36,7 @@ static long record_ai_linconv(aiRecord *raw, int after) {
     return 0;
 }
 
-struct AaiRecordCallbacks {
+struct AiRecordCallbacks {
     long number;
     DEVSUPFUN report;
     DEVSUPFUN init;
@@ -46,7 +46,7 @@ struct AaiRecordCallbacks {
     DEVSUPFUN special_linconv;
 };
 
-struct AaiRecordCallbacks ai_record_handler = {
+struct AiRecordCallbacks ai_record_handler = {
     6,
     nullptr,
     nullptr,
