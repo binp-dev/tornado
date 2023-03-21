@@ -4,6 +4,7 @@ from typing import Dict
 from pathlib import Path
 
 from vortex.utils.path import TargetPath
+from vortex.utils.run import RunMode
 from vortex.tasks.base import task, Context
 from vortex.tasks.rust import Cargo, RustcHost
 from vortex.tasks.concurrent import ConcurrentTaskList
@@ -13,7 +14,12 @@ from tornado.tasks.app.ioc import AppIocHost
 
 class Fakedev(Cargo):
     def __init__(self, ioc: AppIocHost, rustc: RustcHost, src: Path, dst: TargetPath) -> None:
-        super().__init__(src, dst, rustc)
+        super().__init__(
+            src,
+            dst,
+            rustc,
+            # run_mode=RunMode.PROFILER,
+        )
         self.ioc = ioc
 
     def env(self, ctx: Context) -> Dict[str, str]:

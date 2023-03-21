@@ -10,4 +10,4 @@ __pycache__
 .vscode
 *.code-workspace
 
-perf.data
+perf.data*
