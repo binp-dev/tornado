@@ -1,4 +1,6 @@
 use super::stats::Statistics;
+#[cfg(feature = "fake")]
+use crate::buffers::BUFFER_TIMEOUT;
 #[cfg(feature = "real")]
 use crate::skifio::SkifioIface as _;
 use crate::{
@@ -30,6 +32,8 @@ pub struct ControlHandle {
     ready_sem: Semaphore,
 
     dac_enabled: AtomicBool,
+    #[cfg(feature = "fake")]
+    dac_enable_sem: Semaphore,
 
     din: AtomicDin,
     dout: AtomicDout,
@@ -69,6 +73,8 @@ impl ControlHandle {
         Self {
             ready_sem: Semaphore::new().unwrap(),
             dac_enabled: AtomicBool::new(false),
+            #[cfg(feature = "fake")]
+            dac_enable_sem: Semaphore::new().unwrap(),
             din: AtomicDin::new(0),
             dout: AtomicDout::new(0),
             din_changed: AtomicBool::new(false),
@@ -89,8 +95,12 @@ impl ControlHandle {
         self.ready_sem.take(cx, timeout)
     }
 
-    pub fn set_dac_mode(&self, enabled: bool) {
+    pub fn set_dac_mode(&self, _cx: &mut impl Context, enabled: bool) {
         self.dac_enabled.store(enabled, Ordering::Release);
+        #[cfg(feature = "fake")]
+        if enabled {
+            self.dac_enable_sem.try_give(_cx);
+        }
     }
 
     fn update_din(&self, value: Din) -> bool {
@@ -155,6 +165,11 @@ impl Control {
         let mut skifio = skifio::handle().unwrap();
         skifio.subscribe_din(Some(self.make_din_handler())).unwrap();
 
+        #[cfg(feature = "fake")]
+        while !handle.dac_enabled.load(Ordering::Acquire) {
+            assert!(handle.dac_enable_sem.take(cx, BUFFER_TIMEOUT));
+        }
+
         println!("Enter SkifIO loop");
         loop {
             let mut ready = false;
@@ -185,6 +200,9 @@ impl Control {
             // Fetch next DAC value from buffer
             let mut dac = self.dac.last_point;
             if handle.dac_enabled.load(Ordering::Acquire) {
+                #[cfg(feature = "fake")]
+                assert!(self.dac.buffer.wait(1, BUFFER_TIMEOUT));
+
                 if let Some(value) = self.dac.buffer.pop() {
                     dac = value;
                     self.dac.last_point = value;
@@ -202,7 +220,6 @@ impl Control {
 
             // Transfer DAC/ADC values to/from SkifIO board.
             {
-                // TODO: Check for overflow.
                 let adcs = match skifio.transfer(XferOut { dac }) {
                     Ok(XferIn { adcs }) => {
                         self.adc.last_point = adcs;
@@ -221,6 +238,9 @@ impl Control {
 
                 // Handle ADCs
                 {
+                    #[cfg(feature = "fake")]
+                    assert!(self.adc.buffer.wait(1, BUFFER_TIMEOUT));
+
                     // Update ADC value statistics
                     stats.adcs.update_values(adcs);
                     // Push ADC point to buffer.

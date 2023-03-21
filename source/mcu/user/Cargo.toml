@@ -12,20 +12,21 @@ lto = true
 #opt-level = "z"
 
 [features]
-default = ["real"]
+default = ["fake"]
 real = ["ustd/backend-freertos", "lazy_static/spin_no_std"]
 fake = [
+    "common/fake",
     "ustd/backend-std",
+    "ringbuf-blocking",
     "flatty-io",
     "flatty/std",
     "timeout-readwrite",
-    "common/fake",
 ]
 panic = ["ustd/panic"]
 
 [dependencies]
 lazy_static = { version = "1.4.0" }
-ringbuf = { version = "0.3.2", default-features = false }
+ringbuf = { path = "../ringbuf", default-features = false }
 flatty = { path = "../../common/flatty", default-features = false }
 flatty-io = { path = "../../common/flatty/io", optional = true }
 timeout-readwrite = { version = "0.3.3", optional = true }
@@ -33,6 +34,7 @@ ux = { version = "0.1.5", default-features = false }
 indenter = "0.3.3"
 portable-atomic = "1.0.1"
 atomic-traits = { path = "../../common/atomic-traits" }
+ringbuf-blocking = { path = "../ringbuf/blocking", optional = true }
 
 [dependencies.derive_more]
 version = "0.99.17"

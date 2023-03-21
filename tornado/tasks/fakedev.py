@@ -29,7 +29,6 @@ class Fakedev(Cargo):
     @task
     def run(self, ctx: Context) -> None:
         self.ioc.install(ctx)
-        self.build(ctx)
 
         @task
         def fake_ioc(ctx: Context) -> None:
@@ -44,7 +43,6 @@ class Fakedev(Cargo):
     @task
     def test(self, ctx: Context) -> None:
         self.ioc.install(ctx)
-        self.build(ctx)
 
         @task
         def fake_ioc(ctx: Context) -> None:

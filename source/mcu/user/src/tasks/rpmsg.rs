@@ -135,7 +135,7 @@ impl RpmsgReader {
                 }) => {
                     if self.common.is_alive() {
                         println!("Keep-alive timeout reached. RPMSG connection is considered to be dead.");
-                        self.disconnect();
+                        self.disconnect(cx);
                     }
                     continue;
                 }
@@ -160,7 +160,7 @@ impl RpmsgReader {
                 AppMsgRef::DoutUpdate { value } => self.set_dout(*value),
                 AppMsgRef::DacState { enable } => {
                     println!("Set DAC state: {}", enable);
-                    self.control.set_dac_mode(*enable != 0);
+                    self.control.set_dac_mode(cx, *enable != 0);
                 }
                 AppMsgRef::DacData { points } => self.write_dac(points),
                 AppMsgRef::StatsReset => {
@@ -173,15 +173,15 @@ impl RpmsgReader {
 
     fn connect(&mut self, cx: &mut impl Context) {
         self.common.dac_requested.store(0, Ordering::Release);
-        self.control.set_dac_mode(true);
+        self.control.set_dac_mode(cx, true);
         self.common.alive.store(true, Ordering::Release);
         self.control.notify(cx);
         println!("IOC connected");
     }
 
-    fn disconnect(&mut self) {
+    fn disconnect(&mut self, cx: &mut impl Context) {
         self.common.alive.store(false, Ordering::Release);
-        self.control.set_dac_mode(false);
+        self.control.set_dac_mode(cx, false);
         println!("IOC disconnected");
     }
 
@@ -195,6 +195,9 @@ impl RpmsgReader {
     fn write_dac(&mut self, points: &[<DacPoint as Unit>::Portable]) {
         // Push received points to ring buffer.
         {
+            #[cfg(feature = "fake")]
+            assert!(self.buffer.wait(points.len(), crate::buffers::BUFFER_TIMEOUT));
+
             let count = self
                 .buffer
                 .push_iter(&mut points.iter().copied().map(DacPoint::from_portable));
@@ -312,6 +315,7 @@ impl RpmsgWriter {
 
     fn discard_adcs(&mut self) {
         const LEN: usize = proto::ADC_MSG_MAX_POINTS;
-        self.buffer.skip((self.buffer.len() / LEN) * LEN);
+        let len = self.buffer.len();
+        self.buffer.skip((len / LEN) * LEN);
     }
 }
