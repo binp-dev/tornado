@@ -145,15 +145,9 @@ impl<C: Channel> Writer<C> {
                 }
             }),
             spawn(async move {
-                let mut iter = self.dac.buffer.into_iter();
-                (self.dac.read_ready)();
-                iter.on_swap = self.dac.read_ready;
+                let mut iter = self.dac.buffer;
                 loop {
-                    join!(self.dac_write_count.wait(|x| x >= 1), async {
-                        if iter.is_empty() {
-                            iter.wait_ready().await;
-                        }
-                    });
+                    join!(self.dac_write_count.wait(|x| x >= 1), iter.wait_ready());
                     let mut guard = channel.lock().await;
                     let mut msg = guard
                         .new_message()
@@ -173,6 +167,7 @@ impl<C: Channel> Writer<C> {
                             }
                         }
                         self.dac_write_count.fetch_add(count);
+                        println!("@@ send {} points", count);
                         !points.is_empty()
                     } else {
                         unreachable!();

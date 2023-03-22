@@ -167,7 +167,9 @@ impl Control {
 
         #[cfg(feature = "fake")]
         while !handle.dac_enabled.load(Ordering::Acquire) {
-            assert!(handle.dac_enable_sem.take(cx, BUFFER_TIMEOUT));
+            if !handle.dac_enable_sem.take(cx, BUFFER_TIMEOUT) {
+                println!("DAC enable timeout");
+            }
         }
 
         println!("Enter SkifIO loop");
@@ -201,7 +203,9 @@ impl Control {
             let mut dac = self.dac.last_point;
             if handle.dac_enabled.load(Ordering::Acquire) {
                 #[cfg(feature = "fake")]
-                assert!(self.dac.buffer.wait(1, BUFFER_TIMEOUT));
+                while !self.dac.buffer.wait(1, BUFFER_TIMEOUT) {
+                    println!("DAC buffer timeout");
+                }
 
                 if let Some(value) = self.dac.buffer.pop() {
                     dac = value;
@@ -239,7 +243,9 @@ impl Control {
                 // Handle ADCs
                 {
                     #[cfg(feature = "fake")]
-                    assert!(self.adc.buffer.wait(1, BUFFER_TIMEOUT));
+                    while !self.adc.buffer.wait(1, BUFFER_TIMEOUT) {
+                        println!("ADC buffer timeout");
+                    }
 
                     // Update ADC value statistics
                     stats.adcs.update_values(adcs);

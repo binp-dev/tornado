@@ -22,7 +22,9 @@ impl Dac {
         let buffer = DoubleVec::<DacPoint>::new(epics.array.max_len());
         let (read_buffer, write_buffer) = buffer.split();
 
-        let request = AtomicVariable::<u16>::new(epics.request);
+        let request = AtomicVariable::new(epics.request);
+        request.store(1);
+        let mode = AtomicVariable::new(epics.mode);
 
         (
             Self {
@@ -38,10 +40,8 @@ impl Dac {
                 },
             },
             DacHandle {
-                buffer: read_buffer,
-                read_ready: Box::new(move || request.store(1)),
+                buffer: read_buffer.into_iter(DacModifier { request, mode }),
                 state: Box::pin(unfold_variable(epics.state, |x| Some(x != 0))),
-                mode: Box::pin(unfold_variable(epics.mode, |x| Some(x != 0))),
             },
         )
     }
@@ -52,12 +52,24 @@ impl Dac {
     }
 }
 
-// TODO: Remove `Box`es when `impl Trait` stabilized.
 pub struct DacHandle {
-    pub buffer: double_vec::Reader<DacPoint>,
-    pub read_ready: Box<dyn FnMut() + Send>,
+    pub buffer: double_vec::ReadIterator<DacPoint, DacModifier>,
+    // TODO: Remove `Box` when `impl Trait` stabilized.
     pub state: Pin<Box<dyn Stream<Item = bool> + Send>>,
-    pub mode: Pin<Box<dyn Stream<Item = bool> + Send>>,
+}
+
+pub struct DacModifier {
+    request: Arc<AtomicVariable<u16>>,
+    mode: Arc<AtomicVariable<u16>>,
+}
+
+impl double_vec::ReadModifier for DacModifier {
+    fn cyclic(&self) -> bool {
+        self.mode.load() != 0
+    }
+    fn swap(&mut self) {
+        self.request.store(1)
+    }
 }
 
 struct ArrayReader {
