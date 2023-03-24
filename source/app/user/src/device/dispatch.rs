@@ -167,7 +167,6 @@ impl<C: Channel> Writer<C> {
                             }
                         }
                         self.dac_write_count.fetch_add(count);
-                        println!("@@ send {} points", count);
                         !points.is_empty()
                     } else {
                         unreachable!();

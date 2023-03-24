@@ -87,7 +87,6 @@ impl ArrayReader {
                 let mut output = self.output.write().await;
                 output.clear();
                 output.extend(input.iter().copied().map(DacPoint::from_voltage_saturating));
-                log::debug!("array_read: len={}", input.len());
             }
             input.accept().await;
         }
