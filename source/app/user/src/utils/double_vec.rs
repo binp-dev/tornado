@@ -68,8 +68,8 @@ impl<T> Reader<T> {
     }
 }
 impl<T: Copy> Reader<T> {
-    pub fn into_iter(self) -> ReaderIter<T> {
-        ReaderIter::new(self)
+    pub fn into_iter<M: ReadModifier>(self, modifier: M) -> ReadIterator<T, M> {
+        ReadIterator::new(self, modifier)
     }
 }
 
@@ -101,52 +101,56 @@ impl<'a, T> DerefMut for WriteGuard<'a, T> {
     }
 }
 
-pub struct ReaderIter<T: Copy> {
-    buffer: Reader<T>,
-    pos: usize,
-    pub cyclic: bool,
-    pub on_swap: Box<dyn FnMut() + Send>,
+pub trait ReadModifier {
+    fn swap(&mut self);
+    fn cyclic(&self) -> bool;
 }
 
-impl<T: Copy> ReaderIter<T> {
-    fn new(buffer: Reader<T>) -> Self {
-        ReaderIter {
+pub struct ReadIterator<T: Copy, M: ReadModifier> {
+    buffer: Reader<T>,
+    pos: usize,
+    modifier: M,
+}
+
+impl<T: Copy, M: ReadModifier> ReadIterator<T, M> {
+    fn new(buffer: Reader<T>, modifier: M) -> Self {
+        ReadIterator {
             buffer,
             pos: 0,
-            cyclic: false,
-            on_swap: Box::new(|| ()),
+            modifier,
         }
     }
 
     fn try_swap(&mut self) -> bool {
-        //log::info!("try swap");
         if self.buffer.try_swap() {
-            (self.on_swap)();
+            self.modifier.swap();
             true
         } else {
             false
         }
     }
-    pub fn next(&mut self) -> Option<T> {
+
+    pub async fn wait_ready(&mut self) {
+        if self.buffer.len() == 0 || (!self.modifier.cyclic() && self.pos >= self.buffer.len()) {
+            self.buffer.wait_ready().await
+        }
+    }
+}
+
+impl<T: Copy, M: ReadModifier> Iterator for ReadIterator<T, M> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
         loop {
             if self.pos < self.buffer.len() {
                 let value = self.buffer[self.pos];
                 self.pos += 1;
                 break Some(value);
-            } else if self.try_swap() || self.cyclic {
+            } else if self.try_swap() || self.modifier.cyclic() {
                 self.pos = 0;
             } else {
                 break None;
             }
         }
-    }
-    pub async fn wait_ready(&mut self) {
-        self.buffer.wait_ready().await
-    }
-    pub fn len(&self) -> usize {
-        self.buffer.len() - self.pos
-    }
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
     }
 }

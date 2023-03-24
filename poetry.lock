@@ -495,7 +495,7 @@ files = [
 [[package]]
 name = "vortex"
 version = "0.1.0"
-description = "Tool to put different build systems together"
+description = "Heterogenous build automation tool"
 category = "main"
 optional = false
 python-versions = "^3.9"

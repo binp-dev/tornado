@@ -61,6 +61,8 @@ pub const APP_MSG_MIN_STATIC_SIZE: usize =
     AppMsg::DATA_OFFSET + slice_max(&AppMsg::DATA_MIN_SIZES, 0);
 
 pub const DAC_MSG_MAX_POINTS: usize =
-    (MAX_APP_MSG_LEN - size_of::<AppMsgTag>()) / size_of::<<DacPoint as Unit>::Portable>();
-pub const ADC_MSG_MAX_POINTS: usize = (MAX_MCU_MSG_LEN - size_of::<McuMsgTag>())
-    / (ADC_COUNT * size_of::<<AdcPoint as Unit>::Portable>());
+    (MAX_APP_MSG_LEN - size_of::<AppMsgTag>() - size_of::<le::U16>())
+        / size_of::<<DacPoint as Unit>::Portable>();
+pub const ADC_MSG_MAX_POINTS: usize =
+    (MAX_MCU_MSG_LEN - size_of::<McuMsgTag>() - size_of::<le::U16>())
+        / (ADC_COUNT * size_of::<<AdcPoint as Unit>::Portable>());

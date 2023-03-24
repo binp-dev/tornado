@@ -22,16 +22,17 @@ async fn main() {
     let mut phases = [0.0_f64; ADC_COUNT];
     spawn(async move {
         let mut counter: u64 = 0;
+        let mut adcs = [AdcPoint::ZERO; ADC_COUNT];
         loop {
-            let mut adcs = [AdcPoint::ZERO; ADC_COUNT];
+            skifio.adcs.send(adcs).await.unwrap();
+            unsafe { user_sample_intr() };
+
             let dac = skifio.dac.next().await.unwrap().to_voltage();
             adcs[0] = AdcPoint::try_from_voltage(dac).unwrap();
             for i in 1..ADC_COUNT {
                 adcs[i] = AdcPoint::try_from_voltage(phases[i].sin()).unwrap();
                 phases[i] = 2.0 * PI * FREQS[i] * counter as f64 * SAMPLE_PERIOD.as_secs_f64();
             }
-            skifio.adcs.send(adcs).await.unwrap();
-            unsafe { user_sample_intr() };
 
             const BATCH: usize = 1000;
             counter += 1;
