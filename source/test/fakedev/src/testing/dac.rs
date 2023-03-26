@@ -5,17 +5,19 @@ use common::values::{Analog, DacPoint};
 use epics_ca::types::EpicsEnum;
 use fakedev::epics;
 use futures::{channel::mpsc::Receiver, join, pin_mut, StreamExt};
-use std::{
-    f64::consts::PI,
-    io::{stdout, Write},
-};
+use indicatif::ProgressBar;
+use std::f64::consts::PI;
 
 pub struct Context {
     pub epics: epics::Dac,
     pub device: Receiver<DacPoint>,
 }
 
-pub async fn test(mut context: Context, attempts: usize) -> Context {
+pub async fn test(
+    mut context: Context,
+    attempts: usize,
+    pbs: (ProgressBar, ProgressBar),
+) -> Context {
     let len = context.epics.array.element_count().unwrap();
     let data = (0..attempts).map(move |j| {
         (0..len)
@@ -40,10 +42,9 @@ pub async fn test(mut context: Context, attempts: usize) -> Context {
                         None => break,
                     };
                     epics.array.put_ref(&wf).unwrap().await.unwrap();
-                    print!("O");
-                    stdout().flush().unwrap();
+                    pbs.0.inc(1);
                 }
-                println!("@@ dac prod done");
+                pbs.0.finish();
             }
             epics
         }
@@ -51,15 +52,18 @@ pub async fn test(mut context: Context, attempts: usize) -> Context {
 
     let cons = spawn(async move {
         let mut seq = data.flatten();
-        for _ in 0..(attempts * len) {
+        for i in 0..(attempts * len) {
             let dac = context.device.next().await.unwrap();
             assert_abs_diff_eq!(
                 dac.into_analog(),
                 seq.next().unwrap(),
                 epsilon = DacPoint::STEP
             );
+            if (i + 1) % len == 0 {
+                pbs.1.inc(1);
+            }
         }
-        println!("@@ dac cons done");
+        pbs.1.finish();
         context.device
     });
 
@@ -68,7 +72,7 @@ pub async fn test(mut context: Context, attempts: usize) -> Context {
     Context { epics, device }
 }
 
-pub async fn test_cyclic(mut context: Context, attempts: usize) {
+pub async fn test_cyclic(mut context: Context, attempts: usize, pbs: (ProgressBar, ProgressBar)) {
     let len = context.epics.array.element_count().unwrap();
     let data = (0..len)
         .map(move |i| i as f64 / (len - 1) as f64)
@@ -82,23 +86,25 @@ pub async fn test_cyclic(mut context: Context, attempts: usize) {
             pin_mut!(request);
             while request.next().await.unwrap().unwrap() == EpicsEnum(0) {}
             epics.array.put_ref(&data).unwrap().await.unwrap();
-            print!("C");
-            stdout().flush().unwrap();
-            println!("@@ dac cyclic prod done");
+            pbs.0.inc(1);
+            pbs.0.finish();
         }
     });
 
     let cons = spawn(async move {
         let mut seq = data.into_iter().cycle().take(len * attempts);
-        for _ in 0..(attempts * len) {
+        for i in 0..(attempts * len) {
             let dac = context.device.next().await.unwrap();
             assert_abs_diff_eq!(
                 dac.into_analog(),
                 seq.next().unwrap(),
                 epsilon = DacPoint::STEP
             );
+            if (i + 1) % len == 0 {
+                pbs.1.inc(1);
+            }
         }
-        println!("@@ dac cyclic cons done");
+        pbs.1.finish();
     });
 
     join!(prod, cons);

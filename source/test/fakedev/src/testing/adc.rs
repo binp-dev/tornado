@@ -7,6 +7,7 @@ use common::{
 };
 use fakedev::epics;
 use futures::{channel::mpsc::Sender, future::join_all, join, SinkExt, StreamExt};
+use indicatif::ProgressBar;
 use std::{
     f64::consts::PI,
     io::{stdout, Write},
@@ -18,6 +19,7 @@ pub async fn test(
     mut epics: [epics::Adc; ADC_COUNT],
     mut device: Sender<[AdcPoint; ADC_COUNT]>,
     attempts: usize,
+    pbs: (ProgressBar, ProgressBar),
 ) {
     sleep(Duration::from_millis(100)).await;
 
@@ -51,12 +53,15 @@ pub async fn test(
     let prod = spawn({
         let data = data.clone();
         async move {
-            for xs in data {
+            for (i, xs) in data.enumerate() {
                 let adcs = xs.map(|x| AdcPoint::try_from_analog(x).unwrap());
                 device.send(adcs).await.unwrap();
                 unsafe { user_sample_intr() };
+                if (i + 1) % len == 0 {
+                    pbs.0.inc(1);
+                }
             }
-            println!("@@ adc prod done");
+            pbs.0.finish();
         }
     });
 
@@ -93,14 +98,14 @@ pub async fn test(
                     .zip(data.next().unwrap())
                     .for_each(|(x, y)| assert_abs_diff_eq!(x, y, epsilon = AdcPoint::STEP));
             }
-            print!("I");
+            pbs.1.inc(1);
             stdout().flush().unwrap();
             if count == total_len {
                 break;
             }
             assert!(count < total_len);
         }
-        println!("@@ adc cons done");
+        pbs.1.finish();
     });
 
     join!(prod, cons);

@@ -25,6 +25,7 @@ approx = "0.5.1"
 cstr = "0.2.11"
 rand = "0.8.5"
 rand_xoshiro = "0.6.0"
+indicatif = "0.17.3"
 
 [dependencies.common]
 package = "tornado-common"

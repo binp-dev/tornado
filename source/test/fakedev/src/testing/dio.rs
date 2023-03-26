@@ -5,6 +5,7 @@ use futures::{
     channel::mpsc::{Receiver, Sender},
     SinkExt, StreamExt,
 };
+use indicatif::ProgressBar;
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro128PlusPlus as SomeRng;
 use std::{
@@ -16,6 +17,7 @@ pub async fn test_dout(
     mut epics: [Channel<u8>; Dout::SIZE],
     mut device: Receiver<Dout>,
     attempts: usize,
+    pb: ProgressBar,
 ) {
     let mut rng = SomeRng::seed_from_u64(0xdeadbeef);
     let mut value = 0;
@@ -25,15 +27,16 @@ pub async fn test_dout(
         epics[i].put((value >> i) & 1).unwrap().await.unwrap();
         sleep(Duration::from_millis(40)).await;
         assert_eq!(value, device.next().await.unwrap().into());
-        print!(".");
-        stdout().flush().unwrap();
+        pb.inc(1);
     }
+    pb.finish();
 }
 
 pub async fn test_din(
     mut epics: [Channel<u8>; Din::SIZE],
     mut device: Sender<Din>,
     attempts: usize,
+    pb: ProgressBar,
 ) {
     let mut rng = SomeRng::seed_from_u64(0xdeadbeef);
     let mut value = 0;
@@ -63,7 +66,8 @@ pub async fn test_din(
         device.send(Din::try_from(value).unwrap()).await.unwrap();
         sleep(Duration::from_millis(40)).await;
         assert_eq!(monitors[i].next().await.unwrap().unwrap(), (value >> i) & 1);
-        print!(":");
+        pb.inc(1);
         stdout().flush().unwrap();
     }
+    pb.finish();
 }
