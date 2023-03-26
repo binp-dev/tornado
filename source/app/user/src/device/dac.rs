@@ -7,7 +7,7 @@ use crate::{
     },
 };
 use async_std::task::spawn;
-use common::units::{DacPoint, Voltage};
+use common::values::{Analog, DacPoint};
 use ferrite::{atomic::AtomicVariable, TypedVariable as Variable};
 use futures::{future::join_all, Stream};
 use std::{pin::Pin, sync::Arc};
@@ -86,7 +86,7 @@ impl ArrayReader {
             {
                 let mut output = self.output.write().await;
                 output.clear();
-                output.extend(input.iter().copied().map(DacPoint::from_voltage_saturating));
+                output.extend(input.iter().copied().map(DacPoint::from_analog_saturating));
             }
             input.accept().await;
         }
@@ -107,7 +107,7 @@ impl ScalarReader {
             {
                 let mut output = self.output.write().await;
                 output.clear();
-                output.push(DacPoint::from_voltage_saturating(value));
+                output.push(DacPoint::from_analog_saturating(value));
             }
         }
     }

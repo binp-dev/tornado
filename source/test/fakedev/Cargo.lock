@@ -783,7 +783,6 @@ name = "tornado-common"
 version = "0.0.0"
 dependencies = [
  "atomic-traits",
- "derive_more",
  "flatty",
 ]
 
@@ -817,7 +816,6 @@ dependencies = [
  "timeout-readwrite",
  "tornado-common",
  "ustd",
- "ux",
 ]
 
 [[package]]
@@ -839,12 +837,6 @@ dependencies = [
  "lazy_static",
  "macro_rules_attribute",
 ]
-
-[[package]]
-name = "ux"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cb3ff47e36907a6267572c1e398ff32ef78ac5131de8aa272e53846592c207e"
 
 [[package]]
 name = "value-bag"

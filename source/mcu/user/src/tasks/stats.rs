@@ -2,15 +2,15 @@ use crate::println;
 
 use alloc::sync::Arc;
 use atomic_traits::{
-    fetch::{Max, Min},
+    fetch::{self, Max, Min},
     Atomic,
 };
 use common::{
     config::ADC_COUNT,
-    units::{AdcPoint, DacPoint, Unit},
+    values::{AdcPoint, DacPoint, Value},
 };
 use core::{
-    fmt::{self, Display, Formatter, Write},
+    fmt::{self, Display, Formatter, LowerHex, Write},
     sync::atomic::{fence, AtomicUsize, Ordering},
     time::Duration,
 };
@@ -71,7 +71,7 @@ pub struct StatsAdc {
 }
 
 #[derive(Default)]
-pub struct ValueStats<T: Unit> {
+pub struct ValueStats<T: Value> {
     sum: AtomicI64,
     count: AtomicU64,
     last: T::Atomic,
@@ -174,7 +174,11 @@ impl StatsAdc {
     }
 }
 
-impl<T: Unit> ValueStats<T> {
+impl<T: Value + Default> ValueStats<T>
+where
+    <T as Value>::Atomic: fetch::Min<Type = T::Base> + fetch::Max<Type = T::Base>,
+    i64: From<T::Base>,
+{
     pub fn new() -> Self {
         let this = Self::default();
         this.reset();
@@ -184,18 +188,17 @@ impl<T: Unit> ValueStats<T> {
         fence(Ordering::Acquire);
         self.count.store(0, Ordering::Relaxed);
         self.sum.store(0, Ordering::Relaxed);
-        self.max.store(T::MIN.into(), Ordering::Relaxed);
-        self.min.store(T::MAX.into(), Ordering::Relaxed);
-        self.last.store(T::ZERO.into(), Ordering::Relaxed);
+        self.max.store(T::MIN, Ordering::Relaxed);
+        self.min.store(T::MAX, Ordering::Relaxed);
+        self.last.store(T::Base::default(), Ordering::Relaxed);
         fence(Ordering::Release);
     }
     pub fn update(&self, value: T) {
         fence(Ordering::Acquire);
-        self.min.fetch_min(value.into(), Ordering::Relaxed);
-        self.max.fetch_max(value.into(), Ordering::Relaxed);
-        self.last.store(value.into(), Ordering::Relaxed);
-        self.sum
-            .fetch_add(<T::Base as Into<i64>>::into(value.into()), Ordering::Relaxed);
+        self.min.fetch_min(value.into_base(), Ordering::Relaxed);
+        self.max.fetch_max(value.into_base(), Ordering::Relaxed);
+        self.last.store(value.into_base(), Ordering::Relaxed);
+        self.sum.fetch_add(i64::from(value.into_base()), Ordering::Relaxed);
         self.count.fetch_add(1, Ordering::Relaxed);
         fence(Ordering::Release);
     }
@@ -259,7 +262,10 @@ macro_rules! format_value {
     };
 }
 
-impl<T: Unit> Display for ValueStats<T> {
+impl<T: Value + Default> Display for ValueStats<T>
+where
+    T::Base: TryFrom<i64> + LowerHex + Display,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         fence(Ordering::Acquire);
 
@@ -271,7 +277,7 @@ impl<T: Unit> Display for ValueStats<T> {
             writeln!(f, "min: {}", format_value!(&self.min.load(Ordering::Relaxed)))?;
             writeln!(f, "max: {}", format_value!(&self.max.load(Ordering::Relaxed)))?;
 
-            let avg = T::Base::try_from(self.sum.load(Ordering::Relaxed) / count as i64).unwrap_or(T::MIN.into());
+            let avg = T::Base::try_from(self.sum.load(Ordering::Relaxed) / count as i64).unwrap_or(T::MIN);
             writeln!(f, "avg: {}", format_value!(&avg))?;
         }
 

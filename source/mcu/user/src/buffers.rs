@@ -1,6 +1,6 @@
 use common::{
     config::ADC_COUNT,
-    units::{AdcPoint, DacPoint},
+    values::{AdcPoint, DacPoint},
 };
 #[cfg(feature = "fake")]
 use core::time::Duration;

@@ -1,7 +1,7 @@
 use async_std::task::{sleep as async_sleep, spawn};
 use common::{
     config::ADC_COUNT,
-    units::{AdcPoint, DacPoint, Unit},
+    values::{AdcPoint, DacPoint, Din, Dout, Value},
 };
 use futures::{
     channel::mpsc::{channel, Receiver, Sender},
@@ -11,12 +11,12 @@ use futures::{
 };
 use mcu::{
     error::{Error, ErrorKind, ErrorSource},
-    skifio::{self, AtomicDin, Din, DinHandler, Dout, SkifioIface, SKIFIO},
+    skifio::{self, DinHandler, SkifioIface, SKIFIO},
 };
 use std::{
     future::Future,
     pin::Pin,
-    sync::{Arc, Mutex},
+    sync::{atomic::Ordering, Arc, Mutex},
     task::{Context, Poll},
     thread::{park, sleep},
     time::Duration,
@@ -42,7 +42,7 @@ struct Skifio {
     last_adcs: Option<[AdcPoint; ADC_COUNT]>,
 
     dout: Sender<Dout>,
-    last_din: Arc<AtomicDin>,
+    last_din: Arc<<Din as Value>::Atomic>,
     din_handler: Arc<Mutex<Option<Box<dyn DinHandler>>>>,
 
     count: usize,
@@ -54,7 +54,7 @@ impl Skifio {
         let (adcs_send, adcs_recv) = channel(ADC_CHAN_CAP);
         let (dout_send, dout_recv) = channel(DOUT_CHAN_CAP);
         let (din_send, din_recv) = channel(DIN_CHAN_CAP);
-        let last_din = Arc::new(AtomicDin::default());
+        let last_din = Arc::new(<Din as Value>::Atomic::default());
         let din_handler = Arc::new(Mutex::new(None::<Box<dyn DinHandler>>));
         {
             let mut recv = din_recv;
@@ -62,11 +62,11 @@ impl Skifio {
             let last = last_din.clone();
             spawn(async move {
                 loop {
-                    let din = match recv.next().await {
+                    let din: Din = match recv.next().await {
                         Some(x) => x,
                         None => pending().await, // Channel closed
                     };
-                    last.store(din, std::sync::atomic::Ordering::Release);
+                    last.store(din.into(), Ordering::Release);
                     if let Some(cb) = &mut *handler.lock().unwrap() {
                         let mut ctx = InterruptContext::new();
                         cb(&mut ctx, din);
@@ -160,7 +160,7 @@ impl SkifioIface for Skifio {
         let dac = if self.dac_enabled {
             out.dac
         } else {
-            DacPoint::ZERO
+            DacPoint::default()
         };
         let adcs = self.last_adcs.take().unwrap();
         self.count += 1;
@@ -174,7 +174,7 @@ impl SkifioIface for Skifio {
     }
 
     fn read_din(&mut self) -> Din {
-        self.last_din.load(std::sync::atomic::Ordering::Acquire)
+        self.last_din.load(Ordering::Acquire).try_into().unwrap()
     }
     fn subscribe_din(&mut self, callback: Option<Box<dyn DinHandler>>) -> Result<(), Error> {
         *self.din_handler.lock().unwrap() = callback;

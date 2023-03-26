@@ -8,7 +8,7 @@ use async_std::{
 use common::{
     config::{self, ADC_COUNT},
     protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
-    units::{AdcPoint, Unit},
+    values::{AdcPoint, Value},
 };
 use flatty::{flat_vec, prelude::*, Emplacer};
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter, ReadError};
@@ -160,7 +160,7 @@ impl<C: Channel> Writer<C> {
                         while count > 0 && !points.is_full() {
                             match iter.next() {
                                 Some(value) => {
-                                    points.push(value.to_portable()).unwrap();
+                                    points.push(value.into_portable()).unwrap();
                                     count -= 1;
                                 }
                                 None => break,

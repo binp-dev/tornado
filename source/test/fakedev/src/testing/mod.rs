@@ -1,13 +1,16 @@
 pub mod adc;
 pub mod dac;
 
-use common::units::Voltage;
+use common::values::Analog;
 
 extern "C" {
     fn user_sample_intr();
 }
 
-fn scale<T: Voltage>(x: f64) -> f64 {
-    let (min, max) = (T::MIN.to_voltage(), T::MAX.to_voltage());
+fn scale<T: Analog>(x: f64) -> f64 {
+    let (min, max) = (
+        T::try_from_base(T::MIN).unwrap().into_analog(),
+        T::try_from_base(T::MAX).unwrap().into_analog(),
+    );
     (x + 1.0) / 2.0 * (max - min) + min
 }

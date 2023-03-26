@@ -4,7 +4,7 @@ use async_std::{
 };
 use common::{
     config::{ADC_COUNT, SAMPLE_PERIOD},
-    units::{AdcPoint, Unit, Voltage},
+    values::{AdcPoint, Analog},
 };
 use fakedev::run;
 use futures::{SinkExt, StreamExt};
@@ -22,15 +22,15 @@ async fn main() {
     let mut phases = [0.0_f64; ADC_COUNT];
     spawn(async move {
         let mut counter: u64 = 0;
-        let mut adcs = [AdcPoint::ZERO; ADC_COUNT];
+        let mut adcs = [AdcPoint::default(); ADC_COUNT];
         loop {
             skifio.adcs.send(adcs).await.unwrap();
             unsafe { user_sample_intr() };
 
-            let dac = skifio.dac.next().await.unwrap().to_voltage();
-            adcs[0] = AdcPoint::try_from_voltage(dac).unwrap();
+            let dac = skifio.dac.next().await.unwrap();
+            adcs[0] = AdcPoint::try_from_analog(dac.into_analog()).unwrap();
             for i in 1..ADC_COUNT {
-                adcs[i] = AdcPoint::try_from_voltage(phases[i].sin()).unwrap();
+                adcs[i] = AdcPoint::try_from_analog(phases[i].sin()).unwrap();
                 phases[i] = 2.0 * PI * FREQS[i] * counter as f64 * SAMPLE_PERIOD.as_secs_f64();
             }
 
@@ -45,7 +45,11 @@ async fn main() {
         loop {
             skifio
                 .din
-                .send(skifio.dout.next().await.unwrap())
+                .send(
+                    u8::from(skifio.dout.next().await.unwrap())
+                        .try_into()
+                        .unwrap(),
+                )
                 .await
                 .unwrap();
         }

@@ -3,7 +3,7 @@ use approx::assert_abs_diff_eq;
 use async_std::task::{sleep, spawn};
 use common::{
     config::ADC_COUNT,
-    units::{AdcPoint, Voltage},
+    values::{AdcPoint, Analog},
 };
 use fakedev::epics;
 use futures::{channel::mpsc::Sender, future::join_all, join, SinkExt, StreamExt};
@@ -52,7 +52,7 @@ pub async fn test(
         let data = data.clone();
         async move {
             for xs in data {
-                let adcs = xs.map(|x| AdcPoint::try_from_voltage(x).unwrap());
+                let adcs = xs.map(|x| AdcPoint::try_from_analog(x).unwrap());
                 device.send(adcs).await.unwrap();
                 unsafe { user_sample_intr() };
             }

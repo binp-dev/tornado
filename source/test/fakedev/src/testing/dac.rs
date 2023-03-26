@@ -1,7 +1,7 @@
 use super::scale;
 use approx::assert_abs_diff_eq;
 use async_std::task::spawn;
-use common::units::{DacPoint, Voltage};
+use common::values::{Analog, DacPoint};
 use epics_ca::types::EpicsEnum;
 use fakedev::epics;
 use futures::{channel::mpsc::Receiver, join, pin_mut, StreamExt};
@@ -54,7 +54,7 @@ pub async fn test(mut context: Context, attempts: usize) -> Context {
         for _ in 0..(attempts * len) {
             let dac = context.device.next().await.unwrap();
             assert_abs_diff_eq!(
-                dac.to_voltage(),
+                dac.into_analog(),
                 seq.next().unwrap(),
                 epsilon = DacPoint::STEP
             );
@@ -75,7 +75,7 @@ pub async fn test_cyclic(mut context: Context, attempts: usize) {
         .map(move |x| x * scale::<DacPoint>((2.0 * PI * x).sin()));
 
     let prod = spawn({
-        let data = data.clone().collect::<Vec<_>>().clone();
+        let data = data.clone().collect::<Vec<_>>();
         let mut epics = context.epics;
         async move {
             let request = epics.request.subscribe();
@@ -93,7 +93,7 @@ pub async fn test_cyclic(mut context: Context, attempts: usize) {
         for _ in 0..(attempts * len) {
             let dac = context.device.next().await.unwrap();
             assert_abs_diff_eq!(
-                dac.to_voltage(),
+                dac.into_analog(),
                 seq.next().unwrap(),
                 epsilon = DacPoint::STEP
             );

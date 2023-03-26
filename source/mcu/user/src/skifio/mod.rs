@@ -12,16 +12,10 @@ use crate::Error;
 use alloc::boxed::Box;
 use common::{
     config::ADC_COUNT,
-    units::{AdcPoint, DacPoint},
+    values::{AdcPoint, DacPoint, Din, Dout},
 };
-use core::{sync::atomic::AtomicU8, time::Duration};
+use core::time::Duration;
 use ustd::task::InterruptContext;
-
-pub const DIN_SIZE: usize = 8;
-pub const DOUT_SIZE: usize = 4;
-
-pub type Din = u8;
-pub type Dout = u8;
 
 #[repr(C)]
 #[derive(Clone, Debug, Default)]
@@ -33,9 +27,6 @@ pub struct XferIn {
 pub struct XferOut {
     pub dac: DacPoint,
 }
-
-pub type AtomicDin = AtomicU8;
-pub type AtomicDout = AtomicU8;
 
 pub trait DinHandler: FnMut(&mut InterruptContext, Din) + Send + 'static {}
 impl<T: FnMut(&mut InterruptContext, Din) + Send + 'static> DinHandler for T {}

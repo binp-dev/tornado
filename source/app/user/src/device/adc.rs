@@ -1,7 +1,7 @@
 use super::Error;
 use crate::epics;
 use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
-use common::units::{AdcPoint, Voltage};
+use common::values::{AdcPoint, Analog};
 use ferrite::TypedVariable as Variable;
 use std::iter::ExactSizeIterator;
 
@@ -38,7 +38,7 @@ impl Adc {
             self.output_array
                 .request()
                 .await
-                .write_from(input.pop_iter().map(AdcPoint::to_voltage))
+                .write_from(input.pop_iter().map(AdcPoint::into_analog))
                 .await;
         }
     }
