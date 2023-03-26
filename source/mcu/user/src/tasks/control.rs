@@ -7,12 +7,12 @@ use crate::{
     buffers::{AdcProducer, DacConsumer},
     error::{Error, ErrorKind},
     println,
-    skifio::{self, AtomicDin, AtomicDout, DinHandler, XferIn, XferOut},
+    skifio::{self, DinHandler, XferIn, XferOut},
 };
 use alloc::{boxed::Box, sync::Arc};
 use common::{
     config::ADC_COUNT,
-    units::{AdcPoint, DacPoint, Unit},
+    values::{AdcPoint, DacPoint, Din, Dout, Value},
 };
 use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -22,10 +22,6 @@ use ustd::{
     sync::Semaphore,
     task::{self, BlockingContext, Context, Priority, TaskContext},
 };
-use ux::u4;
-
-pub type Din = u8;
-pub type Dout = u4;
 
 pub struct ControlHandle {
     /// Semaphore to notify that something is ready.
@@ -35,8 +31,8 @@ pub struct ControlHandle {
     #[cfg(feature = "fake")]
     dac_enable_sem: Semaphore,
 
-    din: AtomicDin,
-    dout: AtomicDout,
+    din: <Din as Value>::Atomic,
+    dout: <Dout as Value>::Atomic,
 
     /// Discrete input has changed.
     din_changed: AtomicBool,
@@ -75,8 +71,8 @@ impl ControlHandle {
             dac_enabled: AtomicBool::new(false),
             #[cfg(feature = "fake")]
             dac_enable_sem: Semaphore::new().unwrap(),
-            din: AtomicDin::new(0),
-            dout: AtomicDout::new(0),
+            din: <Din as Value>::Atomic::default(),
+            dout: <Dout as Value>::Atomic::default(),
             din_changed: AtomicBool::new(false),
             dout_changed: AtomicBool::new(false),
             dac_notify_every: AtomicUsize::new(0),
@@ -104,7 +100,7 @@ impl ControlHandle {
     }
 
     fn update_din(&self, value: Din) -> bool {
-        if self.din.swap(value, Ordering::AcqRel) != value {
+        if self.din.swap(value.into(), Ordering::AcqRel) != value.into() {
             self.din_changed.fetch_or(true, Ordering::AcqRel);
             true
         } else {
@@ -113,15 +109,14 @@ impl ControlHandle {
     }
     pub fn take_din(&self) -> Option<Din> {
         if self.din_changed.fetch_and(false, Ordering::AcqRel) {
-            Some(self.din.load(Ordering::Acquire))
+            Some(self.din.load(Ordering::Acquire).try_into().unwrap())
         } else {
             None
         }
     }
 
     pub fn set_dout(&self, value: Dout) {
-        let raw = value.into();
-        if self.dout.swap(raw, Ordering::AcqRel) != raw {
+        if self.dout.swap(value.into(), Ordering::AcqRel) != value.into() {
             self.dout_changed.fetch_or(true, Ordering::AcqRel);
         }
     }
@@ -134,7 +129,7 @@ impl Control {
             Self {
                 dac: ControlDac {
                     buffer: dac_buf,
-                    last_point: DacPoint::ZERO,
+                    last_point: DacPoint::default(),
                     counter: 0,
                 },
                 adc: ControlAdc {
@@ -167,7 +162,9 @@ impl Control {
 
         #[cfg(feature = "fake")]
         while !handle.dac_enabled.load(Ordering::Acquire) {
-            assert!(handle.dac_enable_sem.take(cx, BUFFER_TIMEOUT));
+            if !handle.dac_enable_sem.take(cx, BUFFER_TIMEOUT) {
+                println!("DAC enable timeout");
+            }
         }
 
         println!("Enter SkifIO loop");
@@ -191,7 +188,9 @@ impl Control {
 
             // Write discrete output
             if handle.dout_changed.fetch_and(false, Ordering::AcqRel) {
-                skifio.write_dout(handle.dout.load(Ordering::Acquire)).unwrap();
+                skifio
+                    .write_dout(handle.dout.load(Ordering::Acquire).try_into().unwrap())
+                    .unwrap();
             }
 
             // Read discrete input
@@ -201,7 +200,9 @@ impl Control {
             let mut dac = self.dac.last_point;
             if handle.dac_enabled.load(Ordering::Acquire) {
                 #[cfg(feature = "fake")]
-                assert!(self.dac.buffer.wait(1, BUFFER_TIMEOUT));
+                while !self.dac.buffer.wait(1, BUFFER_TIMEOUT) {
+                    println!("DAC buffer timeout");
+                }
 
                 if let Some(value) = self.dac.buffer.pop() {
                     dac = value;
@@ -239,7 +240,9 @@ impl Control {
                 // Handle ADCs
                 {
                     #[cfg(feature = "fake")]
-                    assert!(self.adc.buffer.wait(1, BUFFER_TIMEOUT));
+                    while !self.adc.buffer.wait(1, BUFFER_TIMEOUT) {
+                        println!("ADC buffer timeout");
+                    }
 
                     // Update ADC value statistics
                     stats.adcs.update_values(adcs);

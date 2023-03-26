@@ -8,13 +8,13 @@ use alloc::sync::Arc;
 use common::{
     config,
     protocol::{self as proto, AppMsg, McuMsg},
-    units::{AdcPoint, DacPoint, Unit},
+    values::{AdcPoint, DacPoint, Dout, Value},
 };
 use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     time::Duration,
 };
-use flatty::{flat_vec, portable::le};
+use flatty::{flat_vec, portable::le, prelude::NativeCast};
 use ringbuf::ring_buffer::RbBase;
 use ustd::{
     println,
@@ -157,10 +157,10 @@ impl RpmsgReader {
             match message.as_ref() {
                 AppMsgRef::Connect => unreachable!(),
                 AppMsgRef::KeepAlive => continue,
-                AppMsgRef::DoutUpdate { value } => self.set_dout(*value),
+                AppMsgRef::DoutUpdate { value } => self.set_dout(Dout::from_portable(*value)),
                 AppMsgRef::DacState { enable } => {
-                    println!("Set DAC state: {}", enable);
-                    self.control.set_dac_mode(cx, *enable != 0);
+                    println!("Set DAC state: {:?}", enable);
+                    self.control.set_dac_mode(cx, enable.to_native());
                 }
                 AppMsgRef::DacData { points } => self.write_dac(points),
                 AppMsgRef::StatsReset => {
@@ -185,14 +185,11 @@ impl RpmsgReader {
         println!("IOC disconnected");
     }
 
-    fn set_dout(&mut self, value: u8) {
-        match value.try_into() {
-            Ok(x) => self.control.set_dout(x),
-            Err(_) => println!("Dout is out of bounds: {:b}", value),
-        }
+    fn set_dout(&mut self, value: Dout) {
+        self.control.set_dout(value);
     }
 
-    fn write_dac(&mut self, points: &[<DacPoint as Unit>::Portable]) {
+    fn write_dac(&mut self, points: &[<DacPoint as Value>::Portable]) {
         // Push received points to ring buffer.
         {
             #[cfg(feature = "fake")]
@@ -258,7 +255,9 @@ impl RpmsgWriter {
         if let Some(din) = self.control.take_din() {
             try_timeout!(self.channel.new_message(), ())
                 .unwrap()
-                .emplace(proto::McuMsgInitDinUpdate { value: din })
+                .emplace(proto::McuMsgInitDinUpdate {
+                    value: din.into_portable(),
+                })
                 .unwrap()
                 .write()
                 .unwrap();
@@ -277,7 +276,7 @@ impl RpmsgWriter {
 
             let count = if let proto::McuMsgMut::AdcData { points } = msg.as_mut() {
                 assert_eq!(points.capacity(), LEN);
-                points.extend_from_iter(self.buffer.pop_iter().map(|values| values.map(AdcPoint::to_portable)));
+                points.extend_from_iter(self.buffer.pop_iter().map(|values| values.map(AdcPoint::into_portable)));
                 points.len()
             } else {
                 unreachable!()

@@ -1,4 +1,4 @@
-use common::config::ADC_COUNT;
+use common::config::{ADC_COUNT, DIN_BITS, DOUT_BITS};
 use cstr::cstr;
 use epics_ca::{types::EpicsEnum, Context, ValueChannel as Channel};
 use futures::{stream::iter, StreamExt};
@@ -20,8 +20,8 @@ pub struct Adc {
 pub struct Epics {
     pub dac: Dac,
     pub adc: [Adc; ADC_COUNT],
-    pub dout: Channel<i32>,
-    pub din: Channel<i32>,
+    pub dout: [Channel<u8>; DOUT_BITS],
+    pub din: [Channel<u8>; DIN_BITS],
 }
 
 async fn make_array<T, G: Future<Output = T>, F: Fn(usize) -> G, const N: usize>(f: F) -> [T; N] {
@@ -53,8 +53,42 @@ impl Epics {
                 }
             })
             .await,
-            dout: ctx.connect(cstr!("do0")).await.unwrap(),
-            din: ctx.connect(cstr!("di0")).await.unwrap(),
+            dout: async {
+                let nobt = ctx
+                    .connect::<i16>(cstr!("do0.NOBT"))
+                    .await
+                    .unwrap()
+                    .get()
+                    .await
+                    .unwrap();
+                assert_eq!(nobt as usize, DOUT_BITS);
+
+                make_array(|i| async move {
+                    ctx.connect(&CString::new(format!("do0.B{:X}", i)).unwrap())
+                        .await
+                        .unwrap()
+                })
+                .await
+            }
+            .await,
+            din: async {
+                let nobt = ctx
+                    .connect::<i16>(cstr!("di0.NOBT"))
+                    .await
+                    .unwrap()
+                    .get()
+                    .await
+                    .unwrap();
+                assert_eq!(nobt as usize, DIN_BITS);
+
+                make_array(|i| async move {
+                    ctx.connect(&CString::new(format!("di0.B{:X}", i)).unwrap())
+                        .await
+                        .unwrap()
+                })
+                .await
+            }
+            .await,
         }
     }
 }

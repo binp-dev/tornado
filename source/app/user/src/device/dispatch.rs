@@ -1,4 +1,10 @@
-use super::{adc::AdcHandle, dac::DacHandle, debug::DebugHandle, Error};
+use super::{
+    adc::AdcHandle,
+    dac::DacHandle,
+    debug::DebugHandle,
+    dio::{DinHandle, DoutHandle},
+    Error,
+};
 use crate::channel::Channel;
 use async_atomic::{Atomic, Subscriber};
 use async_std::{
@@ -8,11 +14,11 @@ use async_std::{
 use common::{
     config::{self, ADC_COUNT},
     protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
-    units::{AdcPoint, Unit},
+    values::{AdcPoint, Din, Value},
 };
 use flatty::{flat_vec, prelude::*, Emplacer};
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter, ReadError};
-use futures::{future::try_join_all, join, AsyncWrite, StreamExt};
+use futures::{future::try_join_all, join, AsyncWrite, SinkExt, StreamExt};
 use std::{io, sync::Arc};
 
 pub struct Dispatcher<C: Channel> {
@@ -24,6 +30,7 @@ struct Writer<C: Channel> {
     channel: Mutex<MsgWriter<AppMsg, C::Write>>,
     dac: DacHandle,
     dac_write_count: Subscriber<usize>,
+    dout: DoutHandle,
     debug: DebugHandle,
 }
 
@@ -31,6 +38,7 @@ struct Reader<C: Channel> {
     channel: MsgReader<McuMsg, C::Read>,
     adcs: [AdcHandle; ADC_COUNT],
     dac_write_count: Arc<Atomic<usize>>,
+    din: DinHandle,
 }
 
 impl<C: Channel> Dispatcher<C> {
@@ -38,6 +46,8 @@ impl<C: Channel> Dispatcher<C> {
         channel: C,
         dac: DacHandle,
         adcs: [AdcHandle; ADC_COUNT],
+        din: DinHandle,
+        dout: DoutHandle,
         debug: DebugHandle,
     ) -> Self {
         let (r, w) = channel.split();
@@ -49,11 +59,13 @@ impl<C: Channel> Dispatcher<C> {
                 channel: reader,
                 adcs,
                 dac_write_count: dac_write_count.clone(),
+                din,
             },
             writer: Writer {
                 channel: writer,
                 dac,
                 dac_write_count,
+                dout,
                 debug,
             },
         }
@@ -66,7 +78,7 @@ impl<C: Channel> Dispatcher<C> {
 }
 
 impl<C: Channel> Reader<C> {
-    async fn run(self) -> Result<(), Error> {
+    async fn run(mut self) -> Result<(), Error> {
         let mut channel = self.channel;
         let mut adcs = self.adcs;
         loop {
@@ -82,7 +94,9 @@ impl<C: Channel> Reader<C> {
                 other => other.unwrap(),
             };
             match msg.as_ref() {
-                McuMsgRef::DinUpdate { value: _ } => (),
+                McuMsgRef::DinUpdate { value } => {
+                    self.din.send(Din::from_portable(*value)).await.unwrap()
+                }
                 McuMsgRef::DacRequest { count } => {
                     self.dac_write_count.fetch_add(count.to_native() as usize);
                 }
@@ -144,16 +158,19 @@ impl<C: Channel> Writer<C> {
                     }
                 }
             }),
+            spawn({
+                let channel = channel.clone();
+                async move {
+                    loop {
+                        let value = self.dout.next().await.unwrap();
+                        send_message(&channel, proto::AppMsgInitDoutUpdate { value }).await?;
+                    }
+                }
+            }),
             spawn(async move {
-                let mut iter = self.dac.buffer.into_iter();
-                (self.dac.read_ready)();
-                iter.on_swap = self.dac.read_ready;
+                let mut iter = self.dac.buffer;
                 loop {
-                    join!(self.dac_write_count.wait(|x| x >= 1), async {
-                        if iter.is_empty() {
-                            iter.wait_ready().await;
-                        }
-                    });
+                    join!(self.dac_write_count.wait(|x| x >= 1), iter.wait_ready());
                     let mut guard = channel.lock().await;
                     let mut msg = guard
                         .new_message()
@@ -166,7 +183,7 @@ impl<C: Channel> Writer<C> {
                         while count > 0 && !points.is_full() {
                             match iter.next() {
                                 Some(value) => {
-                                    points.push(value.to_portable()).unwrap();
+                                    points.push(value.into_portable()).unwrap();
                                     count -= 1;
                                 }
                                 None => break,
