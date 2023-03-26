@@ -6,7 +6,7 @@ use epics_ca as ca;
 use fakedev::{run, Epics};
 use futures::join;
 use mcu::tasks::STATISTICS;
-use testing::{adc, dac};
+use testing::{adc, dac, dio};
 
 #[async_main]
 async fn main() {
@@ -30,7 +30,9 @@ async fn main() {
         skifio.adcs,
         ATTEMPTS + CYCLIC_ATTEMPTS,
     ));
-    join!(dac, adc);
+    let dout = spawn(dio::test_dout(epics.dout, skifio.dout, ATTEMPTS));
+    let din = spawn(dio::test_din(epics.din, skifio.din, ATTEMPTS));
+    join!(dac, adc, dout, din);
 
     println!("Statistics: {}", STATISTICS.as_ref());
 }

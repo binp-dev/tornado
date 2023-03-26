@@ -1,3 +1,4 @@
+use crate::config::{DIN_BITS, DOUT_BITS};
 use atomic_traits::Atomic;
 use core::{
     fmt::Debug,
@@ -200,5 +201,5 @@ impl<const N: usize> Value for Bits<N> {
     type Atomic = AtomicU8;
 }
 
-pub type Din = Bits<8>;
-pub type Dout = Bits<4>;
+pub type Din = Bits<DIN_BITS>;
+pub type Dout = Bits<DOUT_BITS>;
