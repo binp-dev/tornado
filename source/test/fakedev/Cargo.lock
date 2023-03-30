@@ -230,16 +230,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cstr"
-version = "0.2.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8aa998c33a6d3271e3678950a22134cd7dd27cef86dee1b611b5b14207d1d90b"
-dependencies = [
- "proc-macro2",
- "quote",
-]
-
-[[package]]
 name = "ctor"
 version = "0.1.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -891,7 +881,6 @@ version = "0.0.0"
 dependencies = [
  "approx",
  "async-std",
- "cstr",
  "epics-ca",
  "futures",
  "indicatif",

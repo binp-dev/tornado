@@ -13,6 +13,7 @@ use testing::{adc, dac, dio};
 async fn main() {
     const ATTEMPTS: usize = 64;
     const CYCLIC_ATTEMPTS: usize = 16;
+    const PREFIX: &str = "tornado0:";
 
     let m = MultiProgress::new();
     let sty = ProgressStyle::with_template("{prefix:18} [{wide_bar}] {pos:>4}/{len:4}")
@@ -21,7 +22,7 @@ async fn main() {
 
     let skifio = run();
     let ctx = ca::Context::new().unwrap();
-    let epics = Epics::connect(&ctx).await;
+    let epics = Epics::connect(&ctx, PREFIX).await;
     let (dac_m, dac_sty) = (m.clone(), sty.clone());
     let dac = spawn(async move {
         let context = dac::Context {

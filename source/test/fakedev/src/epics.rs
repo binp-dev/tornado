@@ -1,8 +1,16 @@
+use async_std::future::timeout;
 use common::config::{ADC_COUNT, DIN_BITS, DOUT_BITS};
-use cstr::cstr;
-use epics_ca::{types::EpicsEnum, Context, ValueChannel as Channel};
+use epics_ca::{
+    error,
+    types::{EpicsEnum, Value},
+    Context, Error, ValueChannel as Channel,
+};
 use futures::{stream::iter, StreamExt};
-use std::{ffi::CString, future::Future};
+use std::{
+    ffi::{CStr, CString},
+    future::Future,
+    time::Duration,
+};
 
 pub struct Dac {
     pub array: Channel<[f64]>,
@@ -30,32 +38,48 @@ async fn make_array<T, G: Future<Output = T>, F: Fn(usize) -> G, const N: usize>
     vec.try_into().ok().unwrap()
 }
 
+macro_rules! cformat {
+    ($( $arg:tt )*) => {
+        CString::new(format!($( $arg )*)).unwrap()
+    };
+}
+
+async fn connect<V>(ctx: &Context, name: &CStr) -> Result<Channel<V>, Error>
+where
+    V: Value + ?Sized,
+{
+    const TIMEOUT: Duration = Duration::from_secs(1);
+    match timeout(TIMEOUT, ctx.connect(name)).await {
+        Ok(res) => res,
+        Err(_) => Err(error::TIMEOUT),
+    }
+}
+
 impl Epics {
-    pub async fn connect(ctx: &Context) -> Self {
+    pub async fn connect(ctx: &Context, prefix: &str) -> Self {
         Self {
             dac: Dac {
-                array: ctx.connect(cstr!("aao0")).await.unwrap(),
-                scalar: ctx.connect(cstr!("ao0")).await.unwrap(),
-                request: ctx.connect(cstr!("aao0_request")).await.unwrap(),
-                state: ctx.connect(cstr!("aao0_state")).await.unwrap(),
-                mode: ctx.connect(cstr!("aao0_mode")).await.unwrap(),
+                array: connect(ctx, &cformat!("{}aao0", prefix)).await.unwrap(),
+                scalar: connect(ctx, &cformat!("{}ao0", prefix)).await.unwrap(),
+                request: connect(ctx, &cformat!("{}aao0_request", prefix))
+                    .await
+                    .unwrap(),
+                state: connect(ctx, &cformat!("{}aao0_state", prefix))
+                    .await
+                    .unwrap(),
+                mode: connect(ctx, &cformat!("{}aao0_mode", prefix))
+                    .await
+                    .unwrap(),
             },
             adc: make_array(|i| async move {
                 Adc {
-                    array: ctx
-                        .connect(&CString::new(format!("aai{}", i)).unwrap())
-                        .await
-                        .unwrap(),
-                    scalar: ctx
-                        .connect(&CString::new(format!("ai{}", i)).unwrap())
-                        .await
-                        .unwrap(),
+                    array: connect(ctx, &cformat!("{}aai{}", prefix, i)).await.unwrap(),
+                    scalar: connect(ctx, &cformat!("{}ai{}", prefix, i)).await.unwrap(),
                 }
             })
             .await,
             dout: async {
-                let nobt = ctx
-                    .connect::<i16>(cstr!("do0.NOBT"))
+                let nobt = connect::<i16>(ctx, &cformat!("{}do0.NOBT", prefix))
                     .await
                     .unwrap()
                     .get()
@@ -64,7 +88,7 @@ impl Epics {
                 assert_eq!(nobt as usize, DOUT_BITS);
 
                 make_array(|i| async move {
-                    ctx.connect(&CString::new(format!("do0.B{:X}", i)).unwrap())
+                    connect(ctx, &cformat!("{}do0.B{:X}", prefix, i))
                         .await
                         .unwrap()
                 })
@@ -72,8 +96,7 @@ impl Epics {
             }
             .await,
             din: async {
-                let nobt = ctx
-                    .connect::<i16>(cstr!("di0.NOBT"))
+                let nobt = connect::<i16>(ctx, &cformat!("{}di0.NOBT", prefix))
                     .await
                     .unwrap()
                     .get()
@@ -82,7 +105,7 @@ impl Epics {
                 assert_eq!(nobt as usize, DIN_BITS);
 
                 make_array(|i| async move {
-                    ctx.connect(&CString::new(format!("di0.B{:X}", i)).unwrap())
+                    connect(ctx, &cformat!("{}di0.B{:X}", prefix, i))
                         .await
                         .unwrap()
                 })

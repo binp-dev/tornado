@@ -40,22 +40,22 @@ pub struct Epics {
 }
 
 impl Dac {
-    fn new(reg: &mut Registry, name: &str) -> Result<Self, Error> {
+    fn new(reg: &mut Registry, index: usize) -> Result<Self, Error> {
         Ok(Self {
-            scalar: reg.remove_downcast(name)?,
-            array: reg.remove_downcast(&format!("a{}", name))?,
-            request: reg.remove_downcast(&format!("a{}_request", name))?,
-            mode: reg.remove_downcast(&format!("a{}_mode", name))?,
-            state: reg.remove_downcast(&format!("a{}_state", name))?,
+            scalar: reg.remove_downcast_suffix(&format!("ao{}", index))?,
+            array: reg.remove_downcast_suffix(&format!("aao{}", index))?,
+            request: reg.remove_downcast_suffix(&format!("aao{}_request", index))?,
+            mode: reg.remove_downcast_suffix(&format!("aao{}_mode", index))?,
+            state: reg.remove_downcast_suffix(&format!("aao{}_state", index))?,
         })
     }
 }
 
 impl Adc {
-    fn new(reg: &mut Registry, name: &str) -> Result<Self, Error> {
+    fn new(reg: &mut Registry, index: usize) -> Result<Self, Error> {
         Ok(Self {
-            scalar: reg.remove_downcast(name)?,
-            array: reg.remove_downcast(&format!("a{}", name))?,
+            scalar: reg.remove_downcast_suffix(&format!("ai{}", index))?,
+            array: reg.remove_downcast_suffix(&format!("aai{}", index))?,
         })
     }
 }
@@ -63,7 +63,7 @@ impl Adc {
 impl Debug {
     fn new(reg: &mut Registry) -> Result<Self, Error> {
         Ok(Self {
-            stats_reset: reg.remove_downcast("stats_reset")?,
+            stats_reset: reg.remove_downcast_suffix("_stats_reset")?,
         })
     }
 }
@@ -72,15 +72,15 @@ impl Epics {
     pub fn new(mut ctx: Context) -> Result<Self, Error> {
         let reg = &mut ctx.registry;
         let self_ = Self {
-            dac: Dac::new(reg, "ao0")?,
+            dac: Dac::new(reg, 0)?,
             adc: (0..ADC_COUNT)
-                .map(|i| Adc::new(reg, &format!("ai{}", i)))
+                .map(|i| Adc::new(reg, i))
                 .collect::<Result<Vec<_>, _>>()?
                 .try_into()
                 .ok()
                 .unwrap(),
-            dout: reg.remove_downcast("do0")?,
-            din: reg.remove_downcast("di0")?,
+            dout: reg.remove_downcast_suffix("do0")?,
+            din: reg.remove_downcast_suffix("di0")?,
             debug: Debug::new(reg)?,
         };
         ctx.registry.check_empty()?;
