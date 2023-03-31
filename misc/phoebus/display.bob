@@ -1,0 +1,773 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<display version="2.0.0">
+  <name>Display</name>
+  <macros>
+    <PREFIX>tornado0:</PREFIX>
+  </macros>
+  <width>680</width>
+  <height>330</height>
+  <widget type="label" version="2.0.0">
+    <name>Title</name>
+    <class>TITLE</class>
+    <text>Tornado controller display</text>
+    <x use_class="true">0</x>
+    <y use_class="true">0</y>
+    <width>550</width>
+    <height>31</height>
+    <font use_class="true">
+      <font name="Header 1" family="Liberation Sans" style="BOLD" size="22.0">
+      </font>
+    </font>
+    <foreground_color use_class="true">
+      <color name="Text" red="0" green="0" blue="0">
+      </color>
+    </foreground_color>
+    <transparent use_class="true">true</transparent>
+  </widget>
+  <widget type="group" version="2.0.0">
+    <name>ADC</name>
+    <y>150</y>
+    <width>391</width>
+    <height>160</height>
+    <style>1</style>
+    <widget type="group" version="2.0.0">
+      <name>Title</name>
+      <y>1</y>
+      <width>389</width>
+      <height>20</height>
+      <style>3</style>
+      <widget type="label" version="2.0.0">
+        <name>Name</name>
+        <text>PV</text>
+        <width>49</width>
+        <font>
+          <font family="Liberation Sans" style="BOLD" size="14.0">
+          </font>
+        </font>
+      </widget>
+      <widget type="label" version="2.0.0">
+        <name>Value</name>
+        <text>Value, V</text>
+        <x>49</x>
+        <font>
+          <font family="Liberation Sans" style="BOLD" size="14.0">
+          </font>
+        </font>
+      </widget>
+      <widget type="label" version="2.0.0">
+        <name>ESLO</name>
+        <text>Cal. Slope</text>
+        <x>149</x>
+        <width>120</width>
+        <font>
+          <font name="Default Bold" family="Liberation Sans" style="BOLD" size="14.0">
+          </font>
+        </font>
+      </widget>
+      <widget type="label" version="2.0.0">
+        <name>EOFF</name>
+        <text>Cal. Offset</text>
+        <x>269</x>
+        <width>120</width>
+        <font>
+          <font name="Default Bold" family="Liberation Sans" style="BOLD" size="14.0">
+          </font>
+        </font>
+      </widget>
+    </widget>
+    <widget type="group" version="2.0.0">
+      <name>ADC</name>
+      <y>21</y>
+      <width>389</width>
+      <height>120</height>
+      <style>3</style>
+      <transparent>true</transparent>
+      <widget type="group" version="2.0.0">
+        <name>0</name>
+        <width>389</width>
+        <height>20</height>
+        <style>3</style>
+        <transparent>true</transparent>
+        <widget type="label" version="2.0.0">
+          <name>Name</name>
+          <text>ai0:</text>
+          <width>49</width>
+        </widget>
+        <widget type="textupdate" version="2.0.0">
+          <name>Value</name>
+          <pv_name>$(PREFIX)ai0</pv_name>
+          <x>49</x>
+        </widget>
+        <widget type="textentry" version="3.0.0">
+          <name>EOFF</name>
+          <pv_name>$(PREFIX)ai0.ESLO</pv_name>
+          <x>149</x>
+          <width>120</width>
+        </widget>
+        <widget type="textentry" version="3.0.0">
+          <name>EOFF</name>
+          <pv_name>$(PREFIX)ai0.EOFF</pv_name>
+          <x>269</x>
+          <width>120</width>
+        </widget>
+      </widget>
+      <widget type="group" version="2.0.0">
+        <name>1</name>
+        <y>20</y>
+        <width>389</width>
+        <height>20</height>
+        <style>3</style>
+        <transparent>true</transparent>
+        <widget type="label" version="2.0.0">
+          <name>Name</name>
+          <text>ai1:</text>
+          <width>49</width>
+        </widget>
+        <widget type="textupdate" version="2.0.0">
+          <name>Value</name>
+          <pv_name>$(PREFIX)ai1</pv_name>
+          <x>49</x>
+        </widget>
+        <widget type="textentry" version="3.0.0">
+          <name>ESLO</name>
+          <pv_name>$(PREFIX)ai1.ESLO</pv_name>
+          <x>149</x>
+          <width>120</width>
+        </widget>
+        <widget type="textentry" version="3.0.0">
+          <name>EOFF</name>
+          <pv_name>$(PREFIX)ai1.EOFF</pv_name>
+          <x>269</x>
+          <width>120</width>
+        </widget>
+      </widget>
+      <widget type="group" version="2.0.0">
+        <name>2</name>
+        <y>40</y>
+        <width>389</width>
+        <height>20</height>
+        <style>3</style>
+        <transparent>true</transparent>
+        <widget type="label" version="2.0.0">
+          <name>Name</name>
+          <text>ai2:</text>
+          <width>49</width>
+        </widget>
+        <widget type="textupdate" version="2.0.0">
+          <name>Value</name>
+          <pv_name>$(PREFIX)ai2</pv_name>
+          <x>49</x>
+        </widget>
+        <widget type="textentry" version="3.0.0">
+          <name>ESLO</name>
+          <pv_name>$(PREFIX)ai2.ESLO</pv_name>
+          <x>149</x>
+          <width>120</width>
+        </widget>
+        <widget type="textentry" version="3.0.0">
+          <name>EOFF</name>
+          <pv_name>$(PREFIX)ai2.EOFF</pv_name>
+          <x>269</x>
+          <width>120</width>
+        </widget>
+      </widget>
+      <widget type="group" version="2.0.0">
+        <name>3</name>
+        <y>60</y>
+        <width>389</width>
+        <height>20</height>
+        <style>3</style>
+        <transparent>true</transparent>
+        <widget type="label" version="2.0.0">
+          <name>Name</name>
+          <text>ai3:</text>
+          <width>49</width>
+        </widget>
+        <widget type="textupdate" version="2.0.0">
+          <name>Value</name>
+          <pv_name>$(PREFIX)ai3</pv_name>
+          <x>49</x>
+        </widget>
+        <widget type="textentry" version="3.0.0">
+          <name>ESLO</name>
+          <pv_name>$(PREFIX)ai3.ESLO</pv_name>
+          <x>149</x>
+          <width>120</width>
+        </widget>
+        <widget type="textentry" version="3.0.0">
+          <name>EOFF</name>
+          <pv_name>$(PREFIX)ai3.EOFF</pv_name>
+          <x>269</x>
+          <width>120</width>
+        </widget>
+      </widget>
+      <widget type="group" version="2.0.0">
+        <name>4</name>
+        <y>80</y>
+        <width>389</width>
+        <height>20</height>
+        <style>3</style>
+        <transparent>true</transparent>
+        <widget type="label" version="2.0.0">
+          <name>Name</name>
+          <text>ai4:</text>
+          <width>49</width>
+        </widget>
+        <widget type="textupdate" version="2.0.0">
+          <name>Value</name>
+          <pv_name>$(PREFIX)ai4</pv_name>
+          <x>49</x>
+        </widget>
+        <widget type="textentry" version="3.0.0">
+          <name>ESLO</name>
+          <pv_name>$(PREFIX)ai4.ESLO</pv_name>
+          <x>149</x>
+          <width>120</width>
+        </widget>
+        <widget type="textentry" version="3.0.0">
+          <name>EOFF</name>
+          <pv_name>$(PREFIX)ai4.EOFF</pv_name>
+          <x>269</x>
+          <width>120</width>
+        </widget>
+      </widget>
+      <widget type="group" version="2.0.0">
+        <name>5</name>
+        <y>100</y>
+        <width>389</width>
+        <height>20</height>
+        <style>3</style>
+        <transparent>true</transparent>
+        <widget type="label" version="2.0.0">
+          <name>Name</name>
+          <text>ai5:</text>
+          <width>49</width>
+        </widget>
+        <widget type="textupdate" version="2.0.0">
+          <name>Value</name>
+          <pv_name>$(PREFIX)ai5</pv_name>
+          <x>49</x>
+        </widget>
+        <widget type="textentry" version="3.0.0">
+          <name>ESLO</name>
+          <pv_name>$(PREFIX)ai5.ESLO</pv_name>
+          <x>149</x>
+          <width>120</width>
+        </widget>
+        <widget type="textentry" version="3.0.0">
+          <name>EOFF</name>
+          <pv_name>$(PREFIX)ai5.EOFF</pv_name>
+          <x>269</x>
+          <width>120</width>
+        </widget>
+      </widget>
+    </widget>
+  </widget>
+  <widget type="group" version="2.0.0">
+    <name>DAC</name>
+    <y>50</y>
+    <width>391</width>
+    <height>60</height>
+    <style>1</style>
+    <widget type="group" version="2.0.0">
+      <name>Title</name>
+      <y>1</y>
+      <width>389</width>
+      <height>20</height>
+      <style>3</style>
+      <widget type="label" version="2.0.0">
+        <name>Name</name>
+        <text>PV</text>
+        <width>49</width>
+        <font>
+          <font family="Liberation Sans" style="BOLD" size="14.0">
+          </font>
+        </font>
+      </widget>
+      <widget type="label" version="2.0.0">
+        <name>Value</name>
+        <text>Value, V</text>
+        <x>49</x>
+        <font>
+          <font family="Liberation Sans" style="BOLD" size="14.0">
+          </font>
+        </font>
+      </widget>
+      <widget type="label" version="2.0.0">
+        <name>ESLO</name>
+        <text>Cal. Slope</text>
+        <x>149</x>
+        <width>120</width>
+        <font>
+          <font name="Default Bold" family="Liberation Sans" style="BOLD" size="14.0">
+          </font>
+        </font>
+      </widget>
+      <widget type="label" version="2.0.0">
+        <name>EOFF</name>
+        <text>Cal. Offset</text>
+        <x>269</x>
+        <width>120</width>
+        <font>
+          <font name="Default Bold" family="Liberation Sans" style="BOLD" size="14.0">
+          </font>
+        </font>
+      </widget>
+    </widget>
+    <widget type="group" version="2.0.0">
+      <name>0</name>
+      <y>21</y>
+      <width>389</width>
+      <height>20</height>
+      <style>3</style>
+      <transparent>true</transparent>
+      <widget type="label" version="2.0.0">
+        <name>Name</name>
+        <text>ao0:</text>
+        <width>29</width>
+      </widget>
+      <widget type="textentry" version="3.0.0">
+        <name>Value</name>
+        <pv_name>$(PREFIX)ao0</pv_name>
+        <x>49</x>
+        <background_color>
+          <color name="Read_Background" red="240" green="240" blue="240">
+          </color>
+        </background_color>
+        <vertical_alignment>0</vertical_alignment>
+        <wrap_words>true</wrap_words>
+      </widget>
+      <widget type="textentry" version="3.0.0">
+        <name>ESLO</name>
+        <pv_name>$(PREFIX)ao0.ESLO</pv_name>
+        <x>149</x>
+        <width>120</width>
+      </widget>
+      <widget type="textentry" version="3.0.0">
+        <name>EOFF</name>
+        <pv_name>$(PREFIX)ao0.EOFF</pv_name>
+        <x>269</x>
+        <width>120</width>
+      </widget>
+    </widget>
+  </widget>
+  <widget type="stripchart" version="2.1.0">
+    <name>Strip Chart</name>
+    <y>330</y>
+    <width>940</width>
+    <height>450</height>
+    <y_axes>
+      <y_axis>
+        <title>DAC Channels, V</title>
+        <autoscale>true</autoscale>
+        <log_scale>false</log_scale>
+        <minimum>-10.0</minimum>
+        <maximum>10.0</maximum>
+        <show_grid>true</show_grid>
+        <visible>true</visible>
+        <color>
+          <color name="Text" red="0" green="0" blue="0">
+          </color>
+        </color>
+      </y_axis>
+    </y_axes>
+    <traces>
+      <trace>
+        <name>ai0</name>
+        <y_pv>$(PREFIX)ai0</y_pv>
+        <axis>0</axis>
+        <trace_type>1</trace_type>
+        <color>
+          <color red="0" green="0" blue="255">
+          </color>
+        </color>
+        <line_width>2</line_width>
+        <point_type>0</point_type>
+        <point_size>10</point_size>
+        <visible>true</visible>
+      </trace>
+      <trace>
+        <name>ai1</name>
+        <y_pv>$(PREFIX)ai1</y_pv>
+        <axis>0</axis>
+        <trace_type>1</trace_type>
+        <color>
+          <color red="255" green="0" blue="0">
+          </color>
+        </color>
+        <line_width>2</line_width>
+        <point_type>0</point_type>
+        <point_size>10</point_size>
+        <visible>true</visible>
+      </trace>
+      <trace>
+        <name>ai2</name>
+        <y_pv>$(PREFIX)ai2</y_pv>
+        <axis>0</axis>
+        <trace_type>1</trace_type>
+        <color>
+          <color red="0" green="255" blue="0">
+          </color>
+        </color>
+        <line_width>2</line_width>
+        <point_type>0</point_type>
+        <point_size>10</point_size>
+        <visible>true</visible>
+      </trace>
+      <trace>
+        <name>ai3</name>
+        <y_pv>$(PREFIX)ai3</y_pv>
+        <axis>0</axis>
+        <trace_type>1</trace_type>
+        <color>
+          <color red="170" green="0" blue="255">
+          </color>
+        </color>
+        <line_width>2</line_width>
+        <point_type>0</point_type>
+        <point_size>10</point_size>
+        <visible>true</visible>
+      </trace>
+      <trace>
+        <name>ai4</name>
+        <y_pv>$(PREFIX)ai4</y_pv>
+        <axis>0</axis>
+        <trace_type>1</trace_type>
+        <color>
+          <color red="255" green="255" blue="0">
+          </color>
+        </color>
+        <line_width>2</line_width>
+        <point_type>0</point_type>
+        <point_size>10</point_size>
+        <visible>true</visible>
+      </trace>
+      <trace>
+        <name>ai5</name>
+        <y_pv>$(PREFIX)ai5</y_pv>
+        <axis>0</axis>
+        <trace_type>1</trace_type>
+        <color>
+          <color red="0" green="234" blue="255">
+          </color>
+        </color>
+        <line_width>2</line_width>
+        <point_type>0</point_type>
+        <point_size>10</point_size>
+        <visible>true</visible>
+      </trace>
+    </traces>
+  </widget>
+  <widget type="group" version="2.0.0">
+    <name>Digital input</name>
+    <x>432</x>
+    <y>150</y>
+    <width>218</width>
+    <height>39</height>
+    <style>1</style>
+    <widget type="group" version="2.0.0">
+      <name>0</name>
+      <width>217</width>
+      <height>20</height>
+      <style>3</style>
+      <transparent>true</transparent>
+      <widget type="label" version="2.0.0">
+        <name>Name</name>
+        <text>di0:</text>
+        <width>29</width>
+      </widget>
+      <widget type="byte_monitor" version="2.0.0">
+        <name>Byte Monitor</name>
+        <pv_name>$(PREFIX)di0</pv_name>
+        <x>48</x>
+        <width>168</width>
+        <square>true</square>
+      </widget>
+      <widget type="label" version="2.0.0">
+        <name>7</name>
+        <text>7</text>
+        <x>48</x>
+        <width>21</width>
+        <horizontal_alignment>1</horizontal_alignment>
+        <vertical_alignment>1</vertical_alignment>
+      </widget>
+      <widget type="label" version="2.0.0">
+        <name>6</name>
+        <text>6</text>
+        <x>69</x>
+        <width>21</width>
+        <horizontal_alignment>1</horizontal_alignment>
+        <vertical_alignment>1</vertical_alignment>
+      </widget>
+      <widget type="label" version="2.0.0">
+        <name>5</name>
+        <text>5</text>
+        <x>90</x>
+        <width>21</width>
+        <horizontal_alignment>1</horizontal_alignment>
+        <vertical_alignment>1</vertical_alignment>
+      </widget>
+      <widget type="label" version="2.0.0">
+        <name>4</name>
+        <text>4</text>
+        <x>111</x>
+        <width>21</width>
+        <horizontal_alignment>1</horizontal_alignment>
+        <vertical_alignment>1</vertical_alignment>
+      </widget>
+      <widget type="label" version="2.0.0">
+        <name>3</name>
+        <text>3</text>
+        <x>132</x>
+        <width>21</width>
+        <horizontal_alignment>1</horizontal_alignment>
+        <vertical_alignment>1</vertical_alignment>
+      </widget>
+      <widget type="label" version="2.0.0">
+        <name>2</name>
+        <text>2</text>
+        <x>153</x>
+        <width>21</width>
+        <horizontal_alignment>1</horizontal_alignment>
+        <vertical_alignment>1</vertical_alignment>
+      </widget>
+      <widget type="label" version="2.0.0">
+        <name>1</name>
+        <text>1</text>
+        <x>174</x>
+        <width>21</width>
+        <horizontal_alignment>1</horizontal_alignment>
+        <vertical_alignment>1</vertical_alignment>
+      </widget>
+      <widget type="label" version="2.0.0">
+        <name>0</name>
+        <text>0</text>
+        <x>195</x>
+        <width>21</width>
+        <horizontal_alignment>1</horizontal_alignment>
+        <vertical_alignment>1</vertical_alignment>
+      </widget>
+    </widget>
+  </widget>
+  <widget type="group" version="2.0.0">
+    <name>Digital output</name>
+    <x>431</x>
+    <y>50</y>
+    <width>130</width>
+    <height>39</height>
+    <style>1</style>
+    <widget type="group" version="2.0.0">
+      <name>0</name>
+      <width>49</width>
+      <height>20</height>
+      <style>3</style>
+      <transparent>true</transparent>
+      <widget type="label" version="2.0.0">
+        <name>Name</name>
+        <text>do0:</text>
+        <width>29</width>
+        <height>31</height>
+      </widget>
+    </widget>
+    <widget type="group" version="2.0.0">
+      <name>Group</name>
+      <x>49</x>
+      <width>80</width>
+      <height>20</height>
+      <style>3</style>
+      <transparent>true</transparent>
+      <widget type="bool_button" version="2.0.0">
+        <name>Boolean Button 3</name>
+        <pv_name>$(PREFIX)do0.B3</pv_name>
+        <width>20</width>
+        <height>20</height>
+        <off_label>3</off_label>
+        <on_label>3</on_label>
+        <show_led>false</show_led>
+      </widget>
+      <widget type="bool_button" version="2.0.0">
+        <name>Boolean Button 2</name>
+        <pv_name>$(PREFIX)do0.B2</pv_name>
+        <x>20</x>
+        <width>20</width>
+        <height>20</height>
+        <off_label>2</off_label>
+        <on_label>2</on_label>
+        <show_led>false</show_led>
+      </widget>
+      <widget type="bool_button" version="2.0.0">
+        <name>Boolean Button 1</name>
+        <pv_name>$(PREFIX)do0.B1</pv_name>
+        <x>40</x>
+        <width>20</width>
+        <height>20</height>
+        <off_label>1</off_label>
+        <on_label>1</on_label>
+        <show_led>false</show_led>
+      </widget>
+      <widget type="bool_button" version="2.0.0">
+        <name>Boolean Button 0</name>
+        <pv_name>$(PREFIX)do0.B0</pv_name>
+        <x>60</x>
+        <width>20</width>
+        <height>20</height>
+        <off_label>0</off_label>
+        <on_label>0</on_label>
+        <show_led>false</show_led>
+      </widget>
+    </widget>
+  </widget>
+  <widget type="xyplot" version="3.0.0">
+    <name>X/Y Plot</name>
+    <x>1</x>
+    <y>800</y>
+    <width>939</width>
+    <height>370</height>
+    <show_toolbar>true</show_toolbar>
+    <x_axis>
+      <title>X</title>
+      <autoscale>true</autoscale>
+      <log_scale>false</log_scale>
+      <minimum>0.0</minimum>
+      <maximum>10000.0</maximum>
+      <show_grid>false</show_grid>
+      <title_font>
+        <font name="Default Bold" family="Liberation Sans" style="BOLD" size="14.0">
+        </font>
+      </title_font>
+      <scale_font>
+        <font name="Default" family="Liberation Sans" style="REGULAR" size="14.0">
+        </font>
+      </scale_font>
+      <visible>true</visible>
+    </x_axis>
+    <y_axes>
+      <y_axis>
+        <title>Y</title>
+        <autoscale>true</autoscale>
+        <log_scale>false</log_scale>
+        <minimum>0.0</minimum>
+        <maximum>100.0</maximum>
+        <show_grid>false</show_grid>
+        <title_font>
+          <font name="Default Bold" family="Liberation Sans" style="BOLD" size="14.0">
+          </font>
+        </title_font>
+        <scale_font>
+          <font name="Default" family="Liberation Sans" style="REGULAR" size="14.0">
+          </font>
+        </scale_font>
+        <on_right>false</on_right>
+        <visible>true</visible>
+        <color>
+          <color name="Text" red="0" green="0" blue="0">
+          </color>
+        </color>
+      </y_axis>
+    </y_axes>
+    <traces>
+      <trace>
+        <name>aai0</name>
+        <x_pv></x_pv>
+        <y_pv>$(PREFIX)aai0</y_pv>
+        <err_pv></err_pv>
+        <axis>0</axis>
+        <trace_type>1</trace_type>
+        <color>
+          <color red="0" green="0" blue="255">
+          </color>
+        </color>
+        <line_width>1</line_width>
+        <line_style>0</line_style>
+        <point_type>0</point_type>
+        <point_size>10</point_size>
+        <visible>true</visible>
+      </trace>
+      <trace>
+        <name>aai1</name>
+        <x_pv></x_pv>
+        <y_pv>$(PREFIX)aai1</y_pv>
+        <err_pv></err_pv>
+        <axis>0</axis>
+        <trace_type>1</trace_type>
+        <color>
+          <color red="255" green="0" blue="0">
+          </color>
+        </color>
+        <line_width>1</line_width>
+        <line_style>0</line_style>
+        <point_type>0</point_type>
+        <point_size>10</point_size>
+        <visible>false</visible>
+      </trace>
+      <trace>
+        <name>aai2</name>
+        <x_pv></x_pv>
+        <y_pv>$(PREFIX)aai2</y_pv>
+        <err_pv></err_pv>
+        <axis>0</axis>
+        <trace_type>1</trace_type>
+        <color>
+          <color red="0" green="255" blue="0">
+          </color>
+        </color>
+        <line_width>1</line_width>
+        <line_style>0</line_style>
+        <point_type>0</point_type>
+        <point_size>10</point_size>
+        <visible>false</visible>
+      </trace>
+      <trace>
+        <name>aai3</name>
+        <x_pv></x_pv>
+        <y_pv>$(PREFIX)aai3</y_pv>
+        <err_pv></err_pv>
+        <axis>0</axis>
+        <trace_type>1</trace_type>
+        <color>
+          <color red="170" green="0" blue="255">
+          </color>
+        </color>
+        <line_width>1</line_width>
+        <line_style>0</line_style>
+        <point_type>0</point_type>
+        <point_size>10</point_size>
+        <visible>false</visible>
+      </trace>
+      <trace>
+        <name>aai4</name>
+        <x_pv></x_pv>
+        <y_pv>$(PREFIX)aai4</y_pv>
+        <err_pv></err_pv>
+        <axis>0</axis>
+        <trace_type>1</trace_type>
+        <color>
+          <color red="255" green="255" blue="0">
+          </color>
+        </color>
+        <line_width>1</line_width>
+        <line_style>0</line_style>
+        <point_type>0</point_type>
+        <point_size>10</point_size>
+        <visible>false</visible>
+      </trace>
+      <trace>
+        <name>aai5</name>
+        <x_pv></x_pv>
+        <y_pv>$(PREFIX)aai5</y_pv>
+        <err_pv></err_pv>
+        <axis>0</axis>
+        <trace_type>1</trace_type>
+        <color>
+          <color red="0" green="234" blue="255">
+          </color>
+        </color>
+        <line_width>1</line_width>
+        <line_style>0</line_style>
+        <point_type>0</point_type>
+        <point_size>10</point_size>
+        <visible>false</visible>
+      </trace>
+    </traces>
+  </widget>
+</display>
