@@ -144,8 +144,10 @@ impl RpmsgReader {
 
             use proto::AppMsgRef;
             match message.as_ref() {
-                AppMsgRef::Connect => {
-                    self.connect(cx);
+                AppMsgRef::KeepAlive => {
+                    if !self.common.is_alive() {
+                        self.connect(cx);
+                    }
                     continue;
                 }
                 _ => {
@@ -155,8 +157,7 @@ impl RpmsgReader {
                 }
             }
             match message.as_ref() {
-                AppMsgRef::Connect => unreachable!(),
-                AppMsgRef::KeepAlive => continue,
+                AppMsgRef::KeepAlive => unreachable!(),
                 AppMsgRef::DoutUpdate { value } => self.set_dout(Dout::from_portable(*value)),
                 AppMsgRef::DacState { enable } => {
                     println!("Set DAC state: {:?}", enable);
@@ -182,6 +183,7 @@ impl RpmsgReader {
     fn disconnect(&mut self, cx: &mut impl Context) {
         self.common.alive.store(false, Ordering::Release);
         self.control.set_dac_mode(cx, false);
+        self.stats.report_ioc_drop();
         println!("IOC disconnected");
     }
 

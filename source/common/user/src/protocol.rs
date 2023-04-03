@@ -11,7 +11,6 @@ use flatty::{
 
 #[flat(portable = true, sized = false, enum_type = "u8")]
 pub enum AppMsg {
-    Connect,
     KeepAlive,
     DoutUpdate {
         value: <Dout as Value>::Portable,

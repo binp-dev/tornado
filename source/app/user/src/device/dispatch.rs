@@ -142,10 +142,9 @@ impl<C: Channel> Writer<C> {
             spawn({
                 let channel = channel.clone();
                 async move {
-                    send_message(&channel, proto::AppMsgInitConnect).await?;
                     loop {
-                        sleep(config::KEEP_ALIVE_PERIOD).await;
                         send_message(&channel, proto::AppMsgInitKeepAlive).await?;
+                        sleep(config::KEEP_ALIVE_PERIOD).await;
                     }
                 }
             }),

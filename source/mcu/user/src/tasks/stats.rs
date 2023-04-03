@@ -46,6 +46,8 @@ pub struct Statistics {
     max_intrs_per_sample: AtomicUsize,
     /// Count of CRC16 mismatches in SkifIO communication.
     crc_error_count: AtomicU64,
+    /// Count of IOC being disconnected
+    ioc_drop_count: AtomicUsize,
 
     pub dac: StatsDac,
     pub adcs: StatsAdc,
@@ -92,6 +94,7 @@ impl Statistics {
         self.sample_count.store(0, Ordering::Relaxed);
         self.max_intrs_per_sample.store(0, Ordering::Relaxed);
         self.crc_error_count.store(0, Ordering::Relaxed);
+        self.ioc_drop_count.store(0, Ordering::Relaxed);
         fence(Ordering::Release);
 
         self.dac.reset();
@@ -114,6 +117,9 @@ impl Statistics {
     }
     pub fn report_crc_error(&self) {
         self.crc_error_count.fetch_add(1, Ordering::AcqRel);
+    }
+    pub fn report_ioc_drop(&self) {
+        self.ioc_drop_count.fetch_add(1, Ordering::AcqRel);
     }
 }
 
@@ -220,6 +226,7 @@ impl Display for Statistics {
             self.max_intrs_per_sample.load(Ordering::Relaxed)
         )?;
         writeln!(f, "crc_error_count: {}", self.crc_error_count.load(Ordering::Relaxed))?;
+        writeln!(f, "ioc_drop_count: {}", self.ioc_drop_count.load(Ordering::Relaxed))?;
 
         writeln!(f, "dac:")?;
         write!(indented(f), "{}", self.dac)?;
