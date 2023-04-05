@@ -717,7 +717,6 @@ dependencies = [
  "libc",
  "log",
  "macro_rules_attribute",
- "mio",
  "pin-project",
  "termios",
  "thiserror",

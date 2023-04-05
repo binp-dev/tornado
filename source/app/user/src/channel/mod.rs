@@ -40,6 +40,6 @@ pub async fn connect<A: ToSocketAddrs + Clone>(addr: A) -> Result<TcpStream, io:
 }
 
 #[cfg(feature = "rpmsg")]
-mod rpmsg;
+pub mod rpmsg;
 #[cfg(feature = "rpmsg")]
 pub use rpmsg::Rpmsg;
