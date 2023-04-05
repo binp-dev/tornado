@@ -1,5 +1,11 @@
+use core::future::Future;
 use ferrite::{typed::Type, TypedVariable as Variable};
-use futures::stream::{self, Stream};
+use futures::{
+    future::Map,
+    stream::{self, Stream},
+    FutureExt,
+};
+use tokio::task::{self, JoinError, JoinHandle};
 
 // TODO: Remove when `array::unzip` stabilized.
 pub fn unzip_array<T, U, const N: usize>(arr: [(T, U); N]) -> ([T; N], [U; N]) {
@@ -23,4 +29,14 @@ pub fn unfold_variable<T: Send, V: Type, F: Fn(V) -> Option<T>>(
         };
         Some((x, (var, map)))
     })
+}
+
+fn unwrap<T>(r: Result<T, JoinError>) -> T {
+    r.unwrap()
+}
+
+pub fn spawn<T: Send + 'static, F: Future<Output = T> + Send + 'static>(
+    future: F,
+) -> Map<JoinHandle<T>, fn(Result<T, JoinError>) -> T> {
+    task::spawn(future).map(unwrap)
 }

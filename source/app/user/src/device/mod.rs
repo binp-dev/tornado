@@ -4,8 +4,11 @@ mod debug;
 mod dio;
 mod dispatch;
 
-use crate::{channel::Channel, epics::Epics, utils::misc::unzip_array};
-use async_std::task::spawn;
+use crate::{
+    channel::Channel,
+    epics::Epics,
+    utils::misc::{spawn, unzip_array},
+};
 use common::config;
 use futures::future::{try_join_all, FutureExt};
 

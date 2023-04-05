@@ -1,7 +1,6 @@
 use super::Error;
-use crate::epics;
+use crate::{epics, utils::misc::spawn};
 use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
-use async_std::task::spawn;
 use common::values::{AdcPoint, Analog, Value};
 use ferrite::TypedVariable as Variable;
 use futures::future::try_join_all;

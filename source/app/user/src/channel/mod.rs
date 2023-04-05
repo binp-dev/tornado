@@ -1,8 +1,8 @@
-use async_std::io::{Read, Write};
-#[cfg(feature = "tcp")]
-use async_std::{net::ToSocketAddrs, task::sleep};
 #[cfg(feature = "tcp")]
 use std::{io, time::Duration};
+use tokio::io::{AsyncRead as Read, AsyncWrite as Write};
+#[cfg(feature = "tcp")]
+use tokio::{net::ToSocketAddrs, time::sleep};
 
 pub trait Channel: 'static {
     type Read: Read + Unpin + Send;
@@ -11,13 +11,16 @@ pub trait Channel: 'static {
 }
 
 #[cfg(feature = "tcp")]
-pub use async_std::net::TcpStream;
+pub use tokio::net::{
+    tcp::{OwnedReadHalf, OwnedWriteHalf},
+    TcpStream,
+};
 #[cfg(feature = "tcp")]
 impl Channel for TcpStream {
-    type Read = TcpStream;
-    type Write = TcpStream;
+    type Read = OwnedReadHalf;
+    type Write = OwnedWriteHalf;
     fn split(self) -> (Self::Read, Self::Write) {
-        (self.clone(), self)
+        self.into_split()
     }
 }
 
