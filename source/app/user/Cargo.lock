@@ -821,6 +821,7 @@ dependencies = [
  "async-atomic",
  "async-ringbuf",
  "async-std",
+ "derive_more",
  "env_logger",
  "ferrite-core",
  "flatty",

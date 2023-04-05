@@ -5,7 +5,7 @@ use super::{
     dio::{DinHandle, DoutHandle},
     Error,
 };
-use crate::channel::Channel;
+use crate::{channel::Channel, utils::stat::TimeStat};
 use async_atomic::{Atomic, Subscriber};
 use async_std::{
     sync::Mutex,
@@ -142,8 +142,10 @@ impl<C: Channel> Writer<C> {
             spawn({
                 let channel = channel.clone();
                 async move {
+                    let mut stat = TimeStat::new("keep alive".into());
                     loop {
                         send_message(&channel, proto::AppMsgInitKeepAlive).await?;
+                        stat.sample();
                         sleep(config::KEEP_ALIVE_PERIOD).await;
                     }
                 }

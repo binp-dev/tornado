@@ -133,7 +133,7 @@ impl StatsDac {
         fence(Ordering::Acquire);
         self.lost_empty.store(0, Ordering::Relaxed);
         self.lost_full.store(0, Ordering::Relaxed);
-        self.lost_full.store(0, Ordering::Relaxed);
+        self.req_exceed.store(0, Ordering::Relaxed);
         fence(Ordering::Release);
 
         self.value.reset();
