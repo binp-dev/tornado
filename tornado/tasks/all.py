@@ -34,7 +34,6 @@ class HostGroup(ComponentGroup):
 
     @task
     def test(self, ctx: Context) -> None:
-        self.app.user.test(ctx)
         self.fakedev.test(ctx)
 
 

@@ -21,7 +21,12 @@ tcp = []
 [dependencies]
 ferrite = { package = "ferrite-core", path = "../ferrite" }
 futures = "0.3.23"
-tokio = { version = "1.27.0", features = ["full"] }
+tokio = { version = "1.27.0", features = [
+    "rt-multi-thread",
+    "net",
+    "time",
+    "sync",
+] }
 async-compat = "0.2.1"
 flatty = { path = "../../common/flatty" }
 flatty-io = { path = "../../common/flatty/io" }
