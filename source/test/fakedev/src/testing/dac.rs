@@ -1,12 +1,12 @@
 use super::scale;
 use approx::assert_abs_diff_eq;
-use async_std::task::spawn;
 use common::values::{Analog, DacPoint};
 use epics_ca::types::EpicsEnum;
 use fakedev::epics;
-use futures::{channel::mpsc::Receiver, join, pin_mut, StreamExt};
+use futures::{channel::mpsc::Receiver, join, pin_mut, FutureExt, StreamExt};
 use indicatif::ProgressBar;
 use std::f64::consts::PI;
+use tokio::task::spawn;
 
 pub struct Context {
     pub epics: epics::Dac,
@@ -48,7 +48,8 @@ pub async fn test(
             }
             epics
         }
-    });
+    })
+    .map(Result::unwrap);
 
     let cons = spawn(async move {
         let mut seq = data.flatten();
@@ -65,7 +66,8 @@ pub async fn test(
         }
         pbs.1.finish();
         context.device
-    });
+    })
+    .map(Result::unwrap);
 
     let (epics, device) = join!(prod, cons);
 
@@ -89,7 +91,8 @@ pub async fn test_cyclic(mut context: Context, attempts: usize, pbs: (ProgressBa
             pbs.0.inc(1);
             pbs.0.finish();
         }
-    });
+    })
+    .map(Result::unwrap);
 
     let cons = spawn(async move {
         let mut seq = data.into_iter().cycle().take(len * attempts);
@@ -105,7 +108,8 @@ pub async fn test_cyclic(mut context: Context, attempts: usize, pbs: (ProgressBa
             }
         }
         pbs.1.finish();
-    });
+    })
+    .map(Result::unwrap);
 
     join!(prod, cons);
 }

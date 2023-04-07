@@ -1,7 +1,3 @@
-use async_std::{
-    main as async_main,
-    task::{sleep, spawn},
-};
 use common::{
     config::{ADC_COUNT, SAMPLE_PERIOD},
     values::{AdcPoint, Analog},
@@ -9,6 +5,7 @@ use common::{
 use fakedev::run;
 use futures::{SinkExt, StreamExt};
 use std::{f64::consts::PI, time::Duration};
+use tokio::{main as async_main, task::spawn, time::sleep};
 
 const FREQS: [f64; ADC_COUNT] = [0.0, 1.0, PI, 10.0, 10.0 * PI, 100.0];
 

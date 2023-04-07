@@ -4,11 +4,7 @@ mod debug;
 mod dio;
 mod dispatch;
 
-use crate::{
-    channel::Channel,
-    epics::Epics,
-    utils::misc::{spawn, unzip_array},
-};
+use crate::{channel::Channel, epics::Epics, utils::misc::unzip_array};
 use common::config;
 use futures::future::{try_join_all, FutureExt};
 
@@ -17,6 +13,7 @@ use dac::Dac;
 use debug::Debug;
 use dio::{Din, Dout};
 use dispatch::Dispatcher;
+use tokio::spawn;
 
 #[derive(Clone, Debug)]
 pub enum Error {
@@ -58,11 +55,12 @@ impl<C: Channel> Device<C> {
 
     pub async fn run(self) {
         let res = try_join_all([
-            spawn(self.dac.run()),
-            spawn(try_join_all(self.adcs.map(|adc| adc.run())).map(|r| r.map(|_| ()))),
-            spawn(self.din.run()),
-            spawn(self.dout.run()),
-            spawn(self.dispatcher.run()),
+            spawn(self.dac.run()).map(Result::unwrap),
+            spawn(try_join_all(self.adcs.map(|adc| adc.run())).map(|r| r.map(|_| ())))
+                .map(Result::unwrap),
+            spawn(self.din.run()).map(Result::unwrap),
+            spawn(self.dout.run()).map(Result::unwrap),
+            spawn(self.dispatcher.run()).map(Result::unwrap),
         ])
         .await;
         log::warn!("Stopping device: {:?}", res);

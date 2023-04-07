@@ -5,10 +5,7 @@ use super::{
     dio::{DinHandle, DoutHandle},
     Error,
 };
-use crate::{
-    channel::Channel,
-    utils::{misc::spawn, stat::TimeStat},
-};
+use crate::{channel::Channel, utils::stat::TimeStat};
 use async_atomic::{Atomic, Subscriber};
 use async_compat::Compat;
 use common::{
@@ -18,9 +15,9 @@ use common::{
 };
 use flatty::{flat_vec, prelude::*, Emplacer};
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter, ReadError};
-use futures::{future::try_join_all, join, AsyncWrite, SinkExt, StreamExt};
+use futures::{future::try_join_all, join, AsyncWrite, FutureExt, SinkExt, StreamExt};
 use std::{io, sync::Arc};
-use tokio::{sync::Mutex, time::sleep};
+use tokio::{spawn, sync::Mutex, time::sleep};
 
 pub struct Dispatcher<C: Channel> {
     writer: Writer<C>,
@@ -73,9 +70,12 @@ impl<C: Channel> Dispatcher<C> {
         }
     }
     pub async fn run(self) -> Result<(), Error> {
-        try_join_all([spawn(self.reader.run()), spawn(self.writer.run())])
-            .await
-            .map(|_| ())
+        try_join_all([
+            spawn(self.reader.run()).map(Result::unwrap),
+            spawn(self.writer.run()).map(Result::unwrap),
+        ])
+        .await
+        .map(|_| ())
     }
 }
 
@@ -151,7 +151,8 @@ impl<C: Channel> Writer<C> {
                         sleep(config::KEEP_ALIVE_PERIOD).await;
                     }
                 }
-            }),
+            })
+            .map(Result::unwrap),
             spawn({
                 let channel = channel.clone();
                 async move {
@@ -160,7 +161,8 @@ impl<C: Channel> Writer<C> {
                         self.debug.stats_reset.next().await;
                     }
                 }
-            }),
+            })
+            .map(Result::unwrap),
             spawn({
                 let channel = channel.clone();
                 async move {
@@ -169,7 +171,8 @@ impl<C: Channel> Writer<C> {
                         send_message(&channel, proto::AppMsgInitDoutUpdate { value }).await?;
                     }
                 }
-            }),
+            })
+            .map(Result::unwrap),
             spawn(async move {
                 let mut iter = self.dac.buffer;
                 loop {
@@ -201,7 +204,8 @@ impl<C: Channel> Writer<C> {
                         msg.write().await?;
                     }
                 }
-            }),
+            })
+            .map(Result::unwrap),
         ])
         .await;
         match res {

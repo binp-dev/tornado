@@ -1,11 +1,9 @@
-use async_std::task::{sleep as async_sleep, spawn};
 use common::{
     config::ADC_COUNT,
     values::{AdcPoint, DacPoint, Din, Dout, Value},
 };
 use futures::{
     channel::mpsc::{channel, Receiver, Sender},
-    executor::block_on,
     future::pending,
     select_biased, FutureExt, StreamExt,
 };
@@ -20,6 +18,11 @@ use std::{
     task::{Context, Poll},
     thread::{park, sleep},
     time::Duration,
+};
+use tokio::{
+    runtime::{self, Runtime},
+    task::spawn,
+    time::sleep as async_sleep,
 };
 use ustd::task::InterruptContext;
 
@@ -44,6 +47,8 @@ struct Skifio {
     dout: Sender<Dout>,
     last_din: Arc<<Din as Value>::Atomic>,
     din_handler: Arc<Mutex<Option<Box<dyn DinHandler>>>>,
+
+    runtime: Runtime,
 
     count: usize,
 }
@@ -74,6 +79,10 @@ impl Skifio {
                 }
             });
         }
+        let runtime = runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap();
         (
             Self {
                 dac: dac_send,
@@ -83,6 +92,7 @@ impl Skifio {
                 dout: dout_send,
                 last_din,
                 din_handler,
+                runtime,
                 count: 0,
             },
             SkifioHandle {
@@ -127,7 +137,7 @@ impl SkifioIface for Skifio {
                 None => Some(fut.await),
             }
         };
-        let ready = match block_on(fut_timed) {
+        let ready = match self.runtime.block_on(fut_timed) {
             Some(alive) => {
                 if alive {
                     true

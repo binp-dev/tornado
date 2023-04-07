@@ -1,4 +1,3 @@
-use async_std::task::sleep;
 use common::values::{Din, Dout};
 use epics_ca::ValueChannel as Channel;
 use futures::{
@@ -12,6 +11,7 @@ use std::{
     io::{stdout, Write},
     time::Duration,
 };
+use tokio::time::sleep;
 
 pub async fn test_dout(
     mut epics: [Channel<u8>; Dout::SIZE],

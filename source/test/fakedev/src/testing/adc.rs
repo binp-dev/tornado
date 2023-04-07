@@ -1,12 +1,11 @@
 use super::{scale, user_sample_intr};
 use approx::assert_abs_diff_eq;
-use async_std::task::{sleep, spawn};
 use common::{
     config::ADC_COUNT,
     values::{AdcPoint, Analog},
 };
 use fakedev::epics;
-use futures::{channel::mpsc::Sender, future::join_all, join, SinkExt, StreamExt};
+use futures::{channel::mpsc::Sender, future::join_all, join, FutureExt, SinkExt, StreamExt};
 use indicatif::ProgressBar;
 use std::{
     f64::consts::PI,
@@ -14,6 +13,7 @@ use std::{
     iter::repeat_with,
     time::Duration,
 };
+use tokio::{task::spawn, time::sleep};
 
 pub async fn test(
     mut epics: [epics::Adc; ADC_COUNT],
@@ -63,7 +63,8 @@ pub async fn test(
             }
             pbs.0.finish();
         }
-    });
+    })
+    .map(Result::unwrap);
 
     let cons = spawn(async move {
         let mut arrays = epics
@@ -106,7 +107,8 @@ pub async fn test(
             assert!(count < total_len);
         }
         pbs.1.finish();
-    });
+    })
+    .map(Result::unwrap);
 
     join!(prod, cons);
 }

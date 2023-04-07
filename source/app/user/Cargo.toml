@@ -20,7 +20,7 @@ tcp = []
 
 [dependencies]
 ferrite = { package = "ferrite-core", path = "../ferrite" }
-futures = { version = "0.3.23", features = ["thread-pool"] }
+futures = "0.3.23"
 tokio = { version = "1.27.0", features = ["full"] }
 async-compat = "0.2.1"
 flatty = { path = "../../common/flatty" }
