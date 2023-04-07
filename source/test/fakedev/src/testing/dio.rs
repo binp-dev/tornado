@@ -1,16 +1,16 @@
-use async_std::task::sleep;
 use common::values::{Din, Dout};
 use epics_ca::ValueChannel as Channel;
-use futures::{
-    channel::mpsc::{Receiver, Sender},
-    SinkExt, StreamExt,
-};
+use futures::StreamExt;
 use indicatif::ProgressBar;
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro128PlusPlus as SomeRng;
 use std::{
     io::{stdout, Write},
     time::Duration,
+};
+use tokio::{
+    sync::mpsc::{Receiver, Sender},
+    time::sleep,
 };
 
 pub async fn test_dout(
@@ -26,7 +26,7 @@ pub async fn test_dout(
         value ^= 1 << i;
         epics[i].put((value >> i) & 1).unwrap().await.unwrap();
         sleep(Duration::from_millis(40)).await;
-        assert_eq!(value, device.next().await.unwrap().into());
+        assert_eq!(value, device.recv().await.unwrap().into());
         pb.inc(1);
     }
     pb.finish();
@@ -34,7 +34,7 @@ pub async fn test_dout(
 
 pub async fn test_din(
     mut epics: [Channel<u8>; Din::SIZE],
-    mut device: Sender<Din>,
+    device: Sender<Din>,
     attempts: usize,
     pb: ProgressBar,
 ) {

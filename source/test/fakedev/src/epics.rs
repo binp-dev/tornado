@@ -1,4 +1,3 @@
-use async_std::future::timeout;
 use common::config::{ADC_COUNT, DIN_BITS, DOUT_BITS};
 use epics_ca::{
     error,
@@ -11,6 +10,7 @@ use std::{
     future::Future,
     time::Duration,
 };
+use tokio::time::timeout;
 
 pub struct Dac {
     pub array: Channel<[f64]>,

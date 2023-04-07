@@ -1,5 +1,4 @@
-use async_std::{sync::Mutex, task::sleep};
-use futures::{executor::block_on, join, pin_mut, poll};
+use futures::{pin_mut, poll};
 use std::{
     future::Future,
     ops::{Deref, DerefMut},
@@ -8,6 +7,7 @@ use std::{
     task::{Context, Poll},
     time::Duration,
 };
+use tokio::{join, sync::Mutex, test as async_test, time::sleep};
 
 struct Counter {
     value: AtomicUsize,
@@ -40,59 +40,57 @@ impl<'a> Future for CounterFuture<'a> {
     }
 }
 
-#[test]
-fn spurious_wakeup() {
+#[async_test]
+async fn spurious_wakeup() {
     let (a, b) = (Counter::new(), Counter::new());
     let ab = async { join!(a.future(), b.future()) };
 
     assert_eq!((a.value(), b.value()), (0, 0));
-    block_on(async {
-        pin_mut!(ab);
-        assert_eq!(poll(ab).await, Poll::Pending);
-    });
+    pin_mut!(ab);
+    assert_eq!(poll(ab).await, Poll::Pending);
+
     assert_eq!((a.value(), b.value()), (1, 1));
 }
 
-#[test]
-fn mutex() {
+#[async_test]
+async fn mutex() {
     let mutex = Mutex::new(0);
     let (a, b) = (Counter::new(), Counter::new());
-    block_on(async {
-        join!(
-            async {
-                {
-                    let mut guard = mutex.lock().await;
 
-                    assert_eq!(*guard.deref(), 0);
-                    assert_eq!((a.value(), b.value()), (0, 0));
-                    a.add(1);
+    join!(
+        async {
+            {
+                let mut guard = mutex.lock().await;
 
-                    sleep(Duration::from_millis(100)).await;
-
-                    *guard.deref_mut() += 1;
-                    a.add(1);
-                    assert_eq!((a.value(), b.value()), (2, 0));
-                }
+                assert_eq!(*guard.deref(), 0);
+                assert_eq!((a.value(), b.value()), (0, 0));
+                a.add(1);
 
                 sleep(Duration::from_millis(100)).await;
 
-                assert_eq!((a.value(), b.value()), (2, 2));
-                assert_eq!(*mutex.lock().await.deref(), 2);
-            },
-            async {
-                sleep(Duration::from_millis(10)).await;
-
-                {
-                    let mut guard = mutex.lock().await;
-
-                    assert_eq!(*guard.deref(), 1);
-                    assert_eq!((a.value(), b.value()), (2, 0));
-                    b.add(1);
-                    *guard.deref_mut() += 1;
-                    b.add(1);
-                    assert_eq!((a.value(), b.value()), (2, 2));
-                }
+                *guard.deref_mut() += 1;
+                a.add(1);
+                assert_eq!((a.value(), b.value()), (2, 0));
             }
-        );
-    })
+
+            sleep(Duration::from_millis(100)).await;
+
+            assert_eq!((a.value(), b.value()), (2, 2));
+            assert_eq!(*mutex.lock().await.deref(), 2);
+        },
+        async {
+            sleep(Duration::from_millis(10)).await;
+
+            {
+                let mut guard = mutex.lock().await;
+
+                assert_eq!(*guard.deref(), 1);
+                assert_eq!((a.value(), b.value()), (2, 0));
+                b.add(1);
+                *guard.deref_mut() += 1;
+                b.add(1);
+                assert_eq!((a.value(), b.value()), (2, 2));
+            }
+        }
+    );
 }

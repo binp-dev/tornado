@@ -1,13 +1,13 @@
 mod testing;
 
-use async_std::{main as async_main, task::spawn};
 use ca::types::EpicsEnum;
 use epics_ca as ca;
 use fakedev::{run, Epics};
-use futures::join;
+use futures::{join, FutureExt};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use mcu::tasks::STATISTICS;
 use testing::{adc, dac, dio};
+use tokio::{main as async_main, task::spawn};
 
 #[async_main]
 async fn main() {
@@ -58,7 +58,8 @@ async fn main() {
         );
         context.epics.mode.put(EpicsEnum(1)).unwrap().await.unwrap();
         dac::test_cyclic(context, CYCLIC_ATTEMPTS, (ppb, cpb)).await;
-    });
+    })
+    .map(Result::unwrap);
     let adc = spawn({
         let attempts = ATTEMPTS + CYCLIC_ATTEMPTS;
         let ppb = m.add(
@@ -73,7 +74,8 @@ async fn main() {
                 .with_prefix("ADC.IOC"),
         );
         adc::test(epics.adc, skifio.adcs, attempts, (ppb, cpb))
-    });
+    })
+    .map(Result::unwrap);
     let dout = spawn(dio::test_dout(
         epics.dout,
         skifio.dout,
@@ -83,7 +85,8 @@ async fn main() {
                 .with_style(sty.clone())
                 .with_prefix("Dout"),
         ),
-    ));
+    ))
+    .map(Result::unwrap);
     let din = spawn(dio::test_din(
         epics.din,
         skifio.din,
@@ -93,7 +96,8 @@ async fn main() {
                 .with_style(sty.clone())
                 .with_prefix("Din"),
         ),
-    ));
+    ))
+    .map(Result::unwrap);
     join!(dac, adc, dout, din);
 
     println!("Statistics: {}", STATISTICS.as_ref());

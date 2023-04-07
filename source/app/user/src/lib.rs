@@ -3,11 +3,11 @@ mod device;
 mod epics;
 mod utils;
 
-use async_std::task::block_on;
 #[cfg(feature = "tcp")]
 use common::config;
 use ferrite::{entry_point, Context};
 use macro_rules_attribute::apply;
+use tokio::runtime;
 
 use device::Device;
 use epics::Epics;
@@ -18,7 +18,14 @@ pub use ferrite::export;
 #[apply(entry_point)]
 fn app_main(mut ctx: Context) {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-    block_on(run(ctx));
+
+    let rt = runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let _guard = rt.enter();
+
+    rt.block_on(run(ctx));
 }
 
 async fn run(ctx: Context) {
@@ -38,4 +45,6 @@ async fn run(ctx: Context) {
     let device = Device::new(channel, epics).await;
     log::info!("Run device");
     device.run().await;
+
+    log::info!("device stopped");
 }

@@ -7,10 +7,7 @@ use super::{
 };
 use crate::{channel::Channel, utils::stat::TimeStat};
 use async_atomic::{Atomic, Subscriber};
-use async_std::{
-    sync::Mutex,
-    task::{sleep, spawn},
-};
+use async_compat::Compat;
 use common::{
     config::{self, ADC_COUNT},
     protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
@@ -18,8 +15,9 @@ use common::{
 };
 use flatty::{flat_vec, prelude::*, Emplacer};
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter, ReadError};
-use futures::{future::try_join_all, join, AsyncWrite, SinkExt, StreamExt};
+use futures::{future::try_join_all, join, AsyncWrite, FutureExt, SinkExt, StreamExt};
 use std::{io, sync::Arc};
+use tokio::{spawn, sync::Mutex, time::sleep};
 
 pub struct Dispatcher<C: Channel> {
     writer: Writer<C>,
@@ -27,7 +25,7 @@ pub struct Dispatcher<C: Channel> {
 }
 
 struct Writer<C: Channel> {
-    channel: Mutex<MsgWriter<AppMsg, C::Write>>,
+    channel: Mutex<MsgWriter<AppMsg, Compat<C::Write>>>,
     dac: DacHandle,
     dac_write_count: Subscriber<usize>,
     dout: DoutHandle,
@@ -35,7 +33,7 @@ struct Writer<C: Channel> {
 }
 
 struct Reader<C: Channel> {
-    channel: MsgReader<McuMsg, C::Read>,
+    channel: MsgReader<McuMsg, Compat<C::Read>>,
     adcs: [AdcHandle; ADC_COUNT],
     dac_write_count: Arc<Atomic<usize>>,
     din: DinHandle,
@@ -51,6 +49,7 @@ impl<C: Channel> Dispatcher<C> {
         debug: DebugHandle,
     ) -> Self {
         let (r, w) = channel.split();
+        let (r, w) = (Compat::new(r), Compat::new(w));
         let reader = MsgReader::<McuMsg, _>::new(r, config::MAX_MCU_MSG_LEN);
         let writer = Mutex::new(MsgWriter::<AppMsg, _>::new(w, config::MAX_APP_MSG_LEN));
         let dac_write_count = Atomic::new(0).subscribe();
@@ -71,9 +70,12 @@ impl<C: Channel> Dispatcher<C> {
         }
     }
     pub async fn run(self) -> Result<(), Error> {
-        try_join_all([spawn(self.reader.run()), spawn(self.writer.run())])
-            .await
-            .map(|_| ())
+        try_join_all([
+            spawn(self.reader.run()).map(Result::unwrap),
+            spawn(self.writer.run()).map(Result::unwrap),
+        ])
+        .await
+        .map(|_| ())
     }
 }
 
@@ -83,10 +85,10 @@ impl<C: Channel> Reader<C> {
         let mut adcs = self.adcs;
         loop {
             let msg = match channel.read_message().await {
-                Err(ReadError::Eof) => return Err(Error::Disconnected),
+                Err(ReadError::Eof) => break Err(Error::Disconnected),
                 Err(ReadError::Io(err)) => {
                     if err.kind() == io::ErrorKind::ConnectionReset {
-                        return Err(Error::Disconnected);
+                        break Err(Error::Disconnected);
                     } else {
                         panic!("I/O error: {}", err);
                     }
@@ -149,7 +151,8 @@ impl<C: Channel> Writer<C> {
                         sleep(config::KEEP_ALIVE_PERIOD).await;
                     }
                 }
-            }),
+            })
+            .map(Result::unwrap),
             spawn({
                 let channel = channel.clone();
                 async move {
@@ -158,7 +161,8 @@ impl<C: Channel> Writer<C> {
                         self.debug.stats_reset.next().await;
                     }
                 }
-            }),
+            })
+            .map(Result::unwrap),
             spawn({
                 let channel = channel.clone();
                 async move {
@@ -167,7 +171,8 @@ impl<C: Channel> Writer<C> {
                         send_message(&channel, proto::AppMsgInitDoutUpdate { value }).await?;
                     }
                 }
-            }),
+            })
+            .map(Result::unwrap),
             spawn(async move {
                 let mut iter = self.dac.buffer;
                 loop {
@@ -199,7 +204,8 @@ impl<C: Channel> Writer<C> {
                         msg.write().await?;
                     }
                 }
-            }),
+            })
+            .map(Result::unwrap),
         ])
         .await;
         match res {
