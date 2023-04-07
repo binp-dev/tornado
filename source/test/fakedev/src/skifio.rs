@@ -2,25 +2,20 @@ use common::{
     config::ADC_COUNT,
     values::{AdcPoint, DacPoint, Din, Dout, Value},
 };
-use futures::{
-    channel::mpsc::{channel, Receiver, Sender},
-    future::pending,
-    select_biased, FutureExt, StreamExt,
-};
+use futures::{future::pending, FutureExt};
 use mcu::{
     error::{Error, ErrorKind, ErrorSource},
     skifio::{self, DinHandler, SkifioIface, SKIFIO},
 };
 use std::{
-    future::Future,
-    pin::Pin,
     sync::{atomic::Ordering, Arc, Mutex},
-    task::{Context, Poll},
     thread::{park, sleep},
     time::Duration,
 };
 use tokio::{
     runtime::{self, Runtime},
+    select,
+    sync::mpsc::{channel, Receiver, Sender},
     task::spawn,
     time::sleep as async_sleep,
 };
@@ -67,7 +62,7 @@ impl Skifio {
             let last = last_din.clone();
             spawn(async move {
                 loop {
-                    let din: Din = match recv.next().await {
+                    let din: Din = match recv.recv().await {
                         Some(x) => x,
                         None => pending().await, // Channel closed
                     };
@@ -120,17 +115,18 @@ impl SkifioIface for Skifio {
         }
         let fut = async {
             if self.last_adcs.is_none() {
-                let adcs = match self.adcs.next().await {
+                let adcs = match self.adcs.recv().await {
                     Some(xs) => xs,
                     None => return false,
                 };
                 self.last_adcs = Some(adcs);
             }
-            WaitReady(&mut self.dac).await
+            self.dac.reserve().await.is_ok()
         };
         let fut_timed = async {
             match timeout {
-                Some(to) => select_biased! {
+                Some(to) => select! {
+                    biased;
                     alive = fut.fuse() => Some(alive),
                     () = async_sleep(to).fuse() => None,
                 },
@@ -196,12 +192,4 @@ pub fn bind() -> SkifioHandle {
     let (skifio, handle) = Skifio::new();
     assert!(SKIFIO.lock().unwrap().replace(Box::new(skifio)).is_none());
     handle
-}
-
-struct WaitReady<'a, T: Send + 'static>(&'a mut Sender<T>);
-impl<'a, T: Send + 'static> Future for WaitReady<'a, T> {
-    type Output = bool;
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.0.poll_ready(cx).map(|r| r.is_ok())
-    }
 }

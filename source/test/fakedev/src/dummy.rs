@@ -3,7 +3,6 @@ use common::{
     values::{AdcPoint, Analog},
 };
 use fakedev::run;
-use futures::{SinkExt, StreamExt};
 use std::{f64::consts::PI, time::Duration};
 use tokio::{main as async_main, task::spawn, time::sleep};
 
@@ -24,7 +23,7 @@ async fn main() {
             skifio.adcs.send(adcs).await.unwrap();
             unsafe { user_sample_intr() };
 
-            let dac = skifio.dac.next().await.unwrap();
+            let dac = skifio.dac.recv().await.unwrap();
             adcs[0] = AdcPoint::try_from_analog(dac.into_analog()).unwrap();
             for i in 1..ADC_COUNT {
                 adcs[i] = AdcPoint::try_from_analog(phases[i].sin()).unwrap();
@@ -43,7 +42,7 @@ async fn main() {
             skifio
                 .din
                 .send(
-                    u8::from(skifio.dout.next().await.unwrap())
+                    u8::from(skifio.dout.recv().await.unwrap())
                         .try_into()
                         .unwrap(),
                 )

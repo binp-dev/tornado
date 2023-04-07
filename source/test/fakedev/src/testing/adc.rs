@@ -5,7 +5,7 @@ use common::{
     values::{AdcPoint, Analog},
 };
 use fakedev::epics;
-use futures::{channel::mpsc::Sender, future::join_all, join, FutureExt, SinkExt, StreamExt};
+use futures::{future::join_all, join, FutureExt, StreamExt};
 use indicatif::ProgressBar;
 use std::{
     f64::consts::PI,
@@ -13,11 +13,11 @@ use std::{
     iter::repeat_with,
     time::Duration,
 };
-use tokio::{task::spawn, time::sleep};
+use tokio::{sync::mpsc::Sender, task::spawn, time::sleep};
 
 pub async fn test(
     mut epics: [epics::Adc; ADC_COUNT],
-    mut device: Sender<[AdcPoint; ADC_COUNT]>,
+    device: Sender<[AdcPoint; ADC_COUNT]>,
     attempts: usize,
     pbs: (ProgressBar, ProgressBar),
 ) {
