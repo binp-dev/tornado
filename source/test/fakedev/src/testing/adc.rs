@@ -1,10 +1,7 @@
 use super::{scale, user_sample_intr};
 use approx::assert_abs_diff_eq;
 use async_std::task::{sleep, spawn};
-use common::{
-    config::ADC_COUNT,
-    values::{AdcPoint, Analog},
-};
+use common::{config::ADC_COUNT, values::Point};
 use fakedev::epics;
 use futures::{channel::mpsc::Sender, future::join_all, join, SinkExt, StreamExt};
 use indicatif::ProgressBar;
@@ -17,7 +14,7 @@ use std::{
 
 pub async fn test(
     mut epics: [epics::Adc; ADC_COUNT],
-    mut device: Sender<[AdcPoint; ADC_COUNT]>,
+    mut device: Sender<[Point; ADC_COUNT]>,
     attempts: usize,
     pbs: (ProgressBar, ProgressBar),
 ) {
@@ -45,16 +42,14 @@ pub async fn test(
                     r
                 })
             }
-            .map(move |k| {
-                scale::<AdcPoint>((2.0 * PI * (k + 1) as f64 * x * attempts as f64).sin()) * x
-            })
+            .map(move |k| scale((2.0 * PI * (k + 1) as f64 * x * attempts as f64).sin()) * x)
         });
 
     let prod = spawn({
         let data = data.clone();
         async move {
             for (i, xs) in data.enumerate() {
-                let adcs = xs.map(|x| AdcPoint::try_from_analog(x).unwrap());
+                let adcs = xs.map(|x| Point::try_from_analog(x).unwrap());
                 device.send(adcs).await.unwrap();
                 unsafe { user_sample_intr() };
                 if (i + 1) % len == 0 {
@@ -96,7 +91,7 @@ pub async fn test(
             for xs in points.into_iter() {
                 xs.into_iter()
                     .zip(data.next().unwrap())
-                    .for_each(|(x, y)| assert_abs_diff_eq!(x, y, epsilon = AdcPoint::STEP));
+                    .for_each(|(x, y)| assert_abs_diff_eq!(x, y, epsilon = Point::STEP));
             }
             pbs.1.inc(1);
             stdout().flush().unwrap();

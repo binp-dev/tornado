@@ -1,7 +1,7 @@
 use async_std::task::{sleep as async_sleep, spawn};
 use common::{
     config::ADC_COUNT,
-    values::{AdcPoint, DacPoint, Din, Dout, Value},
+    values::{Din, Dout, Point, Value},
 };
 use futures::{
     channel::mpsc::{channel, Receiver, Sender},
@@ -29,17 +29,17 @@ const DIN_CHAN_CAP: usize = 16;
 const DOUT_CHAN_CAP: usize = 16;
 
 pub struct SkifioHandle {
-    pub dac: Receiver<DacPoint>,
-    pub adcs: Sender<[AdcPoint; ADC_COUNT]>,
+    pub dac: Receiver<Point>,
+    pub adcs: Sender<[Point; ADC_COUNT]>,
     pub dout: Receiver<Dout>,
     pub din: Sender<Din>,
 }
 
 struct Skifio {
-    dac: Sender<DacPoint>,
+    dac: Sender<Point>,
     dac_enabled: bool,
-    adcs: Receiver<[AdcPoint; ADC_COUNT]>,
-    last_adcs: Option<[AdcPoint; ADC_COUNT]>,
+    adcs: Receiver<[Point; ADC_COUNT]>,
+    last_adcs: Option<[Point; ADC_COUNT]>,
 
     dout: Sender<Dout>,
     last_din: Arc<<Din as Value>::Atomic>,
@@ -160,12 +160,16 @@ impl SkifioIface for Skifio {
         let dac = if self.dac_enabled {
             out.dac
         } else {
-            DacPoint::default()
+            Point::default()
         };
         let adcs = self.last_adcs.take().unwrap();
         self.count += 1;
         self.dac.try_send(dac).unwrap();
-        Ok(skifio::XferIn { adcs })
+        Ok(skifio::XferIn {
+            adcs,
+            temp: 36,
+            status: 0,
+        })
     }
 
     fn write_dout(&mut self, dout: Dout) -> Result<(), Error> {

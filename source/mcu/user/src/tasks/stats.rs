@@ -1,5 +1,4 @@
 use crate::println;
-
 use alloc::sync::Arc;
 use atomic_traits::{
     fetch::{self, Max, Min},
@@ -7,11 +6,11 @@ use atomic_traits::{
 };
 use common::{
     config::ADC_COUNT,
-    values::{AdcPoint, DacPoint, Value},
+    values::{Point, Value},
 };
 use core::{
     fmt::{self, Display, Formatter, LowerHex, Write},
-    sync::atomic::{fence, AtomicUsize, Ordering},
+    sync::atomic::{AtomicI8, AtomicU8, AtomicUsize, Ordering},
     time::Duration,
 };
 use indenter::indented;
@@ -48,6 +47,10 @@ pub struct Statistics {
     crc_error_count: AtomicU64,
     /// Count of IOC being disconnected
     ioc_drop_count: AtomicUsize,
+    /// SkifIO controller temperature.
+    skifio_temp: AtomicI8,
+    /// SkifIO board status.
+    skifio_status: AtomicU8,
 
     pub dac: StatsDac,
     pub adcs: StatsAdc,
@@ -62,14 +65,15 @@ pub struct StatsDac {
     /// IOC sent more points than were requested.
     req_exceed: AtomicU64,
 
-    value: ValueStats<DacPoint>,
+    value: ValueStats<Point>,
 }
 
 #[derive(Default)]
 pub struct StatsAdc {
     /// Number of points lost because the ADC buffer was full.
     lost_full: AtomicU64,
-    values: [ValueStats<AdcPoint>; ADC_COUNT],
+
+    values: [ValueStats<Point>; ADC_COUNT],
 }
 
 #[derive(Default)]
@@ -88,38 +92,44 @@ impl Statistics {
         this
     }
     pub fn reset(&self) {
-        fence(Ordering::Acquire);
         self.sync_count.store(0, Ordering::Relaxed);
         self.ready_count.store(0, Ordering::Relaxed);
         self.sample_count.store(0, Ordering::Relaxed);
         self.max_intrs_per_sample.store(0, Ordering::Relaxed);
         self.crc_error_count.store(0, Ordering::Relaxed);
         self.ioc_drop_count.store(0, Ordering::Relaxed);
-        fence(Ordering::Release);
+        self.skifio_temp.store(i8::MIN, Ordering::Relaxed);
+        self.skifio_status.store(0, Ordering::Relaxed);
 
         self.dac.reset();
         self.adcs.reset();
     }
 
     fn intr_clock(&self) {
-        self.sync_count.fetch_add(1, Ordering::AcqRel);
+        self.sync_count.fetch_add(1, Ordering::Relaxed);
     }
     fn intr_sample(&self) {
-        self.intrs_per_sample.fetch_add(1, Ordering::AcqRel);
-        self.ready_count.fetch_add(1, Ordering::AcqRel);
+        self.intrs_per_sample.fetch_add(1, Ordering::Relaxed);
+        self.ready_count.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn report_sample(&self) {
-        let intrs = self.intrs_per_sample.swap(0, Ordering::AcqRel);
-        self.max_intrs_per_sample.fetch_max(intrs, Ordering::AcqRel);
+        let intrs = self.intrs_per_sample.swap(0, Ordering::Relaxed);
+        self.max_intrs_per_sample.fetch_max(intrs, Ordering::Relaxed);
 
-        self.sample_count.fetch_add(1, Ordering::AcqRel);
+        self.sample_count.fetch_add(1, Ordering::Relaxed);
     }
     pub fn report_crc_error(&self) {
-        self.crc_error_count.fetch_add(1, Ordering::AcqRel);
+        self.crc_error_count.fetch_add(1, Ordering::Relaxed);
     }
     pub fn report_ioc_drop(&self) {
-        self.ioc_drop_count.fetch_add(1, Ordering::AcqRel);
+        self.ioc_drop_count.fetch_add(1, Ordering::Relaxed);
+    }
+    pub fn set_skifio_temp(&self, temp: i8) {
+        self.skifio_temp.store(temp, Ordering::Relaxed);
+    }
+    pub fn set_skifio_status(&self, status: u8) {
+        self.skifio_status.store(status, Ordering::Relaxed);
     }
 }
 
@@ -130,31 +140,29 @@ impl StatsDac {
         this
     }
     pub fn reset(&self) {
-        fence(Ordering::Acquire);
         self.lost_empty.store(0, Ordering::Relaxed);
         self.lost_full.store(0, Ordering::Relaxed);
         self.req_exceed.store(0, Ordering::Relaxed);
-        fence(Ordering::Release);
 
         self.value.reset();
     }
 
     pub fn report_lost_empty(&self, count: usize) {
-        self.lost_empty.fetch_add(count as u64, Ordering::AcqRel);
+        self.lost_empty.fetch_add(count as u64, Ordering::Relaxed);
         #[cfg(feature = "fake")]
         panic!("DAC ring buffer is empty");
     }
     pub fn report_lost_full(&self, count: usize) {
-        self.lost_full.fetch_add(count as u64, Ordering::AcqRel);
+        self.lost_full.fetch_add(count as u64, Ordering::Relaxed);
         #[cfg(feature = "fake")]
         panic!("DAC ring buffer is full");
     }
     pub fn report_req_exceed(&self, count: usize) {
-        self.req_exceed.fetch_add(count as u64, Ordering::AcqRel);
+        self.req_exceed.fetch_add(count as u64, Ordering::Relaxed);
         #[cfg(feature = "fake")]
         panic!("IOC sent more points than have been requested");
     }
-    pub fn update_value(&self, value: DacPoint) {
+    pub fn update_value(&self, value: Point) {
         self.value.update(value);
     }
 }
@@ -166,16 +174,16 @@ impl StatsAdc {
         this
     }
     pub fn reset(&self) {
-        self.lost_full.store(0, Ordering::Release);
+        self.lost_full.store(0, Ordering::Relaxed);
         self.values.iter().for_each(ValueStats::reset);
     }
 
     pub fn report_lost_full(&self, count: usize) {
-        self.lost_full.fetch_add(count as u64, Ordering::AcqRel);
+        self.lost_full.fetch_add(count as u64, Ordering::Relaxed);
         #[cfg(feature = "fake")]
         panic!("ADC ring buffer is full");
     }
-    pub fn update_values(&self, values: [AdcPoint; ADC_COUNT]) {
+    pub fn update_values(&self, values: [Point; ADC_COUNT]) {
         self.values.iter().zip(values).for_each(|(v, x)| v.update(x));
     }
 }
@@ -191,28 +199,23 @@ where
         this
     }
     pub fn reset(&self) {
-        fence(Ordering::Acquire);
         self.count.store(0, Ordering::Relaxed);
         self.sum.store(0, Ordering::Relaxed);
         self.max.store(T::MIN, Ordering::Relaxed);
         self.min.store(T::MAX, Ordering::Relaxed);
         self.last.store(T::Base::default(), Ordering::Relaxed);
-        fence(Ordering::Release);
     }
     pub fn update(&self, value: T) {
-        fence(Ordering::Acquire);
         self.min.fetch_min(value.into_base(), Ordering::Relaxed);
         self.max.fetch_max(value.into_base(), Ordering::Relaxed);
         self.last.store(value.into_base(), Ordering::Relaxed);
         self.sum.fetch_add(i64::from(value.into_base()), Ordering::Relaxed);
         self.count.fetch_add(1, Ordering::Relaxed);
-        fence(Ordering::Release);
     }
 }
 
 impl Display for Statistics {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        fence(Ordering::Acquire);
         let sync = self.sync_count.load(Ordering::Relaxed);
         let ready = self.ready_count.load(Ordering::Relaxed);
         let sample = self.sample_count.load(Ordering::Relaxed);
@@ -227,6 +230,8 @@ impl Display for Statistics {
         )?;
         writeln!(f, "crc_error_count: {}", self.crc_error_count.load(Ordering::Relaxed))?;
         writeln!(f, "ioc_drop_count: {}", self.ioc_drop_count.load(Ordering::Relaxed))?;
+        writeln!(f, "skifio_temp: {}", self.skifio_temp.load(Ordering::Relaxed))?;
+        writeln!(f, "skifio_status: 0b{:08b}", self.skifio_status.load(Ordering::Relaxed))?;
 
         writeln!(f, "dac:")?;
         write!(indented(f), "{}", self.dac)?;
@@ -240,7 +245,6 @@ impl Display for Statistics {
 
 impl Display for StatsDac {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        fence(Ordering::Acquire);
         writeln!(f, "lost_empty: {}", self.lost_empty.load(Ordering::Relaxed))?;
         writeln!(f, "lost_full: {}", self.lost_full.load(Ordering::Relaxed))?;
         writeln!(f, "req_exceed: {}", self.req_exceed.load(Ordering::Relaxed))?;
@@ -254,7 +258,8 @@ impl Display for StatsDac {
 
 impl Display for StatsAdc {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        writeln!(f, "lost_full: {}", self.lost_full.load(Ordering::Acquire))?;
+        writeln!(f, "lost_full: {}", self.lost_full.load(Ordering::Relaxed))?;
+
         for (i, adc) in self.values.iter().enumerate() {
             writeln!(f, "{}:", i)?;
             write!(indented(f), "{}", adc)?;
@@ -274,8 +279,6 @@ where
     T::Base: TryFrom<i64> + LowerHex + Display,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        fence(Ordering::Acquire);
-
         let count = self.count.load(Ordering::Relaxed);
         writeln!(f, "count: {}", count)?;
         if count != 0 {

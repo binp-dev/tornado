@@ -1,7 +1,4 @@
-use common::{
-    config::ADC_COUNT,
-    values::{AdcPoint, DacPoint},
-};
+use common::{config::ADC_COUNT, values::Point};
 #[cfg(feature = "fake")]
 use core::time::Duration;
 use lazy_static::lazy_static;
@@ -37,16 +34,16 @@ pub const ADC_BUFFER_LEN: usize = 16384;
 #[cfg(feature = "fake")]
 pub const BUFFER_TIMEOUT: Option<Duration> = Some(Duration::from_millis(1000));
 
-pub type DacBuffer = Rb<DacPoint, DAC_BUFFER_LEN>;
-pub type AdcBuffer = Rb<[AdcPoint; ADC_COUNT], ADC_BUFFER_LEN>;
+pub type DacBuffer = Rb<Point, DAC_BUFFER_LEN>;
+pub type AdcBuffer = Rb<[Point; ADC_COUNT], ADC_BUFFER_LEN>;
 
-pub type DacProducer = Producer<'static, DacPoint, DAC_BUFFER_LEN>;
-pub type DacConsumer = Consumer<'static, DacPoint, DAC_BUFFER_LEN>;
+pub type DacProducer = Producer<'static, Point, DAC_BUFFER_LEN>;
+pub type DacConsumer = Consumer<'static, Point, DAC_BUFFER_LEN>;
 
-pub type AdcProducer = Producer<'static, [AdcPoint; ADC_COUNT], ADC_BUFFER_LEN>;
-pub type AdcConsumer = Consumer<'static, [AdcPoint; ADC_COUNT], ADC_BUFFER_LEN>;
+pub type AdcProducer = Producer<'static, [Point; ADC_COUNT], ADC_BUFFER_LEN>;
+pub type AdcConsumer = Consumer<'static, [Point; ADC_COUNT], ADC_BUFFER_LEN>;
 
 lazy_static! {
-    pub static ref DAC_BUFFER: Rb<DacPoint, DAC_BUFFER_LEN> = Rb::default();
-    pub static ref ADC_BUFFER: Rb<[AdcPoint; ADC_COUNT], ADC_BUFFER_LEN> = Rb::default();
+    pub static ref DAC_BUFFER: Rb<Point, DAC_BUFFER_LEN> = Rb::default();
+    pub static ref ADC_BUFFER: Rb<[Point; ADC_COUNT], ADC_BUFFER_LEN> = Rb::default();
 }

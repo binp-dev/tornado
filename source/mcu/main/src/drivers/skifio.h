@@ -16,6 +16,8 @@ typedef int16_t SkifioAout;
 
 typedef struct SkifioInput {
     SkifioAin adcs[SKIFIO_ADC_CHANNEL_COUNT];
+    int8_t temp;
+    uint8_t status;
 } SkifioInput;
 
 typedef struct SkifioOutput {

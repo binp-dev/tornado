@@ -24,7 +24,7 @@
 #define READY_DELAY_NS 0
 
 #define SPI_DEV_ID 0
-#define XFER_LEN 26
+#define XFER_LEN 28
 
 #define SMP_RDY_MUX IOMUXC_UART1_TXD_GPIO5_IO23
 #define SMP_RDY_PIN 5, 23
@@ -321,9 +321,9 @@ hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in) {
         rx[i] = (uint8_t)rx4[i];
     }
 
-    // Load ADC values
-    const size_t in_data_len = SKIFIO_ADC_CHANNEL_COUNT * 4;
-    memcpy(in->adcs, rx, in_data_len);
+    // Load ADC values, temp and status
+    const size_t in_data_len = SKIFIO_ADC_CHANNEL_COUNT * 4 + 1 + 1;
+    memcpy(in, rx, in_data_len);
 
     // Load and check CRC
     calc_crc = calculate_crc16(rx, in_data_len);
