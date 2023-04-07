@@ -6,11 +6,11 @@ use crate::{
         misc::unfold_variable,
     },
 };
-use async_std::task::spawn;
 use common::values::Point;
 use ferrite::{atomic::AtomicVariable, TypedVariable as Variable};
 use futures::{future::join_all, Stream};
 use std::{pin::Pin, sync::Arc};
+use tokio::task::spawn;
 
 pub struct Dac {
     array: ArrayReader,

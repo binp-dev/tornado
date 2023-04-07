@@ -1,14 +1,14 @@
 use super::Error;
 use crate::epics;
 use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
-use async_std::task::spawn;
 use common::values::{Point, Value};
 use ferrite::TypedVariable as Variable;
-use futures::future::try_join_all;
+use futures::{future::try_join_all, FutureExt};
 use std::{
     iter::ExactSizeIterator,
     sync::{atomic::Ordering, Arc},
 };
+use tokio::spawn;
 
 pub struct Adc {
     array: AdcArray,
@@ -53,9 +53,12 @@ impl Adc {
         )
     }
     pub async fn run(self) -> Result<(), Error> {
-        try_join_all([spawn(self.array.run()), spawn(self.scalar.run())])
-            .await
-            .map(|_| ())
+        try_join_all([
+            spawn(self.array.run()).map(Result::unwrap),
+            spawn(self.scalar.run()).map(Result::unwrap),
+        ])
+        .await
+        .map(|_| ())
     }
 }
 

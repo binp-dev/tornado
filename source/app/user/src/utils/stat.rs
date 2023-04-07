@@ -30,6 +30,7 @@ impl Stat {
         }
     }
 
+    #[allow(dead_code)]
     pub fn reset(&mut self) {
         self.count = 0;
         self.sum = 0.0;
