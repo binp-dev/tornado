@@ -31,7 +31,6 @@ flatty = { path = "../../common/flatty", default-features = false }
 flatty-io = { path = "../../common/flatty/io", optional = true }
 timeout-readwrite = { version = "0.3.3", optional = true }
 indenter = "0.3.3"
-portable-atomic = "1.0.1"
 atomic-traits = { path = "../../common/atomic-traits" }
 ringbuf-blocking = { path = "../ringbuf/blocking", optional = true }
 
