@@ -15,7 +15,6 @@ use core::{
 };
 use indenter::indented;
 use lazy_static::lazy_static;
-use portable_atomic::{AtomicI64, AtomicU64};
 use ustd::task::{self, BlockingContext};
 
 lazy_static! {
@@ -34,17 +33,17 @@ extern "C" fn user_sample_intr() {
 #[derive(Default)]
 pub struct Statistics {
     /// Number of 10 kHz sync signals captured.
-    sync_count: AtomicU64,
+    sync_count: AtomicUsize,
     /// Number of SkifIO `SMP_RDY` signals captured.
-    ready_count: AtomicU64,
+    ready_count: AtomicUsize,
     /// Number of ADC/DAC samples.
-    sample_count: AtomicU64,
+    sample_count: AtomicUsize,
     intrs_per_sample: AtomicUsize,
     /// Maximum number of `SMP_RDY` per SkifIO communication session.
     /// If it isn't equal to `1` that means that we lose some signals.
     max_intrs_per_sample: AtomicUsize,
     /// Count of CRC16 mismatches in SkifIO communication.
-    crc_error_count: AtomicU64,
+    crc_error_count: AtomicUsize,
     /// Count of IOC being disconnected
     ioc_drop_count: AtomicUsize,
     /// SkifIO controller temperature.
@@ -59,11 +58,11 @@ pub struct Statistics {
 #[derive(Default)]
 pub struct StatsDac {
     /// Number of points lost because the DAC buffer was empty.
-    lost_empty: AtomicU64,
+    lost_empty: AtomicUsize,
     /// Number of points lost because the DAC buffer was full.
-    lost_full: AtomicU64,
+    lost_full: AtomicUsize,
     /// IOC sent more points than were requested.
-    req_exceed: AtomicU64,
+    req_exceed: AtomicUsize,
 
     value: ValueStats<Point>,
 }
@@ -71,15 +70,14 @@ pub struct StatsDac {
 #[derive(Default)]
 pub struct StatsAdc {
     /// Number of points lost because the ADC buffer was full.
-    lost_full: AtomicU64,
+    lost_full: AtomicUsize,
 
     values: [ValueStats<Point>; ADC_COUNT],
 }
 
 #[derive(Default)]
 pub struct ValueStats<T: Value> {
-    sum: AtomicI64,
-    count: AtomicU64,
+    count: AtomicUsize,
     last: T::Atomic,
     min: T::Atomic,
     max: T::Atomic,
@@ -148,17 +146,17 @@ impl StatsDac {
     }
 
     pub fn report_lost_empty(&self, count: usize) {
-        self.lost_empty.fetch_add(count as u64, Ordering::Relaxed);
+        self.lost_empty.fetch_add(count, Ordering::Relaxed);
         #[cfg(feature = "fake")]
         panic!("DAC ring buffer is empty");
     }
     pub fn report_lost_full(&self, count: usize) {
-        self.lost_full.fetch_add(count as u64, Ordering::Relaxed);
+        self.lost_full.fetch_add(count, Ordering::Relaxed);
         #[cfg(feature = "fake")]
         panic!("DAC ring buffer is full");
     }
     pub fn report_req_exceed(&self, count: usize) {
-        self.req_exceed.fetch_add(count as u64, Ordering::Relaxed);
+        self.req_exceed.fetch_add(count, Ordering::Relaxed);
         #[cfg(feature = "fake")]
         panic!("IOC sent more points than have been requested");
     }
@@ -179,7 +177,7 @@ impl StatsAdc {
     }
 
     pub fn report_lost_full(&self, count: usize) {
-        self.lost_full.fetch_add(count as u64, Ordering::Relaxed);
+        self.lost_full.fetch_add(count, Ordering::Relaxed);
         #[cfg(feature = "fake")]
         panic!("ADC ring buffer is full");
     }
@@ -200,7 +198,6 @@ where
     }
     pub fn reset(&self) {
         self.count.store(0, Ordering::Relaxed);
-        self.sum.store(0, Ordering::Relaxed);
         self.max.store(T::MIN, Ordering::Relaxed);
         self.min.store(T::MAX, Ordering::Relaxed);
         self.last.store(T::Base::default(), Ordering::Relaxed);
@@ -209,7 +206,6 @@ where
         self.min.fetch_min(value.into_base(), Ordering::Relaxed);
         self.max.fetch_max(value.into_base(), Ordering::Relaxed);
         self.last.store(value.into_base(), Ordering::Relaxed);
-        self.sum.fetch_add(i64::from(value.into_base()), Ordering::Relaxed);
         self.count.fetch_add(1, Ordering::Relaxed);
     }
 }
@@ -286,9 +282,6 @@ where
 
             writeln!(f, "min: {}", format_value!(&self.min.load(Ordering::Relaxed)))?;
             writeln!(f, "max: {}", format_value!(&self.max.load(Ordering::Relaxed)))?;
-
-            let avg = T::Base::try_from(self.sum.load(Ordering::Relaxed) / count as i64).unwrap_or(T::MIN);
-            writeln!(f, "avg: {}", format_value!(&avg))?;
         }
 
         Ok(())

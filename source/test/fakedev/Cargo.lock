@@ -284,7 +284,7 @@ checksum = "cef509aa9bc73864d6756f0d34d35504af3cf0844373afe9b8669a5b8005a729"
 dependencies = [
  "console",
  "number_prefix",
- "portable-atomic 0.3.19",
+ "portable-atomic",
  "unicode-width",
 ]
 
@@ -476,12 +476,6 @@ name = "portable-atomic"
 version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26f6a7b87c2e435a3241addceeeff740ff8b7e76b74c13bf9acb17fa454ea00b"
-
-[[package]]
-name = "portable-atomic"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f602a0d1e09a48e4f8e8b4d4042e32807c3676da31f2ecabeac9f96226ec6c45"
 
 [[package]]
 name = "ppv-lite86"
@@ -782,7 +776,6 @@ dependencies = [
  "flatty-io",
  "indenter",
  "lazy_static",
- "portable-atomic 1.2.0",
  "ringbuf",
  "ringbuf-blocking",
  "timeout-readwrite",
