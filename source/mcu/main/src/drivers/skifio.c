@@ -301,11 +301,11 @@ hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in) {
     tx[1] = 0xAA;
 
     // Store DAC value
-    memcpy(tx + 2, &out->dac, 2);
+    memcpy(tx + 2, &out->dac, 4);
 
     // Store CRC
-    calc_crc = calculate_crc16(tx, 4);
-    memcpy(tx + 4, &calc_crc, 2);
+    calc_crc = calculate_crc16(tx, 6);
+    memcpy(tx + 6, &calc_crc, 2);
 
     // Transfer data
     hal_spi_byte tx4[XFER_LEN] = {0};

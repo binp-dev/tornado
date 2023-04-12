@@ -39,8 +39,8 @@ impl From<i32> for Point {
 }
 impl Value for Point {
     type Base = i32;
-    const MIN: i32 = -1_000_000;
-    const MAX: i32 = 1_000_000;
+    const MIN: i32 = i32::MIN;
+    const MAX: i32 = i32::MAX;
     fn try_from_base(base: i32) -> Option<Self> {
         Some(Point(base))
     }
