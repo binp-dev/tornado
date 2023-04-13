@@ -1,7 +1,7 @@
 use super::Error;
 use crate::epics;
 use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
-use common::values::{AdcPoint, Analog, Value};
+use common::values::{Point, Value};
 use ferrite::TypedVariable as Variable;
 use futures::{future::try_join_all, FutureExt};
 use std::{
@@ -16,25 +16,25 @@ pub struct Adc {
 }
 
 struct AdcArray {
-    input: AsyncHeapConsumer<AdcPoint>,
+    input: AsyncHeapConsumer<Point>,
     output: Variable<[f64]>,
 }
 
 struct AdcScalar {
-    input: Arc<<AdcPoint as Value>::Atomic>,
+    input: Arc<<Point as Value>::Atomic>,
     output: Variable<f64>,
 }
 
 pub struct AdcHandle {
-    buffer: AsyncHeapProducer<AdcPoint>,
-    last_point: Arc<<AdcPoint as Value>::Atomic>,
+    buffer: AsyncHeapProducer<Point>,
+    last_point: Arc<<Point as Value>::Atomic>,
 }
 
 impl Adc {
     pub fn new(epics: epics::Adc) -> (Self, AdcHandle) {
-        let buffer = AsyncHeapRb::<AdcPoint>::new(2 * epics.array.max_len());
+        let buffer = AsyncHeapRb::<Point>::new(2 * epics.array.max_len());
         let (producer, consumer) = buffer.split();
-        let last = Arc::new(<AdcPoint as Value>::Atomic::default());
+        let last = Arc::new(<Point as Value>::Atomic::default());
         (
             Self {
                 array: AdcArray {
@@ -75,7 +75,7 @@ impl AdcArray {
             self.output
                 .request()
                 .await
-                .write_from(input.pop_iter().map(AdcPoint::into_analog))
+                .write_from(input.pop_iter().map(Point::into_analog))
                 .await;
         }
     }
@@ -88,7 +88,7 @@ impl AdcScalar {
                 .wait()
                 .await
                 .write(
-                    AdcPoint::try_from_base(self.input.load(Ordering::Acquire))
+                    Point::try_from_base(self.input.load(Ordering::Acquire))
                         .unwrap()
                         .into_analog(),
                 )
@@ -98,8 +98,8 @@ impl AdcScalar {
 }
 
 impl AdcHandle {
-    pub async fn push_iter<I: ExactSizeIterator<Item = AdcPoint>>(&mut self, points: I) {
-        let mut last = AdcPoint::default();
+    pub async fn push_iter<I: ExactSizeIterator<Item = Point>>(&mut self, points: I) {
+        let mut last = Point::default();
         let len = points.len();
         self.buffer
             .push_iter(points.map(|x| {

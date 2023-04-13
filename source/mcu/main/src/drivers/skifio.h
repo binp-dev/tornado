@@ -12,10 +12,12 @@
 #define SKIFIO_DOUT_SIZE 4
 
 typedef int32_t SkifioAin;
-typedef int16_t SkifioAout;
+typedef int32_t SkifioAout;
 
 typedef struct SkifioInput {
     SkifioAin adcs[SKIFIO_ADC_CHANNEL_COUNT];
+    int8_t temp;
+    uint8_t status;
 } SkifioInput;
 
 typedef struct SkifioOutput {

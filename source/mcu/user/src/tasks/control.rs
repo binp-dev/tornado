@@ -12,7 +12,7 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc};
 use common::{
     config::ADC_COUNT,
-    values::{AdcPoint, DacPoint, Din, Dout, Value},
+    values::{Din, Dout, Point, Value},
 };
 use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -47,13 +47,13 @@ pub struct ControlHandle {
 
 struct ControlDac {
     buffer: DacConsumer,
-    last_point: DacPoint,
+    last_point: Point,
     counter: usize,
 }
 
 struct ControlAdc {
     buffer: AdcProducer,
-    last_point: [AdcPoint; ADC_COUNT],
+    last_point: [Point; ADC_COUNT],
     counter: usize,
 }
 
@@ -129,12 +129,12 @@ impl Control {
             Self {
                 dac: ControlDac {
                     buffer: dac_buf,
-                    last_point: DacPoint::default(),
+                    last_point: Point::default(),
                     counter: 0,
                 },
                 adc: ControlAdc {
                     buffer: adc_buf,
-                    last_point: [AdcPoint::default(); ADC_COUNT],
+                    last_point: [Point::default(); ADC_COUNT],
                     counter: 0,
                 },
                 handle: handle.clone(),
@@ -222,7 +222,10 @@ impl Control {
             // Transfer DAC/ADC values to/from SkifIO board.
             {
                 let adcs = match skifio.transfer(XferOut { dac }) {
-                    Ok(XferIn { adcs }) => {
+                    Ok(XferIn { adcs, temp, status }) => {
+                        stats.set_skifio_temp(temp);
+                        stats.set_skifio_status(status);
+
                         self.adc.last_point = adcs;
                         adcs
                     }

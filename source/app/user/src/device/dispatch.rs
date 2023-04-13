@@ -11,7 +11,7 @@ use async_compat::Compat;
 use common::{
     config::{self, ADC_COUNT},
     protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
-    values::{AdcPoint, Din, Value},
+    values::{Din, Point, Value},
 };
 use flatty::{flat_vec, prelude::*, Emplacer};
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter, ReadError};
@@ -104,7 +104,7 @@ impl<C: Channel> Reader<C> {
                 }
                 McuMsgRef::AdcData { points } => {
                     for (index, adc) in adcs.iter_mut().enumerate() {
-                        adc.push_iter(points.iter().map(|a| AdcPoint::from_portable(a[index])))
+                        adc.push_iter(points.iter().map(|a| Point::from_portable(a[index])))
                             .await;
                     }
                 }

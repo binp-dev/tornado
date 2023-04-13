@@ -1,6 +1,6 @@
 use super::scale;
 use approx::assert_abs_diff_eq;
-use common::values::{Analog, DacPoint};
+use common::values::Point;
 use epics_ca::types::EpicsEnum;
 use fakedev::epics;
 use futures::{join, pin_mut, FutureExt, StreamExt};
@@ -10,7 +10,7 @@ use tokio::{sync::mpsc::Receiver, task::spawn};
 
 pub struct Context {
     pub epics: epics::Dac,
-    pub device: Receiver<DacPoint>,
+    pub device: Receiver<Point>,
 }
 
 pub async fn test(
@@ -22,7 +22,7 @@ pub async fn test(
     let data = (0..attempts).map(move |j| {
         (0..len)
             .map(move |i| i as f64 / (len - 1) as f64)
-            .map(move |x| scale::<DacPoint>((2.0 * PI * (j + 1) as f64 * x).sin()))
+            .map(move |x| scale((2.0 * PI * (j + 1) as f64 * x).sin()))
     });
 
     let prod = spawn({
@@ -58,7 +58,7 @@ pub async fn test(
             assert_abs_diff_eq!(
                 dac.into_analog(),
                 seq.next().unwrap(),
-                epsilon = DacPoint::STEP
+                epsilon = Point::STEP
             );
             if (i + 1) % len == 0 {
                 pbs.1.inc(1);
@@ -78,7 +78,7 @@ pub async fn test_cyclic(mut context: Context, attempts: usize, pbs: (ProgressBa
     let len = context.epics.array.element_count().unwrap();
     let data = (0..len)
         .map(move |i| i as f64 / (len - 1) as f64)
-        .map(move |x| x * scale::<DacPoint>((2.0 * PI * x).sin()));
+        .map(move |x| x * scale((2.0 * PI * x).sin()));
 
     let prod = spawn({
         let data = data.clone().collect::<Vec<_>>();
@@ -101,7 +101,7 @@ pub async fn test_cyclic(mut context: Context, attempts: usize, pbs: (ProgressBa
             assert_abs_diff_eq!(
                 dac.into_analog(),
                 seq.next().unwrap(),
-                epsilon = DacPoint::STEP
+                epsilon = Point::STEP
             );
             if (i + 1) % len == 0 {
                 pbs.1.inc(1);

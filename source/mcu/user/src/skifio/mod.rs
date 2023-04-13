@@ -12,7 +12,7 @@ use crate::Error;
 use alloc::boxed::Box;
 use common::{
     config::ADC_COUNT,
-    values::{AdcPoint, DacPoint, Din, Dout},
+    values::{Din, Dout, Point},
 };
 use core::time::Duration;
 use ustd::task::InterruptContext;
@@ -20,12 +20,15 @@ use ustd::task::InterruptContext;
 #[repr(C)]
 #[derive(Clone, Debug, Default)]
 pub struct XferIn {
-    pub adcs: [AdcPoint; ADC_COUNT],
+    pub adcs: [Point; ADC_COUNT],
+    pub temp: i8,
+    pub status: u8,
 }
+
 #[repr(C)]
 #[derive(Clone, Debug, Default)]
 pub struct XferOut {
-    pub dac: DacPoint,
+    pub dac: Point,
 }
 
 pub trait DinHandler: FnMut(&mut InterruptContext, Din) + Send + 'static {}
