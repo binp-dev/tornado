@@ -31,6 +31,8 @@ pub struct ControlHandle {
     #[cfg(feature = "fake")]
     dac_enable_sem: Semaphore,
 
+    dac_add: <Point as Value>::Atomic,
+
     din: <Din as Value>::Atomic,
     dout: <Dout as Value>::Atomic,
 
@@ -71,6 +73,7 @@ impl ControlHandle {
             dac_enabled: AtomicBool::new(false),
             #[cfg(feature = "fake")]
             dac_enable_sem: Semaphore::new().unwrap(),
+            dac_add: <Point as Value>::Atomic::default(),
             din: <Din as Value>::Atomic::default(),
             dout: <Dout as Value>::Atomic::default(),
             din_changed: AtomicBool::new(false),
@@ -97,6 +100,10 @@ impl ControlHandle {
         if enabled {
             self.dac_enable_sem.try_give(_cx);
         }
+    }
+
+    pub fn set_dac_add(&self, value: Point) {
+        self.dac_add.store(value.into_base(), Ordering::Release);
     }
 
     fn update_din(&self, value: Din) -> bool {
@@ -205,7 +212,8 @@ impl Control {
                 }
 
                 if let Some(value) = self.dac.buffer.pop() {
-                    dac = value;
+                    // Apply correction
+                    dac = value.saturating_add(handle.dac_add.load(Ordering::Acquire));
                     self.dac.last_point = value;
                     // Increment DAC notification counter.
                     self.dac.counter += 1;

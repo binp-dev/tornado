@@ -75,6 +75,10 @@ impl Point {
     pub fn from_analog_saturating(value: f64) -> Self {
         Self((value / Self::STEP).clamp(Self::MIN as f64, Self::MAX as f64) as i32)
     }
+
+    pub fn saturating_add(self, add: i32) -> Point {
+        Point(self.0.saturating_add(add).clamp(Self::MIN, Self::MAX))
+    }
 }
 
 #[repr(transparent)]

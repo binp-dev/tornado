@@ -41,6 +41,9 @@ impl Dac {
             },
             DacHandle {
                 buffer: read_buffer.into_iter(DacModifier { request, mode }),
+                addition: Box::pin(unfold_variable(epics.addition, |x| {
+                    Some(Point::from_analog_saturating(x))
+                })),
                 state: Box::pin(unfold_variable(epics.state, |x| Some(x != 0))),
             },
         )
@@ -54,6 +57,7 @@ impl Dac {
 
 pub struct DacHandle {
     pub buffer: double_vec::ReadIterator<Point, DacModifier>,
+    pub addition: Pin<Box<dyn Stream<Item = Point> + Send>>,
     // TODO: Remove `Box` when `impl Trait` stabilized.
     pub state: Pin<Box<dyn Stream<Item = bool> + Send>>,
 }

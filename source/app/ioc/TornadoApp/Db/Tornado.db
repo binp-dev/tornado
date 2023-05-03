@@ -43,6 +43,13 @@ record(ao, "${PREFIX}ao0")
     field(PREC, 6)
 }
 
+# DAC correction
+record(ao, "${PREFIX}ao0:corr")
+{
+    field(DTYP, "ferrite")
+    field(PREC, 6)
+}
+
 # Discrete input
 record(mbbiDirect, "${PREFIX}di0")
 {

@@ -173,6 +173,22 @@ impl<C: Channel> Writer<C> {
                 }
             })
             .map(Result::unwrap),
+            spawn({
+                let channel = channel.clone();
+                async move {
+                    loop {
+                        let value = self.dac.addition.next().await.unwrap();
+                        send_message(
+                            &channel,
+                            proto::AppMsgInitDacAdd {
+                                value: value.into_portable(),
+                            },
+                        )
+                        .await?;
+                    }
+                }
+            })
+            .map(Result::unwrap),
             spawn(async move {
                 let mut iter = self.dac.buffer;
                 loop {
