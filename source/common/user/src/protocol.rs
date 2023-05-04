@@ -21,6 +21,9 @@ pub enum AppMsg {
     DacData {
         points: FlatVec<<Point as Value>::Portable, le::U16>,
     },
+    DacAdd {
+        value: <Point as Value>::Portable,
+    },
     StatsReset,
 }
 

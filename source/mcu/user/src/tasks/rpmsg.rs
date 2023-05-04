@@ -164,6 +164,7 @@ impl RpmsgReader {
                     self.control.set_dac_mode(cx, enable.to_native());
                 }
                 AppMsgRef::DacData { points } => self.write_dac(points),
+                AppMsgRef::DacAdd { value } => self.set_dac_add(*value),
                 AppMsgRef::StatsReset => {
                     println!("Reset stats");
                     self.stats.reset();
@@ -213,6 +214,10 @@ impl RpmsgReader {
             }
             self.common.dac_requested.fetch_sub(len, Ordering::AcqRel);
         }
+    }
+
+    fn set_dac_add(&mut self, value: <Point as Value>::Portable) {
+        self.control.set_dac_add(Point::from_portable(value));
     }
 }
 

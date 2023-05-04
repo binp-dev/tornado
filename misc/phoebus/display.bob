@@ -266,7 +266,7 @@
   <widget type="group" version="2.0.0">
     <name>DAC</name>
     <y>50</y>
-    <width>391</width>
+    <width>490</width>
     <height>60</height>
     <style>1</style>
     <widget type="group" version="2.0.0">
@@ -293,26 +293,17 @@
           </font>
         </font>
       </widget>
-      <widget type="label" version="2.0.0">
-        <name>ESLO</name>
-        <text>Cal. Slope</text>
-        <x>149</x>
-        <width>120</width>
-        <font>
-          <font name="Default Bold" family="Liberation Sans" style="BOLD" size="14.0">
-          </font>
+    </widget>
+    <widget type="label" version="2.0.0">
+      <name>ESLO</name>
+      <text>Cal. Slope</text>
+      <x>249</x>
+      <y>1</y>
+      <width>120</width>
+      <font>
+        <font name="Default Bold" family="Liberation Sans" style="BOLD" size="14.0">
         </font>
-      </widget>
-      <widget type="label" version="2.0.0">
-        <name>EOFF</name>
-        <text>Cal. Offset</text>
-        <x>269</x>
-        <width>120</width>
-        <font>
-          <font name="Default Bold" family="Liberation Sans" style="BOLD" size="14.0">
-          </font>
-        </font>
-      </widget>
+      </font>
     </widget>
     <widget type="group" version="2.0.0">
       <name>0</name>
@@ -337,18 +328,53 @@
         <vertical_alignment>0</vertical_alignment>
         <wrap_words>true</wrap_words>
       </widget>
-      <widget type="textentry" version="3.0.0">
-        <name>ESLO</name>
-        <pv_name>$(PREFIX)ao0.ESLO</pv_name>
-        <x>149</x>
-        <width>120</width>
-      </widget>
-      <widget type="textentry" version="3.0.0">
-        <name>EOFF</name>
-        <pv_name>$(PREFIX)ao0.EOFF</pv_name>
-        <x>269</x>
-        <width>120</width>
-      </widget>
+    </widget>
+    <widget type="textentry" version="3.0.0">
+      <name>ESLO</name>
+      <pv_name>$(PREFIX)ao0.ESLO</pv_name>
+      <x>249</x>
+      <y>21</y>
+      <width>120</width>
+    </widget>
+    <widget type="label" version="2.0.0">
+      <name>EOFF</name>
+      <text>Cal. Offset</text>
+      <x>369</x>
+      <y>1</y>
+      <width>120</width>
+      <font>
+        <font name="Default Bold" family="Liberation Sans" style="BOLD" size="14.0">
+        </font>
+      </font>
+    </widget>
+    <widget type="textentry" version="3.0.0">
+      <name>EOFF</name>
+      <pv_name>$(PREFIX)ao0.EOFF</pv_name>
+      <x>369</x>
+      <y>21</y>
+      <width>120</width>
+    </widget>
+    <widget type="textentry" version="3.0.0">
+      <name>Value_1</name>
+      <pv_name>$(PREFIX)ao0:corr</pv_name>
+      <x>149</x>
+      <y>21</y>
+      <background_color>
+        <color name="Read_Background" red="240" green="240" blue="240">
+        </color>
+      </background_color>
+      <vertical_alignment>0</vertical_alignment>
+      <wrap_words>true</wrap_words>
+    </widget>
+    <widget type="label" version="2.0.0">
+      <name>Value_2</name>
+      <text>Addition, V</text>
+      <x>149</x>
+      <y>1</y>
+      <font>
+        <font family="Liberation Sans" style="BOLD" size="14.0">
+        </font>
+      </font>
     </widget>
   </widget>
   <widget type="stripchart" version="2.1.0">
@@ -551,7 +577,7 @@
   </widget>
   <widget type="group" version="2.0.0">
     <name>Digital output</name>
-    <x>431</x>
+    <x>523</x>
     <y>50</y>
     <width>130</width>
     <height>39</height>

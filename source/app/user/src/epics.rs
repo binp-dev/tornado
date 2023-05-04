@@ -15,6 +15,7 @@ pub enum Error {
 
 pub struct Dac {
     pub scalar: Variable<f64>,
+    pub addition: Variable<f64>,
     pub array: Variable<[f64]>,
     pub request: Variable<u16>,
     pub mode: Variable<u16>,
@@ -43,6 +44,7 @@ impl Dac {
     fn new(reg: &mut Registry, index: usize) -> Result<Self, Error> {
         Ok(Self {
             scalar: reg.remove_downcast_suffix(&format!("ao{}", index))?,
+            addition: reg.remove_downcast_suffix(&format!("ao{}:corr", index))?,
             array: reg.remove_downcast_suffix(&format!("aao{}", index))?,
             request: reg.remove_downcast_suffix(&format!("aao{}_request", index))?,
             mode: reg.remove_downcast_suffix(&format!("aao{}_mode", index))?,
