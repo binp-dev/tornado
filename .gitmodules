@@ -16,9 +16,6 @@
 [submodule "ca"]
 	path = source/test/ca
 	url = https://github.com/agerasev/epics-ca.git
-[submodule "atomic-traits"]
-	path = source/common/atomic-traits
-	url = https://github.com/agerasev/rust-atomic-traits.git
 [submodule "ringbuf"]
 	path = source/mcu/ringbuf
 	url = https://github.com/agerasev/ringbuf.git

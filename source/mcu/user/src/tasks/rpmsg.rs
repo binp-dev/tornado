@@ -8,7 +8,7 @@ use alloc::sync::Arc;
 use common::{
     config,
     protocol::{self as proto, AppMsg, McuMsg},
-    values::{Dout, Point, Value},
+    values::{Dout, Point, PointPortable, Uv},
 };
 use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -158,13 +158,13 @@ impl RpmsgReader {
             }
             match message.as_ref() {
                 AppMsgRef::KeepAlive => unreachable!(),
-                AppMsgRef::DoutUpdate { value } => self.set_dout(Dout::from_portable(*value)),
+                AppMsgRef::DoutUpdate { value } => self.set_dout(*value),
                 AppMsgRef::DacState { enable } => {
                     println!("Set DAC state: {:?}", enable);
                     self.control.set_dac_mode(cx, enable.to_native());
                 }
                 AppMsgRef::DacData { points } => self.write_dac(points),
-                AppMsgRef::DacAdd { value } => self.set_dac_add(*value),
+                AppMsgRef::DacAdd { value } => self.set_dac_add(value.to_native()),
                 AppMsgRef::StatsReset => {
                     println!("Reset stats");
                     self.stats.reset();
@@ -192,7 +192,7 @@ impl RpmsgReader {
         self.control.set_dout(value);
     }
 
-    fn write_dac(&mut self, points: &[<Point as Value>::Portable]) {
+    fn write_dac(&mut self, points: &[PointPortable]) {
         // Push received points to ring buffer.
         {
             #[cfg(feature = "fake")]
@@ -216,8 +216,8 @@ impl RpmsgReader {
         }
     }
 
-    fn set_dac_add(&mut self, value: <Point as Value>::Portable) {
-        self.control.set_dac_add(Point::from_portable(value));
+    fn set_dac_add(&mut self, value: Uv) {
+        self.control.set_dac_add(value);
     }
 }
 
@@ -257,12 +257,10 @@ impl RpmsgWriter {
     }
 
     fn send_din(&mut self, _cx: &mut impl BlockingContext) {
-        if let Some(din) = self.control.take_din() {
+        if let Some(value) = self.control.take_din() {
             try_timeout!(self.channel.new_message(), ())
                 .unwrap()
-                .emplace(proto::McuMsgInitDinUpdate {
-                    value: din.into_portable(),
-                })
+                .emplace(proto::McuMsgInitDinUpdate { value })
                 .unwrap()
                 .write()
                 .unwrap();

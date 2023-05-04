@@ -1,6 +1,6 @@
 use common::{
     config::{ADC_COUNT, SAMPLE_PERIOD},
-    values::Point,
+    values::{try_volt_to_uv, Uv},
 };
 use fakedev::run;
 use std::{f64::consts::PI, time::Duration};
@@ -18,15 +18,15 @@ async fn main() {
     let mut phases = [0.0_f64; ADC_COUNT];
     spawn(async move {
         let mut counter: u64 = 0;
-        let mut adcs = [Point::default(); ADC_COUNT];
+        let mut adcs = [Uv::default(); ADC_COUNT];
         loop {
             skifio.adcs.send(adcs).await.unwrap();
             unsafe { user_sample_intr() };
 
             let dac = skifio.dac.recv().await.unwrap();
-            adcs[0] = Point::try_from_analog(dac.into_analog()).unwrap();
+            adcs[0] = dac;
             for i in 1..ADC_COUNT {
-                adcs[i] = Point::try_from_analog(phases[i].sin()).unwrap();
+                adcs[i] = try_volt_to_uv(phases[i].sin()).unwrap();
                 phases[i] = 2.0 * PI * FREQS[i] * counter as f64 * SAMPLE_PERIOD.as_secs_f64();
             }
 

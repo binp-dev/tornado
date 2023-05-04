@@ -1,6 +1,6 @@
 use super::scale;
 use approx::assert_abs_diff_eq;
-use common::values::Point;
+use common::values::{uv_to_volt, Uv, VOLT_EPS};
 use epics_ca::types::EpicsEnum;
 use fakedev::epics;
 use futures::{join, pin_mut, FutureExt, StreamExt};
@@ -10,7 +10,7 @@ use tokio::{sync::mpsc::Receiver, task::spawn};
 
 pub struct Context {
     pub epics: epics::Dac,
-    pub device: Receiver<Point>,
+    pub device: Receiver<Uv>,
 }
 
 pub async fn test(
@@ -55,11 +55,7 @@ pub async fn test(
         let mut seq = data.flatten();
         for i in 0..(attempts * len) {
             let dac = context.device.recv().await.unwrap();
-            assert_abs_diff_eq!(
-                dac.into_analog(),
-                seq.next().unwrap(),
-                epsilon = Point::STEP
-            );
+            assert_abs_diff_eq!(uv_to_volt(dac), seq.next().unwrap(), epsilon = VOLT_EPS);
             if (i + 1) % len == 0 {
                 pbs.1.inc(1);
             }
@@ -98,11 +94,7 @@ pub async fn test_cyclic(mut context: Context, attempts: usize, pbs: (ProgressBa
         let mut seq = data.into_iter().cycle().take(len * attempts);
         for i in 0..(attempts * len) {
             let dac = context.device.recv().await.unwrap();
-            assert_abs_diff_eq!(
-                dac.into_analog(),
-                seq.next().unwrap(),
-                epsilon = Point::STEP
-            );
+            assert_abs_diff_eq!(uv_to_volt(dac), seq.next().unwrap(), epsilon = VOLT_EPS);
             if (i + 1) % len == 0 {
                 pbs.1.inc(1);
             }

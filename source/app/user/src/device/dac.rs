@@ -6,7 +6,7 @@ use crate::{
         misc::unfold_variable,
     },
 };
-use common::values::Point;
+use common::values::{volt_to_uv_saturating, Uv};
 use ferrite::{atomic::AtomicVariable, TypedVariable as Variable};
 use futures::{future::join_all, Stream};
 use std::{pin::Pin, sync::Arc};
@@ -19,7 +19,7 @@ pub struct Dac {
 
 impl Dac {
     pub fn new(epics: epics::Dac) -> (Self, DacHandle) {
-        let buffer = DoubleVec::<Point>::new(epics.array.max_len());
+        let buffer = DoubleVec::<Uv>::new(epics.array.max_len());
         let (read_buffer, write_buffer) = buffer.split();
 
         let request = AtomicVariable::new(epics.request);
@@ -42,7 +42,7 @@ impl Dac {
             DacHandle {
                 buffer: read_buffer.into_iter(DacModifier { request, mode }),
                 addition: Box::pin(unfold_variable(epics.addition, |x| {
-                    Some(Point::from_analog_saturating(x))
+                    Some(volt_to_uv_saturating(x))
                 })),
                 state: Box::pin(unfold_variable(epics.state, |x| Some(x != 0))),
             },
@@ -56,8 +56,8 @@ impl Dac {
 }
 
 pub struct DacHandle {
-    pub buffer: double_vec::ReadIterator<Point, DacModifier>,
-    pub addition: Pin<Box<dyn Stream<Item = Point> + Send>>,
+    pub buffer: double_vec::ReadIterator<Uv, DacModifier>,
+    pub addition: Pin<Box<dyn Stream<Item = Uv> + Send>>,
     // TODO: Remove `Box` when `impl Trait` stabilized.
     pub state: Pin<Box<dyn Stream<Item = bool> + Send>>,
 }
@@ -78,7 +78,7 @@ impl double_vec::ReadModifier for DacModifier {
 
 struct ArrayReader {
     input: Variable<[f64]>,
-    output: Arc<double_vec::Writer<Point>>,
+    output: Arc<double_vec::Writer<Uv>>,
     request: Arc<AtomicVariable<u16>>,
 }
 
@@ -90,7 +90,7 @@ impl ArrayReader {
             {
                 let mut output = self.output.write().await;
                 output.clear();
-                output.extend(input.iter().copied().map(Point::from_analog_saturating));
+                output.extend(input.iter().copied().map(volt_to_uv_saturating));
             }
             input.accept().await;
         }
@@ -99,7 +99,7 @@ impl ArrayReader {
 
 struct ScalarReader {
     input: Variable<f64>,
-    output: Arc<double_vec::Writer<Point>>,
+    output: Arc<double_vec::Writer<Uv>>,
     request: Arc<AtomicVariable<u16>>,
 }
 
@@ -111,7 +111,7 @@ impl ScalarReader {
             {
                 let mut output = self.output.write().await;
                 output.clear();
-                output.push(Point::from_analog_saturating(value));
+                output.push(volt_to_uv_saturating(value));
             }
         }
     }

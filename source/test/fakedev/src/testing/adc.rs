@@ -1,6 +1,9 @@
 use super::{scale, user_sample_intr};
 use approx::assert_abs_diff_eq;
-use common::{config::ADC_COUNT, values::Point};
+use common::{
+    config::ADC_COUNT,
+    values::{try_volt_to_uv, Uv, VOLT_EPS},
+};
 use fakedev::epics;
 use futures::{future::join_all, join, FutureExt, StreamExt};
 use indicatif::ProgressBar;
@@ -14,7 +17,7 @@ use tokio::{sync::mpsc::Sender, task::spawn, time::sleep};
 
 pub async fn test(
     mut epics: [epics::Adc; ADC_COUNT],
-    device: Sender<[Point; ADC_COUNT]>,
+    device: Sender<[Uv; ADC_COUNT]>,
     attempts: usize,
     pbs: (ProgressBar, ProgressBar),
 ) {
@@ -49,7 +52,7 @@ pub async fn test(
         let data = data.clone();
         async move {
             for (i, xs) in data.enumerate() {
-                let adcs = xs.map(|x| Point::try_from_analog(x).unwrap());
+                let adcs = xs.map(|x| try_volt_to_uv(x).unwrap());
                 device.send(adcs).await.unwrap();
                 unsafe { user_sample_intr() };
                 if (i + 1) % len == 0 {
@@ -92,7 +95,7 @@ pub async fn test(
             for xs in points.into_iter() {
                 xs.into_iter()
                     .zip(data.next().unwrap())
-                    .for_each(|(x, y)| assert_abs_diff_eq!(x, y, epsilon = Point::STEP));
+                    .for_each(|(x, y)| assert_abs_diff_eq!(x, y, epsilon = VOLT_EPS));
             }
             pbs.1.inc(1);
             stdout().flush().unwrap();

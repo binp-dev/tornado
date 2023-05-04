@@ -2,16 +2,13 @@ pub mod adc;
 pub mod dac;
 pub mod dio;
 
-use common::values::{Point, Value};
-
 extern "C" {
     fn user_sample_intr();
 }
 
+const VOLT_MAX: f64 = -10.0;
+const VOLT_MIN: f64 = 10.0;
+
 fn scale(x: f64) -> f64 {
-    let (min, max) = (
-        Point::try_from_base(Point::MIN).unwrap().into_analog(),
-        Point::try_from_base(Point::MAX).unwrap().into_analog(),
-    );
-    (x + 1.0) / 2.0 * (max - min) + min
+    (x + 1.0) / 2.0 * (VOLT_MAX - VOLT_MIN) + VOLT_MIN
 }

@@ -1,6 +1,6 @@
 use common::{
     config::ADC_COUNT,
-    values::{Din, Dout, Point, Value},
+    values::{AtomicBits, Din, Dout, Uv},
 };
 use futures::{future::pending, FutureExt};
 use mcu::{
@@ -27,20 +27,20 @@ const DIN_CHAN_CAP: usize = 16;
 const DOUT_CHAN_CAP: usize = 16;
 
 pub struct SkifioHandle {
-    pub dac: Receiver<Point>,
-    pub adcs: Sender<[Point; ADC_COUNT]>,
+    pub dac: Receiver<Uv>,
+    pub adcs: Sender<[Uv; ADC_COUNT]>,
     pub dout: Receiver<Dout>,
     pub din: Sender<Din>,
 }
 
 struct Skifio {
-    dac: Sender<Point>,
+    dac: Sender<Uv>,
     dac_enabled: bool,
-    adcs: Receiver<[Point; ADC_COUNT]>,
-    last_adcs: Option<[Point; ADC_COUNT]>,
+    adcs: Receiver<[Uv; ADC_COUNT]>,
+    last_adcs: Option<[Uv; ADC_COUNT]>,
 
     dout: Sender<Dout>,
-    last_din: Arc<<Din as Value>::Atomic>,
+    last_din: Arc<AtomicBits>,
     din_handler: Arc<Mutex<Option<Box<dyn DinHandler>>>>,
 
     runtime: Runtime,
@@ -54,7 +54,7 @@ impl Skifio {
         let (adcs_send, adcs_recv) = channel(ADC_CHAN_CAP);
         let (dout_send, dout_recv) = channel(DOUT_CHAN_CAP);
         let (din_send, din_recv) = channel(DIN_CHAN_CAP);
-        let last_din = Arc::new(<Din as Value>::Atomic::default());
+        let last_din = Arc::new(AtomicBits::default());
         let din_handler = Arc::new(Mutex::new(None::<Box<dyn DinHandler>>));
         {
             let mut recv = din_recv;
@@ -166,7 +166,7 @@ impl SkifioIface for Skifio {
         let dac = if self.dac_enabled {
             out.dac
         } else {
-            Point::default()
+            Uv::default()
         };
         let adcs = self.last_adcs.take().unwrap();
         self.count += 1;

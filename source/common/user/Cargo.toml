@@ -12,4 +12,3 @@ fake = []
 
 [dependencies]
 flatty = { path = "../flatty", default-features = false }
-atomic-traits = { path = "../atomic-traits" }

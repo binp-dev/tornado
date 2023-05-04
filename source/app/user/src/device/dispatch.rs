@@ -11,7 +11,7 @@ use async_compat::Compat;
 use common::{
     config::{self, ADC_COUNT},
     protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
-    values::{Din, Point, Value},
+    values::{Point, UvPortable},
 };
 use flatty::{flat_vec, prelude::*, Emplacer};
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter, ReadError};
@@ -96,9 +96,7 @@ impl<C: Channel> Reader<C> {
                 other => other.unwrap(),
             };
             match msg.as_ref() {
-                McuMsgRef::DinUpdate { value } => {
-                    self.din.send(Din::from_portable(*value)).await.unwrap()
-                }
+                McuMsgRef::DinUpdate { value } => self.din.send(*value).await.unwrap(),
                 McuMsgRef::DacRequest { count } => {
                     self.dac_write_count.fetch_add(count.to_native() as usize);
                 }
@@ -181,7 +179,7 @@ impl<C: Channel> Writer<C> {
                         send_message(
                             &channel,
                             proto::AppMsgInitDacAdd {
-                                value: value.into_portable(),
+                                value: UvPortable::from_native(value),
                             },
                         )
                         .await?;
@@ -205,7 +203,7 @@ impl<C: Channel> Writer<C> {
                         while count > 0 && !points.is_full() {
                             match iter.next() {
                                 Some(value) => {
-                                    points.push(value.into_portable()).unwrap();
+                                    points.push(UvPortable::from_native(value)).unwrap();
                                     count -= 1;
                                 }
                                 None => break,

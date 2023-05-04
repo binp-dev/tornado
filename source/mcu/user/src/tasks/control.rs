@@ -12,7 +12,7 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc};
 use common::{
     config::ADC_COUNT,
-    values::{Din, Dout, Point, Value},
+    values::{AtomicBits, AtomicUv, Din, Dout, Point, PointOpt, Uv},
 };
 use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -31,10 +31,10 @@ pub struct ControlHandle {
     #[cfg(feature = "fake")]
     dac_enable_sem: Semaphore,
 
-    dac_add: <Point as Value>::Atomic,
+    dac_add: AtomicUv,
 
-    din: <Din as Value>::Atomic,
-    dout: <Dout as Value>::Atomic,
+    din: AtomicBits,
+    dout: AtomicBits,
 
     /// Discrete input has changed.
     din_changed: AtomicBool,
@@ -49,13 +49,13 @@ pub struct ControlHandle {
 
 struct ControlDac {
     buffer: DacConsumer,
-    last_point: Point,
+    last_point: Uv,
     counter: usize,
 }
 
 struct ControlAdc {
     buffer: AdcProducer,
-    last_point: [Point; ADC_COUNT],
+    last_point: [Uv; ADC_COUNT],
     counter: usize,
 }
 
@@ -73,9 +73,9 @@ impl ControlHandle {
             dac_enabled: AtomicBool::new(false),
             #[cfg(feature = "fake")]
             dac_enable_sem: Semaphore::new().unwrap(),
-            dac_add: <Point as Value>::Atomic::default(),
-            din: <Din as Value>::Atomic::default(),
-            dout: <Dout as Value>::Atomic::default(),
+            dac_add: AtomicUv::default(),
+            din: AtomicBits::default(),
+            dout: AtomicBits::default(),
             din_changed: AtomicBool::new(false),
             dout_changed: AtomicBool::new(false),
             dac_notify_every: AtomicUsize::new(0),
@@ -102,8 +102,8 @@ impl ControlHandle {
         }
     }
 
-    pub fn set_dac_add(&self, value: Point) {
-        self.dac_add.store(value.into_base(), Ordering::Release);
+    pub fn set_dac_add(&self, value: Uv) {
+        self.dac_add.store(value, Ordering::Release);
     }
 
     fn update_din(&self, value: Din) -> bool {
@@ -136,12 +136,12 @@ impl Control {
             Self {
                 dac: ControlDac {
                     buffer: dac_buf,
-                    last_point: Point::default(),
+                    last_point: Uv::default(),
                     counter: 0,
                 },
                 adc: ControlAdc {
                     buffer: adc_buf,
-                    last_point: [Point::default(); ADC_COUNT],
+                    last_point: [Uv::default(); ADC_COUNT],
                     counter: 0,
                 },
                 handle: handle.clone(),
@@ -211,17 +211,26 @@ impl Control {
                     println!("DAC buffer timeout");
                 }
 
-                if let Some(value) = self.dac.buffer.pop() {
-                    // Apply correction
-                    dac = value;
-                    self.dac.last_point = value;
-                    // Increment DAC notification counter.
-                    self.dac.counter += 1;
-                    if self.dac.counter >= handle.dac_notify_every.load(Ordering::Acquire) {
-                        self.dac.counter = 0;
-                        ready = true;
+                let mut empty = true;
+                while let Some(p) = self.dac.buffer.pop() {
+                    match p.into_opt() {
+                        PointOpt::Uv(value) => {
+                            dac = value;
+                            self.dac.last_point = value;
+                            // Increment DAC notification counter.
+                            self.dac.counter += 1;
+                            if self.dac.counter >= handle.dac_notify_every.load(Ordering::Acquire) {
+                                self.dac.counter = 0;
+                                ready = true;
+                            }
+                            empty = false;
+                            break;
+                        }
+                        // TODO: Handle separator
+                        PointOpt::Sep => (),
                     }
-                } else {
+                }
+                if empty {
                     stats.dac.report_lost_empty(1);
                 }
             }
@@ -262,7 +271,7 @@ impl Control {
                     // Update ADC value statistics
                     stats.adcs.update_values(adcs);
                     // Push ADC point to buffer.
-                    if self.adc.buffer.push(adcs).is_err() {
+                    if self.adc.buffer.push(adcs.map(|x| Point::from_uv(x))).is_err() {
                         stats.adcs.report_lost_full(1);
                     }
 

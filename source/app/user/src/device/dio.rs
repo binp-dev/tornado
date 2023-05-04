@@ -1,5 +1,5 @@
 use super::Error;
-use common::values::{Din as DinValue, Dout as DoutValue, Value};
+use common::values::{Din as DinValue, Dout as DoutValue};
 use ferrite::TypedVariable as Variable;
 use futures::{
     channel::mpsc::{channel, Receiver, Sender},
@@ -29,10 +29,8 @@ impl Dout {
     }
     pub async fn run(mut self) -> Result<(), Error> {
         loop {
-            let value = DoutValue::try_from_base(
-                self.variable.wait().await.read().await.try_into().unwrap(),
-            )
-            .unwrap();
+            let input = u8::try_from(self.variable.wait().await.read().await).unwrap();
+            let value = DoutValue::try_from(input).unwrap();
             if self.channel.send(value).await.is_err() {
                 break Err(Error::Disconnected);
             }
@@ -67,7 +65,7 @@ impl Din {
             self.variable
                 .request()
                 .await
-                .write(value.into_base() as u32)
+                .write(u8::from(value) as u32)
                 .await;
         }
     }

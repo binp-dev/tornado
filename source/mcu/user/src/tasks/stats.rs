@@ -1,15 +1,11 @@
 use crate::println;
 use alloc::sync::Arc;
-use atomic_traits::{
-    fetch::{self, Max, Min},
-    Atomic,
-};
 use common::{
     config::ADC_COUNT,
-    values::{Point, Value},
+    values::{AtomicUv, Uv},
 };
 use core::{
-    fmt::{self, Display, Formatter, LowerHex, Write},
+    fmt::{self, Display, Formatter, Write},
     sync::atomic::{AtomicI8, AtomicU8, AtomicUsize, Ordering},
     time::Duration,
 };
@@ -64,7 +60,7 @@ pub struct StatsDac {
     /// IOC sent more points than were requested.
     req_exceed: AtomicUsize,
 
-    value: ValueStats<Point>,
+    value: ValueStats,
 }
 
 #[derive(Default)]
@@ -72,15 +68,15 @@ pub struct StatsAdc {
     /// Number of points lost because the ADC buffer was full.
     lost_full: AtomicUsize,
 
-    values: [ValueStats<Point>; ADC_COUNT],
+    values: [ValueStats; ADC_COUNT],
 }
 
 #[derive(Default)]
-pub struct ValueStats<T: Value> {
+pub struct ValueStats {
     count: AtomicUsize,
-    last: T::Atomic,
-    min: T::Atomic,
-    max: T::Atomic,
+    last: AtomicUv,
+    min: AtomicUv,
+    max: AtomicUv,
 }
 
 impl Statistics {
@@ -160,7 +156,7 @@ impl StatsDac {
         #[cfg(feature = "fake")]
         panic!("IOC sent more points than have been requested");
     }
-    pub fn update_value(&self, value: Point) {
+    pub fn update_value(&self, value: Uv) {
         self.value.update(value);
     }
 }
@@ -181,16 +177,12 @@ impl StatsAdc {
         #[cfg(feature = "fake")]
         panic!("ADC ring buffer is full");
     }
-    pub fn update_values(&self, values: [Point; ADC_COUNT]) {
+    pub fn update_values(&self, values: [Uv; ADC_COUNT]) {
         self.values.iter().zip(values).for_each(|(v, x)| v.update(x));
     }
 }
 
-impl<T: Value + Default> ValueStats<T>
-where
-    <T as Value>::Atomic: fetch::Min<Type = T::Base> + fetch::Max<Type = T::Base>,
-    i64: From<T::Base>,
-{
+impl ValueStats {
     pub fn new() -> Self {
         let this = Self::default();
         this.reset();
@@ -198,14 +190,14 @@ where
     }
     pub fn reset(&self) {
         self.count.store(0, Ordering::Relaxed);
-        self.max.store(T::MIN, Ordering::Relaxed);
-        self.min.store(T::MAX, Ordering::Relaxed);
-        self.last.store(T::Base::default(), Ordering::Relaxed);
+        self.max.store(Uv::MIN, Ordering::Relaxed);
+        self.min.store(Uv::MAX, Ordering::Relaxed);
+        self.last.store(Uv::default(), Ordering::Relaxed);
     }
-    pub fn update(&self, value: T) {
-        self.min.fetch_min(value.into_base(), Ordering::Relaxed);
-        self.max.fetch_max(value.into_base(), Ordering::Relaxed);
-        self.last.store(value.into_base(), Ordering::Relaxed);
+    pub fn update(&self, value: Uv) {
+        self.min.fetch_min(value, Ordering::Relaxed);
+        self.max.fetch_max(value, Ordering::Relaxed);
+        self.last.store(value, Ordering::Relaxed);
         self.count.fetch_add(1, Ordering::Relaxed);
     }
 }
@@ -264,24 +256,14 @@ impl Display for StatsAdc {
     }
 }
 
-macro_rules! format_value {
-    ($value:expr) => {
-        format_args!("0x{value:08x} == {value}", value = $value)
-    };
-}
-
-impl<T: Value + Default> Display for ValueStats<T>
-where
-    T::Base: TryFrom<i64> + LowerHex + Display,
-{
+impl Display for ValueStats {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let count = self.count.load(Ordering::Relaxed);
         writeln!(f, "count: {}", count)?;
         if count != 0 {
-            writeln!(f, "last: {}", format_value!(&self.last.load(Ordering::Relaxed)))?;
-
-            writeln!(f, "min: {}", format_value!(&self.min.load(Ordering::Relaxed)))?;
-            writeln!(f, "max: {}", format_value!(&self.max.load(Ordering::Relaxed)))?;
+            writeln!(f, "last: {}", &self.last.load(Ordering::Relaxed))?;
+            writeln!(f, "min: {}", &self.min.load(Ordering::Relaxed))?;
+            writeln!(f, "max: {}", &self.max.load(Ordering::Relaxed))?;
         }
 
         Ok(())

@@ -1,7 +1,7 @@
 use super::Error;
 use crate::epics;
 use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
-use common::values::{Point, Value};
+use common::values::{uv_to_volt, AtomicUv, Point, PointOpt, Uv};
 use ferrite::TypedVariable as Variable;
 use futures::{future::try_join_all, FutureExt};
 use std::{
@@ -21,20 +21,20 @@ struct AdcArray {
 }
 
 struct AdcScalar {
-    input: Arc<<Point as Value>::Atomic>,
+    input: Arc<AtomicUv>,
     output: Variable<f64>,
 }
 
 pub struct AdcHandle {
     buffer: AsyncHeapProducer<Point>,
-    last_point: Arc<<Point as Value>::Atomic>,
+    last_point: Arc<AtomicUv>,
 }
 
 impl Adc {
     pub fn new(epics: epics::Adc) -> (Self, AdcHandle) {
         let buffer = AsyncHeapRb::<Point>::new(2 * epics.array.max_len());
         let (producer, consumer) = buffer.split();
-        let last = Arc::new(<Point as Value>::Atomic::default());
+        let last = Arc::new(AtomicUv::default());
         (
             Self {
                 array: AdcArray {
@@ -75,7 +75,11 @@ impl AdcArray {
             self.output
                 .request()
                 .await
-                .write_from(input.pop_iter().map(Point::into_analog))
+                .write_from(input.pop_iter().filter_map(|p| match p.into_opt() {
+                    PointOpt::Uv(uv) => Some(uv_to_volt(uv)),
+                    // TODO: Support separation
+                    PointOpt::Sep => None,
+                }))
                 .await;
         }
     }
@@ -87,11 +91,7 @@ impl AdcScalar {
             self.output
                 .wait()
                 .await
-                .write(
-                    Point::try_from_base(self.input.load(Ordering::Acquire))
-                        .unwrap()
-                        .into_analog(),
-                )
+                .write(uv_to_volt(self.input.load(Ordering::Acquire)))
                 .await;
         }
     }
@@ -99,18 +99,20 @@ impl AdcScalar {
 
 impl AdcHandle {
     pub async fn push_iter<I: ExactSizeIterator<Item = Point>>(&mut self, points: I) {
-        let mut last = Point::default();
+        let mut last = Uv::default();
         let len = points.len();
         self.buffer
-            .push_iter(points.map(|x| {
-                last = x;
-                x
+            .push_iter(points.map(|p| {
+                if let PointOpt::Uv(uv) = p.into_opt() {
+                    last = uv;
+                }
+                p
             }))
             .await
             .ok()
             .unwrap();
         if len > 0 {
-            self.last_point.store(last.into_base(), Ordering::Release);
+            self.last_point.store(last, Ordering::Release);
         }
     }
 }
