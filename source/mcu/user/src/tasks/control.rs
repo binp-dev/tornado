@@ -213,7 +213,7 @@ impl Control {
 
                 if let Some(value) = self.dac.buffer.pop() {
                     // Apply correction
-                    dac = value.saturating_add(handle.dac_add.load(Ordering::Acquire));
+                    dac = value;
                     self.dac.last_point = value;
                     // Increment DAC notification counter.
                     self.dac.counter += 1;
@@ -224,8 +224,12 @@ impl Control {
                 } else {
                     stats.dac.report_lost_empty(1);
                 }
-                stats.dac.update_value(dac);
             }
+
+            // Add correction to DAC.
+            dac = dac.saturating_add(handle.dac_add.load(Ordering::Acquire));
+
+            stats.dac.update_value(dac);
 
             // Transfer DAC/ADC values to/from SkifIO board.
             {
