@@ -271,7 +271,7 @@ impl Control {
                     // Update ADC value statistics
                     stats.adcs.update_values(adcs);
                     // Push ADC point to buffer.
-                    if self.adc.buffer.push(adcs.map(|x| Point::from_uv(x))).is_err() {
+                    if self.adc.buffer.push(adcs.map(Point::from_uv)).is_err() {
                         stats.adcs.report_lost_full(1);
                     }
 
