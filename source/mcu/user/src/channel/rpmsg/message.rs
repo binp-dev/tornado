@@ -7,7 +7,7 @@ use core::{
     ops::{Deref, DerefMut},
     time::Duration,
 };
-use flatty::{mem::MaybeUninitUnsized, Emplacer, FlatDefault, Portable};
+use flatty::{Emplacer, FlatDefault, Portable};
 
 pub struct Reader<M: Portable + ?Sized> {
     channel: ReadChannel,
@@ -37,7 +37,7 @@ impl<M: Portable + ?Sized> Reader<M> {
 
     pub fn read_message(&mut self) -> Result<ReadGuard<'_, M>, Error> {
         let buffer = self.channel.recv(self.timeout)?;
-        M::from_bytes(&buffer)?.validate()?;
+        M::from_bytes(&buffer)?;
         Ok(ReadGuard { buffer, _p: PhantomData })
     }
 }
@@ -45,7 +45,7 @@ impl<M: Portable + ?Sized> Reader<M> {
 impl<'a, M: Portable + ?Sized> Deref for ReadGuard<'a, M> {
     type Target = M;
     fn deref(&self) -> &M {
-        unsafe { MaybeUninitUnsized::from_bytes_unchecked(&self.buffer).assume_init() }
+        unsafe { M::from_bytes_unchecked(&self.buffer) }
     }
 }
 
@@ -58,9 +58,8 @@ impl<M: Portable + ?Sized> Writer<M> {
         }
     }
 
-    pub fn new_message(&mut self) -> Result<UninitWriteGuard<'_, M>, Error> {
-        let mut buffer = self.channel.alloc(self.timeout)?;
-        MaybeUninitUnsized::<M>::from_mut_bytes(&mut buffer)?;
+    pub fn alloc_message(&mut self) -> Result<UninitWriteGuard<'_, M>, Error> {
+        let buffer = self.channel.alloc(self.timeout)?;
         Ok(UninitWriteGuard { buffer, _p: PhantomData })
     }
 }
@@ -68,17 +67,6 @@ impl<M: Portable + ?Sized> Writer<M> {
 pub struct UninitWriteGuard<'a, M: Portable + ?Sized> {
     buffer: WriteBuffer<'a>,
     _p: PhantomData<M>,
-}
-impl<'a, M: Portable + ?Sized> Deref for UninitWriteGuard<'a, M> {
-    type Target = MaybeUninitUnsized<M>;
-    fn deref(&self) -> &Self::Target {
-        unsafe { MaybeUninitUnsized::from_bytes_unchecked(&self.buffer) }
-    }
-}
-impl<'a, M: Portable + ?Sized> DerefMut for UninitWriteGuard<'a, M> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { MaybeUninitUnsized::from_mut_bytes_unchecked(&mut self.buffer) }
-    }
 }
 
 pub struct WriteGuard<'a, M: Portable + ?Sized> {
@@ -88,12 +76,12 @@ pub struct WriteGuard<'a, M: Portable + ?Sized> {
 impl<'a, M: Portable + ?Sized> Deref for WriteGuard<'a, M> {
     type Target = M;
     fn deref(&self) -> &Self::Target {
-        unsafe { MaybeUninitUnsized::from_bytes_unchecked(&self.buffer).assume_init() }
+        unsafe { M::from_bytes_unchecked(&self.buffer) }
     }
 }
 impl<'a, M: Portable + ?Sized> DerefMut for WriteGuard<'a, M> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { MaybeUninitUnsized::from_mut_bytes_unchecked(&mut self.buffer).assume_init_mut() }
+        unsafe { M::from_mut_bytes_unchecked(&mut self.buffer) }
     }
 }
 
@@ -108,8 +96,8 @@ impl<'a, M: Portable + ?Sized> UninitWriteGuard<'a, M> {
         }
     }
 
-    pub fn emplace(mut self, emplacer: impl Emplacer<M>) -> Result<WriteGuard<'a, M>, Error> {
-        M::new_in_place(&mut self, emplacer)?;
+    pub fn new_in_place(mut self, emplacer: impl Emplacer<M>) -> Result<WriteGuard<'a, M>, Error> {
+        M::new_in_place(&mut self.buffer, emplacer)?;
         Ok(WriteGuard {
             buffer: self.buffer,
             _p: PhantomData,
@@ -118,8 +106,8 @@ impl<'a, M: Portable + ?Sized> UninitWriteGuard<'a, M> {
 }
 
 impl<'a, M: Portable + FlatDefault + ?Sized> UninitWriteGuard<'a, M> {
-    pub fn default(self) -> Result<WriteGuard<'a, M>, Error> {
-        self.emplace(M::default_emplacer())
+    pub fn default_in_place(self) -> Result<WriteGuard<'a, M>, Error> {
+        self.new_in_place(M::default_emplacer())
     }
 }
 
