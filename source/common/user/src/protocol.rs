@@ -9,7 +9,7 @@ use flatty::{
     FlatVec,
 };
 
-#[flat(portable = true, sized = false, enum_type = "u8")]
+#[flat(portable = true, sized = false, tag_type = "u8")]
 pub enum AppMsg {
     KeepAlive,
     DoutUpdate { value: Dout },
@@ -19,7 +19,7 @@ pub enum AppMsg {
     StatsReset,
 }
 
-#[flat(portable = true, sized = false, enum_type = "u8")]
+#[flat(portable = true, sized = false, tag_type = "u8")]
 pub enum McuMsg {
     DinUpdate {
         value: Din,

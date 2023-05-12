@@ -42,7 +42,7 @@ dependencies = [
 
 [[package]]
 name = "flatty"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "flatty-base",
  "flatty-macros",
@@ -51,14 +51,14 @@ dependencies = [
 
 [[package]]
 name = "flatty-base"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "stavec",
 ]
 
 [[package]]
 name = "flatty-io"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "derive_more",
  "flatty",
@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "flatty-macros"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -76,7 +76,7 @@ dependencies = [
 
 [[package]]
 name = "flatty-portable"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "flatty-base",
  "num-traits",
@@ -313,9 +313,9 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "stavec"
-version = "0.2.1"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0b5dbd6504cc46a9cb4eb122a4ad955c273771162f94e996475290ace116573"
+checksum = "9a61f9802571335b908c3f43d251a7ab86e6817478d53a601e00124a798fe02b"
 dependencies = [
  "num-traits",
 ]

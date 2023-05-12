@@ -4,7 +4,7 @@ use core::{
     sync::atomic::{AtomicI32, AtomicU8},
 };
 use flatty::{
-    mem::MaybeUninitUnsized, portable::le, prelude::NativeCast, Flat, FlatCheck, Portable,
+    error::ErrorKind, portable::le, prelude::NativeCast, traits::FlatValidate, Flat, Portable,
 };
 
 pub type Uv = i32;
@@ -85,13 +85,13 @@ impl<const N: usize> TryFrom<u8> for Bits<N> {
         }
     }
 }
-impl<const N: usize> FlatCheck for Bits<N> {
-    fn validate(this: &MaybeUninitUnsized<Self>) -> Result<&Self, flatty::Error> {
-        if *unsafe { this.as_bytes().get_unchecked(0) } <= Self::MAX {
-            Ok(unsafe { this.assume_init() })
+unsafe impl<const N: usize> FlatValidate for Bits<N> {
+    unsafe fn validate_unchecked(bytes: &[u8]) -> Result<(), flatty::Error> {
+        if *unsafe { bytes.get_unchecked(0) } <= Self::MAX {
+            Ok(())
         } else {
             Err(flatty::Error {
-                kind: flatty::ErrorKind::InvalidData,
+                kind: ErrorKind::InvalidData,
                 pos: 0,
             })
         }

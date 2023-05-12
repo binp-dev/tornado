@@ -52,8 +52,8 @@ impl<M: Portable + ?Sized> Writer<M> {
             inner: InnerWriter::new(TimeoutWriter::new(channel, timeout), config::MAX_APP_MSG_LEN),
         }
     }
-    pub fn new_message(&mut self) -> Result<UninitWriteGuard<'_, M>, io::Error> {
-        Ok(self.inner.new_message())
+    pub fn alloc_message(&mut self) -> Result<UninitWriteGuard<'_, M>, io::Error> {
+        Ok(self.inner.alloc_message())
     }
 }
 

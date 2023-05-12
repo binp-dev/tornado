@@ -128,8 +128,8 @@ async fn send_message<M: Portable + ?Sized, W: AsyncWrite + Unpin, E: Emplacer<M
     channel
         .lock()
         .await
-        .new_message()
-        .emplace(emplacer)
+        .alloc_message()
+        .new_in_place(emplacer)
         .unwrap()
         .write()
         .await
@@ -193,8 +193,8 @@ impl<C: Channel> Writer<C> {
                     join!(self.dac_write_count.wait(|x| x >= 1), iter.wait_ready());
                     let mut guard = channel.lock().await;
                     let mut msg = guard
-                        .new_message()
-                        .emplace(proto::AppMsgInitDacData {
+                        .alloc_message()
+                        .new_in_place(proto::AppMsgInitDacData {
                             points: flat_vec![],
                         })
                         .unwrap();

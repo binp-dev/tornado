@@ -258,9 +258,9 @@ impl RpmsgWriter {
 
     fn send_din(&mut self, _cx: &mut impl BlockingContext) {
         if let Some(value) = self.control.take_din() {
-            try_timeout!(self.channel.new_message(), ())
+            try_timeout!(self.channel.alloc_message(), ())
                 .unwrap()
-                .emplace(proto::McuMsgInitDinUpdate { value })
+                .new_in_place(proto::McuMsgInitDinUpdate { value })
                 .unwrap()
                 .write()
                 .unwrap();
@@ -272,9 +272,9 @@ impl RpmsgWriter {
         const LEN: usize = proto::ADC_MSG_MAX_POINTS;
 
         while self.buffer.len() >= LEN {
-            let mut msg = try_timeout!(self.channel.new_message(), total)
+            let mut msg = try_timeout!(self.channel.alloc_message(), total)
                 .unwrap()
-                .emplace(proto::McuMsgInitAdcData { points: flat_vec![] })
+                .new_in_place(proto::McuMsgInitAdcData { points: flat_vec![] })
                 .unwrap();
 
             let count = if let proto::McuMsgMut::AdcData { points } = msg.as_mut() {
@@ -304,9 +304,9 @@ impl RpmsgWriter {
             // Request number of points that is multiple of `DAC_MSG_MAX_POINTS`.
             let count = (raw_count / SIZE) * SIZE;
             self.common.dac_requested.fetch_add(count, Ordering::AcqRel);
-            try_timeout!(self.channel.new_message(), ())
+            try_timeout!(self.channel.alloc_message(), ())
                 .unwrap()
-                .emplace(proto::McuMsgInitDacRequest {
+                .new_in_place(proto::McuMsgInitDacRequest {
                     count: le::U32::from(count as u32),
                 })
                 .unwrap()
