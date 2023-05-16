@@ -11,7 +11,7 @@ Software for next-gen power supply controller.
 + `cmake`
 + `perl`
 + `python3`
-+ `poetry`
++ `python3-poetry`
 + `rustup`
 
 ### Device
@@ -46,7 +46,7 @@ poetry run python -m tornado.manage host.test
 
 ### Run on the device
 
-To build, deploy and run both aplication and real-time code and run it on the i.MX8M Nano device:
+To build both aplication and real-time code and deploy it to the i.MX8M Nano device:
 
 ```bash
 poetry run python -m tornado.manage device.run --device <ip-addr>[:port]

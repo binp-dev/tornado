@@ -14,6 +14,7 @@ from tornado.tasks.freertos import Freertos
 
 
 class McuBase(Cmake):
+    @task
     def configure(self, ctx: Context) -> None:
         build_path = ctx.target_path / self.build_dir
 
@@ -63,12 +64,6 @@ class McuBase(Cmake):
             PurePosixPath("/boot/m7image.bin"),
         )
 
-    @task
-    def deploy_and_reboot(self, ctx: Context) -> None:
-        assert ctx.device is not None
-        self.deploy(ctx)
-        ctx.device.reboot()
-
 
 class McuMain(McuBase):
     def __init__(self, gcc: GccCross, freertos: Freertos, user: McuUser, src: Path, dst: TargetPath):
@@ -114,7 +109,3 @@ class McuGroup(ComponentGroup):
     @task
     def deploy(self, ctx: Context) -> None:
         self.main.deploy(ctx)
-
-    @task
-    def deploy_and_reboot(self, ctx: Context) -> None:
-        self.main.deploy_and_reboot(ctx)

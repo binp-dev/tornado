@@ -16,9 +16,6 @@ from tornado.tasks.fakedev import Fakedev
 from tornado.tasks.freertos import Freertos
 from tornado.tasks.mcu import McuGroup
 
-epics_version = "7.0.7"
-epics_dir = TargetPath("epics_base")
-
 
 class HostGroup(ComponentGroup):
     def __init__(self, path: Path, epics_src: EpicsSource) -> None:
@@ -61,12 +58,12 @@ class CrossGroup(ComponentGroup):
     def deploy(self, ctx: Context) -> None:
         self.epics_base.deploy(ctx)
         self.app.ioc.deploy(ctx)
-        self.mcu.deploy_and_reboot(ctx)
+        self.mcu.deploy(ctx)
 
     @task
-    def run(self, ctx: Context) -> None:
-        self.deploy(ctx)
-        self.app.ioc.run(ctx)
+    def reboot(self, ctx: Context) -> None:
+        assert ctx.device is not None
+        ctx.device.reboot()
 
 
 @dataclass
