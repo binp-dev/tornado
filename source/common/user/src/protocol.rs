@@ -16,6 +16,8 @@ pub enum AppMsg {
     DacState { enable: Bool },
     DacData { points: FlatVec<Point, le::U16> },
     DacAdd { value: Uv },
+    DacAddSin50Hz { amp: Uv, pha: le::F32 },
+    DacAddSin100Hz { amp: Uv, pha: le::F32 },
     StatsReset,
 }
 

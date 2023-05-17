@@ -15,9 +15,11 @@ use common::{
     values::{AtomicBits, AtomicUv, Din, Dout, Point, PointOpt, Uv},
 };
 use core::{
-    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+    f32::consts::PI,
+    sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
     time::Duration,
 };
+use libm::sinf;
 use ustd::{
     sync::Semaphore,
     task::{self, BlockingContext, Context, Priority, TaskContext},
@@ -32,6 +34,10 @@ pub struct ControlHandle {
     dac_enable_sem: Semaphore,
 
     dac_add: AtomicUv,
+    dac_add_sin_50hz_amp: AtomicUv,
+    dac_add_sin_50hz_pha: AtomicU32,
+    dac_add_sin_100hz_amp: AtomicUv,
+    dac_add_sin_100hz_pha: AtomicU32,
 
     din: AtomicBits,
     dout: AtomicBits,
@@ -74,6 +80,10 @@ impl ControlHandle {
             #[cfg(feature = "fake")]
             dac_enable_sem: Semaphore::new().unwrap(),
             dac_add: AtomicUv::default(),
+            dac_add_sin_50hz_amp: AtomicUv::default(),
+            dac_add_sin_50hz_pha: AtomicU32::default(),
+            dac_add_sin_100hz_amp: AtomicUv::default(),
+            dac_add_sin_100hz_pha: AtomicU32::default(),
             din: AtomicBits::default(),
             dout: AtomicBits::default(),
             din_changed: AtomicBool::new(false),
@@ -104,6 +114,16 @@ impl ControlHandle {
 
     pub fn set_dac_add(&self, value: Uv) {
         self.dac_add.store(value, Ordering::Release);
+    }
+    pub fn set_dac_add_sin_50hz(&self, amp: Uv, pha: f32) {
+        self.dac_add_sin_50hz_amp.store(amp, Ordering::Release);
+        self.dac_add_sin_50hz_pha
+            .store(u32::from_le_bytes(pha.to_le_bytes()), Ordering::Release);
+    }
+    pub fn set_dac_add_sin_100hz(&self, amp: Uv, pha: f32) {
+        self.dac_add_sin_100hz_amp.store(amp, Ordering::Release);
+        self.dac_add_sin_100hz_pha
+            .store(u32::from_le_bytes(pha.to_le_bytes()), Ordering::Release);
     }
 
     fn update_din(&self, value: Din) -> bool {
@@ -174,6 +194,8 @@ impl Control {
             }
         }
 
+        let mut phase_1hz = 0.0;
+
         println!("Enter SkifIO loop");
         loop {
             let mut ready = false;
@@ -237,6 +259,20 @@ impl Control {
 
             // Add correction to DAC.
             dac = dac.saturating_add(handle.dac_add.load(Ordering::Acquire));
+            dac = dac.saturating_add(
+                (handle.dac_add_sin_50hz_amp.load(Ordering::Acquire) as f32
+                    * sinf(
+                        50.0 * phase_1hz
+                            + f32::from_le_bytes(handle.dac_add_sin_50hz_pha.load(Ordering::Acquire).to_le_bytes()),
+                    )) as i32,
+            );
+            dac = dac.saturating_add(
+                (handle.dac_add_sin_100hz_amp.load(Ordering::Acquire) as f32
+                    * sinf(
+                        100.0 * phase_1hz
+                            + f32::from_le_bytes(handle.dac_add_sin_100hz_pha.load(Ordering::Acquire).to_le_bytes()),
+                    )) as i32,
+            );
 
             stats.dac.update_value(dac);
 
@@ -290,6 +326,11 @@ impl Control {
             }
 
             stats.report_sample();
+
+            phase_1hz += 2.0 * PI * 1e-5;
+            if phase_1hz > 2.0 * PI {
+                phase_1hz -= 2.0 * PI;
+            }
         }
     }
 

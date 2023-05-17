@@ -13,7 +13,7 @@ use common::{
     protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
     values::{Point, UvPortable},
 };
-use flatty::{flat_vec, prelude::*, Emplacer};
+use flatty::{flat_vec, portable::le, prelude::*, Emplacer};
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter, ReadError};
 use futures::{future::try_join_all, join, AsyncWrite, FutureExt, SinkExt, StreamExt};
 use std::{io, sync::Arc};
@@ -180,6 +180,40 @@ impl<C: Channel> Writer<C> {
                             &channel,
                             proto::AppMsgInitDacAdd {
                                 value: UvPortable::from_native(value),
+                            },
+                        )
+                        .await?;
+                    }
+                }
+            })
+            .map(Result::unwrap),
+            spawn({
+                let channel = channel.clone();
+                async move {
+                    loop {
+                        let (amp, pha) = self.dac.add_sin_50hz.next().await.unwrap();
+                        send_message(
+                            &channel,
+                            proto::AppMsgInitDacAddSin50Hz {
+                                amp: UvPortable::from_native(amp),
+                                pha: le::F32::from_native(pha),
+                            },
+                        )
+                        .await?;
+                    }
+                }
+            })
+            .map(Result::unwrap),
+            spawn({
+                let channel = channel.clone();
+                async move {
+                    loop {
+                        let (amp, pha) = self.dac.add_sin_100hz.next().await.unwrap();
+                        send_message(
+                            &channel,
+                            proto::AppMsgInitDacAddSin100Hz {
+                                amp: UvPortable::from_native(amp),
+                                pha: le::F32::from_native(pha),
                             },
                         )
                         .await?;

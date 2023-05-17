@@ -27,6 +27,7 @@ panic = ["ustd/panic"]
 [dependencies]
 lazy_static = { version = "1.4.0" }
 ringbuf = { path = "../ringbuf", default-features = false }
+libm = "0.2.7"
 flatty = { path = "../../common/flatty", default-features = false }
 flatty-io = { path = "../../common/flatty/io", optional = true }
 timeout-readwrite = { version = "0.3.3", optional = true }

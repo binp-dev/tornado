@@ -151,6 +151,27 @@ record(aai, "${PREFIX}aai5")
     field(SCAN, "I/O Intr")
 }
 
+record(ao, "${PREFIX}ao0:corr:50hz:amp")
+{
+    field(DTYP, "ferrite")
+    field(PREC, 6)
+}
+record(ao, "${PREFIX}ao0:corr:50hz:pha")
+{
+    field(DTYP, "ferrite")
+    field(PREC, 6)
+}
+record(ao, "${PREFIX}ao0:corr:100hz:amp")
+{
+    field(DTYP, "ferrite")
+    field(PREC, 6)
+}
+record(ao, "${PREFIX}ao0:corr:100hz:pha")
+{
+    field(DTYP, "ferrite")
+    field(PREC, 6)
+}
+
 # Write 1 to this record to reset MCU statistics
 record(bo, "${PREFIX}_stats_reset")
 {

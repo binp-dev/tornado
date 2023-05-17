@@ -15,11 +15,14 @@ pub enum Error {
 
 pub struct Dac {
     pub scalar: Variable<f64>,
-    pub addition: Variable<f64>,
     pub array: Variable<[f64]>,
     pub request: Variable<u16>,
     pub mode: Variable<u16>,
     pub state: Variable<u16>,
+
+    pub addition: Variable<f64>,
+    pub add_sin_50hz: (Variable<f64>, Variable<f64>),
+    pub add_sin_100hz: (Variable<f64>, Variable<f64>),
 }
 
 pub struct Adc {
@@ -44,11 +47,20 @@ impl Dac {
     fn new(reg: &mut Registry, index: usize) -> Result<Self, Error> {
         Ok(Self {
             scalar: reg.remove_downcast_suffix(&format!("ao{}", index))?,
-            addition: reg.remove_downcast_suffix(&format!("ao{}:corr", index))?,
             array: reg.remove_downcast_suffix(&format!("aao{}", index))?,
             request: reg.remove_downcast_suffix(&format!("aao{}_request", index))?,
             mode: reg.remove_downcast_suffix(&format!("aao{}_mode", index))?,
             state: reg.remove_downcast_suffix(&format!("aao{}_state", index))?,
+
+            addition: reg.remove_downcast_suffix(&format!("ao{}:corr", index))?,
+            add_sin_50hz: (
+                reg.remove_downcast_suffix(&format!("ao{}:corr:50hz:amp", index))?,
+                reg.remove_downcast_suffix(&format!("ao{}:corr:50hz:pha", index))?,
+            ),
+            add_sin_100hz: (
+                reg.remove_downcast_suffix(&format!("ao{}:corr:100hz:amp", index))?,
+                reg.remove_downcast_suffix(&format!("ao{}:corr:100hz:pha", index))?,
+            ),
         })
     }
 }

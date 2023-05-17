@@ -165,6 +165,8 @@ impl RpmsgReader {
                 }
                 AppMsgRef::DacData { points } => self.write_dac(points),
                 AppMsgRef::DacAdd { value } => self.set_dac_add(value.to_native()),
+                AppMsgRef::DacAddSin50Hz { amp, pha } => self.set_dac_add_sin_50hz(amp.to_native(), pha.to_native()),
+                AppMsgRef::DacAddSin100Hz { amp, pha } => self.set_dac_add_sin_100hz(amp.to_native(), pha.to_native()),
                 AppMsgRef::StatsReset => {
                     println!("Reset stats");
                     self.stats.reset();
@@ -218,6 +220,12 @@ impl RpmsgReader {
 
     fn set_dac_add(&mut self, value: Uv) {
         self.control.set_dac_add(value);
+    }
+    fn set_dac_add_sin_50hz(&mut self, amp: Uv, pha: f32) {
+        self.control.set_dac_add_sin_50hz(amp, pha);
+    }
+    fn set_dac_add_sin_100hz(&mut self, amp: Uv, pha: f32) {
+        self.control.set_dac_add_sin_100hz(amp, pha);
     }
 }
 

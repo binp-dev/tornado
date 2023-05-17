@@ -8,13 +8,31 @@ use crate::{
 };
 use common::values::{volt_to_uv_saturating, Uv};
 use ferrite::{atomic::AtomicVariable, TypedVariable as Variable};
-use futures::{future::join_all, Stream};
+use futures::{
+    future::join_all,
+    select,
+    stream::{self, Stream},
+    FutureExt,
+};
 use std::{pin::Pin, sync::Arc};
 use tokio::task::spawn;
 
 pub struct Dac {
     array: ArrayReader,
     scalar: ScalarReader,
+}
+
+fn unfold_sin_vars(vars: (Variable<f64>, Variable<f64>)) -> impl Stream<Item = (Uv, f32)> + Send {
+    stream::unfold(
+        (vars, (0, 0.0)),
+        move |((mut amp, mut pha), (mut a, mut p))| async move {
+            select! {
+                v = amp.wait().fuse() => a = volt_to_uv_saturating(v.read().await),
+                v = pha.wait().fuse() => p = v.read().await as f32,
+            }
+            Some(((a, p), ((amp, pha), (a, p))))
+        },
+    )
 }
 
 impl Dac {
@@ -41,10 +59,13 @@ impl Dac {
             },
             DacHandle {
                 buffer: read_buffer.into_iter(DacModifier { request, mode }),
+                state: Box::pin(unfold_variable(epics.state, |x| Some(x != 0))),
+
                 addition: Box::pin(unfold_variable(epics.addition, |x| {
                     Some(volt_to_uv_saturating(x))
                 })),
-                state: Box::pin(unfold_variable(epics.state, |x| Some(x != 0))),
+                add_sin_50hz: Box::pin(unfold_sin_vars(epics.add_sin_50hz)),
+                add_sin_100hz: Box::pin(unfold_sin_vars(epics.add_sin_100hz)),
             },
         )
     }
@@ -57,9 +78,12 @@ impl Dac {
 
 pub struct DacHandle {
     pub buffer: double_vec::ReadIterator<Uv, DacModifier>,
-    pub addition: Pin<Box<dyn Stream<Item = Uv> + Send>>,
     // TODO: Remove `Box` when `impl Trait` stabilized.
     pub state: Pin<Box<dyn Stream<Item = bool> + Send>>,
+
+    pub addition: Pin<Box<dyn Stream<Item = Uv> + Send>>,
+    pub add_sin_50hz: Pin<Box<dyn Stream<Item = (Uv, f32)> + Send>>,
+    pub add_sin_100hz: Pin<Box<dyn Stream<Item = (Uv, f32)> + Send>>,
 }
 
 pub struct DacModifier {
