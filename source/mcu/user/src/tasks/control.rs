@@ -327,7 +327,7 @@ impl Control {
 
             stats.report_sample();
 
-            phase_1hz += 2.0 * PI * 1e-5;
+            phase_1hz += 2.0 * PI * 1e-4;
             if phase_1hz > 2.0 * PI {
                 phase_1hz -= 2.0 * PI;
             }
