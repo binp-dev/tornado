@@ -3,13 +3,10 @@ use core::{
     fmt::Debug,
     sync::atomic::{AtomicI32, AtomicU32, AtomicU8, Ordering},
 };
-use flatty::{
-    error::ErrorKind, portable::le, prelude::NativeCast, traits::FlatValidate, Flat, Portable,
-};
+use flatty::{error::ErrorKind, flat, traits::FlatValidate, Flat, Portable};
 
 pub type Uv = i32;
 pub type AtomicUv = AtomicI32;
-pub type UvPortable = le::I32;
 
 #[derive(Default)]
 pub struct AtomicF32(AtomicU32);
@@ -23,14 +20,13 @@ impl AtomicF32 {
     }
 }
 
-#[repr(transparent)]
+#[flat]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Point(i32);
 pub enum PointOpt {
     Uv(Uv),
     Sep,
 }
-pub type PointPortable = le::I32;
 impl Point {
     const NICHE: i32 = 1;
 
@@ -49,13 +45,6 @@ impl Point {
         } else {
             PointOpt::Sep
         }
-    }
-
-    pub fn from_portable(portable: PointPortable) -> Self {
-        Point(portable.to_native())
-    }
-    pub fn into_portable(self) -> PointPortable {
-        PointPortable::from_native(self.0)
     }
 }
 

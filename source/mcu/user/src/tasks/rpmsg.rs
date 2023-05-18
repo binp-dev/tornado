@@ -8,13 +8,13 @@ use alloc::sync::Arc;
 use common::{
     config,
     protocol::{self as proto, AppMsg, McuMsg},
-    values::{Point, PointPortable},
+    values::Point,
 };
 use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     time::Duration,
 };
-use flatty::{flat_vec, portable::le, prelude::NativeCast};
+use flatty::{flat_vec, prelude::NativeCast};
 use ringbuf::ring_buffer::RbBase;
 use ustd::{
     println,
@@ -164,7 +164,7 @@ impl RpmsgReader {
                     self.control.set_dac_mode(cx, enable.to_native());
                 }
                 AppMsgRef::DacData { points } => self.write_dac(points),
-                AppMsgRef::DacAdd { value } => self.control.dac_add.store(value.to_native(), Ordering::Release),
+                AppMsgRef::DacAdd { value } => self.control.dac_add.store(*value, Ordering::Release),
                 AppMsgRef::StatsReset => {
                     println!("Reset stats");
                     self.stats.reset();
@@ -188,13 +188,13 @@ impl RpmsgReader {
         println!("IOC disconnected");
     }
 
-    fn write_dac(&mut self, points: &[PointPortable]) {
+    fn write_dac(&mut self, points: &[Point]) {
         // Push received points to ring buffer.
         {
             #[cfg(feature = "fake")]
             assert!(self.buffer.wait(points.len(), crate::buffers::BUFFER_TIMEOUT));
 
-            let count = self.buffer.push_iter(&mut points.iter().copied().map(Point::from_portable));
+            let count = self.buffer.push_iter(&mut points.iter().copied());
             if points.len() > count {
                 self.stats.dac.report_lost_full(points.len() - count);
             }
@@ -271,7 +271,7 @@ impl RpmsgWriter {
 
             let count = if let proto::McuMsgMut::AdcData { points } = msg.as_mut() {
                 assert_eq!(points.capacity(), LEN);
-                points.extend_from_iter(self.buffer.pop_iter().map(|values| values.map(Point::into_portable)));
+                points.extend_from_iter(self.buffer.pop_iter().map(|values| values));
                 points.len()
             } else {
                 unreachable!()
@@ -298,9 +298,7 @@ impl RpmsgWriter {
             self.common.dac_requested.fetch_add(count, Ordering::AcqRel);
             try_timeout!(self.channel.alloc_message(), ())
                 .unwrap()
-                .new_in_place(proto::McuMsgInitDacRequest {
-                    count: le::U32::from(count as u32),
-                })
+                .new_in_place(proto::McuMsgInitDacRequest { count: count as u32 })
                 .unwrap()
                 .write()
                 .unwrap();

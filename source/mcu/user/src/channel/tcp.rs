@@ -4,7 +4,7 @@ use crate::Error;
 use common::config;
 use core::time::Duration;
 use derive_more::{Deref, DerefMut};
-use flatty::Portable;
+use flatty::Flat;
 use flatty_io::{details, Reader as InnerReader, Writer as InnerWriter};
 use std::{
     io,
@@ -29,16 +29,16 @@ pub type ReadChannel = TcpStream;
 pub type WriteChannel = TcpStream;
 
 #[derive(Deref, DerefMut)]
-pub struct Reader<M: Portable + ?Sized> {
+pub struct Reader<M: Flat + ?Sized> {
     inner: InnerReader<M, TimeoutReader<ReadChannel>>,
 }
 
 #[derive(Deref, DerefMut)]
-pub struct Writer<M: Portable + ?Sized> {
+pub struct Writer<M: Flat + ?Sized> {
     inner: InnerWriter<M, TimeoutWriter<WriteChannel>>,
 }
 
-impl<M: Portable + ?Sized> Reader<M> {
+impl<M: Flat + ?Sized> Reader<M> {
     pub fn new(channel: ReadChannel, timeout: Option<Duration>) -> Self {
         Self {
             inner: InnerReader::new(TimeoutReader::new(channel, timeout), config::MAX_MCU_MSG_LEN),
@@ -46,7 +46,7 @@ impl<M: Portable + ?Sized> Reader<M> {
     }
 }
 
-impl<M: Portable + ?Sized> Writer<M> {
+impl<M: Flat + ?Sized> Writer<M> {
     pub fn new(channel: WriteChannel, timeout: Option<Duration>) -> Self {
         Self {
             inner: InnerWriter::new(TimeoutWriter::new(channel, timeout), config::MAX_APP_MSG_LEN),
