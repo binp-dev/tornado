@@ -11,9 +11,9 @@ use async_compat::Compat;
 use common::{
     config::{self, ADC_COUNT},
     protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
-    values::{Point, UvPortable},
+    values::Point,
 };
-use flatty::{flat_vec, portable::le, prelude::*, Emplacer};
+use flatty::{flat_vec, prelude::*, Emplacer};
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter, ReadError};
 use futures::{future::try_join_all, join, AsyncWrite, FutureExt, SinkExt, StreamExt};
 use std::{io, sync::Arc};
@@ -98,12 +98,11 @@ impl<C: Channel> Reader<C> {
             match msg.as_ref() {
                 McuMsgRef::DinUpdate { value } => self.din.send(*value).await.unwrap(),
                 McuMsgRef::DacRequest { count } => {
-                    self.dac_write_count.fetch_add(count.to_native() as usize);
+                    self.dac_write_count.fetch_add(*count as usize);
                 }
                 McuMsgRef::AdcData { points } => {
                     for (index, adc) in adcs.iter_mut().enumerate() {
-                        adc.push_iter(points.iter().map(|a| Point::from_portable(a[index])))
-                            .await;
+                        adc.push_iter(points.iter().map(|a| a[index])).await;
                     }
                 }
                 McuMsgRef::Error { code, message } => {
@@ -121,7 +120,7 @@ impl<C: Channel> Reader<C> {
     }
 }
 
-async fn send_message<M: Portable + ?Sized, W: AsyncWrite + Unpin, E: Emplacer<M>>(
+async fn send_message<M: Flat + ?Sized, W: AsyncWrite + Unpin, E: Emplacer<M>>(
     channel: &Mutex<MsgWriter<M, W>>,
     emplacer: E,
 ) -> Result<(), io::Error> {
@@ -176,13 +175,7 @@ impl<C: Channel> Writer<C> {
                 async move {
                     loop {
                         let value = self.dac.addition.next().await.unwrap();
-                        send_message(
-                            &channel,
-                            proto::AppMsgInitDacAdd {
-                                value: UvPortable::from_native(value),
-                            },
-                        )
-                        .await?;
+                        send_message(&channel, proto::AppMsgInitDacAdd { value }).await?;
                     }
                 }
             })
@@ -192,14 +185,7 @@ impl<C: Channel> Writer<C> {
                 async move {
                     loop {
                         let (amp, pha) = self.dac.add_sin_50hz.next().await.unwrap();
-                        send_message(
-                            &channel,
-                            proto::AppMsgInitDacAddSin50Hz {
-                                amp: UvPortable::from_native(amp),
-                                pha: le::F32::from_native(pha),
-                            },
-                        )
-                        .await?;
+                        send_message(&channel, proto::AppMsgInitDacAddSin50Hz { amp, pha }).await?;
                     }
                 }
             })
@@ -209,14 +195,8 @@ impl<C: Channel> Writer<C> {
                 async move {
                     loop {
                         let (amp, pha) = self.dac.add_sin_100hz.next().await.unwrap();
-                        send_message(
-                            &channel,
-                            proto::AppMsgInitDacAddSin100Hz {
-                                amp: UvPortable::from_native(amp),
-                                pha: le::F32::from_native(pha),
-                            },
-                        )
-                        .await?;
+                        send_message(&channel, proto::AppMsgInitDacAddSin100Hz { amp, pha })
+                            .await?;
                     }
                 }
             })
@@ -237,7 +217,7 @@ impl<C: Channel> Writer<C> {
                         while count > 0 && !points.is_full() {
                             match iter.next() {
                                 Some(value) => {
-                                    points.push(UvPortable::from_native(value)).unwrap();
+                                    points.push(Point::from_uv(value)).unwrap();
                                     count -= 1;
                                 }
                                 None => break,
