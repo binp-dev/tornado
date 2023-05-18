@@ -31,10 +31,10 @@ pub struct ControlHandle {
     #[cfg(feature = "fake")]
     dac_enable_sem: Semaphore,
 
-    dac_add: AtomicUv,
+    pub dac_add: AtomicUv,
 
     din: AtomicBits,
-    dout: AtomicBits,
+    pub dout: AtomicBits,
 
     /// Discrete input has changed.
     din_changed: AtomicBool,
@@ -100,10 +100,6 @@ impl ControlHandle {
         if enabled {
             self.dac_enable_sem.try_give(_cx);
         }
-    }
-
-    pub fn set_dac_add(&self, value: Uv) {
-        self.dac_add.store(value, Ordering::Release);
     }
 
     fn update_din(&self, value: Din) -> bool {
