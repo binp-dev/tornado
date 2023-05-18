@@ -8,7 +8,7 @@ use alloc::sync::Arc;
 use common::{
     config,
     protocol::{self as proto, AppMsg, McuMsg},
-    values::{Dout, Point, PointPortable, Uv},
+    values::{Point, PointPortable},
 };
 use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -42,7 +42,7 @@ pub struct RpmsgReader {
     channel: Option<Reader<AppMsg>>,
     buffer: DacProducer,
     common: Arc<RpmsgCommon>,
-    control: Arc<ControlHandle>,
+    pub control: Arc<ControlHandle>,
     stats: Arc<Statistics>,
 }
 
@@ -158,15 +158,21 @@ impl RpmsgReader {
             }
             match message.as_ref() {
                 AppMsgRef::KeepAlive => unreachable!(),
-                AppMsgRef::DoutUpdate { value } => self.set_dout(*value),
+                AppMsgRef::DoutUpdate { value } => self.control.dout.store(u8::from(*value), Ordering::Release),
                 AppMsgRef::DacState { enable } => {
                     println!("Set DAC state: {:?}", enable);
                     self.control.set_dac_mode(cx, enable.to_native());
                 }
                 AppMsgRef::DacData { points } => self.write_dac(points),
-                AppMsgRef::DacAdd { value } => self.set_dac_add(value.to_native()),
-                AppMsgRef::DacAddSin50Hz { amp, pha } => self.set_dac_add_sin_50hz(amp.to_native(), pha.to_native()),
-                AppMsgRef::DacAddSin100Hz { amp, pha } => self.set_dac_add_sin_100hz(amp.to_native(), pha.to_native()),
+                AppMsgRef::DacAdd { value } => self.control.dac_add.store(value.to_native(), Ordering::Release),
+                AppMsgRef::DacAddSin50Hz { amp, pha } => {
+                    self.control.dac_add_sin_50hz_amp.store(amp.to_native(), Ordering::Release);
+                    self.control.dac_add_sin_50hz_pha.store(pha.to_native(), Ordering::Release);
+                }
+                AppMsgRef::DacAddSin100Hz { amp, pha } => {
+                    self.control.dac_add_sin_100hz_amp.store(amp.to_native(), Ordering::Release);
+                    self.control.dac_add_sin_100hz_pha.store(pha.to_native(), Ordering::Release);
+                }
                 AppMsgRef::StatsReset => {
                     println!("Reset stats");
                     self.stats.reset();
@@ -188,10 +194,6 @@ impl RpmsgReader {
         self.control.set_dac_mode(cx, false);
         self.stats.report_ioc_drop();
         println!("IOC disconnected");
-    }
-
-    fn set_dout(&mut self, value: Dout) {
-        self.control.set_dout(value);
     }
 
     fn write_dac(&mut self, points: &[PointPortable]) {
@@ -216,16 +218,6 @@ impl RpmsgReader {
             }
             self.common.dac_requested.fetch_sub(len, Ordering::AcqRel);
         }
-    }
-
-    fn set_dac_add(&mut self, value: Uv) {
-        self.control.set_dac_add(value);
-    }
-    fn set_dac_add_sin_50hz(&mut self, amp: Uv, pha: f32) {
-        self.control.set_dac_add_sin_50hz(amp, pha);
-    }
-    fn set_dac_add_sin_100hz(&mut self, amp: Uv, pha: f32) {
-        self.control.set_dac_add_sin_100hz(amp, pha);
     }
 }
 

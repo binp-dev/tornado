@@ -1,7 +1,7 @@
 use crate::config::{DIN_BITS, DOUT_BITS};
 use core::{
     fmt::Debug,
-    sync::atomic::{AtomicI32, AtomicU8},
+    sync::atomic::{AtomicI32, AtomicU32, AtomicU8, Ordering},
 };
 use flatty::{
     error::ErrorKind, portable::le, prelude::NativeCast, traits::FlatValidate, Flat, Portable,
@@ -10,6 +10,18 @@ use flatty::{
 pub type Uv = i32;
 pub type AtomicUv = AtomicI32;
 pub type UvPortable = le::I32;
+
+#[derive(Default)]
+pub struct AtomicF32(AtomicU32);
+
+impl AtomicF32 {
+    pub fn load(&self, ord: Ordering) -> f32 {
+        f32::from_le_bytes(self.0.load(ord).to_le_bytes())
+    }
+    pub fn store(&self, val: f32, ord: Ordering) {
+        self.0.store(u32::from_le_bytes(val.to_le_bytes()), ord)
+    }
+}
 
 #[repr(transparent)]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Ord, PartialOrd)]

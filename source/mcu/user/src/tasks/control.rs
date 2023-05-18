@@ -12,11 +12,11 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc};
 use common::{
     config::ADC_COUNT,
-    values::{AtomicBits, AtomicUv, Din, Dout, Point, PointOpt, Uv},
+    values::{AtomicBits, AtomicF32, AtomicUv, Din, Dout, Point, PointOpt, Uv},
 };
 use core::{
     f32::consts::PI,
-    sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     time::Duration,
 };
 use libm::sinf;
@@ -33,14 +33,14 @@ pub struct ControlHandle {
     #[cfg(feature = "fake")]
     dac_enable_sem: Semaphore,
 
-    dac_add: AtomicUv,
-    dac_add_sin_50hz_amp: AtomicUv,
-    dac_add_sin_50hz_pha: AtomicU32,
-    dac_add_sin_100hz_amp: AtomicUv,
-    dac_add_sin_100hz_pha: AtomicU32,
+    pub dac_add: AtomicUv,
+    pub dac_add_sin_50hz_amp: AtomicUv,
+    pub dac_add_sin_50hz_pha: AtomicF32,
+    pub dac_add_sin_100hz_amp: AtomicUv,
+    pub dac_add_sin_100hz_pha: AtomicF32,
 
     din: AtomicBits,
-    dout: AtomicBits,
+    pub dout: AtomicBits,
 
     /// Discrete input has changed.
     din_changed: AtomicBool,
@@ -81,9 +81,9 @@ impl ControlHandle {
             dac_enable_sem: Semaphore::new().unwrap(),
             dac_add: AtomicUv::default(),
             dac_add_sin_50hz_amp: AtomicUv::default(),
-            dac_add_sin_50hz_pha: AtomicU32::default(),
+            dac_add_sin_50hz_pha: AtomicF32::default(),
             dac_add_sin_100hz_amp: AtomicUv::default(),
-            dac_add_sin_100hz_pha: AtomicU32::default(),
+            dac_add_sin_100hz_pha: AtomicF32::default(),
             din: AtomicBits::default(),
             dout: AtomicBits::default(),
             din_changed: AtomicBool::new(false),
@@ -110,20 +110,6 @@ impl ControlHandle {
         if enabled {
             self.dac_enable_sem.try_give(_cx);
         }
-    }
-
-    pub fn set_dac_add(&self, value: Uv) {
-        self.dac_add.store(value, Ordering::Release);
-    }
-    pub fn set_dac_add_sin_50hz(&self, amp: Uv, pha: f32) {
-        self.dac_add_sin_50hz_amp.store(amp, Ordering::Release);
-        self.dac_add_sin_50hz_pha
-            .store(u32::from_le_bytes(pha.to_le_bytes()), Ordering::Release);
-    }
-    pub fn set_dac_add_sin_100hz(&self, amp: Uv, pha: f32) {
-        self.dac_add_sin_100hz_amp.store(amp, Ordering::Release);
-        self.dac_add_sin_100hz_pha
-            .store(u32::from_le_bytes(pha.to_le_bytes()), Ordering::Release);
     }
 
     fn update_din(&self, value: Din) -> bool {
@@ -258,20 +244,13 @@ impl Control {
             }
 
             // Add correction to DAC.
-            dac = dac.saturating_add(handle.dac_add.load(Ordering::Acquire));
             dac = dac.saturating_add(
-                (handle.dac_add_sin_50hz_amp.load(Ordering::Acquire) as f32
-                    * sinf(
-                        50.0 * phase_1hz
-                            + f32::from_le_bytes(handle.dac_add_sin_50hz_pha.load(Ordering::Acquire).to_le_bytes()),
-                    )) as i32,
-            );
-            dac = dac.saturating_add(
-                (handle.dac_add_sin_100hz_amp.load(Ordering::Acquire) as f32
-                    * sinf(
-                        100.0 * phase_1hz
-                            + f32::from_le_bytes(handle.dac_add_sin_100hz_pha.load(Ordering::Acquire).to_le_bytes()),
-                    )) as i32,
+                (handle.dac_add.load(Ordering::Acquire) as f32
+                    + (handle.dac_add_sin_50hz_amp.load(Ordering::Acquire) as f32
+                        * sinf(50.0 * phase_1hz + handle.dac_add_sin_50hz_pha.load(Ordering::Acquire)))
+                    + (handle.dac_add_sin_100hz_amp.load(Ordering::Acquire) as f32
+                        * sinf(100.0 * phase_1hz + handle.dac_add_sin_100hz_pha.load(Ordering::Acquire))))
+                    as i32,
             );
 
             stats.dac.update_value(dac);
