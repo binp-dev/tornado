@@ -28,6 +28,6 @@ typedef struct {
     size_t index;
     const _HalGptDevice *device;
     const _HalGptChannel *channel;
-    void (*callbacks)(void *);
+    void (*callback)(void *);
     void *user_data;
 } HalGpt;

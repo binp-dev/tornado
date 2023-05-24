@@ -9,7 +9,7 @@
 /*!
  * @brief Initialize GPT hardware.
  * @param[out] gpt GPT handle to be written on success.
- * @param[in] instance GPT instance index.
+ * @param[in] instance GPT instance index (starts from 1).
  * @return Return code.
  */
 hal_retcode hal_gpt_init(HalGpt *gpt, uint32_t instance);
@@ -24,9 +24,9 @@ hal_retcode hal_gpt_deinit(HalGpt *gpt);
 /*!
  * @brief Start GPT.
  * @param[in] gpt GPT handle.
- * @param[in] channel Compare channel number. FIXME: Currently only channel = 1 is supported.
+ * @param[in] channel Compare channel number (starts from 1).
  * @param[in] period_us Period in microseconds.
- * @param[in] callback Called from interrupt on compare event.
+ * @param[in] callback Called from interrupt on compare event (can be NULL).
  * @param[in] user_data Data passed to callback.
  * @return Return code.
  */
