@@ -33,13 +33,6 @@ static const _HalGptChannel CHANNELS[HAL_GPT_CHANNELS_COUNT] = {
 
 static HalGpt *INSTANCES[HAL_GPT_INSTANCE_COUNT] = {NULL};
 
-#define GPT_IRQ_HANDLER_DECL(N) void GPT##N##_IRQHandler();
-
-//! @brief GPT interrupt handlers.
-GPT_IRQ_HANDLER_DECL(1)
-GPT_IRQ_HANDLER_DECL(2)
-GPT_IRQ_HANDLER_DECL(3)
-
 hal_retcode hal_gpt_init(HalGpt *gpt, uint32_t instance) {
     if (instance < 1 || instance > HAL_GPT_INSTANCE_COUNT) {
         return HAL_OUT_OF_BOUNDS;
@@ -52,7 +45,7 @@ hal_retcode hal_gpt_init(HalGpt *gpt, uint32_t instance) {
     gpt->index = index;
     gpt->device = &DEVICES[index];
     gpt->channel = NULL;
-    gpt->callbacks = NULL;
+    gpt->callback = NULL;
     gpt->user_data = NULL;
 
     // Set GPT1 source to SYSTEM PLL1 DIV2 400MHZ
@@ -62,6 +55,7 @@ hal_retcode hal_gpt_init(HalGpt *gpt, uint32_t instance) {
 
     gpt_config_t gpt_config;
     GPT_GetDefaultConfig(&gpt_config);
+    gpt_config.enableFreeRun = false;
 
     // Initialize GPT module
     GPT_Init(gpt->device->base, &gpt_config);
@@ -92,7 +86,7 @@ hal_retcode hal_gpt_start(
     }
 
     gpt->channel = &CHANNELS[channel - 1];
-    gpt->callbacks = callback;
+    gpt->callback = callback;
     gpt->user_data = user_data;
 
     // Get GPT clock frequency
@@ -107,17 +101,21 @@ hal_retcode hal_gpt_start(
         return HAL_OUT_OF_BOUNDS;
     }
 
-    // Set both GPT modules to 1 second duration
+    // Always set first channel compare value to period because
+    // only channel 1 can operate in restart mode (instead of free-run).
+    GPT_SetOutputCompareValue(gpt->device->base, CHANNELS[0].number, (uint32_t)period);
+    // Set target channel to that value too to trigger compare event.
     GPT_SetOutputCompareValue(gpt->device->base, gpt->channel->number, (uint32_t)period);
 
-    if (callback != NULL) {
-        // Enable GPT Output Compare1 interrupt
-        GPT_EnableInterrupts(gpt->device->base, gpt->channel->intr_mask);
+    // Toggle output pin on compare event.
+    GPT_SetOutputOperationMode(gpt->device->base, gpt->channel->number, kGPT_OutputOperation_Toggle);
 
-        NVIC_SetPriority(gpt->device->irqn, HAL_GPT_IRQ_PRIORITY);
-        // Enable NVIC interrupt
-        NVIC_EnableIRQ(gpt->device->irqn);
-    }
+    // Enable GPT output compare interrupt
+    GPT_EnableInterrupts(gpt->device->base, gpt->channel->intr_mask);
+
+    NVIC_SetPriority(gpt->device->irqn, HAL_GPT_IRQ_PRIORITY);
+    // Enable NVIC interrupt
+    NVIC_EnableIRQ(gpt->device->irqn);
 
     // Start Timer
     GPT_StartTimer(gpt->device->base);
@@ -129,6 +127,7 @@ hal_retcode hal_gpt_stop(HalGpt *gpt) {
     GPT_StopTimer(gpt->device->base);
 
     NVIC_DisableIRQ(gpt->device->irqn);
+    GPT_DisableInterrupts(gpt->device->base, gpt->channel->intr_mask);
 
     return HAL_SUCCESS;
 }
@@ -140,7 +139,9 @@ static void handle_gpt(size_t index) {
     // Clear interrupt flag.
     GPT_ClearStatusFlags(gpt->device->base, gpt->channel->flag);
 
-    gpt->callbacks(gpt->user_data);
+    if (gpt->callback != NULL) {
+        gpt->callback(gpt->user_data);
+    }
 
     // Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F, Cortex-M7, Cortex-M7F Store immediate overlapping
     // exception return operation might vector to incorrect interrupt
