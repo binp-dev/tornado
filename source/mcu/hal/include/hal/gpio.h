@@ -11,13 +11,7 @@ typedef uint32_t HalGpioPinMask;
 
 typedef void (*HalGpioIntrCallback)(void *, HalGpioBlockIndex, HalGpioPinMask);
 
-#if defined(HAL_IMX7)
-#include "imx7/gpio.h"
-#elif defined(HAL_IMX8MN)
-#include "imx8mn/gpio.h"
-#else
-#error "Unknown target"
-#endif
+#include <hal/platform/gpio.h>
 
 typedef enum {
     HAL_GPIO_INPUT = 0,

@@ -1,10 +1,6 @@
 #pragma once
 
-#if !defined(HAL_IMX8MN)
-#error "This header should be included only when building for i.MX8M Nano"
-#endif
-
-#include "fsl_gpio.h"
+#include <fsl_gpio.h>
 
 //! FIXME: Remove this constraint.
 #define HAL_GPIO_MAX_GROUP_COUNT 8

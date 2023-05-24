@@ -1,9 +1,5 @@
 #pragma once
 
-#if !defined(HAL_IMX8MN)
-#error "This header should be included only when building for i.MX8M Nano"
-#endif
-
 #include <stdint.h>
 
 //! @brief Number of available SPI controllers.

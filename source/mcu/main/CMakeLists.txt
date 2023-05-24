@@ -18,6 +18,8 @@ SET(CMAKE_EXECUTABLE_LIBRARY_SUFFIX)
 # CURRENT DIRECTORY
 SET(ProjDirPath ${CMAKE_CURRENT_SOURCE_DIR})
 
+set(FREERTOS_DIR $ENV{FREERTOS_DIR})
+
 SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 SET(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 
@@ -61,15 +63,15 @@ target_include_directories(${MCUX_SDK_PROJECT_NAME} PRIVATE
 )
 
 set(CMAKE_MODULE_PATH
-    $ENV{FREERTOS_DIR}/middleware/multicore
-    $ENV{FREERTOS_DIR}/rtos/freertos
-    $ENV{FREERTOS_DIR}/devices/MIMX8MN6/drivers
-    $ENV{FREERTOS_DIR}/devices/MIMX8MN6
-    $ENV{FREERTOS_DIR}/devices/MIMX8MN6/utilities
-    $ENV{FREERTOS_DIR}/components/uart
-    $ENV{FREERTOS_DIR}/components/serial_manager
-    $ENV{FREERTOS_DIR}/components/lists
-    $ENV{FREERTOS_DIR}/CMSIS/Core/Include
+    ${FREERTOS_DIR}/middleware/multicore
+    ${FREERTOS_DIR}/rtos/freertos
+    ${FREERTOS_DIR}/devices/MIMX8MN6/drivers
+    ${FREERTOS_DIR}/devices/MIMX8MN6
+    ${FREERTOS_DIR}/devices/MIMX8MN6/utilities
+    ${FREERTOS_DIR}/components/uart
+    ${FREERTOS_DIR}/components/serial_manager
+    ${FREERTOS_DIR}/components/lists
+    ${FREERTOS_DIR}/CMSIS/Core/Include
 )
 
 # include modules
@@ -121,11 +123,10 @@ endif()
 add_definitions("-DGENERATE_SYNC")
 
 # Link HAL
-set(HAL_TARGET "hal_imx8mn")
-add_definitions("-DHAL_IMX8MN" "-DHAL_PRINT_UART" "-DHAL_LOG_LEVEL=4")
+add_definitions("-DHAL_PRINT_UART" "-DHAL_LOG_LEVEL=4")
 add_subdirectory("../hal" "hal" EXCLUDE_FROM_ALL)
 include_directories("../hal/include")
-target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC ${HAL_TARGET})
+target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC "hal")
 
 # Link user lib
 target_link_directories(${MCUX_SDK_PROJECT_NAME} PUBLIC "${USER}")
@@ -135,5 +136,5 @@ target_link_libraries(${MCUX_SDK_PROJECT_NAME} PUBLIC "freertos_rust_shim")
 
 # Workaround to pass include directories to subprojects
 get_target_property(MCUX_SDK_INCLUDE_DIRECTORIES ${MCUX_SDK_PROJECT_NAME} INCLUDE_DIRECTORIES)
-target_include_directories(${HAL_TARGET} PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})
+target_include_directories("hal" PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})
 target_include_directories("freertos_rust_shim" PRIVATE ${MCUX_SDK_INCLUDE_DIRECTORIES})

@@ -28,7 +28,7 @@ int main(void) {
     BOARD_BootClockRUN();
 
     // Initialize UART I/O
-    hal_io_uart_init(3);
+    hal_io_init(3);
 
     copyResourceTable();
 
@@ -38,17 +38,17 @@ int main(void) {
 #endif
 
     hal_print("\n\r\n\r");
-    hal_log_info("** Board started **");
+    hal_print("** Board started **");
 
     user_main();
 
 #ifdef GENERATE_SYNC
     sync_init();
     sync_start(SYNC_PERIOD_US);
-    hal_log_info("Sync generator started");
+    hal_print("Sync generator started");
 #endif
 
     vTaskStartScheduler();
     // Must never return.
-    hal_panic();
+    hal_unreachable();
 }

@@ -1,9 +1,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "board.h"
-#include "fsl_common.h"
-#include "fsl_gpt.h"
+#include <board.h>
+#include <fsl_common.h>
+#include <fsl_gpt.h>
 
 #include <hal/defs.h>
 #include <hal/gpt.h>

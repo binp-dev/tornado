@@ -1,13 +1,13 @@
 #include <hal/rpmsg.h>
-#include <hal/imx8mn/rpmsg.h>
+#include <hal/platform/rpmsg.h>
 
-#include "FreeRTOS.h"
+#include <FreeRTOS.h>
 
-#include "rpmsg_lite.h"
-#include "rpmsg_queue.h"
-#include "rpmsg_ns.h"
+#include <rpmsg_lite.h>
+#include <rpmsg_queue.h>
+#include <rpmsg_ns.h>
 
-#include "board.h"
+#include <board.h>
 
 #define RPMSG_LITE_SHMEM_BASE ((void *)(VDEV0_VRING_BASE))
 #define RPMSG_LITE_LINK_ID (RL_PLATFORM_IMX8MN_M7_USER_LINK_ID)

@@ -2,15 +2,9 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include "defs.h"
 
-#if defined(HAL_IMX7)
-#include "imx7/rpmsg.h"
-#elif defined(HAL_IMX8MN)
-#include "imx8mn/rpmsg.h"
-#else
-#error "Unknown target"
-#endif
+#include <hal/defs.h>
+#include <hal/platform/rpmsg.h>
 
 /*! @brief RPMSG channel handle. */
 typedef struct hal_rpmsg_channel hal_rpmsg_channel;
@@ -41,7 +35,9 @@ hal_retcode hal_rpmsg_destroy_channel(hal_rpmsg_channel *channel);
  * @param[in] channel Channel handle.
  * @param[out] tx_buf Pointer to allocated shared memory.
  * @param[out] size Size of allocated buffer.
- * @param[in] timeout Timeout in milliseconds to wait for allocation. 0 - means non-blocking call, HAL_WAIT_FOREVER - wait forever.
+ * @param[in] timeout Timeout in milliseconds to wait for allocation.
+ *     0 - means non-blocking call,
+ *     HAL_WAIT_FOREVER - wait forever.
  * @return Return code (see `defs.h`).
  */
 hal_retcode hal_rpmsg_alloc_tx_buffer(hal_rpmsg_channel *channel, uint8_t **tx_buf, size_t *size, uint32_t timeout);

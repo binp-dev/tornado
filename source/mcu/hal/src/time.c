@@ -1,12 +1,6 @@
 #include <hal/time.h>
 
-#if defined(HAL_IMX7)
-#error "Hasn't measured yet"
-#elif defined(HAL_IMX8MN)
-#define ns_to_steps(ns) ((15 * (ns) - 1) / 100 + 1)
-#else
-#error "Unknown target"
-#endif
+#define ns_to_steps(ns) ((15 * (ns)-1) / 100 + 1)
 
 uint32_t hal_busy_wait_ns(uint64_t ns) {
     if (ns == 0) {

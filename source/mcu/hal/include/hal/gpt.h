@@ -2,15 +2,9 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include "defs.h"
 
-#if defined(HAL_IMX7)
-#include "imx7/gpt.h"
-#elif defined(HAL_IMX8MN)
-#include "imx8mn/gpt.h"
-#else
-#error "Unknown target"
-#endif
+#include <hal/defs.h>
+#include <hal/platform/gpt.h>
 
 /*!
  * @brief Initialize GPT hardware.

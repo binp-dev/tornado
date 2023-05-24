@@ -2,7 +2,6 @@
 
 #include <hal/gpio.h>
 #include <hal/panic.h>
-#include <hal/log.h>
 
 #define HAL_GPIO_IRQ_PRIORITY 4
 

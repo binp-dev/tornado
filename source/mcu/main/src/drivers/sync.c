@@ -9,6 +9,7 @@
 #include <fsl_gpt.h>
 
 #include <hal/assert.h>
+#include <hal/io.h>
 
 #define SYN_10K_MUX IOMUXC_SAI3_TXC_GPIO5_IO00
 // #define SYN_10K_MUX IOMUXC_SAI3_TXC_GPT1_COMPARE2
@@ -64,7 +65,7 @@ void sync_init() {
     update_pins();
 
     gpt_init();
-    hal_log_info("GPT initialized");
+    hal_print("GPT initialized");
 }
 
 void sync_deinit() {

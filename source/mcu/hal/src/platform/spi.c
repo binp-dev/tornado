@@ -10,24 +10,24 @@
 #include <hal/spi.h>
 
 /* FreeRTOS kernel includes. */
-#include "FreeRTOS.h"
-#include "task.h"
-#include "queue.h"
-#include "timers.h"
+#include <FreeRTOS.h>
+#include <task.h>
+#include <queue.h>
+#include <timers.h>
 
 /* Freescale includes. */
-#include "fsl_device_registers.h"
-#include "fsl_ecspi.h"
-#include "fsl_ecspi_freertos.h"
+#include <fsl_device_registers.h>
+#include <fsl_ecspi.h>
+#include <fsl_ecspi_freertos.h>
 
 #define HAL_SPI_IRQ_PRIORITY 3
 
-#define ECSPI_MASTER_BASEADDR   ECSPI1
-#define ECSPI_MASTER_CLK_FREQ                                                                 \
-    (CLOCK_GetPllFreq(kCLOCK_SystemPll1Ctrl) / (CLOCK_GetRootPreDivider(kCLOCK_RootEcspi1)) / \
-     (CLOCK_GetRootPostDivider(kCLOCK_RootEcspi1)))
+#define ECSPI_MASTER_BASEADDR ECSPI1
+#define ECSPI_MASTER_CLK_FREQ \
+    (CLOCK_GetPllFreq(kCLOCK_SystemPll1Ctrl) / (CLOCK_GetRootPreDivider(kCLOCK_RootEcspi1)) \
+     / (CLOCK_GetRootPostDivider(kCLOCK_RootEcspi1)))
 #define ECSPI_MASTER_TRANSFER_CHANNEL kECSPI_Channel0
-#define ECSPI_MASTER_IRQN     ECSPI1_IRQn
+#define ECSPI_MASTER_IRQN ECSPI1_IRQn
 
 static ecspi_master_config_t masterConfig;
 static ecspi_transfer_t masterXfer;
@@ -37,7 +37,7 @@ static ecspi_rtos_handle_t master_rtos_handle;
 
 void hal_spi_init() {
     CLOCK_SetRootMux(kCLOCK_RootEcspi1, kCLOCK_EcspiRootmuxSysPll1); /* Set ECSPI1 source to SYSTEM PLL1 800MHZ */
-    CLOCK_SetRootDivider(kCLOCK_RootEcspi1, 2U, 5U);                 /* Set root clock to 800MHZ / 10 = 80MHZ */
+    CLOCK_SetRootDivider(kCLOCK_RootEcspi1, 2U, 5U); /* Set root clock to 800MHZ / 10 = 80MHZ */
 }
 
 void hal_spi_deinit() {
@@ -78,11 +78,10 @@ hal_retcode hal_spi_enable(uint32_t channel, uint32_t baud_rate, HalSpiPhase pha
     masterConfig.channelConfig.phase = clock_phase;
     masterConfig.channelConfig.polarity = clock_polarity;
     masterConfig.baudRate_Bps = baud_rate;
-    //masterConfig.enableLoopback = true;
+    // masterConfig.enableLoopback = true;
 
     status_t status = ECSPI_RTOS_Init(&master_rtos_handle, ECSPI_MASTER_BASEADDR, &masterConfig, ECSPI_MASTER_CLK_FREQ);
-    if (status != kStatus_Success)
-    {
+    if (status != kStatus_Success) {
         return HAL_FAILURE;
     }
 
@@ -113,15 +112,14 @@ hal_retcode hal_spi_xfer(uint32_t channel, uint32_t *tx_buf, uint32_t *rx_buf, s
         return HAL_UNIMPLEMENTED;
     }
 
-    masterXfer.txData   = tx_buf;
-    masterXfer.rxData   = rx_buf;
+    masterXfer.txData = tx_buf;
+    masterXfer.rxData = rx_buf;
     masterXfer.dataSize = len;
-    masterXfer.channel  = ECSPI_MASTER_TRANSFER_CHANNEL;
+    masterXfer.channel = ECSPI_MASTER_TRANSFER_CHANNEL;
 
     /*Start master transfer*/
     status_t status = ECSPI_RTOS_Transfer(&master_rtos_handle, &masterXfer);
-    if (status != kStatus_Success)
-    {
+    if (status != kStatus_Success) {
         return HAL_FAILURE;
     }
     return HAL_SUCCESS;

@@ -1,12 +1,11 @@
-#include <hal/io.h>
-
-#ifdef HAL_PRINT_UART
-
 #include <stdbool.h>
 
-#include "board.h"
-#include "fsl_debug_console.h"
-#include "fsl_iomuxc.h"
+#include <hal/io.h>
+
+#include <board.h>
+#include <fsl_uart.h>
+#include <fsl_iomuxc.h>
+#include <fsl_debug_console.h>
 
 static void init_mux(
     uint32_t ta,
@@ -27,11 +26,11 @@ static void init_mux(
     IOMUXC_SetPinConfig(ta, tb, tc, td, te, IOMUXC_SW_PAD_CTL_PAD_DSE(6U) | IOMUXC_SW_PAD_CTL_PAD_FSEL(2U));
 }
 
-void hal_io_uart_init(uint32_t instance) {
+void hal_io_init(uint32_t uart_index) {
     bool warn = false;
     clock_root_control_t clock_root;
     clock_ip_name_t clock;
-    switch (instance) {
+    switch (uart_index) {
     case 3:
         init_mux(IOMUXC_UART3_TXD_UART3_TX, IOMUXC_UART3_RXD_UART3_RX);
         clock_root = kCLOCK_RootUart3;
@@ -39,7 +38,7 @@ void hal_io_uart_init(uint32_t instance) {
         break;
 
     default:
-        instance = 4;
+        uart_index = 4;
         warn = true;
     case 4:
         init_mux(IOMUXC_UART4_TXD_UART4_TX, IOMUXC_UART4_RXD_UART4_RX);
@@ -51,11 +50,9 @@ void hal_io_uart_init(uint32_t instance) {
     uint32_t uartClkSrcFreq = CLOCK_GetPllFreq(kCLOCK_SystemPll1Ctrl) / CLOCK_GetRootPreDivider(clock_root)
         / CLOCK_GetRootPostDivider(clock_root) / 10;
     CLOCK_EnableClock(clock);
-    DbgConsole_Init(instance, baudrate, BOARD_DEBUG_UART_TYPE, uartClkSrcFreq);
+    DbgConsole_Init(uart_index, baudrate, BOARD_DEBUG_UART_TYPE, uartClkSrcFreq);
 
     if (warn) {
-        PRINTF("[WARN] IO UART: Unsupported instance, falling back to %ld.", instance);
+        PRINTF("[WARN] IO UART: Unsupported uart_index, falling back to %ld.", uart_index);
     }
 }
-
-#endif

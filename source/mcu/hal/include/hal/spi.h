@@ -2,15 +2,15 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include "defs.h"
 
-#if defined(HAL_IMX7)
-#include "imx7/spi.h"
-#elif defined(HAL_IMX8MN)
-#include "imx8mn/spi.h"
-#else
-#error "Unknown target"
-#endif
+#include <hal/defs.h>
+#include <hal/spi.h>
+
+//! @brief Number of available SPI controllers.
+//! FIXME: Use all controllers, not only master.
+#define HAL_SPI_CHANNEL_COUNT 1
+
+typedef uint32_t hal_spi_byte;
 
 typedef enum {
     HAL_SPI_PHASE_FIRST_EDGE = 0,
@@ -51,7 +51,8 @@ hal_retcode hal_spi_disable(uint32_t channel);
  * @param[in] tx_buf Data to transmit.
  * @param[in] rx_buf Where data to be placed when received.
  * @param[in] len Length (in bytes) of the transfered data.
- * @param[in] timeout Timeout in milliseconds to wait for transfer. 0 - means non-blocking call, HAL_WAIT_FOREVER - wait forever.
+ * @param[in] timeout Timeout in milliseconds to wait for transfer. 0 - means non-blocking call, HAL_WAIT_FOREVER - wait
+ * forever.
  * @return Operation status, zero on success.
  */
 hal_retcode hal_spi_xfer(uint32_t channel, hal_spi_byte *tx_buf, hal_spi_byte *rx_buf, size_t len, uint32_t timeout);
