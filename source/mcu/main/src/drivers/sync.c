@@ -11,8 +11,8 @@
 #include <hal/assert.h>
 #include <hal/io.h>
 
-#define SYN_10K_MUX IOMUXC_SAI3_TXC_GPIO5_IO00
-// #define SYN_10K_MUX IOMUXC_SAI3_TXC_GPT1_COMPARE2
+// #define SYN_10K_MUX IOMUXC_SAI3_TXC_GPIO5_IO00
+#define SYN_10K_MUX IOMUXC_SAI3_TXC_GPT1_COMPARE2
 #define SYN_10K_PIN 5, 0
 
 #define SYN_1_MUX IOMUXC_SAI3_RXD_GPIO4_IO30
@@ -35,7 +35,7 @@ typedef struct {
 static Sync SYNC;
 
 static void update_pins() {
-    hal_gpio_pin_write(&SYNC.pins[0], SYNC.counter % 2 != 0);
+    // hal_gpio_pin_write(&SYNC.pins[0], SYNC.counter % 2 != 0);
 }
 
 static void gpt_init() {
@@ -45,6 +45,7 @@ static void gpt_init() {
     CLOCK_SetRootDivider(kCLOCK_RootGpt1, 1U, 4U); /* Set root clock to 400MHZ / 4 = 100MHZ */
 
     GPT_GetDefaultConfig(&gptConfig);
+    gptConfig.enableFreeRun = false;
 
     /* Initialize GPT module */
     GPT_Init(SYNC_GPT, &gptConfig);
@@ -58,7 +59,7 @@ void sync_init() {
     IOMUXC_SetPinMux(SYN_1_MUX, 0u);
 
     hal_gpio_group_init(&SYNC.group);
-    hal_gpio_pin_init(&SYNC.pins[0], &SYNC.group, SYN_10K_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
+    // hal_gpio_pin_init(&SYNC.pins[0], &SYNC.group, SYN_10K_PIN, HAL_GPIO_OUTPUT, HAL_GPIO_INTR_DISABLED);
     hal_gpio_pin_init(&SYNC.pins[1], &SYNC.group, SYN_1_PIN, HAL_GPIO_INPUT, HAL_GPIO_INTR_DISABLED);
 
     SYNC.counter = 0;
@@ -86,7 +87,7 @@ static void handle_sync() {
 
 void SYNC_GPT_IRQHandler(void) {
     /* Clear interrupt flag.*/
-    GPT_ClearStatusFlags(SYNC_GPT, kGPT_OutputCompare1Flag);
+    GPT_ClearStatusFlags(SYNC_GPT, kGPT_OutputCompare2Flag);
 
     handle_sync();
 
@@ -112,9 +113,11 @@ void sync_start(uint32_t period_us) {
 
     /* Set both GPT modules to 1 second duration */
     GPT_SetOutputCompareValue(SYNC_GPT, kGPT_OutputCompare_Channel1, (uint32_t)gptPeriod);
+    GPT_SetOutputCompareValue(SYNC_GPT, kGPT_OutputCompare_Channel2, 0);
+    GPT_SetOutputOperationMode(SYNC_GPT, kGPT_OutputCompare_Channel2, kGPT_OutputOperation_Toggle);
 
     /* Enable GPT Output Compare1 interrupt */
-    GPT_EnableInterrupts(SYNC_GPT, kGPT_OutputCompare1InterruptEnable);
+    GPT_EnableInterrupts(SYNC_GPT, kGPT_OutputCompare2InterruptEnable);
 
     /* Enable at the Interrupt */
     EnableIRQ(SYNC_GPT_IRQ_ID);
@@ -126,5 +129,5 @@ void sync_start(uint32_t period_us) {
 void sync_stop() {
     GPT_StopTimer(SYNC_GPT);
     DisableIRQ(SYNC_GPT_IRQ_ID);
-    GPT_DisableInterrupts(SYNC_GPT, kGPT_OutputCompare1InterruptEnable);
+    GPT_DisableInterrupts(SYNC_GPT, kGPT_OutputCompare2InterruptEnable);
 }
