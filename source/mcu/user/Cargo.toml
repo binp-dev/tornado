@@ -18,6 +18,7 @@ fake = [
     "common/fake",
     "ustd/backend-std",
     "ringbuf-blocking",
+    "ringbuf-blocking/std",
     "flatty-io",
     "flatty/std",
     "timeout-readwrite",

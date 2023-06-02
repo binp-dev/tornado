@@ -15,7 +15,9 @@ use core::{
     time::Duration,
 };
 use flatty::{flat_vec, prelude::NativeCast};
-use ringbuf::ring_buffer::RbBase;
+use ringbuf::traits::*;
+#[cfg(feature = "fake")]
+use ringbuf_blocking::traits::*;
 use ustd::{
     println,
     task::{self, BlockingContext, Context, Priority, TaskContext},
@@ -192,7 +194,7 @@ impl RpmsgReader {
         // Push received points to ring buffer.
         {
             #[cfg(feature = "fake")]
-            assert!(self.buffer.wait(points.len(), crate::buffers::BUFFER_TIMEOUT));
+            assert!(self.buffer.wait_vacant(points.len(), crate::buffers::BUFFER_TIMEOUT));
 
             let count = self.buffer.push_iter(&mut points.iter().copied());
             if points.len() > count {
@@ -263,7 +265,7 @@ impl RpmsgWriter {
         let mut total = 0;
         const LEN: usize = proto::ADC_MSG_MAX_POINTS;
 
-        while self.buffer.len() >= LEN {
+        while self.buffer.occupied_len() >= LEN {
             let mut msg = try_timeout!(self.channel.alloc_message(), total)
                 .unwrap()
                 .new_in_place(proto::McuMsgInitAdcData { points: flat_vec![] })
@@ -271,7 +273,7 @@ impl RpmsgWriter {
 
             let count = if let proto::McuMsgMut::AdcData { points } = msg.as_mut() {
                 assert_eq!(points.capacity(), LEN);
-                points.extend_from_iter(self.buffer.pop_iter().map(|values| values));
+                points.extend_from_iter(self.buffer.pop_iter());
                 points.len()
             } else {
                 unreachable!()
@@ -307,7 +309,7 @@ impl RpmsgWriter {
 
     fn discard_adcs(&mut self) {
         const LEN: usize = proto::ADC_MSG_MAX_POINTS;
-        let len = self.buffer.len();
+        let len = self.buffer.occupied_len();
         self.buffer.skip((len / LEN) * LEN);
     }
 }

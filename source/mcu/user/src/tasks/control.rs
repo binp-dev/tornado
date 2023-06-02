@@ -18,6 +18,9 @@ use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     time::Duration,
 };
+use ringbuf::traits::*;
+#[cfg(feature = "fake")]
+use ringbuf_blocking::traits::*;
 use ustd::{
     sync::Semaphore,
     task::{self, BlockingContext, Context, Priority, TaskContext},
@@ -203,12 +206,12 @@ impl Control {
             let mut dac = self.dac.last_point;
             if handle.dac_enabled.load(Ordering::Acquire) {
                 #[cfg(feature = "fake")]
-                while !self.dac.buffer.wait(1, BUFFER_TIMEOUT) {
+                while !self.dac.buffer.wait_occupied(1, BUFFER_TIMEOUT) {
                     println!("DAC buffer timeout");
                 }
 
                 let mut empty = true;
-                while let Some(p) = self.dac.buffer.pop() {
+                while let Some(p) = self.dac.buffer.try_pop() {
                     match p.into_opt() {
                         PointOpt::Uv(value) => {
                             dac = value;
@@ -260,14 +263,14 @@ impl Control {
                 // Handle ADCs
                 {
                     #[cfg(feature = "fake")]
-                    while !self.adc.buffer.wait(1, BUFFER_TIMEOUT) {
+                    while !self.adc.buffer.wait_vacant(1, BUFFER_TIMEOUT) {
                         println!("ADC buffer timeout");
                     }
 
                     // Update ADC value statistics
                     stats.adcs.update_values(adcs);
                     // Push ADC point to buffer.
-                    if self.adc.buffer.push(adcs.map(Point::from_uv)).is_err() {
+                    if self.adc.buffer.try_push(adcs.map(Point::from_uv)).is_err() {
                         stats.adcs.report_lost_full(1);
                     }
 

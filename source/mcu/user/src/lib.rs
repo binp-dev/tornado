@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(clippy::missing_safety_doc)]
 
 pub mod error;
 pub use error::Error;
@@ -26,10 +27,8 @@ pub extern "C" fn user_main() {
 
     let dac_buffer = &buffers::DAC_BUFFER;
     let adc_buffer = &buffers::ADC_BUFFER;
-    let (dac_producer, dac_consumer) =
-        unsafe { (buffers::DacProducer::new(dac_buffer), buffers::DacConsumer::new(dac_buffer)) };
-    let (adc_producer, adc_consumer) =
-        unsafe { (buffers::AdcProducer::new(adc_buffer), buffers::AdcConsumer::new(adc_buffer)) };
+    let (dac_producer, dac_consumer) = unsafe { buffers::split(dac_buffer) };
+    let (adc_producer, adc_consumer) = unsafe { buffers::split(adc_buffer) };
     let stats = tasks::STATISTICS.clone();
 
     let (control, handle) = tasks::Control::new(dac_consumer, adc_producer, stats.clone());

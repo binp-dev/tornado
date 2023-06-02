@@ -277,16 +277,15 @@ dependencies = [
 
 [[package]]
 name = "ringbuf"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "crossbeam-utils",
 ]
 
 [[package]]
 name = "ringbuf-blocking"
-version = "0.3.3"
+version = "0.1.0"
 dependencies = [
- "derive_more",
  "ringbuf",
 ]
 
