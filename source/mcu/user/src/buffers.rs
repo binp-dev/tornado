@@ -1,8 +1,8 @@
 use common::{config::ADC_COUNT, values::Point};
 #[cfg(feature = "fake")]
 use core::time::Duration;
-use lazy_static::lazy_static;
-use ringbuf::{CachedCons, CachedProd, StaticRb};
+use once_mut::once_mut;
+use ringbuf::{CachedCons, CachedProd, Obs, StaticRb};
 #[cfg(feature = "fake")]
 use ringbuf_blocking::{BlockingCons, BlockingProd, BlockingRb};
 
@@ -35,22 +35,14 @@ pub const BUFFER_TIMEOUT: Option<Duration> = Some(Duration::from_millis(1000));
 pub type DacBuffer = Rb<Point, DAC_BUFFER_LEN>;
 pub type AdcBuffer = Rb<[Point; ADC_COUNT], ADC_BUFFER_LEN>;
 
+pub type DacObserver = Obs<&'static DacBuffer>;
 pub type DacProducer = Producer<'static, Point, DAC_BUFFER_LEN>;
 pub type DacConsumer = Consumer<'static, Point, DAC_BUFFER_LEN>;
 
 pub type AdcProducer = Producer<'static, [Point; ADC_COUNT], ADC_BUFFER_LEN>;
 pub type AdcConsumer = Consumer<'static, [Point; ADC_COUNT], ADC_BUFFER_LEN>;
 
-#[cfg(feature = "real")]
-pub unsafe fn split<T, const N: usize>(rb: &Rb<T, N>) -> (Producer<'_, T, N>, Consumer<'_, T, N>) {
-    (Producer::new(rb), Consumer::new(rb))
-}
-#[cfg(feature = "fake")]
-pub unsafe fn split<T, const N: usize>(rb: &Rb<T, N>) -> (Producer<'_, T, N>, Consumer<'_, T, N>) {
-    (Producer::new(CachedProd::new(rb)), Consumer::new(CachedCons::new(rb)))
-}
-
-lazy_static! {
-    pub static ref DAC_BUFFER: Rb<Point, DAC_BUFFER_LEN> = Rb::default();
-    pub static ref ADC_BUFFER: Rb<[Point; ADC_COUNT], ADC_BUFFER_LEN> = Rb::default();
+once_mut! {
+    pub static mut DAC_BUFFER: Rb<Point, DAC_BUFFER_LEN> = Rb::default();
+    pub static mut ADC_BUFFER: Rb<[Point; ADC_COUNT], ADC_BUFFER_LEN> = Rb::default();
 }

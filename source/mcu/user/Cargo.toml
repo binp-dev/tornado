@@ -33,6 +33,7 @@ flatty-io = { path = "../../common/flatty/io", optional = true }
 timeout-readwrite = { version = "0.3.3", optional = true }
 indenter = "0.3.3"
 ringbuf-blocking = { path = "../ringbuf/blocking", optional = true }
+once_mut = "0.1.0"
 
 [dependencies.derive_more]
 version = "0.99.17"

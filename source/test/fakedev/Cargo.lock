@@ -393,6 +393,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
+name = "once_mut"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10fafcf0b21774005333ecd0026aa4632ed04a964fc75a9a753acfe281358fc6"
+
+[[package]]
 name = "parking_lot"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -708,6 +714,7 @@ dependencies = [
  "flatty-io",
  "indenter",
  "lazy_static",
+ "once_mut",
  "ringbuf",
  "ringbuf-blocking",
  "timeout-readwrite",

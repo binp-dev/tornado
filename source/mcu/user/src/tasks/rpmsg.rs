@@ -1,6 +1,6 @@
 use super::{control::ControlHandle, stats::Statistics};
 use crate::{
-    buffers::{AdcConsumer, DacBuffer, DacProducer},
+    buffers::{AdcConsumer, DacObserver, DacProducer},
     channel::{Channel, Reader, Writer},
     error::{Error, ErrorKind},
 };
@@ -28,7 +28,7 @@ pub struct Rpmsg {
     stats: Arc<Statistics>,
     dac_buffer: DacProducer,
     adc_buffer: AdcConsumer,
-    dac_observer: &'static DacBuffer,
+    dac_observer: DacObserver,
 }
 
 pub struct RpmsgCommon {
@@ -37,7 +37,7 @@ pub struct RpmsgCommon {
     /// Number of DAC points requested from IOC.
     dac_requested: AtomicUsize,
 
-    dac_observer: &'static DacBuffer,
+    dac_observer: DacObserver,
 }
 
 pub struct RpmsgReader {
@@ -56,14 +56,9 @@ pub struct RpmsgWriter {
 }
 
 impl Rpmsg {
-    pub fn new(
-        control: Arc<ControlHandle>,
-        dac_buffer: DacProducer,
-        adc_buffer: AdcConsumer,
-        dac_observer: &'static DacBuffer,
-        stats: Arc<Statistics>,
-    ) -> Self {
+    pub fn new(control: Arc<ControlHandle>, dac_buffer: DacProducer, adc_buffer: AdcConsumer, stats: Arc<Statistics>) -> Self {
         control.configure(proto::DAC_MSG_MAX_POINTS, proto::ADC_MSG_MAX_POINTS);
+        let dac_observer = dac_buffer.observe();
         Self {
             control,
             stats,
