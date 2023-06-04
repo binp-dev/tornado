@@ -31,7 +31,8 @@ async-compat = "0.2.1"
 flatty = { path = "../../common/flatty" }
 flatty-io = { path = "../../common/flatty/io" }
 macro_rules_attribute = "0.1.2"
-async-ringbuf = { version = "0.1.0", features = ["impl-tokio"] }
+ringbuf = { path = "../../common/ringbuf" }
+async-ringbuf = { path = "../../common/ringbuf/async" }
 log = "0.4"
 env_logger = "0.9.1"
 thiserror = "1.0.38"

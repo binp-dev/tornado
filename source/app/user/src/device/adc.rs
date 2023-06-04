@@ -1,9 +1,10 @@
 use super::Error;
 use crate::epics;
-use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
+use async_ringbuf::{traits::*, AsyncHeapRb};
 use common::values::{uv_to_volt, AtomicUv, Point, PointOpt, Uv};
 use ferrite::TypedVariable as Variable;
 use futures::{future::try_join_all, FutureExt};
+use ringbuf::traits::*;
 use std::{
     iter::ExactSizeIterator,
     sync::{atomic::Ordering, Arc},
@@ -16,7 +17,7 @@ pub struct Adc {
 }
 
 struct AdcArray {
-    input: AsyncHeapConsumer<Point>,
+    input: <AsyncHeapRb<Point> as Split>::Cons,
     output: Variable<[f64]>,
 }
 
@@ -26,7 +27,7 @@ struct AdcScalar {
 }
 
 pub struct AdcHandle {
-    buffer: AsyncHeapProducer<Point>,
+    buffer: <AsyncHeapRb<Point> as Split>::Prod,
     last_point: Arc<AtomicUv>,
 }
 
@@ -66,16 +67,15 @@ impl AdcArray {
     async fn run(mut self) -> Result<(), Error> {
         let max_len = self.output.max_len();
         loop {
-            self.input.wait(max_len).await;
+            self.input.wait_occupied(max_len).await;
             if self.input.is_closed() {
                 break Err(Error::Disconnected);
             }
-            assert!(self.input.len() >= max_len);
-            let input = self.input.as_mut_base();
+            assert!(self.input.occupied_len() >= max_len);
             self.output
                 .request()
                 .await
-                .write_from(input.pop_iter().filter_map(|p| match p.into_opt() {
+                .write_from(self.input.pop_iter().filter_map(|p| match p.into_opt() {
                     PointOpt::Uv(uv) => Some(uv_to_volt(uv)),
                     // TODO: Support separation
                     PointOpt::Sep => None,
@@ -101,16 +101,16 @@ impl AdcHandle {
     pub async fn push_iter<I: ExactSizeIterator<Item = Point>>(&mut self, points: I) {
         let mut last = Uv::default();
         let len = points.len();
-        self.buffer
-            .push_iter(points.map(|p| {
+        self.buffer.wait_vacant(len).await;
+        assert_eq!(
+            self.buffer.push_iter(points.map(|p| {
                 if let PointOpt::Uv(uv) = p.into_opt() {
                     last = uv;
                 }
                 p
-            }))
-            .await
-            .ok()
-            .unwrap();
+            })),
+            len
+        );
         if len > 0 {
             self.last_point.store(last, Ordering::Release);
         }
