@@ -12,7 +12,7 @@ Software for next-gen power supply controller.
 + `perl`
 + `python3`
 + `python3-poetry`
-+ `rustup`
++ [`rustup`](https://rustup.rs/)
 
 ### Device
 
@@ -44,12 +44,12 @@ This command will build software and run all tests:
 poetry run python -m tornado.manage host.test
 ```
 
-### Run on the device
+### Deploy to device
 
-To build both aplication and real-time code and deploy it to the i.MX8M Nano device:
+To build both application and real-time code and deploy it to the i.MX8M Nano device:
 
 ```bash
-poetry run python -m tornado.manage device.run --device <ip-addr>[:port]
+poetry run python -m tornado.manage device.deploy --device <ip-addr>[:port]
 ```
 
 Device should be accessible through SSH as `root` user without password prompt.
