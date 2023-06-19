@@ -11,7 +11,7 @@ class AbstractApp(Cargo):
     def __init__(self, rustc: Rustc, src: Path, dst: TargetPath, features: List[str]) -> None:
         super().__init__(src, dst, rustc, features=features, default_features=False, release=True)
         self.lib_name = "libapp.so"
-        self.lib_path = self.bin_dir / self.lib_name
+        self.lib_dir = self.bin_dir
 
 
 class AppFake(AbstractApp):

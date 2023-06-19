@@ -6,15 +6,22 @@ from pathlib import Path
 from vortex.utils.path import TargetPath
 from vortex.tasks.base import task, Context, Component, ComponentGroup
 from vortex.tasks.epics.epics_base import EpicsBaseHost, EpicsBaseCross
+from vortex.tasks.compiler import Gcc
 from vortex.tasks.rust import RustcHost, RustcCross
+from vortex.tasks.cmake import Cmake
 
 from .ioc import AppIoc, AppIocCross, AppIocHost
 from .user import AbstractApp, AppReal, AppFake
+from .plugin import Plugin
 
 
 class AppGroup(ComponentGroup):
+    def __init__(self, cc: Gcc, src: Path, dst: TargetPath) -> None:
+        self.cc = cc
+        self.plugin = Plugin(src / "plugin", dst / "plugin", self.cc)
+
     def components(self) -> Dict[str, Component]:
-        return {"user": self.user, "ioc": self.ioc}
+        return {"user": self.user, "ioc": self.ioc, "plugin": self.plugin}
 
     @task
     def build(self, ctx: Context) -> None:
@@ -43,8 +50,9 @@ class AppGroup(ComponentGroup):
 
 class AppGroupHost(AppGroup):
     def __init__(self, rustc: RustcHost, epics_base: EpicsBaseHost, src: Path, dst: TargetPath) -> None:
+        super().__init__(rustc.cc, src, dst)
         self._user = AppFake(rustc, *self._user_paths(src, dst))
-        self._ioc = AppIocHost(epics_base, self.user, *self._ioc_paths(src, dst))
+        self._ioc = AppIocHost(epics_base, [self.user, self.plugin], *self._ioc_paths(src, dst))
 
     @property
     def user(self) -> AppFake:
@@ -57,11 +65,12 @@ class AppGroupHost(AppGroup):
 
 class AppGroupCross(AppGroup):
     def __init__(self, rustc: RustcCross, epics_base: EpicsBaseCross, src: Path, dst: TargetPath) -> None:
+        super().__init__(rustc.cc, src, dst)
         assert rustc.cc is epics_base.cc
         self.cc = rustc.cc
         self.rustc = rustc
         self._user = AppReal(self.rustc, *self._user_paths(src, dst))
-        self._ioc = AppIocCross(epics_base, self.user, *self._ioc_paths(src, dst))
+        self._ioc = AppIocCross(epics_base, [self.user, self.plugin], *self._ioc_paths(src, dst))
 
     def components(self) -> Dict[str, Component]:
         return {
