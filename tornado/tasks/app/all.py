@@ -1,96 +1,48 @@
 from __future__ import annotations
-from typing import Tuple, Dict
+from typing import Dict
 
 from pathlib import Path
 
 from vortex.utils.path import TargetPath
-from vortex.tasks.base import task, Context, Component, ComponentGroup
+from vortex.tasks.base import task, Context, ComponentGroup
 from vortex.tasks.epics.epics_base import EpicsBaseHost, EpicsBaseCross
-from vortex.tasks.compiler import Gcc
+from vortex.tasks.compiler import Gcc, HOST_GCC
 from vortex.tasks.rust import RustcHost, RustcCross
 from vortex.tasks.cmake import Cmake
 
-from .ioc import AppIoc, AppIocCross, AppIocHost
+from .ioc import AbstractAppIoc, AppIocHost, AppIocCross
 from .user import AbstractApp, AppReal, AppFake
 from .plugin import Plugin
 
 
-class AppGroup(ComponentGroup):
-    def __init__(self, cc: Gcc, src: Path, dst: TargetPath) -> None:
-        self.cc = cc
-        self.plugin = Plugin(src / "plugin", dst / "plugin", self.cc)
-
-    def components(self) -> Dict[str, Component]:
-        return {"user": self.user, "ioc": self.ioc, "plugin": self.plugin}
+class AppGroupHost(ComponentGroup):
+    def __init__(self, rustc: RustcHost, epics_base: EpicsBaseHost, src: Path, dst: TargetPath) -> None:
+        self.user = AppFake(rustc, src / "user", dst / "user")
+        self.plugin = Plugin(src / "plugin", dst / "plugin", HOST_GCC)
+        self.ioc = AppIocHost(src / "ioc", dst / "ioc", epics_base, dylibs=[self.user, self.plugin])
 
     @task
     def build(self, ctx: Context) -> None:
         self.ioc.build(ctx)
 
     @task
-    def install(self, ctx: Context) -> None:
-        self.ioc.install(ctx)
-
-    @property
-    def user(self) -> AbstractApp:
-        raise NotImplementedError()
-
-    @property
-    def ioc(self) -> AppIoc:
-        raise NotImplementedError()
-
-    @staticmethod
-    def _user_paths(src: Path, dst: TargetPath) -> Tuple[Path, TargetPath]:
-        return (src / "user", dst / "user")
-
-    @staticmethod
-    def _ioc_paths(src: Path, dst: TargetPath) -> Tuple[Path, TargetPath]:
-        return (src / "ioc", dst / "ioc")
+    def run(self, ctx: Context) -> None:
+        self.ioc.run(ctx)
 
 
-class AppGroupHost(AppGroup):
-    def __init__(self, rustc: RustcHost, epics_base: EpicsBaseHost, src: Path, dst: TargetPath) -> None:
-        super().__init__(rustc.cc, src, dst)
-        self._user = AppFake(rustc, *self._user_paths(src, dst))
-        self._ioc = AppIocHost(epics_base, [self.user, self.plugin], *self._ioc_paths(src, dst))
-
-    @property
-    def user(self) -> AppFake:
-        return self._user
-
-    @property
-    def ioc(self) -> AppIocHost:
-        return self._ioc
-
-
-class AppGroupCross(AppGroup):
+class AppGroupCross(ComponentGroup):
     def __init__(self, rustc: RustcCross, epics_base: EpicsBaseCross, src: Path, dst: TargetPath) -> None:
-        super().__init__(rustc.cc, src, dst)
         assert rustc.cc is epics_base.cc
         self.cc = rustc.cc
         self.rustc = rustc
-        self._user = AppReal(self.rustc, *self._user_paths(src, dst))
-        self._ioc = AppIocCross(epics_base, [self.user, self.plugin], *self._ioc_paths(src, dst))
+        self.user = AppReal(self.rustc, src / "user", dst / "user")
+        self.plugin = Plugin(src / "plugin", dst / "plugin", self.cc)
+        self.ioc = AppIocCross(src / "ioc", dst / "ioc", epics_base, dylibs=[self.user, self.plugin])
 
-    def components(self) -> Dict[str, Component]:
-        return {
-            **super().components(),
-            "gcc": self.cc,
-            "rustc": self.rustc,
-        }
+    @task
+    def build(self, ctx: Context) -> None:
+        self.ioc.build(ctx)
 
     @task
     def deploy(self, ctx: Context) -> None:
         self.ioc.deploy(ctx)
-
-    @task
-    def run(self, ctx: Context) -> None:
-        self.ioc.run(ctx)
-
-    @property
-    def user(self) -> AppReal:
-        return self._user
-
-    @property
-    def ioc(self) -> AppIocCross:
-        return self._ioc

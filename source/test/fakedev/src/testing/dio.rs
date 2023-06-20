@@ -13,6 +13,8 @@ use tokio::{
     time::sleep,
 };
 
+const DELAY: Duration = Duration::from_millis(100);
+
 pub async fn test_dout(
     mut epics: [Channel<u8>; Dout::SIZE],
     mut device: Receiver<Dout>,
@@ -25,11 +27,11 @@ pub async fn test_dout(
         let i = rng.gen_range(0..Dout::SIZE);
         value ^= 1 << i;
         epics[i].put((value >> i) & 1).unwrap().await.unwrap();
-        sleep(Duration::from_millis(40)).await;
+        sleep(DELAY).await;
         assert_eq!(value, device.recv().await.unwrap().into());
         pb.inc(1);
     }
-    pb.finish();
+    pb.finish_with_message("done");
 }
 
 pub async fn test_din(
@@ -56,7 +58,7 @@ pub async fn test_din(
         .map(|chan| Box::pin(chan.subscribe()))
         .collect::<Vec<_>>();
     device.send(Din::default()).await.unwrap();
-    sleep(Duration::from_millis(40)).await;
+    sleep(DELAY).await;
     for mon in monitors.iter_mut() {
         assert_eq!(mon.next().await.unwrap().unwrap(), 0);
     }
@@ -64,10 +66,10 @@ pub async fn test_din(
         let i = rng.gen_range(0..Dout::SIZE);
         value ^= 1 << i;
         device.send(Din::try_from(value).unwrap()).await.unwrap();
-        sleep(Duration::from_millis(40)).await;
+        sleep(DELAY).await;
         assert_eq!(monitors[i].next().await.unwrap().unwrap(), (value >> i) & 1);
         pb.inc(1);
         stdout().flush().unwrap();
     }
-    pb.finish();
+    pb.finish_with_message("done");
 }

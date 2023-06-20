@@ -3,11 +3,11 @@ mod testing;
 use ca::types::EpicsEnum;
 use epics_ca as ca;
 use fakedev::{run, Epics};
-use futures::{join, FutureExt};
+use futures::FutureExt;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use mcu::tasks::STATISTICS;
 use testing::{adc, dac, dio};
-use tokio::{main as async_main, task::spawn};
+use tokio::{join, main as async_main, task::spawn};
 
 #[async_main]
 async fn main() {
@@ -16,7 +16,7 @@ async fn main() {
     const PREFIX: &str = "tornado0:";
 
     let m = MultiProgress::new();
-    let sty = ProgressStyle::with_template("{prefix:18} [{wide_bar}] {pos:>4}/{len:4}")
+    let sty = ProgressStyle::with_template("{prefix:18} [{wide_bar}] {pos:>4}/{len:4} {msg:5}")
         .unwrap()
         .progress_chars("=> ");
 

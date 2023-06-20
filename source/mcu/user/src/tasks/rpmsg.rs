@@ -155,7 +155,10 @@ impl RpmsgReader {
             }
             match message.as_ref() {
                 AppMsgRef::KeepAlive => unreachable!(),
-                AppMsgRef::DoutUpdate { value } => self.control.dout.store(u8::from(*value), Ordering::Release),
+                AppMsgRef::DoutUpdate { value } => {
+                    // println!("Set Dout: {:?}", value);
+                    self.control.set_dout(*value)
+                }
                 AppMsgRef::DacState { enable } => {
                     println!("Set DAC state: {:?}", enable);
                     self.control.set_dac_mode(cx, enable.to_native());

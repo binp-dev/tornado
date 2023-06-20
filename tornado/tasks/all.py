@@ -1,12 +1,10 @@
 from __future__ import annotations
-from typing import Dict
 
 from pathlib import Path
 from dataclasses import dataclass
 
 from vortex.utils.path import TargetPath
 from vortex.tasks.base import task, Context, ComponentGroup
-from vortex.tasks.compiler import GccHost
 from vortex.tasks.rust import RustcHost
 from vortex.tasks.epics.epics_base import EpicsSource, EpicsRepo, EpicsBaseHost, EpicsBaseCross
 
@@ -19,9 +17,8 @@ from tornado.tasks.mcu import McuGroup
 
 class HostGroup(ComponentGroup):
     def __init__(self, path: Path, epics_src: EpicsSource) -> None:
-        self.gcc = GccHost()
-        self.rustc = RustcHost(self.gcc)
-        self.epics_base = EpicsBaseHost(epics_src, epics_src.prefix, self.gcc)
+        self.rustc = RustcHost()
+        self.epics_base = EpicsBaseHost(epics_src, epics_src.prefix)
         self.app = AppGroupHost(self.rustc, self.epics_base, path / "app", TargetPath("app"))
         self.fakedev = Fakedev(self.app.ioc, self.rustc, path / "test/fakedev", TargetPath("fakedev"))
 

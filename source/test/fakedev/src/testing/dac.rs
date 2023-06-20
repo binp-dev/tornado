@@ -44,7 +44,7 @@ pub async fn test(
                     epics.array.put_ref(&wf).unwrap().await.unwrap();
                     pbs.0.inc(1);
                 }
-                pbs.0.finish();
+                pbs.0.finish_with_message("done");
             }
             epics
         }
@@ -60,7 +60,7 @@ pub async fn test(
                 pbs.1.inc(1);
             }
         }
-        pbs.1.finish();
+        pbs.1.finish_with_message("done");
         context.device
     })
     .map(Result::unwrap);
@@ -85,7 +85,7 @@ pub async fn test_cyclic(mut context: Context, attempts: usize, pbs: (ProgressBa
             while request.next().await.unwrap().unwrap() == EpicsEnum(0) {}
             epics.array.put_ref(&data).unwrap().await.unwrap();
             pbs.0.inc(1);
-            pbs.0.finish();
+            pbs.0.finish_with_message("done");
         }
     })
     .map(Result::unwrap);
@@ -99,7 +99,7 @@ pub async fn test_cyclic(mut context: Context, attempts: usize, pbs: (ProgressBa
                 pbs.1.inc(1);
             }
         }
-        pbs.1.finish();
+        pbs.1.finish_with_message("done");
     })
     .map(Result::unwrap);
 
