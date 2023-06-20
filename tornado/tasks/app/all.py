@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Dict
 
 from pathlib import Path
 
@@ -8,8 +7,8 @@ from vortex.tasks.base import task, Context, ComponentGroup
 from vortex.tasks.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 from vortex.tasks.rust import RustcHost, RustcCross
 
-from .ioc import AbstractAppIoc, AppIocHost, AppIocCross
-from .user import AbstractApp, AppReal, AppFake
+from .ioc import AppIocHost, AppIocCross
+from .user import AppReal, AppFake
 
 
 class AppGroupHost(ComponentGroup):

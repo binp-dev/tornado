@@ -1,14 +1,11 @@
 use super::Error;
 use crate::{
     epics,
-    utils::{
-        double_vec::{self, DoubleVec},
-        misc::unfold_variable,
-    },
+    utils::double_vec::{self, DoubleVec},
 };
 use common::values::{volt_to_uv_saturating, Uv};
 use ferrite::{atomic::AtomicVariable, TypedVariable as Variable};
-use futures::{future::join_all, Stream};
+use futures::{future::join_all, Stream, StreamExt};
 use std::{pin::Pin, sync::Arc};
 use tokio::task::spawn;
 
@@ -41,10 +38,8 @@ impl Dac {
             },
             DacHandle {
                 buffer: read_buffer.into_iter(DacModifier { request, mode }),
-                addition: Box::pin(unfold_variable(epics.addition, |x| {
-                    Some(volt_to_uv_saturating(x))
-                })),
-                state: Box::pin(unfold_variable(epics.state, |x| Some(x != 0))),
+                addition: Box::pin(epics.addition.into_stream().map(volt_to_uv_saturating)),
+                state: Box::pin(epics.state.into_stream().map(|x| x != 0)),
             },
         )
     }
