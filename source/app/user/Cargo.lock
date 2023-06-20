@@ -13,9 +13,7 @@ dependencies = [
 
 [[package]]
 name = "async-atomic"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78cb6efc6645e98a4fbe7fdb7076f695779a037a52b7d598a9123c592113cc48"
+version = "0.1.1"
 dependencies = [
  "atomic",
  "futures",
@@ -119,6 +117,7 @@ dependencies = [
 name = "ferrite-core"
 version = "0.2.0"
 dependencies = [
+ "async-atomic",
  "atomic",
  "derive_more",
  "futures",

@@ -15,6 +15,8 @@ use dio::{Din, Dout};
 use dispatch::Dispatcher;
 use tokio::spawn;
 
+pub use dac::app_set_dac_corr;
+
 #[derive(Clone, Debug)]
 pub enum Error {
     Disconnected,

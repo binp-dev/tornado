@@ -6,11 +6,21 @@ use crate::{
         misc::unfold_variable,
     },
 };
+use async_atomic::Atomic as AsyncAtomic;
 use common::values::{volt_to_uv_saturating, Uv};
 use ferrite::{atomic::AtomicVariable, TypedVariable as Variable};
-use futures::{future::join_all, Stream};
+use futures::{
+    future::join_all,
+    stream::{self, Stream},
+};
 use std::{pin::Pin, sync::Arc};
 use tokio::task::spawn;
+
+static CORR: AsyncAtomic<Uv> = AsyncAtomic::new(0);
+
+pub extern "C" fn app_set_dac_corr(value: f64) {
+    CORR.store(volt_to_uv_saturating(value));
+}
 
 pub struct Dac {
     array: ArrayReader,
@@ -25,6 +35,7 @@ impl Dac {
         let request = AtomicVariable::new(epics.request);
         request.store(1);
         let mode = AtomicVariable::new(epics.mode);
+        let addition = AtomicVariable::new(epics.addition);
 
         (
             Self {
@@ -41,9 +52,10 @@ impl Dac {
             },
             DacHandle {
                 buffer: read_buffer.into_iter(DacModifier { request, mode }),
-                addition: Box::pin(unfold_variable(epics.addition, |x| {
-                    Some(volt_to_uv_saturating(x))
-                })),
+                addition: Box::pin(stream::select(
+                    unfold_variable(epics.addition, |x| Some(volt_to_uv_saturating(x))),
+                    CORR.subscribe_ref().into_stream(),
+                )),
                 state: Box::pin(unfold_variable(epics.state, |x| Some(x != 0))),
             },
         )
