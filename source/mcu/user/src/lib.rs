@@ -14,7 +14,6 @@ pub mod tasks;
 
 extern crate alloc;
 
-use core::time::Duration;
 use ringbuf::traits::SplitRef;
 use ustd::{println, task::Priority};
 
@@ -38,5 +37,6 @@ pub extern "C" fn user_main() {
     println!("Starting tasks ...");
     control.run(CONTROL_TASK_PRIORITY);
     rpmsg.run(RPMSG_READ_TASK_PRIORITY, RPMSG_WRITE_TASK_PRIORITY);
-    stats.run_printer(Duration::from_secs(10));
+    #[cfg(feature = "real")]
+    stats.run_printer(core::time::Duration::from_secs(10));
 }

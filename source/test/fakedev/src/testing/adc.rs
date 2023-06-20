@@ -59,7 +59,7 @@ pub async fn test(
                     pbs.0.inc(1);
                 }
             }
-            pbs.0.finish();
+            pbs.0.finish_with_message("done");
         }
     })
     .map(Result::unwrap);
@@ -104,7 +104,7 @@ pub async fn test(
             }
             assert!(count < total_len);
         }
-        pbs.1.finish();
+        pbs.1.finish_with_message("done");
     })
     .map(Result::unwrap);
 
