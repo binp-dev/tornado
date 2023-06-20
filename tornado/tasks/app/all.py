@@ -8,7 +8,7 @@ from vortex.tasks.base import task, Context, Component, ComponentGroup
 from vortex.tasks.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 from vortex.tasks.rust import RustcHost, RustcCross
 
-from .ioc import AppIoc, AppIocCross, AppIocHost
+from .ioc import AppIoc, AppIocHost, AppIocCross
 from .user import AbstractApp, AppReal, AppFake
 
 
@@ -19,10 +19,6 @@ class AppGroup(ComponentGroup):
     @task
     def build(self, ctx: Context) -> None:
         self.ioc.build(ctx)
-
-    @task
-    def install(self, ctx: Context) -> None:
-        self.ioc.install(ctx)
 
     @property
     def user(self) -> AbstractApp:
@@ -44,7 +40,7 @@ class AppGroup(ComponentGroup):
 class AppGroupHost(AppGroup):
     def __init__(self, rustc: RustcHost, epics_base: EpicsBaseHost, src: Path, dst: TargetPath) -> None:
         self._user = AppFake(rustc, *self._user_paths(src, dst))
-        self._ioc = AppIocHost(epics_base, self.user, *self._ioc_paths(src, dst))
+        self._ioc = AppIocHost(*self._ioc_paths(src, dst), epics_base, dylibs=[self.user])
 
     @property
     def user(self) -> AppFake:
@@ -61,7 +57,7 @@ class AppGroupCross(AppGroup):
         self.cc = rustc.cc
         self.rustc = rustc
         self._user = AppReal(self.rustc, *self._user_paths(src, dst))
-        self._ioc = AppIocCross(epics_base, self.user, *self._ioc_paths(src, dst))
+        self._ioc = AppIocCross(*self._ioc_paths(src, dst), epics_base, dylibs=[self.user])
 
     def components(self) -> Dict[str, Component]:
         return {
