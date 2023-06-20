@@ -7,13 +7,12 @@ from vortex.utils.path import TargetPath
 from vortex.utils.run import RunMode
 from vortex.tasks.base import task, Context
 from vortex.tasks.rust import Cargo, RustcHost
+from vortex.tasks.epics.ioc import IocHost
 from vortex.tasks.concurrent import ConcurrentTaskList
-
-from tornado.tasks.app.ioc import AppIocHost
 
 
 class Fakedev(Cargo):
-    def __init__(self, ioc: AppIocHost, rustc: RustcHost, src: Path, dst: TargetPath) -> None:
+    def __init__(self, ioc: IocHost, rustc: RustcHost, src: Path, dst: TargetPath) -> None:
         super().__init__(
             src,
             dst,

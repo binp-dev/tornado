@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from vortex.utils.files import substitute
 from vortex.tasks.base import Context
-from vortex.tasks.epics.ioc import IocHost, IocCross, IocWithLibs
+from vortex.tasks.epics.ioc import IocHost, IocCross, AbstractIocWithLibs
 
 
-class AppIoc(IocWithLibs):
+class AbstractAppIoc(AbstractIocWithLibs):
     @property
     def name(self) -> str:
         return "Tornado"
@@ -19,9 +19,9 @@ class AppIoc(IocWithLibs):
         )
 
 
-class AppIocHost(AppIoc, IocHost):
+class AppIocHost(AbstractAppIoc, IocHost):
     pass
 
 
-class AppIocCross(AppIoc, IocCross):
+class AppIocCross(AbstractAppIoc, IocCross):
     pass
