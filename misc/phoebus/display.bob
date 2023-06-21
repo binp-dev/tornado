@@ -27,13 +27,13 @@
   <widget type="group" version="2.0.0">
     <name>ADC</name>
     <y>150</y>
-    <width>391</width>
+    <width>150</width>
     <height>160</height>
     <style>1</style>
     <widget type="group" version="2.0.0">
       <name>Title</name>
       <y>1</y>
-      <width>389</width>
+      <width>149</width>
       <height>20</height>
       <style>3</style>
       <widget type="label" version="2.0.0">
@@ -54,37 +54,17 @@
           </font>
         </font>
       </widget>
-      <widget type="label" version="2.0.0">
-        <name>ESLO</name>
-        <text>Cal. Slope</text>
-        <x>149</x>
-        <width>120</width>
-        <font>
-          <font name="Default Bold" family="Liberation Sans" style="BOLD" size="14.0">
-          </font>
-        </font>
-      </widget>
-      <widget type="label" version="2.0.0">
-        <name>EOFF</name>
-        <text>Cal. Offset</text>
-        <x>269</x>
-        <width>120</width>
-        <font>
-          <font name="Default Bold" family="Liberation Sans" style="BOLD" size="14.0">
-          </font>
-        </font>
-      </widget>
     </widget>
     <widget type="group" version="2.0.0">
       <name>ADC</name>
       <y>21</y>
-      <width>389</width>
+      <width>149</width>
       <height>120</height>
       <style>3</style>
       <transparent>true</transparent>
       <widget type="group" version="2.0.0">
         <name>0</name>
-        <width>389</width>
+        <width>149</width>
         <height>20</height>
         <style>3</style>
         <transparent>true</transparent>
@@ -98,23 +78,11 @@
           <pv_name>$(PREFIX)ai0</pv_name>
           <x>49</x>
         </widget>
-        <widget type="textentry" version="3.0.0">
-          <name>EOFF</name>
-          <pv_name>$(PREFIX)ai0.ESLO</pv_name>
-          <x>149</x>
-          <width>120</width>
-        </widget>
-        <widget type="textentry" version="3.0.0">
-          <name>EOFF</name>
-          <pv_name>$(PREFIX)ai0.EOFF</pv_name>
-          <x>269</x>
-          <width>120</width>
-        </widget>
       </widget>
       <widget type="group" version="2.0.0">
         <name>1</name>
         <y>20</y>
-        <width>389</width>
+        <width>149</width>
         <height>20</height>
         <style>3</style>
         <transparent>true</transparent>
@@ -128,23 +96,11 @@
           <pv_name>$(PREFIX)ai1</pv_name>
           <x>49</x>
         </widget>
-        <widget type="textentry" version="3.0.0">
-          <name>ESLO</name>
-          <pv_name>$(PREFIX)ai1.ESLO</pv_name>
-          <x>149</x>
-          <width>120</width>
-        </widget>
-        <widget type="textentry" version="3.0.0">
-          <name>EOFF</name>
-          <pv_name>$(PREFIX)ai1.EOFF</pv_name>
-          <x>269</x>
-          <width>120</width>
-        </widget>
       </widget>
       <widget type="group" version="2.0.0">
         <name>2</name>
         <y>40</y>
-        <width>389</width>
+        <width>149</width>
         <height>20</height>
         <style>3</style>
         <transparent>true</transparent>
@@ -158,23 +114,11 @@
           <pv_name>$(PREFIX)ai2</pv_name>
           <x>49</x>
         </widget>
-        <widget type="textentry" version="3.0.0">
-          <name>ESLO</name>
-          <pv_name>$(PREFIX)ai2.ESLO</pv_name>
-          <x>149</x>
-          <width>120</width>
-        </widget>
-        <widget type="textentry" version="3.0.0">
-          <name>EOFF</name>
-          <pv_name>$(PREFIX)ai2.EOFF</pv_name>
-          <x>269</x>
-          <width>120</width>
-        </widget>
       </widget>
       <widget type="group" version="2.0.0">
         <name>3</name>
         <y>60</y>
-        <width>389</width>
+        <width>149</width>
         <height>20</height>
         <style>3</style>
         <transparent>true</transparent>
@@ -188,23 +132,11 @@
           <pv_name>$(PREFIX)ai3</pv_name>
           <x>49</x>
         </widget>
-        <widget type="textentry" version="3.0.0">
-          <name>ESLO</name>
-          <pv_name>$(PREFIX)ai3.ESLO</pv_name>
-          <x>149</x>
-          <width>120</width>
-        </widget>
-        <widget type="textentry" version="3.0.0">
-          <name>EOFF</name>
-          <pv_name>$(PREFIX)ai3.EOFF</pv_name>
-          <x>269</x>
-          <width>120</width>
-        </widget>
       </widget>
       <widget type="group" version="2.0.0">
         <name>4</name>
         <y>80</y>
-        <width>389</width>
+        <width>149</width>
         <height>20</height>
         <style>3</style>
         <transparent>true</transparent>
@@ -218,23 +150,11 @@
           <pv_name>$(PREFIX)ai4</pv_name>
           <x>49</x>
         </widget>
-        <widget type="textentry" version="3.0.0">
-          <name>ESLO</name>
-          <pv_name>$(PREFIX)ai4.ESLO</pv_name>
-          <x>149</x>
-          <width>120</width>
-        </widget>
-        <widget type="textentry" version="3.0.0">
-          <name>EOFF</name>
-          <pv_name>$(PREFIX)ai4.EOFF</pv_name>
-          <x>269</x>
-          <width>120</width>
-        </widget>
       </widget>
       <widget type="group" version="2.0.0">
         <name>5</name>
         <y>100</y>
-        <width>389</width>
+        <width>149</width>
         <height>20</height>
         <style>3</style>
         <transparent>true</transparent>
@@ -248,31 +168,19 @@
           <pv_name>$(PREFIX)ai5</pv_name>
           <x>49</x>
         </widget>
-        <widget type="textentry" version="3.0.0">
-          <name>ESLO</name>
-          <pv_name>$(PREFIX)ai5.ESLO</pv_name>
-          <x>149</x>
-          <width>120</width>
-        </widget>
-        <widget type="textentry" version="3.0.0">
-          <name>EOFF</name>
-          <pv_name>$(PREFIX)ai5.EOFF</pv_name>
-          <x>269</x>
-          <width>120</width>
-        </widget>
       </widget>
     </widget>
   </widget>
   <widget type="group" version="2.0.0">
     <name>DAC</name>
     <y>50</y>
-    <width>490</width>
+    <width>250</width>
     <height>60</height>
     <style>1</style>
     <widget type="group" version="2.0.0">
       <name>Title</name>
       <y>1</y>
-      <width>389</width>
+      <width>249</width>
       <height>20</height>
       <style>3</style>
       <widget type="label" version="2.0.0">
@@ -294,21 +202,10 @@
         </font>
       </widget>
     </widget>
-    <widget type="label" version="2.0.0">
-      <name>ESLO</name>
-      <text>Cal. Slope</text>
-      <x>249</x>
-      <y>1</y>
-      <width>120</width>
-      <font>
-        <font name="Default Bold" family="Liberation Sans" style="BOLD" size="14.0">
-        </font>
-      </font>
-    </widget>
     <widget type="group" version="2.0.0">
       <name>0</name>
       <y>21</y>
-      <width>389</width>
+      <width>249</width>
       <height>20</height>
       <style>3</style>
       <transparent>true</transparent>
@@ -328,31 +225,6 @@
         <vertical_alignment>0</vertical_alignment>
         <wrap_words>true</wrap_words>
       </widget>
-    </widget>
-    <widget type="textentry" version="3.0.0">
-      <name>ESLO</name>
-      <pv_name>$(PREFIX)ao0.ESLO</pv_name>
-      <x>249</x>
-      <y>21</y>
-      <width>120</width>
-    </widget>
-    <widget type="label" version="2.0.0">
-      <name>EOFF</name>
-      <text>Cal. Offset</text>
-      <x>369</x>
-      <y>1</y>
-      <width>120</width>
-      <font>
-        <font name="Default Bold" family="Liberation Sans" style="BOLD" size="14.0">
-        </font>
-      </font>
-    </widget>
-    <widget type="textentry" version="3.0.0">
-      <name>EOFF</name>
-      <pv_name>$(PREFIX)ao0.EOFF</pv_name>
-      <x>369</x>
-      <y>21</y>
-      <width>120</width>
     </widget>
     <widget type="textentry" version="3.0.0">
       <name>Value_1</name>
@@ -795,5 +667,80 @@
         <visible>false</visible>
       </trace>
     </traces>
+  </widget>
+  <widget type="group" version="2.0.0">
+    <name>Group</name>
+    <x>270</x>
+    <y>50</y>
+    <width>108</width>
+    <height>70</height>
+    <style>3</style>
+    <transparent>true</transparent>
+    <widget type="label" version="2.0.0">
+      <name>Mode name</name>
+      <text>DAC Mode</text>
+      <width>108</width>
+    </widget>
+    <widget type="radio" version="2.0.0">
+      <name>Mode</name>
+      <pv_name>$(PREFIX)aao0_mode</pv_name>
+      <y>20</y>
+      <width>20</width>
+      <height>50</height>
+      <horizontal>false</horizontal>
+      <items>
+        <item></item>
+        <item></item>
+      </items>
+    </widget>
+    <widget type="label" version="2.0.0">
+      <name>Mode name_2</name>
+      <text>One-Shot</text>
+      <x>20</x>
+      <y>20</y>
+      <width>88</width>
+    </widget>
+    <widget type="label" version="2.0.0">
+      <name>Mode name_3</name>
+      <text>Cyclic</text>
+      <x>20</x>
+      <y>45</y>
+      <width>88</width>
+    </widget>
+  </widget>
+  <widget type="action_button" version="3.0.0">
+    <name>Action Button</name>
+    <actions>
+      <action type="write_pv">
+        <pv_name>$(pv_name)</pv_name>
+        <value>1</value>
+        <description>WritePV</description>
+      </action>
+    </actions>
+    <pv_name>$(PREFIX)_stats_reset</pv_name>
+    <text>Reset stats</text>
+    <x>500</x>
+    <y>250</y>
+    <width>128</width>
+    <height>20</height>
+  </widget>
+  <widget type="group" version="2.0.0">
+    <name>Group</name>
+    <x>270</x>
+    <y>150</y>
+    <width>138</width>
+    <height>20</height>
+    <style>3</style>
+    <transparent>true</transparent>
+    <widget type="led" version="2.0.0">
+      <name>LED</name>
+      <pv_name>$(PREFIX)aao0_request</pv_name>
+    </widget>
+    <widget type="label" version="2.0.0">
+      <name>Mode name_1</name>
+      <text>DAC request</text>
+      <x>30</x>
+      <width>108</width>
+    </widget>
   </widget>
 </display>
