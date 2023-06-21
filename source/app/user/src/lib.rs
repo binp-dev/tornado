@@ -34,7 +34,9 @@ async fn run(ctx: Context) {
 
     log::info!("Establish channel");
     #[cfg(feature = "tcp")]
-    let channel = channel::connect(config::CHANNEL_ADDR).await.unwrap();
+    let channel = channel::connect((config::CHANNEL_HOST, config::CHANNEL_PORT))
+        .await
+        .unwrap();
     #[cfg(feature = "rpmsg")]
     let channel = channel::Rpmsg::open("/dev/ttyRPMSG0").await.unwrap();
     log::info!("Connection established");

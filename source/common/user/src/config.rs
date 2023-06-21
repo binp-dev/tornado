@@ -14,4 +14,6 @@ pub const KEEP_ALIVE_PERIOD: Duration = Duration::from_millis(100);
 pub const KEEP_ALIVE_MAX_DELAY: Duration = Duration::from_millis(200);
 
 #[cfg(feature = "fake")]
-pub const CHANNEL_ADDR: &str = "localhost:4578";
+pub const CHANNEL_HOST: &str = "localhost";
+#[cfg(feature = "fake")]
+pub const CHANNEL_PORT: u16 = 4578;

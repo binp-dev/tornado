@@ -44,7 +44,7 @@ pub struct RpmsgReader {
     channel: Option<Reader<AppMsg>>,
     buffer: DacProducer,
     common: Arc<RpmsgCommon>,
-    pub control: Arc<ControlHandle>,
+    control: Arc<ControlHandle>,
     stats: Arc<Statistics>,
 }
 
@@ -97,15 +97,15 @@ impl Rpmsg {
             .name("rpmsg_init")
             .priority(read_priority.max(write_priority))
             .spawn(move |cx| {
-                let channel = Channel::new(cx).unwrap();
+                let channel = Channel::new(cx, 0).unwrap();
                 let (reader, writer) = self.split(channel);
                 task::Builder::new()
-                    .name("rpmsg")
+                    .name("rpmsg_read")
                     .priority(read_priority)
                     .spawn(move |cx| reader.task_main(cx))
                     .unwrap();
                 task::Builder::new()
-                    .name("rpmsg")
+                    .name("rpmsg_write")
                     .priority(write_priority)
                     .spawn(move |cx| writer.task_main(cx))
                     .unwrap();

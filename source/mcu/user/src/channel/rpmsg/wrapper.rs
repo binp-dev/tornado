@@ -1,9 +1,6 @@
 extern crate alloc;
 
-use super::{
-    raw::{self, HalRpmsgChannel},
-    RPMSG_REMOTE_ID,
-};
+use super::raw::{self, HalRpmsgChannel};
 use crate::{
     error::{Error, ErrorKind, ErrorSource},
     hal::RetCode,
@@ -63,7 +60,7 @@ pub struct ReadChannel(Arc<Channel>);
 pub struct WriteChannel(Arc<Channel>);
 
 impl Channel {
-    pub fn new(cx: &mut TaskContext) -> Result<Self, Error> {
+    pub fn new(cx: &mut TaskContext, id: u32) -> Result<Self, Error> {
         RPMSG.lock(FreeRtosDuration::infinite()).unwrap().acquire(cx);
 
         let raw = unsafe { HalRpmsgChannel::alloc() }.ok_or(Error {
@@ -71,7 +68,6 @@ impl Channel {
             source: ErrorSource::None,
         })?;
 
-        let id = RPMSG_REMOTE_ID;
         let r = unsafe { raw::hal_rpmsg_create_channel(raw, id) };
         match r.into() {
             Ok(()) => {
