@@ -6,7 +6,7 @@ use super::{
     Error,
 };
 use crate::channel::Channel;
-use async_atomic::{Atomic, Subscriber};
+use async_atomic::{Atomic as AsyncAtomic, Subscriber};
 use async_compat::Compat;
 use common::{
     config::{self, ADC_COUNT},
@@ -35,7 +35,7 @@ struct Writer<C: Channel> {
 struct Reader<C: Channel> {
     channel: MsgReader<McuMsg, Compat<C::Read>>,
     adcs: [AdcHandle; ADC_COUNT],
-    dac_write_count: Arc<Atomic<usize>>,
+    dac_write_count: Arc<AsyncAtomic<usize>>,
     din: DinHandle,
 }
 
@@ -52,7 +52,7 @@ impl<C: Channel> Dispatcher<C> {
         let (r, w) = (Compat::new(r), Compat::new(w));
         let reader = MsgReader::<McuMsg, _>::new(r, config::MAX_MCU_MSG_LEN);
         let writer = Mutex::new(MsgWriter::<AppMsg, _>::new(w, config::MAX_APP_MSG_LEN));
-        let dac_write_count = Atomic::new(0).subscribe();
+        let dac_write_count = AsyncAtomic::new(0).subscribe();
         Self {
             reader: Reader {
                 channel: reader,

@@ -3,6 +3,7 @@ use crate::{
     epics,
     utils::double_vec::{self, DoubleVec},
 };
+use async_atomic::GenericSubscriber;
 use common::values::{volt_to_uv_saturating, Uv};
 use ferrite::{atomic::AtomicVariable, TypedVariable as Variable};
 use futures::{future::join_all, Stream, StreamExt};
@@ -22,6 +23,7 @@ impl Dac {
         let request = AtomicVariable::new(epics.request);
         request.store(1);
         let mode = AtomicVariable::new(epics.mode);
+        let addition = GenericSubscriber::new(AtomicVariable::new(epics.addition));
 
         (
             Self {
@@ -38,7 +40,7 @@ impl Dac {
             },
             DacHandle {
                 buffer: read_buffer.into_iter(DacModifier { request, mode }),
-                addition: Box::pin(epics.addition.into_stream().map(volt_to_uv_saturating)),
+                addition: Box::pin(addition.into_stream().map(volt_to_uv_saturating)),
                 state: Box::pin(epics.state.into_stream().map(|x| x != 0)),
             },
         )
