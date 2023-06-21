@@ -5,7 +5,6 @@ from pathlib import Path
 from vortex.utils.path import TargetPath
 from vortex.tasks.base import task, Context, ComponentGroup
 from vortex.tasks.epics.epics_base import EpicsBaseHost, EpicsBaseCross
-from vortex.tasks.compiler import HOST_GCC
 from vortex.tasks.rust import RustcHost, RustcCross
 
 from .ioc import AppIocHost, AppIocCross
@@ -16,7 +15,7 @@ from .plugin import Plugin
 class AppGroupHost(ComponentGroup):
     def __init__(self, rustc: RustcHost, epics_base: EpicsBaseHost, src: Path, dst: TargetPath) -> None:
         self.user = AppFake(rustc, src / "user", dst / "user")
-        self.plugin = Plugin(src / "plugin", dst / "plugin", HOST_GCC)
+        self.plugin = Plugin(src / "plugin", dst / "plugin", epics_base)
         self.ioc = AppIocHost(src / "ioc", dst / "ioc", epics_base, dylibs=[self.user, self.plugin])
 
     @task
@@ -34,7 +33,7 @@ class AppGroupCross(ComponentGroup):
         self.cc = rustc.cc
         self.rustc = rustc
         self.user = AppReal(self.rustc, src / "user", dst / "user")
-        self.plugin = Plugin(src / "plugin", dst / "plugin", self.cc)
+        self.plugin = Plugin(src / "plugin", dst / "plugin", epics_base)
         self.ioc = AppIocCross(src / "ioc", dst / "ioc", epics_base, dylibs=[self.user, self.plugin])
 
     @task

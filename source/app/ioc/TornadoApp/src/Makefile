@@ -30,11 +30,9 @@ SHRLIB_SEARCH_DIRS += $(TOP)/target/debug
 
 # Workaround to link shared library
 ifeq ($(APP_ARCH),linux-x86_64)
-	Tornado_LIBS += app
-	Tornado_LIBS += app-plugin
+	Tornado_LIBS += app app-plugin
 else
-	Tornado_LDFLAGS += -Wl,-Bdynamic -l:libapp.so
-	Tornado_LDFLAGS += -Wl,-Bdynamic -l:libapp-plugin.so
+	Tornado_LDFLAGS += -Wl,-Bdynamic -l:libapp.so -l:libapp-plugin.so
 endif
 
 # Finally link to the EPICS Base libraries
