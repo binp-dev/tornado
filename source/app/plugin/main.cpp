@@ -3,7 +3,7 @@
 
 #include <epicsThread.h>
 
-extern void app_set_dac_corr(double value);
+extern "C" void app_set_dac_corr(double value);
 
 extern "C" void app_plugin_main() {
     std::cout << "Plugin started" << std::endl;

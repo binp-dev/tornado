@@ -17,6 +17,7 @@ use tokio::task::spawn;
 
 static CORR: AsyncAtomic<f64> = AsyncAtomic::new(0.0);
 
+#[no_mangle]
 pub extern "C" fn app_set_dac_corr(value: f64) {
     CORR.store(value);
 }

@@ -15,8 +15,6 @@ use dio::{Din, Dout};
 use dispatch::Dispatcher;
 use tokio::spawn;
 
-pub use dac::app_set_dac_corr;
-
 #[derive(Clone, Debug)]
 pub enum Error {
     Disconnected,
@@ -67,4 +65,8 @@ impl<C: Channel> Device<C> {
         .await;
         log::warn!("Stopping device: {:?}", res);
     }
+}
+
+pub mod export {
+    pub use super::dac::app_set_dac_corr;
 }
