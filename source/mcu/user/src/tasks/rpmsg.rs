@@ -8,7 +8,7 @@ use alloc::sync::Arc;
 use common::{
     config,
     protocol::{self as proto, AppMsg, McuMsg},
-    values::Point,
+    values::{Point, Uv},
 };
 use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -55,6 +55,10 @@ pub struct RpmsgWriter {
     control: Arc<ControlHandle>,
 }
 
+pub struct FastRpmsgReader {
+    pub control: Arc<ControlHandle>,
+}
+
 impl Rpmsg {
     pub fn new(control: Arc<ControlHandle>, dac_buffer: DacProducer, adc_buffer: AdcConsumer, stats: Arc<Statistics>) -> Self {
         control.configure(proto::DAC_MSG_MAX_POINTS, proto::ADC_MSG_MAX_POINTS);
@@ -99,6 +103,7 @@ impl Rpmsg {
             .spawn(move |cx| {
                 let channel = Channel::new(cx, 0).unwrap();
                 let (reader, writer) = self.split(channel);
+                let control = reader.control.clone();
                 task::Builder::new()
                     .name("rpmsg_read")
                     .priority(read_priority)
@@ -108,6 +113,11 @@ impl Rpmsg {
                     .name("rpmsg_write")
                     .priority(write_priority)
                     .spawn(move |cx| writer.task_main(cx))
+                    .unwrap();
+                task::Builder::new()
+                    .name("fast_rpmsg_reader")
+                    .priority(read_priority)
+                    .spawn(move |cx| FastRpmsgReader { control }.task_main(cx))
                     .unwrap();
             })
             .unwrap();
@@ -309,5 +319,15 @@ impl RpmsgWriter {
         const LEN: usize = proto::ADC_MSG_MAX_POINTS;
         let len = self.buffer.occupied_len();
         self.buffer.skip((len / LEN) * LEN);
+    }
+}
+
+impl FastRpmsgReader {
+    fn task_main(self, cx: &mut TaskContext) -> ! {
+        let mut channel = Reader::<Uv>::new(Channel::new(cx, 1).unwrap().split().0, None);
+        loop {
+            let value = channel.read_message().unwrap();
+            self.control.dac_add.store(*value, Ordering::Release);
+        }
     }
 }

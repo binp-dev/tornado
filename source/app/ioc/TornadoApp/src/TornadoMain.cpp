@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
 
     epicsThreadCreate(
         "plugin",
-        epicsThreadPriorityMedium,
+        epicsThreadPriorityHigh,
         epicsThreadStackMedium,
         app_plugin_main,
         nullptr //

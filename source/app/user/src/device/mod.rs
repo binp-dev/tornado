@@ -3,6 +3,8 @@ mod dac;
 mod debug;
 mod dio;
 mod dispatch;
+#[cfg(feature = "rpmsg")]
+mod fast;
 
 use crate::{channel::Channel, epics::Epics, utils::misc::unzip_array};
 use common::config;
@@ -44,6 +46,8 @@ impl<C: Channel> Device<C> {
             debug_handle,
         )
         .await;
+        #[cfg(feature = "rpmsg")]
+        fast::init_global().await;
         Self {
             dac,
             adcs,
@@ -68,5 +72,5 @@ impl<C: Channel> Device<C> {
 }
 
 pub mod export {
-    pub use super::dac::app_set_dac_corr;
+    pub use super::fast::app_set_dac_corr;
 }

@@ -1,4 +1,4 @@
-use super::{dispatch::WRITE_DAC_CORR, Error};
+use super::Error;
 use crate::{
     epics,
     utils::double_vec::{self, DoubleVec},
@@ -11,11 +11,6 @@ use futures::{
 };
 use std::{pin::Pin, sync::Arc};
 use tokio::task::spawn;
-
-#[no_mangle]
-pub extern "C" fn app_set_dac_corr(value: f64) {
-    (WRITE_DAC_CORR.try_lock().unwrap().as_mut().unwrap())(volt_to_uv_saturating(value));
-}
 
 pub struct Dac {
     array: ArrayReader,

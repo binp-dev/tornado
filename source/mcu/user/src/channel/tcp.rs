@@ -1,7 +1,7 @@
 extern crate std;
 
 use crate::Error;
-use common::config;
+use common::config::{self, channel};
 use core::time::Duration;
 use derive_more::{Deref, DerefMut};
 use flatty::Flat;
