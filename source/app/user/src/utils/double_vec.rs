@@ -1,4 +1,4 @@
-use async_atomic::{Atomic, Subscriber};
+use async_atomic::{Atomic as AsyncAtomic, Subscriber};
 use std::{
     mem::swap,
     ops::{Deref, DerefMut},
@@ -16,7 +16,7 @@ impl<T> DoubleVec<T> {
         }
     }
     pub fn split(self) -> (Reader<T>, Arc<Writer<T>>) {
-        let ready = Atomic::new(false).subscribe();
+        let ready = AsyncAtomic::new(false).subscribe();
         let write = Arc::new(Writer {
             buffer: Mutex::new(self.buffers.0),
             ready: ready.clone(),
@@ -34,7 +34,7 @@ impl<T> DoubleVec<T> {
 
 pub struct Writer<T> {
     buffer: Mutex<Vec<T>>,
-    ready: Arc<Atomic<bool>>,
+    ready: Arc<AsyncAtomic<bool>>,
 }
 impl<T> Writer<T> {
     pub async fn write(&self) -> WriteGuard<'_, T> {
@@ -82,7 +82,7 @@ impl<T> Deref for Reader<T> {
 
 pub struct WriteGuard<'a, T> {
     buffer: MutexGuard<'a, Vec<T>>,
-    ready: &'a Atomic<bool>,
+    ready: &'a AsyncAtomic<bool>,
 }
 impl<'a, T> Drop for WriteGuard<'a, T> {
     fn drop(&mut self) {

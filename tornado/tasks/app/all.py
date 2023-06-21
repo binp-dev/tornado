@@ -1,17 +1,15 @@
 from __future__ import annotations
-from typing import Dict
 
 from pathlib import Path
 
 from vortex.utils.path import TargetPath
 from vortex.tasks.base import task, Context, ComponentGroup
 from vortex.tasks.epics.epics_base import EpicsBaseHost, EpicsBaseCross
-from vortex.tasks.compiler import Gcc, HOST_GCC
+from vortex.tasks.compiler import HOST_GCC
 from vortex.tasks.rust import RustcHost, RustcCross
-from vortex.tasks.cmake import Cmake
 
-from .ioc import AbstractAppIoc, AppIocHost, AppIocCross
-from .user import AbstractApp, AppReal, AppFake
+from .ioc import AppIocHost, AppIocCross
+from .user import AppReal, AppFake
 from .plugin import Plugin
 
 
@@ -46,3 +44,8 @@ class AppGroupCross(ComponentGroup):
     @task
     def deploy(self, ctx: Context) -> None:
         self.ioc.deploy(ctx)
+
+    @task
+    def restart(self, ctx: Context) -> None:
+        assert ctx.device is not None
+        ctx.device.run(["systemctl", "restart", "ioc"], wait=True)

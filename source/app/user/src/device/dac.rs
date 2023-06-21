@@ -1,17 +1,14 @@
 use super::Error;
 use crate::{
     epics,
-    utils::{
-        double_vec::{self, DoubleVec},
-        misc::unfold_variable,
-    },
+    utils::double_vec::{self, DoubleVec},
 };
-use async_atomic::Atomic as AsyncAtomic;
+use async_atomic::{Atomic as AsyncAtomic, GenericSubscriber};
 use common::values::{volt_to_uv_saturating, Uv};
 use ferrite::{atomic::AtomicVariable, TypedVariable as Variable};
 use futures::{
     future::join_all,
-    stream::{self, Stream},
+    stream::{self, Stream, StreamExt},
 };
 use std::{pin::Pin, sync::Arc};
 use tokio::task::spawn;
@@ -35,7 +32,7 @@ impl Dac {
         let request = AtomicVariable::new(epics.request);
         request.store(1);
         let mode = AtomicVariable::new(epics.mode);
-        let addition = AtomicVariable::new(epics.addition);
+        let addition = GenericSubscriber::new(AtomicVariable::new(epics.addition));
 
         (
             Self {
@@ -52,11 +49,9 @@ impl Dac {
             },
             DacHandle {
                 buffer: read_buffer.into_iter(DacModifier { request, mode }),
-                addition: Box::pin(stream::select(
-                    unfold_variable(epics.addition, |x| Some(volt_to_uv_saturating(x))),
-                    CORR.subscribe_ref().into_stream(),
-                )),
-                state: Box::pin(unfold_variable(epics.state, |x| Some(x != 0))),
+                //CORR.subscribe_ref().into_stream(),
+                addition: Box::pin(addition.into_stream().map(volt_to_uv_saturating)),
+                state: Box::pin(epics.state.into_stream().map(|x| x != 0)),
             },
         )
     }
