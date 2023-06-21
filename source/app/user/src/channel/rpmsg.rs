@@ -2,7 +2,7 @@ use super::Channel;
 use futures::ready;
 use std::{
     fs::{File, OpenOptions},
-    io,
+    io::{self, Read, Write},
     os::{
         fd::{AsRawFd, FromRawFd, IntoRawFd, RawFd},
         raw::c_void,
@@ -26,12 +26,20 @@ impl AsRawFd for Rpmsg {
     }
 }
 
-pub struct Reader {
+pub struct AsyncReader {
     raw: Arc<AsyncFd<Rpmsg>>,
 }
 
-pub struct Writer {
+pub struct AsyncWriter {
     raw: Arc<AsyncFd<Rpmsg>>,
+}
+
+pub struct Reader {
+    raw: Arc<Rpmsg>,
+}
+
+pub struct Writer {
+    raw: Arc<Rpmsg>,
 }
 
 impl Rpmsg {
@@ -55,11 +63,18 @@ impl Rpmsg {
 }
 
 impl Channel for Rpmsg {
-    type Read = Reader;
-    type Write = Writer;
+    type Read = AsyncReader;
+    type Write = AsyncWriter;
 
-    fn split(self) -> (Reader, Writer) {
+    fn split(self) -> (AsyncReader, AsyncWriter) {
         let raw = Arc::new(AsyncFd::new(self).unwrap());
+        (AsyncReader { raw: raw.clone() }, AsyncWriter { raw })
+    }
+}
+
+impl Rpmsg {
+    pub fn split_blocking(self) -> (Reader, Writer) {
+        let raw = Arc::new(self);
         (Reader { raw: raw.clone() }, Writer { raw })
     }
 }
@@ -90,7 +105,7 @@ impl Drop for Rpmsg {
     }
 }
 
-impl AsyncRead for Reader {
+impl AsyncRead for AsyncReader {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -111,7 +126,7 @@ impl AsyncRead for Reader {
     }
 }
 
-impl AsyncWrite for Writer {
+impl AsyncWrite for AsyncWriter {
     fn poll_write(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -130,5 +145,20 @@ impl AsyncWrite for Writer {
     }
     fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         Poll::Ready(Ok(()))
+    }
+}
+
+impl Read for Reader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.raw.read(buf)
+    }
+}
+
+impl Write for Writer {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.raw.write(buf)
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
     }
 }

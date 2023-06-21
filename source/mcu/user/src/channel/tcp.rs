@@ -15,8 +15,8 @@ use ustd::task::TaskContext;
 
 pub struct Channel(TcpStream);
 impl Channel {
-    pub fn new(_cx: &TaskContext) -> Result<Self, Error> {
-        let lis = TcpListener::bind(config::CHANNEL_ADDR)?;
+    pub fn new(_cx: &TaskContext, id: u32) -> Result<Self, Error> {
+        let lis = TcpListener::bind((config::CHANNEL_HOST, config::CHANNEL_PORT + id as u16))?;
         let stream = lis.incoming().next().unwrap()?;
         Ok(Self(stream))
     }
