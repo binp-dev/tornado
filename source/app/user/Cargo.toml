@@ -41,6 +41,7 @@ libc = { version = "0.2.139", optional = true }
 termios = { version = "0.3.3", optional = true }
 async-atomic = "0.1.2"
 derive_more = "0.99.17"
+lazy_static = "1.4.0"
 
 [dependencies.common]
 package = "tornado-common"

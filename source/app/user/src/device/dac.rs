@@ -1,25 +1,20 @@
-use super::Error;
+use super::{dispatch::WRITE_DAC_CORR, Error};
 use crate::{
     epics,
     utils::double_vec::{self, DoubleVec},
 };
-use async_atomic::{Atomic as AsyncAtomic, GenericSubscriber};
 use common::values::{volt_to_uv_saturating, Uv};
 use ferrite::{atomic::AtomicVariable, TypedVariable as Variable};
 use futures::{
     future::join_all,
-    select,
-    stream::{self, Stream, StreamExt},
-    FutureExt,
+    stream::{Stream, StreamExt},
 };
 use std::{pin::Pin, sync::Arc};
 use tokio::task::spawn;
 
-static CORR: AsyncAtomic<f64> = AsyncAtomic::new(0.0);
-
 #[no_mangle]
 pub extern "C" fn app_set_dac_corr(value: f64) {
-    CORR.store(value);
+    (WRITE_DAC_CORR.try_lock().unwrap().as_mut().unwrap())(volt_to_uv_saturating(value));
 }
 
 pub struct Dac {
@@ -35,7 +30,6 @@ impl Dac {
         let request = AtomicVariable::new(epics.request);
         request.store(1);
         let mode = AtomicVariable::new(epics.mode);
-        let addition = GenericSubscriber::new(AtomicVariable::new(epics.addition));
 
         (
             Self {
@@ -53,25 +47,7 @@ impl Dac {
             DacHandle {
                 buffer: read_buffer.into_iter(DacModifier { request, mode }),
                 state: Box::pin(epics.state.into_stream().map(|x| x != 0)),
-                addition: Box::pin(
-                    stream::unfold(
-                        (addition, CORR.subscribe_ref(), CORR.load()),
-                        |(mut epics, mut global, mut value)| async move {
-                            value = select! {
-                                v = epics.wait(|x| x != value).fuse() => {
-                                    global.store(v);
-                                    v
-                                }
-                                v = global.wait(|x| x != value).fuse() => {
-                                    epics.store(v);
-                                    v
-                                }
-                            };
-                            Some((value, (epics, global, value)))
-                        },
-                    )
-                    .map(volt_to_uv_saturating),
-                ),
+                addition: Box::pin(epics.addition.into_stream().map(volt_to_uv_saturating)),
             },
         )
     }

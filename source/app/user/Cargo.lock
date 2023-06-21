@@ -576,6 +576,7 @@ dependencies = [
  "flatty",
  "flatty-io",
  "futures",
+ "lazy_static",
  "libc",
  "log",
  "macro_rules_attribute",

@@ -11,13 +11,18 @@ use async_compat::Compat;
 use common::{
     config::{self, ADC_COUNT},
     protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
-    values::Point,
+    values::{Point, Uv},
 };
 use flatty::{flat_vec, prelude::*, Emplacer};
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter, ReadError};
 use futures::{future::try_join_all, join, AsyncWrite, FutureExt, SinkExt, StreamExt};
+use lazy_static::lazy_static;
 use std::{io, sync::Arc};
-use tokio::{spawn, sync::Mutex, time::sleep};
+use tokio::{runtime, spawn, sync::Mutex, time::sleep};
+
+lazy_static! {
+    pub static ref WRITE_DAC_CORR: Mutex<Option<Box<dyn FnMut(Uv) + Send>>> = Mutex::new(None);
+}
 
 pub struct Dispatcher<C: Channel> {
     writer: Writer<C>,
@@ -52,6 +57,24 @@ impl<C: Channel> Dispatcher<C> {
         let (r, w) = (Compat::new(r), Compat::new(w));
         let reader = MsgReader::<McuMsg, _>::new(r, config::MAX_MCU_MSG_LEN);
         let writer = Mutex::new(MsgWriter::<AppMsg, _>::new(w, config::MAX_APP_MSG_LEN));
+        {
+            let mut corr_writer = writer.try_lock().unwrap().clone();
+            let rt = runtime::Builder::new_current_thread().build().unwrap();
+            assert!(WRITE_DAC_CORR
+                .try_lock()
+                .unwrap()
+                .replace(Box::new(move |corr| {
+                    rt.block_on(
+                        corr_writer
+                            .alloc_message()
+                            .new_in_place(proto::AppMsgInitDacAdd { value: corr })
+                            .unwrap()
+                            .write(),
+                    )
+                    .unwrap();
+                }))
+                .is_none());
+        }
         let dac_write_count = AsyncAtomic::new(0).subscribe();
         Self {
             reader: Reader {
