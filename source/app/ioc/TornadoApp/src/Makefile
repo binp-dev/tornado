@@ -21,7 +21,7 @@ Tornado_DBD += base.dbd
 Tornado_SRCS += Tornado_registerRecordDeviceDriver.cpp
 
 # Build the main IOC entry point on workstation OSs.
-Tornado_SRCS_DEFAULT += TornadoMain.cpp
+Tornado_SRCS_DEFAULT += TornadoMain.cpp plugin.cpp
 
 # Use Ferrite
 Tornado_DBD += Ferrite.dbd
@@ -30,9 +30,9 @@ SHRLIB_SEARCH_DIRS += $(TOP)/target/debug
 
 # Workaround to link shared library
 ifeq ($(APP_ARCH),linux-x86_64)
-	Tornado_LIBS += app app-plugin
+	Tornado_LIBS += app
 else
-	Tornado_LDFLAGS += -Wl,-Bdynamic -l:libapp.so -l:libapp-plugin.so
+	Tornado_LDFLAGS += -Wl,-Bdynamic -l:libapp.so
 endif
 
 # Finally link to the EPICS Base libraries
