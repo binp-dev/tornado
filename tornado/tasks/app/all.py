@@ -40,3 +40,8 @@ class AppGroupCross(ComponentGroup):
     @task
     def deploy(self, ctx: Context) -> None:
         self.ioc.deploy(ctx)
+
+    @task
+    def restart(self, ctx: Context) -> None:
+        assert ctx.device is not None
+        ctx.device.run(["systemctl", "restart", "ioc"], wait=True)
