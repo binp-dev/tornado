@@ -57,9 +57,9 @@ class McuBase(Cmake):
 
     @task
     def deploy(self, ctx: Context) -> None:
-        assert ctx.device is not None
+        assert ctx.dst is not None
         self.build(ctx)
-        ctx.device.store(
+        ctx.dst.store(
             ctx.target_path / self.build_dir / "m7image.bin",
             PurePosixPath("/boot/m7image.bin"),
         )

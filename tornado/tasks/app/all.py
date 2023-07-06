@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from vortex.utils.path import TargetPath
+from vortex.dst.base import Device
 from vortex.tasks.base import task, Context, ComponentGroup
 from vortex.tasks.epics.epics_base import EpicsBaseHost, EpicsBaseCross
 from vortex.tasks.rust import RustcHost, RustcCross
@@ -43,5 +44,5 @@ class AppGroupCross(ComponentGroup):
 
     @task
     def restart(self, ctx: Context) -> None:
-        assert ctx.device is not None
-        ctx.device.run(["systemctl", "restart", "ioc"], wait=True)
+        assert isinstance(ctx.dst, Device)
+        ctx.dst.run(["systemctl", "restart", "ioc"], wait=True)

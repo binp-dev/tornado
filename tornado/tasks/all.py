@@ -4,6 +4,7 @@ from pathlib import Path
 from dataclasses import dataclass
 
 from vortex.utils.path import TargetPath
+from vortex.dst.base import Device
 from vortex.tasks.base import task, Context, ComponentGroup
 from vortex.tasks.rust import RustcHost
 from vortex.tasks.epics.epics_base import EpicsSource, EpicsRepo, EpicsBaseHost, EpicsBaseCross
@@ -59,8 +60,8 @@ class CrossGroup(ComponentGroup):
 
     @task
     def reboot(self, ctx: Context) -> None:
-        assert ctx.device is not None
-        ctx.device.reboot()
+        assert isinstance(ctx.dst, Device)
+        ctx.dst.reboot()
 
 
 @dataclass
