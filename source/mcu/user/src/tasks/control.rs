@@ -44,9 +44,9 @@ pub struct ControlHandle {
     /// Discrete output has changed.
     do_changed: AtomicBool,
 
-    /// Number of DAC points to write until notified.
+    /// Number of AO points to write until notified.
     ao_notify_every: AtomicUsize,
-    /// Number of ADC points to read until notified.
+    /// Number of AI points to read until notified.
     ai_notify_every: AtomicUsize,
 }
 
@@ -63,7 +63,7 @@ struct ControlAi {
 }
 
 pub struct Control {
-    dac: ControlAo,
+    ao: ControlAo,
     ai: ControlAi,
     handle: Arc<ControlHandle>,
     stats: Arc<Statistics>,
@@ -85,9 +85,9 @@ impl ControlHandle {
             ai_notify_every: AtomicUsize::new(0),
         }
     }
-    pub fn configure(&self, dac_notify_every: usize, adc_notify_every: usize) {
-        self.ao_notify_every.store(dac_notify_every, Ordering::Release);
-        self.ai_notify_every.store(adc_notify_every, Ordering::Release);
+    pub fn configure(&self, ao_notify_every: usize, ai_notify_every: usize) {
+        self.ao_notify_every.store(ao_notify_every, Ordering::Release);
+        self.ai_notify_every.store(ai_notify_every, Ordering::Release);
     }
 
     pub fn notify(&self, cx: &mut impl Context) {
@@ -97,7 +97,7 @@ impl ControlHandle {
         self.ready_sem.take(cx, timeout)
     }
 
-    pub fn set_dac_mode(&self, _cx: &mut impl Context, enabled: bool) {
+    pub fn set_ao_mode(&self, _cx: &mut impl Context, enabled: bool) {
         self.ao_enabled.store(enabled, Ordering::Release);
         #[cfg(feature = "fake")]
         if enabled {
@@ -105,7 +105,7 @@ impl ControlHandle {
         }
     }
 
-    fn update_din(&self, value: Di) -> bool {
+    fn update_di(&self, value: Di) -> bool {
         if self.di.swap(value.into(), Ordering::AcqRel) != value.into() {
             self.di_changed.fetch_or(true, Ordering::AcqRel);
             true
@@ -113,7 +113,7 @@ impl ControlHandle {
             false
         }
     }
-    pub fn take_din(&self) -> Option<Di> {
+    pub fn take_di(&self) -> Option<Di> {
         if self.di_changed.fetch_and(false, Ordering::AcqRel) {
             Some(self.di.load(Ordering::Acquire).try_into().unwrap())
         } else {
@@ -121,7 +121,7 @@ impl ControlHandle {
         }
     }
 
-    pub fn set_dout(&self, value: Do) {
+    pub fn set_do(&self, value: Do) {
         if self.do_.swap(value.into(), Ordering::AcqRel) != value.into() {
             self.do_changed.fetch_or(true, Ordering::AcqRel);
         }
@@ -133,7 +133,7 @@ impl Control {
         let handle = Arc::new(ControlHandle::new());
         (
             Self {
-                dac: ControlAo {
+                ao: ControlAo {
                     buffer: ao_buf,
                     last_point: Uv::default(),
                     counter: 0,
@@ -150,10 +150,10 @@ impl Control {
         )
     }
 
-    fn make_din_handler(&self) -> Box<dyn DiHandler> {
+    fn make_di_handler(&self) -> Box<dyn DiHandler> {
         let handle = self.handle.clone();
-        Box::new(move |cx, din| {
-            if handle.update_din(din) {
+        Box::new(move |cx, di| {
+            if handle.update_di(di) {
                 handle.ready_sem.try_give(cx);
             }
         })
@@ -164,7 +164,7 @@ impl Control {
         let stats = self.stats.clone();
 
         let mut skifio = skifio::handle().unwrap();
-        skifio.subscribe_di(Some(self.make_din_handler())).unwrap();
+        skifio.subscribe_di(Some(self.make_di_handler())).unwrap();
 
         #[cfg(feature = "fake")]
         while !handle.ao_enabled.load(Ordering::Acquire) {
@@ -200,26 +200,26 @@ impl Control {
             }
 
             // Read discrete input
-            ready |= handle.update_din(skifio.read_di());
+            ready |= handle.update_di(skifio.read_di());
 
-            // Fetch next DAC value from buffer
-            let mut ao = self.dac.last_point;
+            // Fetch next AO value from buffer
+            let mut ao = self.ao.last_point;
             if handle.ao_enabled.load(Ordering::Acquire) {
                 #[cfg(feature = "fake")]
-                while !self.dac.buffer.wait_occupied(1, BUFFER_TIMEOUT) {
-                    println!("DAC buffer timeout");
+                while !self.ao.buffer.wait_occupied(1, BUFFER_TIMEOUT) {
+                    println!("AO buffer timeout");
                 }
 
                 let mut empty = true;
-                while let Some(p) = self.dac.buffer.try_pop() {
+                while let Some(p) = self.ao.buffer.try_pop() {
                     match p.into_opt() {
                         PointOpt::Uv(value) => {
                             ao = value;
-                            self.dac.last_point = value;
-                            // Increment DAC notification counter.
-                            self.dac.counter += 1;
-                            if self.dac.counter >= handle.ao_notify_every.load(Ordering::Acquire) {
-                                self.dac.counter = 0;
+                            self.ao.last_point = value;
+                            // Increment AO notification counter.
+                            self.ao.counter += 1;
+                            if self.ao.counter >= handle.ao_notify_every.load(Ordering::Acquire) {
+                                self.ao.counter = 0;
                                 ready = true;
                             }
                             empty = false;
@@ -234,14 +234,14 @@ impl Control {
                 }
             }
 
-            // Add correction to DAC.
+            // Add correction to AO.
             ao = ao.saturating_add(handle.ao_add.load(Ordering::Acquire));
 
             stats.ao.update_value(ao);
 
-            // Transfer DAC/ADC values to/from SkifIO board.
+            // Transfer AO/AI values to/from SkifIO board.
             {
-                let adcs = match skifio.transfer(XferOut { ao }) {
+                let ais = match skifio.transfer(XferOut { ao }) {
                     Ok(XferIn { ais, temp, status }) => {
                         stats.set_skifio_temp(temp);
                         stats.set_skifio_status(status);
@@ -260,21 +260,21 @@ impl Control {
                     Err(e) => panic!("{:?}", e),
                 };
 
-                // Handle ADCs
+                // Handle AIs
                 {
                     #[cfg(feature = "fake")]
                     while !self.ai.buffer.wait_vacant(1, BUFFER_TIMEOUT) {
-                        println!("ADC buffer timeout");
+                        println!("AI buffer timeout");
                     }
 
-                    // Update ADC value statistics
-                    stats.ais.update_values(adcs);
-                    // Push ADC point to buffer.
-                    if self.ai.buffer.try_push(adcs.map(Point::from_uv)).is_err() {
+                    // Update AI value statistics
+                    stats.ais.update_values(ais);
+                    // Push AI point to buffer.
+                    if self.ai.buffer.try_push(ais.map(Point::from_uv)).is_err() {
                         stats.ais.report_lost_full(1);
                     }
 
-                    // Increment ADC notification counter.
+                    // Increment AI notification counter.
                     self.ai.counter += 1;
                     if self.ai.counter >= handle.ai_notify_every.load(Ordering::Acquire) {
                         self.ai.counter = 0;

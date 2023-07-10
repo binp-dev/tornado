@@ -106,9 +106,9 @@ impl SkifioIface for Skifio {
     fn set_ao_state(&mut self, enabled: bool) -> Result<(), Error> {
         if self.state().ao_state != enabled {
             let r = if enabled {
-                unsafe { raw::skifio_dac_enable() }
+                unsafe { raw::skifio_ao_enable() }
             } else {
-                unsafe { raw::skifio_dac_disable() }
+                unsafe { raw::skifio_ao_disable() }
             };
             if r == RetCode::Success {
                 self.state_mut().ao_state = enabled;
@@ -132,19 +132,19 @@ impl SkifioIface for Skifio {
     }
 
     fn write_do(&mut self, do_: Do) -> Result<(), Error> {
-        unsafe { raw::skifio_dout_write(do_) }.into()
+        unsafe { raw::skifio_do_write(do_) }.into()
     }
 
     fn read_di(&mut self) -> Di {
-        unsafe { raw::skifio_din_read() }
+        unsafe { raw::skifio_di_read() }
     }
     fn subscribe_di(&mut self, callback: Option<Box<dyn DiHandler>>) -> Result<(), Error> {
-        Into::<Result<(), Error>>::into(unsafe { raw::skifio_din_unsubscribe() })?;
+        Into::<Result<(), Error>>::into(unsafe { raw::skifio_di_unsubscribe() })?;
         self.state_mut().set_di_handler(None);
 
         if let Some(cb) = callback {
             let cb_ptr = self.state_mut().set_di_handler(Some(cb));
-            unsafe { raw::skifio_din_subscribe(Self::di_callback as *mut _, cb_ptr) }.into()
+            unsafe { raw::skifio_di_subscribe(Self::di_callback as *mut _, cb_ptr) }.into()
         } else {
             Ok(())
         }

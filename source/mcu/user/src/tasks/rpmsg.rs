@@ -34,9 +34,8 @@ pub struct Rpmsg {
 pub struct RpmsgCommon {
     /// Whether IOC is alive.
     alive: AtomicBool,
-    /// Number of DAC points requested from IOC.
+    /// Number of AO points requested from IOC.
     ao_requested: AtomicUsize,
-
     ao_observer: AoObserver,
 }
 
@@ -56,15 +55,15 @@ pub struct RpmsgWriter {
 }
 
 impl Rpmsg {
-    pub fn new(control: Arc<ControlHandle>, dac_buffer: AoProducer, adc_buffer: AiConsumer, stats: Arc<Statistics>) -> Self {
+    pub fn new(control: Arc<ControlHandle>, ao_buffer: AoProducer, ai_buffer: AiConsumer, stats: Arc<Statistics>) -> Self {
         control.configure(proto::AO_MSG_MAX_POINTS, proto::AI_MSG_MAX_POINTS);
-        let dac_observer = dac_buffer.observe();
+        let ao_observer = ao_buffer.observe();
         Self {
             control,
             stats,
-            ao_buffer: dac_buffer,
-            ai_buffer: adc_buffer,
-            ao_observer: dac_observer,
+            ao_buffer,
+            ai_buffer,
+            ao_observer,
         }
     }
 
@@ -156,12 +155,12 @@ impl RpmsgReader {
             match message.as_ref() {
                 AppMsgRef::KeepAlive => unreachable!(),
                 AppMsgRef::DoUpdate { value } => {
-                    // println!("Set Dout: {:?}", value);
-                    self.control.set_dout(*value)
+                    // println!("Set Do: {:?}", value);
+                    self.control.set_do(*value)
                 }
                 AppMsgRef::AoState { enable } => {
-                    println!("Set DAC state: {:?}", enable);
-                    self.control.set_dac_mode(cx, enable.to_native());
+                    println!("Set AO state: {:?}", enable);
+                    self.control.set_ao_mode(cx, enable.to_native());
                 }
                 AppMsgRef::AoData { points } => self.write_ao(points),
                 AppMsgRef::AoAdd { value } => self.control.ao_add.store(*value, Ordering::Release),
@@ -175,7 +174,7 @@ impl RpmsgReader {
 
     fn connect(&mut self, cx: &mut impl Context) {
         self.common.ao_requested.store(0, Ordering::Release);
-        self.control.set_dac_mode(cx, true);
+        self.control.set_ao_mode(cx, true);
         self.common.alive.store(true, Ordering::Release);
         self.control.notify(cx);
         println!("IOC connected");
@@ -183,7 +182,7 @@ impl RpmsgReader {
 
     fn disconnect(&mut self, cx: &mut impl Context) {
         self.common.alive.store(false, Ordering::Release);
-        self.control.set_dac_mode(cx, false);
+        self.control.set_ao_mode(cx, false);
         self.stats.report_ioc_drop();
         println!("IOC disconnected");
     }
@@ -249,7 +248,7 @@ impl RpmsgWriter {
     }
 
     fn send_di(&mut self, _cx: &mut impl BlockingContext) {
-        if let Some(value) = self.control.take_din() {
+        if let Some(value) = self.control.take_di() {
             try_timeout!(self.channel.alloc_message(), ())
                 .unwrap()
                 .new_in_place(proto::McuMsgInitDiUpdate { value })

@@ -32,36 +32,36 @@
 #define READ_RDY_MUX IOMUXC_ECSPI1_SS0_GPIO5_IO09
 #define READ_RDY_PIN 5, 9
 
-#define DAC_KEY_0_MUX IOMUXC_SAI3_MCLK_GPIO5_IO02
-#define DAC_KEY_0_PIN 5, 2
-#define DAC_KEY_1_MUX IOMUXC_SPDIF_TX_GPIO5_IO03
-#define DAC_KEY_1_PIN 5, 3
+#define AO_KEY_0_MUX IOMUXC_SAI3_MCLK_GPIO5_IO02
+#define AO_KEY_0_PIN 5, 2
+#define AO_KEY_1_MUX IOMUXC_SPDIF_TX_GPIO5_IO03
+#define AO_KEY_1_PIN 5, 3
 
-#define DIN_0_MUX IOMUXC_GPIO1_IO01_GPIO1_IO01
-#define DIN_0_PIN 1, 1
-#define DIN_1_MUX IOMUXC_GPIO1_IO11_GPIO1_IO11
-#define DIN_1_PIN 1, 11
-#define DIN_2_MUX IOMUXC_GPIO1_IO13_GPIO1_IO13
-#define DIN_2_PIN 1, 13
-#define DIN_3_MUX IOMUXC_GPIO1_IO15_GPIO1_IO15
-#define DIN_3_PIN 1, 15
-#define DIN_4_MUX IOMUXC_SPDIF_RX_GPIO5_IO04
-#define DIN_4_PIN 5, 4
-#define DIN_5_MUX IOMUXC_SPDIF_EXT_CLK_GPIO5_IO05
-#define DIN_5_PIN 5, 5
-#define DIN_6_MUX IOMUXC_I2C4_SCL_GPIO5_IO20
-#define DIN_6_PIN 5, 20
-#define DIN_7_MUX IOMUXC_I2C4_SDA_GPIO5_IO21
-#define DIN_7_PIN 5, 21
+#define DI_0_MUX IOMUXC_GPIO1_IO01_GPIO1_IO01
+#define DI_0_PIN 1, 1
+#define DI_1_MUX IOMUXC_GPIO1_IO11_GPIO1_IO11
+#define DI_1_PIN 1, 11
+#define DI_2_MUX IOMUXC_GPIO1_IO13_GPIO1_IO13
+#define DI_2_PIN 1, 13
+#define DI_3_MUX IOMUXC_GPIO1_IO15_GPIO1_IO15
+#define DI_3_PIN 1, 15
+#define DI_4_MUX IOMUXC_SPDIF_RX_GPIO5_IO04
+#define DI_4_PIN 5, 4
+#define DI_5_MUX IOMUXC_SPDIF_EXT_CLK_GPIO5_IO05
+#define DI_5_PIN 5, 5
+#define DI_6_MUX IOMUXC_I2C4_SCL_GPIO5_IO20
+#define DI_6_PIN 5, 20
+#define DI_7_MUX IOMUXC_I2C4_SDA_GPIO5_IO21
+#define DI_7_PIN 5, 21
 
-#define DOUT_0_MUX IOMUXC_SAI2_RXD0_GPIO4_IO23
-#define DOUT_0_PIN 4, 23
-#define DOUT_1_MUX IOMUXC_SAI2_TXD0_GPIO4_IO26
-#define DOUT_1_PIN 4, 26
-#define DOUT_2_MUX IOMUXC_SAI2_MCLK_GPIO4_IO27
-#define DOUT_2_PIN 4, 27
-#define DOUT_3_MUX IOMUXC_SAI3_RXC_GPIO4_IO29
-#define DOUT_3_PIN 4, 29
+#define DO_0_MUX IOMUXC_SAI2_RXD0_GPIO4_IO23
+#define DO_0_PIN 4, 23
+#define DO_1_MUX IOMUXC_SAI2_TXD0_GPIO4_IO26
+#define DO_1_PIN 4, 26
+#define DO_2_MUX IOMUXC_SAI2_MCLK_GPIO4_IO27
+#define DO_2_PIN 4, 27
+#define DO_3_MUX IOMUXC_SAI3_RXC_GPIO4_IO29
+#define DO_3_PIN 4, 29
 
 typedef struct {
     uint32_t mux[5];
@@ -70,43 +70,43 @@ typedef struct {
     bool intr;
 } PinInfo;
 
-static const PinInfo DIN_PINS[SKIFIO_DIN_SIZE] = {
-    {{DIN_0_MUX}, DIN_0_PIN, false},
-    {{DIN_1_MUX}, DIN_1_PIN, false},
-    {{DIN_2_MUX}, DIN_2_PIN, false},
-    {{DIN_3_MUX}, DIN_3_PIN, false},
-    {{DIN_4_MUX}, DIN_4_PIN, false},
-    {{DIN_5_MUX}, DIN_5_PIN, false},
-    {{DIN_6_MUX}, DIN_6_PIN, false},
-    {{DIN_7_MUX}, DIN_7_PIN, false},
+static const PinInfo DI_PINS[SKIFIO_DI_SIZE] = {
+    {{DI_0_MUX}, DI_0_PIN, false},
+    {{DI_1_MUX}, DI_1_PIN, false},
+    {{DI_2_MUX}, DI_2_PIN, false},
+    {{DI_3_MUX}, DI_3_PIN, false},
+    {{DI_4_MUX}, DI_4_PIN, false},
+    {{DI_5_MUX}, DI_5_PIN, false},
+    {{DI_6_MUX}, DI_6_PIN, false},
+    {{DI_7_MUX}, DI_7_PIN, false},
 };
 
-static const PinInfo DOUT_PINS[SKIFIO_DOUT_SIZE] = {
-    {{DOUT_0_MUX}, DOUT_0_PIN, false},
-    {{DOUT_1_MUX}, DOUT_1_PIN, false},
-    {{DOUT_2_MUX}, DOUT_2_PIN, false},
-    {{DOUT_3_MUX}, DOUT_3_PIN, false},
+static const PinInfo DO_PINS[SKIFIO_DO_SIZE] = {
+    {{DO_0_MUX}, DO_0_PIN, false},
+    {{DO_1_MUX}, DO_1_PIN, false},
+    {{DO_2_MUX}, DO_2_PIN, false},
+    {{DO_3_MUX}, DO_3_PIN, false},
 };
 
 typedef struct {
     HalGpioGroup group;
     HalGpioPin read_rdy;
     HalGpioPin smp_rdy;
-    HalGpioPin dac_keys[2];
+    HalGpioPin ao_keys[2];
 } SkifioControlPins;
 
 typedef struct {
     HalGpioGroup group;
-    HalGpioPin din[SKIFIO_DIN_SIZE];
-    HalGpioPin dout[SKIFIO_DOUT_SIZE];
+    HalGpioPin di[SKIFIO_DI_SIZE];
+    HalGpioPin do_[SKIFIO_DO_SIZE];
 } SkifioDioPins;
 
 typedef struct {
     SkifioControlPins ctrl_pins;
     SkifioDioPins dio_pins;
     SemaphoreHandle_t smp_rdy_sem;
-    volatile SkifioDinCallback din_callback;
-    void *volatile din_user_data;
+    volatile SkifioDiCallback di_callback;
+    void *volatile di_user_data;
     volatile size_t sample_skip_counter;
 } SkifioGlobalState;
 
@@ -129,19 +129,19 @@ static void smp_rdy_handler(void *user_data, HalGpioBlockIndex block, HalGpioPin
     portYIELD_FROM_ISR(hptw);
 }
 
-static void din_handler(void *data, HalGpioBlockIndex block, HalGpioPinMask pins) {
-    void *user_data = GS.din_user_data;
-    SkifioDinCallback callback = GS.din_callback;
+static void di_handler(void *data, HalGpioBlockIndex block, HalGpioPinMask pins) {
+    void *user_data = GS.di_user_data;
+    SkifioDiCallback callback = GS.di_callback;
     if (callback != NULL) {
-        callback(user_data, skifio_din_read());
+        callback(user_data, skifio_di_read());
     }
 }
 
 void init_ctrl_pins() {
     IOMUXC_SetPinMux(SMP_RDY_MUX, 0U);
     IOMUXC_SetPinMux(READ_RDY_MUX, 0U);
-    IOMUXC_SetPinMux(DAC_KEY_0_MUX, 0U);
-    IOMUXC_SetPinMux(DAC_KEY_1_MUX, 0U);
+    IOMUXC_SetPinMux(AO_KEY_0_MUX, 0U);
+    IOMUXC_SetPinMux(AO_KEY_1_MUX, 0U);
 
     hal_assert(hal_gpio_group_init(&GS.ctrl_pins.group) == HAL_SUCCESS);
     hal_assert(
@@ -152,17 +152,17 @@ void init_ctrl_pins() {
         == HAL_SUCCESS);
     hal_assert(
         hal_gpio_pin_init(
-            &GS.ctrl_pins.dac_keys[0],
+            &GS.ctrl_pins.ao_keys[0],
             &GS.ctrl_pins.group,
-            DAC_KEY_0_PIN,
+            AO_KEY_0_PIN,
             HAL_GPIO_OUTPUT,
             HAL_GPIO_INTR_DISABLED)
         == HAL_SUCCESS);
     hal_assert(
         hal_gpio_pin_init(
-            &GS.ctrl_pins.dac_keys[1],
+            &GS.ctrl_pins.ao_keys[1],
             &GS.ctrl_pins.group,
-            DAC_KEY_1_PIN,
+            AO_KEY_1_PIN,
             HAL_GPIO_OUTPUT,
             HAL_GPIO_INTR_DISABLED)
         == HAL_SUCCESS);
@@ -172,12 +172,12 @@ void init_ctrl_pins() {
 void init_dio_pins() {
     hal_assert(hal_gpio_group_init(&GS.dio_pins.group) == HAL_SUCCESS);
 
-    for (size_t i = 0; i < SKIFIO_DIN_SIZE; ++i) {
-        const PinInfo *pin = &DIN_PINS[i];
+    for (size_t i = 0; i < SKIFIO_DI_SIZE; ++i) {
+        const PinInfo *pin = &DI_PINS[i];
         IOMUXC_SetPinMux(pin->mux[0], pin->mux[1], pin->mux[2], pin->mux[3], pin->mux[4], 0U);
         hal_assert(
             hal_gpio_pin_init(
-                &GS.dio_pins.din[i],
+                &GS.dio_pins.di[i],
                 &GS.dio_pins.group,
                 pin->block,
                 pin->index,
@@ -186,12 +186,12 @@ void init_dio_pins() {
             == HAL_SUCCESS);
     }
 
-    for (size_t i = 0; i < SKIFIO_DOUT_SIZE; ++i) {
-        const PinInfo *pin = &DOUT_PINS[i];
+    for (size_t i = 0; i < SKIFIO_DO_SIZE; ++i) {
+        const PinInfo *pin = &DO_PINS[i];
         IOMUXC_SetPinMux(pin->mux[0], pin->mux[1], pin->mux[2], pin->mux[3], pin->mux[4], 0U);
         hal_assert(
             hal_gpio_pin_init(
-                &GS.dio_pins.dout[i],
+                &GS.dio_pins.do_[i],
                 &GS.dio_pins.group,
                 pin->block,
                 pin->index,
@@ -200,12 +200,12 @@ void init_dio_pins() {
             == HAL_SUCCESS);
     }
 
-    hal_assert(hal_gpio_group_set_intr(&GS.dio_pins.group, din_handler, NULL) == HAL_SUCCESS);
+    hal_assert(hal_gpio_group_set_intr(&GS.dio_pins.group, di_handler, NULL) == HAL_SUCCESS);
 }
 
-void switch_dac_keys(bool state) {
-    hal_gpio_pin_write(&GS.ctrl_pins.dac_keys[0], state);
-    hal_gpio_pin_write(&GS.ctrl_pins.dac_keys[1], state);
+void switch_ao_keys(bool state) {
+    hal_gpio_pin_write(&GS.ctrl_pins.ao_keys[0], state);
+    hal_gpio_pin_write(&GS.ctrl_pins.ao_keys[1], state);
 }
 
 hal_retcode init_spi() {
@@ -244,8 +244,8 @@ hal_retcode init_spi() {
 hal_retcode skifio_init() {
     hal_retcode ret;
 
-    GS.din_callback = NULL;
-    GS.din_user_data = NULL;
+    GS.di_callback = NULL;
+    GS.di_user_data = NULL;
 
     GS.sample_skip_counter = FIRST_SAMPLES_TO_SKIP;
 
@@ -270,7 +270,7 @@ hal_retcode skifio_init() {
 
 hal_retcode skifio_deinit() {
     hal_gpio_group_set_intr(&GS.ctrl_pins.group, NULL, NULL);
-    switch_dac_keys(false);
+    switch_ao_keys(false);
 
     hal_retcode st = hal_spi_disable(SPI_DEV_ID);
     if (st != HAL_SUCCESS) {
@@ -280,13 +280,13 @@ hal_retcode skifio_deinit() {
     return HAL_SUCCESS;
 }
 
-hal_retcode skifio_dac_enable() {
-    switch_dac_keys(true);
+hal_retcode skifio_ao_enable() {
+    switch_ao_keys(true);
     return HAL_SUCCESS;
 }
 
-hal_retcode skifio_dac_disable() {
-    switch_dac_keys(false);
+hal_retcode skifio_ao_disable() {
+    switch_ao_keys(false);
     return HAL_SUCCESS;
 }
 
@@ -300,8 +300,8 @@ hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in) {
     tx[0] = 0x55;
     tx[1] = 0xAA;
 
-    // Store DAC value
-    memcpy(tx + 2, &out->dac, 4);
+    // Store AO value
+    memcpy(tx + 2, &out->ao, 4);
 
     // Store CRC
     calc_crc = calculate_crc16(tx, 6);
@@ -321,8 +321,8 @@ hal_retcode skifio_transfer(const SkifioOutput *out, SkifioInput *in) {
         rx[i] = (uint8_t)rx4[i];
     }
 
-    // Load ADC values, temp and status
-    const size_t in_data_len = SKIFIO_ADC_CHANNEL_COUNT * 4 + 1 + 1;
+    // Load AI values, temp and status
+    const size_t in_data_len = SKIFIO_AI_CHANNEL_COUNT * 4 + 1 + 1;
     memcpy(in, rx, in_data_len);
 
     // Load and check CRC
@@ -349,37 +349,37 @@ hal_retcode skifio_wait_ready(uint32_t timeout_ms) {
     return HAL_SUCCESS;
 }
 
-hal_retcode skifio_dout_write(SkifioDout value) {
-    if ((value & ~((1 << SKIFIO_DOUT_SIZE) - 1)) != 0) {
+hal_retcode skifio_do_write(SkifioDo value) {
+    if ((value & ~((1 << SKIFIO_DO_SIZE) - 1)) != 0) {
         return HAL_INVALID_INPUT;
     }
-    for (size_t i = 0; i < SKIFIO_DOUT_SIZE; ++i) {
-        hal_gpio_pin_write(&GS.dio_pins.dout[i], (value & (1 << i)) != 0);
+    for (size_t i = 0; i < SKIFIO_DO_SIZE; ++i) {
+        hal_gpio_pin_write(&GS.dio_pins.do_[i], (value & (1 << i)) != 0);
     }
     return HAL_SUCCESS;
 }
 
-SkifioDin skifio_din_read() {
-    SkifioDin value = 0;
-    for (size_t i = 0; i < SKIFIO_DIN_SIZE; ++i) {
-        if (hal_gpio_pin_read(&GS.dio_pins.din[i])) {
-            value |= (SkifioDin)(1 << i);
+SkifioDi skifio_di_read() {
+    SkifioDi value = 0;
+    for (size_t i = 0; i < SKIFIO_DI_SIZE; ++i) {
+        if (hal_gpio_pin_read(&GS.dio_pins.di[i])) {
+            value |= (SkifioDi)(1 << i);
         }
     }
     return value;
 }
 
-hal_retcode skifio_din_subscribe(SkifioDinCallback callback, void *data) {
-    if (GS.din_callback != NULL) {
+hal_retcode skifio_di_subscribe(SkifioDiCallback callback, void *data) {
+    if (GS.di_callback != NULL) {
         return HAL_FAILURE;
     }
-    GS.din_callback = callback;
-    GS.din_user_data = data;
+    GS.di_callback = callback;
+    GS.di_user_data = data;
     return HAL_SUCCESS;
 }
 
-hal_retcode skifio_din_unsubscribe() {
-    GS.din_callback = NULL;
-    GS.din_user_data = NULL;
+hal_retcode skifio_di_unsubscribe() {
+    GS.di_callback = NULL;
+    GS.di_user_data = NULL;
     return HAL_SUCCESS;
 }

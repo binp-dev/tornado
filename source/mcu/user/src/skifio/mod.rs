@@ -41,7 +41,7 @@ pub trait SkifioIface: Send + Sync {
     fn wait_ready(&mut self, timeout: Option<Duration>) -> Result<(), Error>;
     fn transfer(&mut self, out: XferOut) -> Result<XferIn, Error>;
 
-    fn write_do(&mut self, dout: Do) -> Result<(), Error>;
+    fn write_do(&mut self, do_: Do) -> Result<(), Error>;
 
     fn read_di(&mut self) -> Di;
     fn subscribe_di(&mut self, callback: Option<Box<dyn DiHandler>>) -> Result<(), Error>;

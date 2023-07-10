@@ -24,10 +24,10 @@ pub const AI_BUFFER_LEN: usize = 16384;
 #[cfg(feature = "fake")]
 pub const BUFFER_TIMEOUT: Option<Duration> = Some(Duration::from_millis(1000));
 
-pub type DacBuffer = Rb<Point, AO_BUFFER_LEN>;
-pub type AdcBuffer = Rb<[Point; AI_COUNT], AI_BUFFER_LEN>;
+pub type AoBuffer = Rb<Point, AO_BUFFER_LEN>;
+pub type AiBuffer = Rb<[Point; AI_COUNT], AI_BUFFER_LEN>;
 
-pub type AoObserver = Obs<&'static DacBuffer>;
+pub type AoObserver = Obs<&'static AoBuffer>;
 pub type AoProducer = Prod<'static, Point, AO_BUFFER_LEN>;
 pub type AoConsumer = Cons<'static, Point, AO_BUFFER_LEN>;
 

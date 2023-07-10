@@ -32,7 +32,7 @@ pub struct Statistics {
     sync_count: AtomicUsize,
     /// Number of SkifIO `SMP_RDY` signals captured.
     ready_count: AtomicUsize,
-    /// Number of ADC/DAC samples.
+    /// Number of AI/AO samples.
     sample_count: AtomicUsize,
     intrs_per_sample: AtomicUsize,
     /// Maximum number of `SMP_RDY` per SkifIO communication session.
@@ -53,9 +53,9 @@ pub struct Statistics {
 
 #[derive(Default)]
 pub struct StatsAo {
-    /// Number of points lost because the DAC buffer was empty.
+    /// Number of points lost because the AO buffer was empty.
     lost_empty: AtomicUsize,
-    /// Number of points lost because the DAC buffer was full.
+    /// Number of points lost because the AO buffer was full.
     lost_full: AtomicUsize,
     /// IOC sent more points than were requested.
     req_exceed: AtomicUsize,
@@ -65,7 +65,7 @@ pub struct StatsAo {
 
 #[derive(Default)]
 pub struct StatsAis {
-    /// Number of points lost because the ADC buffer was full.
+    /// Number of points lost because the AI buffer was full.
     lost_full: AtomicUsize,
 
     values: [ValueStats; AI_COUNT],
@@ -248,9 +248,9 @@ impl Display for StatsAis {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "lost_full: {}", self.lost_full.load(Ordering::Relaxed))?;
 
-        for (i, adc) in self.values.iter().enumerate() {
+        for (i, ai) in self.values.iter().enumerate() {
             writeln!(f, "{}:", i)?;
-            write!(indented(f), "{}", adc)?;
+            write!(indented(f), "{}", ai)?;
         }
         Ok(())
     }
