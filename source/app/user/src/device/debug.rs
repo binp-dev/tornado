@@ -13,7 +13,7 @@ impl Debug {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(epics: epics::Debug) -> DebugHandle {
         DebugHandle {
-            stats_reset: Box::pin(epics.stats_reset.into_stream().filter_map(|x| async move {
+            stats_reset: Box::pin(epics.reset_stats.into_stream().filter_map(|x| async move {
                 if x != 0 {
                     Some(())
                 } else {

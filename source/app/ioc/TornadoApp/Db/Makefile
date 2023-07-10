@@ -7,8 +7,11 @@ include $(TOP)/configure/CONFIG
 # Create and install (or just install) into <top>/db
 # databases, templates, substitutions like this
 #DB += xxx.db
-DB += Tornado.db
-#DB += Tornado.substitutions
+DB += ai.template ai.substitutions
+DB += ao.db
+DB += di.db
+DB += do.db
+DB += debug.db
 
 #----------------------------------------------------
 # If <anyname>.db template is not named <anyname>*.template add
@@ -17,4 +20,3 @@ DB += Tornado.db
 include $(TOP)/configure/RULES
 #----------------------------------------
 #  ADD RULES AFTER THIS LINE
-

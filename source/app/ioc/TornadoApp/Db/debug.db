@@ -1,0 +1,5 @@
+# Write 1 to this record to reset MCU statistics
+record(bo, "${PREFIX}DebugResetStats")
+{
+    field(DTYP, "ferrite")
+}

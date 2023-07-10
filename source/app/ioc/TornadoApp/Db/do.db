@@ -1,0 +1,6 @@
+# Discrete output
+record(mbboDirect, "${PREFIX}Do")
+{
+	field(DTYP, "ferrite")
+	field(NOBT, 4)
+}

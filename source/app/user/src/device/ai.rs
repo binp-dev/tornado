@@ -3,68 +3,40 @@ use crate::epics;
 use async_ringbuf::{traits::*, AsyncHeapRb};
 use common::values::{uv_to_volt, AtomicUv, Point, PointOpt, Uv};
 use ferrite::TypedVariable as Variable;
-use futures::{future::try_join_all, FutureExt};
 use ringbuf::traits::*;
 use std::{
     iter::ExactSizeIterator,
     sync::{atomic::Ordering, Arc},
 };
-use tokio::spawn;
 
-pub struct Adc {
-    array: AdcArray,
-    scalar: AdcScalar,
-}
-
-struct AdcArray {
+pub struct Ai {
     input: <AsyncHeapRb<Point> as Split>::Cons,
     output: Variable<[f64]>,
 }
 
-struct AdcScalar {
-    input: Arc<AtomicUv>,
-    output: Variable<f64>,
-}
-
-pub struct AdcHandle {
+pub struct AiHandle {
     buffer: <AsyncHeapRb<Point> as Split>::Prod,
     last_point: Arc<AtomicUv>,
 }
 
-impl Adc {
-    pub fn new(epics: epics::Adc) -> (Self, AdcHandle) {
-        let buffer = AsyncHeapRb::<Point>::new(2 * epics.array.max_len());
+impl Ai {
+    pub fn new(epics: epics::Ai) -> (Self, AiHandle) {
+        let buffer = AsyncHeapRb::<Point>::new(2 * epics.waveform.max_len());
         let (producer, consumer) = buffer.split();
         let last = Arc::new(AtomicUv::default());
         (
             Self {
-                array: AdcArray {
-                    input: consumer,
-                    output: epics.array,
-                },
-                scalar: AdcScalar {
-                    input: last.clone(),
-                    output: epics.scalar,
-                },
+                input: consumer,
+                output: epics.waveform,
             },
-            AdcHandle {
+            AiHandle {
                 buffer: producer,
                 last_point: last,
             },
         )
     }
-    pub async fn run(self) -> Result<(), Error> {
-        try_join_all([
-            spawn(self.array.run()).map(Result::unwrap),
-            spawn(self.scalar.run()).map(Result::unwrap),
-        ])
-        .await
-        .map(|_| ())
-    }
-}
 
-impl AdcArray {
-    async fn run(mut self) -> Result<(), Error> {
+    pub async fn run(mut self) -> Result<(), Error> {
         let max_len = self.output.max_len();
         loop {
             self.input.wait_occupied(max_len).await;
@@ -85,19 +57,7 @@ impl AdcArray {
     }
 }
 
-impl AdcScalar {
-    async fn run(mut self) -> Result<(), Error> {
-        loop {
-            self.output
-                .wait()
-                .await
-                .write(uv_to_volt(self.input.load(Ordering::Acquire)))
-                .await;
-        }
-    }
-}
-
-impl AdcHandle {
+impl AiHandle {
     pub async fn push_iter<I: ExactSizeIterator<Item = Point>>(&mut self, points: I) {
         let mut last = Uv::default();
         let len = points.len();

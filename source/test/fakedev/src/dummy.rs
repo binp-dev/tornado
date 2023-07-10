@@ -1,12 +1,12 @@
 use common::{
-    config::{ADC_COUNT, SAMPLE_PERIOD},
+    config::{AI_COUNT, SAMPLE_PERIOD},
     values::{try_volt_to_uv, Uv},
 };
 use fakedev::run;
 use std::{f64::consts::PI, time::Duration};
 use tokio::{main as async_main, task::spawn, time::sleep};
 
-const FREQS: [f64; ADC_COUNT] = [0.0, 1.0, PI, 10.0, 10.0 * PI, 100.0];
+const FREQS: [f64; AI_COUNT] = [0.0, 1.0, PI, 10.0, 10.0 * PI, 100.0];
 
 extern "C" {
     fn user_sample_intr();
@@ -15,17 +15,17 @@ extern "C" {
 #[async_main]
 async fn main() {
     let mut skifio = run();
-    let mut phases = [0.0_f64; ADC_COUNT];
+    let mut phases = [0.0_f64; AI_COUNT];
     spawn(async move {
         let mut counter: u64 = 0;
-        let mut adcs = [Uv::default(); ADC_COUNT];
+        let mut adcs = [Uv::default(); AI_COUNT];
         loop {
             skifio.adcs.send(adcs).await.unwrap();
             unsafe { user_sample_intr() };
 
             let dac = skifio.dac.recv().await.unwrap();
             adcs[0] = dac;
-            for i in 1..ADC_COUNT {
+            for i in 1..AI_COUNT {
                 adcs[i] = try_volt_to_uv(phases[i].sin()).unwrap();
                 phases[i] = 2.0 * PI * FREQS[i] * counter as f64 * SAMPLE_PERIOD.as_secs_f64();
             }

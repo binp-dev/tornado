@@ -11,7 +11,7 @@ pub use emul::*;
 use crate::Error;
 use alloc::boxed::Box;
 use common::{
-    config::ADC_COUNT,
+    config::AI_COUNT,
     values::{Din, Dout, Uv},
 };
 use core::time::Duration;
@@ -20,7 +20,7 @@ use ustd::task::InterruptContext;
 #[repr(C)]
 #[derive(Clone, Debug, Default)]
 pub struct XferIn {
-    pub adcs: [Uv; ADC_COUNT],
+    pub adcs: [Uv; AI_COUNT],
     pub temp: i8,
     pub status: u8,
 }

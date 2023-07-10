@@ -1,4 +1,4 @@
-use common::config::ADC_COUNT;
+use common::config::AI_COUNT;
 use ferrite::{
     registry::{CheckEmptyError, GetDowncastError},
     Context, Registry, TypedVariable as Variable,
@@ -13,51 +13,45 @@ pub enum Error {
     Unused(#[from] CheckEmptyError),
 }
 
-pub struct Dac {
-    pub scalar: Variable<f64>,
-    pub addition: Variable<f64>,
-    pub array: Variable<[f64]>,
-    pub request: Variable<u16>,
-    pub mode: Variable<u16>,
-    pub state: Variable<u16>,
+pub struct Ao {
+    pub next_waveform: Variable<[f64]>,
+    pub add: Variable<f64>,
+    pub next_cycle: Variable<u16>,
+    pub next_ready: Variable<u16>,
 }
 
-pub struct Adc {
-    pub scalar: Variable<f64>,
-    pub array: Variable<[f64]>,
+pub struct Ai {
+    pub waveform: Variable<[f64]>,
 }
 
 pub struct Debug {
-    pub stats_reset: Variable<u16>,
+    pub reset_stats: Variable<u16>,
 }
 
 /// EPICS interface
 pub struct Epics {
-    pub dac: Dac,
-    pub adc: [Adc; ADC_COUNT],
-    pub dout: Variable<u32>,
-    pub din: Variable<u32>,
+    pub ao: Ao,
+    pub ai: [Ai; AI_COUNT],
+    pub do_: Variable<u32>,
+    pub di: Variable<u32>,
     pub debug: Debug,
 }
 
-impl Dac {
-    fn new(reg: &mut Registry, index: usize) -> Result<Self, Error> {
+impl Ao {
+    fn new(reg: &mut Registry) -> Result<Self, Error> {
         Ok(Self {
-            scalar: reg.remove_downcast_suffix(&format!("ao{}", index))?,
-            addition: reg.remove_downcast_suffix(&format!("ao{}:corr", index))?,
-            array: reg.remove_downcast_suffix(&format!("aao{}", index))?,
-            request: reg.remove_downcast_suffix(&format!("aao{}_request", index))?,
-            mode: reg.remove_downcast_suffix(&format!("aao{}_mode", index))?,
-            state: reg.remove_downcast_suffix(&format!("aao{}_state", index))?,
+            next_waveform: reg.remove_downcast_suffix("Ao0Next")?,
+            add: reg.remove_downcast_suffix("Ao0Add")?,
+            next_ready: reg.remove_downcast_suffix("AoNextReady")?,
+            next_cycle: reg.remove_downcast_suffix("AoNextCycle")?,
         })
     }
 }
 
-impl Adc {
+impl Ai {
     fn new(reg: &mut Registry, index: usize) -> Result<Self, Error> {
         Ok(Self {
-            scalar: reg.remove_downcast_suffix(&format!("ai{}", index))?,
-            array: reg.remove_downcast_suffix(&format!("aai{}", index))?,
+            waveform: reg.remove_downcast_suffix(&format!("Ai{}", index))?,
         })
     }
 }
@@ -65,7 +59,7 @@ impl Adc {
 impl Debug {
     fn new(reg: &mut Registry) -> Result<Self, Error> {
         Ok(Self {
-            stats_reset: reg.remove_downcast_suffix("_stats_reset")?,
+            reset_stats: reg.remove_downcast_suffix("DebugResetStats")?,
         })
     }
 }
@@ -73,16 +67,15 @@ impl Debug {
 impl Epics {
     pub fn new(mut ctx: Context) -> Result<Self, Error> {
         let reg = &mut ctx.registry;
+        let mut ai = Vec::new();
+        for index in 0..AI_COUNT {
+            ai.push(Ai::new(reg, index)?);
+        }
         let self_ = Self {
-            dac: Dac::new(reg, 0)?,
-            adc: (0..ADC_COUNT)
-                .map(|i| Adc::new(reg, i))
-                .collect::<Result<Vec<_>, _>>()?
-                .try_into()
-                .ok()
-                .unwrap(),
-            dout: reg.remove_downcast_suffix("do0")?,
-            din: reg.remove_downcast_suffix("di0")?,
+            ao: Ao::new(reg)?,
+            ai: ai.try_into().ok().unwrap(),
+            do_: reg.remove_downcast_suffix("Do")?,
+            di: reg.remove_downcast_suffix("Di")?,
             debug: Debug::new(reg)?,
         };
         ctx.registry.check_empty()?;

@@ -11,7 +11,7 @@ use crate::{
 };
 use alloc::{boxed::Box, sync::Arc};
 use common::{
-    config::ADC_COUNT,
+    config::AI_COUNT,
     values::{AtomicBits, AtomicUv, Din, Dout, Point, PointOpt, Uv},
 };
 use core::{
@@ -58,7 +58,7 @@ struct ControlDac {
 
 struct ControlAdc {
     buffer: AdcProducer,
-    last_point: [Uv; ADC_COUNT],
+    last_point: [Uv; AI_COUNT],
     counter: usize,
 }
 
@@ -140,7 +140,7 @@ impl Control {
                 },
                 adc: ControlAdc {
                     buffer: adc_buf,
-                    last_point: [Uv::default(); ADC_COUNT],
+                    last_point: [Uv::default(); AI_COUNT],
                     counter: 0,
                 },
                 handle: handle.clone(),

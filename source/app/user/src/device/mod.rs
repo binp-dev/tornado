@@ -1,5 +1,5 @@
-mod adc;
-mod dac;
+mod ai;
+mod ao;
 mod debug;
 mod dio;
 mod dispatch;
@@ -8,8 +8,8 @@ use crate::{channel::Channel, epics::Epics, utils::misc::unzip_array};
 use common::config;
 use futures::future::{try_join_all, FutureExt};
 
-use adc::Adc;
-use dac::Dac;
+use ai::Ai;
+use ao::Ao;
 use debug::Debug;
 use dio::{Din, Dout};
 use dispatch::Dispatcher;
@@ -21,8 +21,8 @@ pub enum Error {
 }
 
 pub struct Device<C: Channel> {
-    dac: Dac,
-    adcs: [Adc; config::ADC_COUNT],
+    dac: Ao,
+    adcs: [Ai; config::AI_COUNT],
     din: Din,
     dout: Dout,
     dispatcher: Dispatcher<C>,
@@ -30,10 +30,10 @@ pub struct Device<C: Channel> {
 
 impl<C: Channel> Device<C> {
     pub async fn new(channel: C, epics: Epics) -> Self {
-        let (dac, dac_handle) = Dac::new(epics.dac);
-        let (adcs, adc_handles) = unzip_array(epics.adc.map(Adc::new));
-        let (din, din_handle) = Din::new(epics.din);
-        let (dout, dout_handle) = Dout::new(epics.dout);
+        let (dac, dac_handle) = Ao::new(epics.ao);
+        let (adcs, adc_handles) = unzip_array(epics.ai.map(Ai::new));
+        let (din, din_handle) = Din::new(epics.di);
+        let (dout, dout_handle) = Dout::new(epics.do_);
         let debug_handle = Debug::new(epics.debug);
         let dispatcher = Dispatcher::new(
             channel,

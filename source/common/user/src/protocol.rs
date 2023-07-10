@@ -1,5 +1,5 @@
 use crate::{
-    config::{ADC_COUNT, MAX_APP_MSG_LEN, MAX_MCU_MSG_LEN},
+    config::{AI_COUNT, MAX_APP_MSG_LEN, MAX_MCU_MSG_LEN},
     values::{Din, Dout, Point, Uv},
 };
 use core::mem::size_of;
@@ -30,7 +30,7 @@ pub enum McuMsg {
         count: u32,
     },
     AdcData {
-        points: FlatVec<[Point; ADC_COUNT], u16>,
+        points: FlatVec<[Point; AI_COUNT], u16>,
     },
     Error {
         code: u8,
@@ -51,4 +51,4 @@ pub const DAC_MSG_MAX_POINTS: usize = (floor_mul(MAX_APP_MSG_LEN, AppMsg::ALIGN)
 pub const ADC_MSG_MAX_POINTS: usize = (floor_mul(MAX_MCU_MSG_LEN, McuMsg::ALIGN)
     - ceil_mul(size_of::<McuMsgTag>(), McuMsg::ALIGN)
     - ceil_mul(size_of::<u16>(), Point::ALIGN))
-    / (ADC_COUNT * size_of::<Point>());
+    / (AI_COUNT * size_of::<Point>());

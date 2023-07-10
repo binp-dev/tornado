@@ -1,5 +1,5 @@
 use common::{
-    config::ADC_COUNT,
+    config::AI_COUNT,
     values::{AtomicBits, Din, Dout, Uv},
 };
 use futures::{future::pending, FutureExt};
@@ -28,7 +28,7 @@ const DOUT_CHAN_CAP: usize = 16;
 
 pub struct SkifioHandle {
     pub dac: Receiver<Uv>,
-    pub adcs: Sender<[Uv; ADC_COUNT]>,
+    pub adcs: Sender<[Uv; AI_COUNT]>,
     pub dout: Receiver<Dout>,
     pub din: Sender<Din>,
 }
@@ -36,8 +36,8 @@ pub struct SkifioHandle {
 struct Skifio {
     dac: Sender<Uv>,
     dac_enabled: bool,
-    adcs: Receiver<[Uv; ADC_COUNT]>,
-    last_adcs: Option<[Uv; ADC_COUNT]>,
+    adcs: Receiver<[Uv; AI_COUNT]>,
+    last_adcs: Option<[Uv; AI_COUNT]>,
 
     dout: Sender<Dout>,
     last_din: Arc<AtomicBits>,

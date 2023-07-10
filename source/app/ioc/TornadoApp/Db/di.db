@@ -1,0 +1,7 @@
+# Discrete input
+record(mbbiDirect, "${PREFIX}Di")
+{
+	field(DTYP, "ferrite")
+	field(NOBT, 8)
+	field(SCAN, "I/O Intr")
+}

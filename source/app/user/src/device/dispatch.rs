@@ -1,6 +1,6 @@
 use super::{
-    adc::AdcHandle,
-    dac::DacHandle,
+    ai::AiHandle,
+    ao::AoHandle,
     debug::DebugHandle,
     dio::{DinHandle, DoutHandle},
     Error,
@@ -9,7 +9,7 @@ use crate::channel::Channel;
 use async_atomic::{Atomic as AsyncAtomic, Subscriber};
 use async_compat::Compat;
 use common::{
-    config::{self, ADC_COUNT},
+    config::{self, AI_COUNT},
     protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
     values::Point,
 };
@@ -26,7 +26,7 @@ pub struct Dispatcher<C: Channel> {
 
 struct Writer<C: Channel> {
     channel: Mutex<MsgWriter<AppMsg, Compat<C::Write>>>,
-    dac: DacHandle,
+    dac: AoHandle,
     dac_write_count: Subscriber<usize>,
     dout: DoutHandle,
     debug: DebugHandle,
@@ -34,7 +34,7 @@ struct Writer<C: Channel> {
 
 struct Reader<C: Channel> {
     channel: MsgReader<McuMsg, Compat<C::Read>>,
-    adcs: [AdcHandle; ADC_COUNT],
+    adcs: [AiHandle; AI_COUNT],
     dac_write_count: Arc<AsyncAtomic<usize>>,
     din: DinHandle,
 }
@@ -42,8 +42,8 @@ struct Reader<C: Channel> {
 impl<C: Channel> Dispatcher<C> {
     pub async fn new(
         channel: C,
-        dac: DacHandle,
-        adcs: [AdcHandle; ADC_COUNT],
+        dac: AoHandle,
+        adcs: [AiHandle; AI_COUNT],
         din: DinHandle,
         dout: DoutHandle,
         debug: DebugHandle,
@@ -172,7 +172,7 @@ impl<C: Channel> Writer<C> {
                 let channel = channel.clone();
                 async move {
                     loop {
-                        let value = self.dac.addition.next().await.unwrap();
+                        let value = self.dac.add.next().await.unwrap();
                         send_message(&channel, proto::AppMsgInitDacAdd { value }).await?;
                     }
                 }

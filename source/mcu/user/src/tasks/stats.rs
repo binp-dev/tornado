@@ -1,7 +1,7 @@
 use crate::println;
 use alloc::sync::Arc;
 use common::{
-    config::ADC_COUNT,
+    config::AI_COUNT,
     values::{AtomicUv, Uv},
 };
 use core::{
@@ -68,7 +68,7 @@ pub struct StatsAdc {
     /// Number of points lost because the ADC buffer was full.
     lost_full: AtomicUsize,
 
-    values: [ValueStats; ADC_COUNT],
+    values: [ValueStats; AI_COUNT],
 }
 
 #[derive(Default)]
@@ -177,7 +177,7 @@ impl StatsAdc {
         #[cfg(feature = "fake")]
         panic!("ADC ring buffer is full");
     }
-    pub fn update_values(&self, values: [Uv; ADC_COUNT]) {
+    pub fn update_values(&self, values: [Uv; AI_COUNT]) {
         self.values.iter().zip(values).for_each(|(v, x)| v.update(x));
     }
 }

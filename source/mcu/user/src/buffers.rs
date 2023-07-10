@@ -1,4 +1,4 @@
-use common::{config::ADC_COUNT, values::Point};
+use common::{config::AI_COUNT, values::Point};
 #[cfg(feature = "fake")]
 use core::time::Duration;
 use once_mut::once_mut;
@@ -25,16 +25,16 @@ pub const ADC_BUFFER_LEN: usize = 16384;
 pub const BUFFER_TIMEOUT: Option<Duration> = Some(Duration::from_millis(1000));
 
 pub type DacBuffer = Rb<Point, DAC_BUFFER_LEN>;
-pub type AdcBuffer = Rb<[Point; ADC_COUNT], ADC_BUFFER_LEN>;
+pub type AdcBuffer = Rb<[Point; AI_COUNT], ADC_BUFFER_LEN>;
 
 pub type DacObserver = Obs<&'static DacBuffer>;
 pub type DacProducer = Prod<'static, Point, DAC_BUFFER_LEN>;
 pub type DacConsumer = Cons<'static, Point, DAC_BUFFER_LEN>;
 
-pub type AdcProducer = Prod<'static, [Point; ADC_COUNT], ADC_BUFFER_LEN>;
-pub type AdcConsumer = Cons<'static, [Point; ADC_COUNT], ADC_BUFFER_LEN>;
+pub type AdcProducer = Prod<'static, [Point; AI_COUNT], ADC_BUFFER_LEN>;
+pub type AdcConsumer = Cons<'static, [Point; AI_COUNT], ADC_BUFFER_LEN>;
 
 once_mut! {
     pub static mut DAC_BUFFER: Rb<Point, DAC_BUFFER_LEN> = Rb::default();
-    pub static mut ADC_BUFFER: Rb<[Point; ADC_COUNT], ADC_BUFFER_LEN> = Rb::default();
+    pub static mut ADC_BUFFER: Rb<[Point; AI_COUNT], ADC_BUFFER_LEN> = Rb::default();
 }

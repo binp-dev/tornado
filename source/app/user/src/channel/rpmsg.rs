@@ -73,6 +73,7 @@ impl Channel for Rpmsg {
 }
 
 impl Rpmsg {
+    #[allow(dead_code)]
     pub fn split_blocking(self) -> (Reader, Writer) {
         let raw = Arc::new(self);
         (Reader { raw: raw.clone() }, Writer { raw })

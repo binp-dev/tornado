@@ -1,7 +1,7 @@
 use super::{scale, user_sample_intr};
 use approx::assert_abs_diff_eq;
 use common::{
-    config::ADC_COUNT,
+    config::AI_COUNT,
     values::{try_volt_to_uv, Uv, VOLT_EPS},
 };
 use fakedev::epics;
@@ -16,8 +16,8 @@ use std::{
 use tokio::{sync::mpsc::Sender, task::spawn, time::sleep};
 
 pub async fn test(
-    mut epics: [epics::Adc; ADC_COUNT],
-    device: Sender<[Uv; ADC_COUNT]>,
+    mut epics: [epics::Adc; AI_COUNT],
+    device: Sender<[Uv; AI_COUNT]>,
     attempts: usize,
     pbs: (ProgressBar, ProgressBar),
 ) {
@@ -39,7 +39,7 @@ pub async fn test(
         .map(move |x| {
             {
                 let mut k = 0;
-                [(); ADC_COUNT].map(|()| {
+                [(); AI_COUNT].map(|()| {
                     let r = k;
                     k += 1;
                     r
@@ -80,7 +80,7 @@ pub async fn test(
             let points = {
                 let mut iters = wfs.into_iter().map(|wf| wf.into_iter()).collect::<Vec<_>>();
                 repeat_with(move || {
-                    let mut res = [None; ADC_COUNT];
+                    let mut res = [None; AI_COUNT];
                     for (i, a) in iters.iter_mut().enumerate() {
                         res[i] = a.next();
                     }

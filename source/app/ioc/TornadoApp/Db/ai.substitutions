@@ -1,0 +1,9 @@
+file "db/ai.template" { pattern
+{INDEX}
+{0}
+{1}
+{2}
+{3}
+{4}
+{5}
+}

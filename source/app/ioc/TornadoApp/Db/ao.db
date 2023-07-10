@@ -1,0 +1,27 @@
+record(aao, "${PREFIX}Ao0Next")
+{
+    field(DTYP, "ferrite")
+    field(NELM, 10000)
+    field(FTVL, "DOUBLE")
+}
+
+
+record(ao, "${PREFIX}Ao0Add")
+{
+    field(DTYP, "ferrite")
+    field(PREC, 6)
+}
+
+record(bo, "${PREFIX}AoNextCycle")
+{
+    field(DTYP, "ferrite")
+    field(RVAL, 0)
+    field(PINI, "YES")
+}
+
+record(bi, "${PREFIX}AoNextReady")
+{
+    field(DTYP, "ferrite")
+    field(SCAN, "I/O Intr")
+    field(PINI, "YES")
+}

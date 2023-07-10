@@ -1,4 +1,4 @@
-use common::config::{ADC_COUNT, DIN_BITS, DOUT_BITS};
+use common::config::{AI_COUNT, DIN_BITS, DOUT_BITS};
 use epics_ca::{
     error,
     types::{EpicsEnum, Value},
@@ -14,20 +14,17 @@ use tokio::time::timeout;
 
 pub struct Dac {
     pub array: Channel<[f64]>,
-    pub scalar: Channel<f64>,
     pub request: Channel<EpicsEnum>,
-    pub state: Channel<EpicsEnum>,
     pub mode: Channel<EpicsEnum>,
 }
 
 pub struct Adc {
     pub array: Channel<[f64]>,
-    pub scalar: Channel<f64>,
 }
 
 pub struct Epics {
     pub dac: Dac,
-    pub adc: [Adc; ADC_COUNT],
+    pub adc: [Adc; AI_COUNT],
     pub dout: [Channel<u8>; DOUT_BITS],
     pub din: [Channel<u8>; DIN_BITS],
 }
@@ -59,27 +56,22 @@ impl Epics {
     pub async fn connect(ctx: &Context, prefix: &str) -> Self {
         Self {
             dac: Dac {
-                array: connect(ctx, &cformat!("{}aao0", prefix)).await.unwrap(),
-                scalar: connect(ctx, &cformat!("{}ao0", prefix)).await.unwrap(),
-                request: connect(ctx, &cformat!("{}aao0_request", prefix))
+                array: connect(ctx, &cformat!("{}Ao0Next", prefix)).await.unwrap(),
+                request: connect(ctx, &cformat!("{}AoNextReady", prefix))
                     .await
                     .unwrap(),
-                state: connect(ctx, &cformat!("{}aao0_state", prefix))
-                    .await
-                    .unwrap(),
-                mode: connect(ctx, &cformat!("{}aao0_mode", prefix))
+                mode: connect(ctx, &cformat!("{}AoNextCycle", prefix))
                     .await
                     .unwrap(),
             },
             adc: make_array(|i| async move {
                 Adc {
-                    array: connect(ctx, &cformat!("{}aai{}", prefix, i)).await.unwrap(),
-                    scalar: connect(ctx, &cformat!("{}ai{}", prefix, i)).await.unwrap(),
+                    array: connect(ctx, &cformat!("{}Ai{}", prefix, i)).await.unwrap(),
                 }
             })
             .await,
             dout: async {
-                let nobt = connect::<i16>(ctx, &cformat!("{}do0.NOBT", prefix))
+                let nobt = connect::<i16>(ctx, &cformat!("{}Do.NOBT", prefix))
                     .await
                     .unwrap()
                     .get()
@@ -88,7 +80,7 @@ impl Epics {
                 assert_eq!(nobt as usize, DOUT_BITS);
 
                 make_array(|i| async move {
-                    connect(ctx, &cformat!("{}do0.B{:X}", prefix, i))
+                    connect(ctx, &cformat!("{}Do.B{:X}", prefix, i))
                         .await
                         .unwrap()
                 })
@@ -96,7 +88,7 @@ impl Epics {
             }
             .await,
             din: async {
-                let nobt = connect::<i16>(ctx, &cformat!("{}di0.NOBT", prefix))
+                let nobt = connect::<i16>(ctx, &cformat!("{}Di.NOBT", prefix))
                     .await
                     .unwrap()
                     .get()
@@ -105,7 +97,7 @@ impl Epics {
                 assert_eq!(nobt as usize, DIN_BITS);
 
                 make_array(|i| async move {
-                    connect(ctx, &cformat!("{}di0.B{:X}", prefix, i))
+                    connect(ctx, &cformat!("{}Di.B{:X}", prefix, i))
                         .await
                         .unwrap()
                 })

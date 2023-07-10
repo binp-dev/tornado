@@ -25,7 +25,7 @@ async fn main() {
     let epics = Epics::connect(&ctx, PREFIX).await;
     let (dac_m, dac_sty) = (m.clone(), sty.clone());
     let dac = spawn(async move {
-        let context = dac::Context {
+        let mut context = dac::Context {
             epics: epics.dac,
             device: skifio.dac,
         };
@@ -42,6 +42,7 @@ async fn main() {
                 .with_style(sty.clone())
                 .with_prefix("DAC.SkifIO"),
         );
+        context.epics.mode.put(EpicsEnum(1)).unwrap().await.unwrap();
         let mut context = dac::test(context, ATTEMPTS, (ppb, cpb.clone())).await;
 
         let ppb = m.insert_after(
@@ -56,7 +57,7 @@ async fn main() {
                 .with_style(sty.clone())
                 .with_prefix("DAC(Cyclic).SkifIO"),
         );
-        context.epics.mode.put(EpicsEnum(1)).unwrap().await.unwrap();
+        context.epics.mode.put(EpicsEnum(0)).unwrap().await.unwrap();
         dac::test_cyclic(context, CYCLIC_ATTEMPTS, (ppb, cpb)).await;
     })
     .map(Result::unwrap);

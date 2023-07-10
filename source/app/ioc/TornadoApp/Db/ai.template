@@ -1,0 +1,7 @@
+record(aai, "${PREFIX}Ai${INDEX}")
+{
+    field(DTYP, "ferrite")
+    field(NELM, 10000)
+    field(FTVL, "DOUBLE")
+    field(SCAN, "I/O Intr")
+}
