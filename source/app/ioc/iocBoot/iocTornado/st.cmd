@@ -1,6 +1,5 @@
 #!../../bin/linux-x86_64/Tornado
 
-#< /opt/env.cmd
 < envPaths
 
 cd "${TOP}"
@@ -9,7 +8,9 @@ cd "${TOP}"
 dbLoadDatabase("dbd/Tornado.dbd", 0, 0)
 Tornado_registerRecordDeviceDriver(pdbbase) 
 
-epicsEnvSet("PREFIX","tornado0:")
+## Conditionally set PREFIX
+epicsEnvSet("PREFIX", "${DEV_NAME=tornado0}:")
+
 ## Load record instances
 dbLoadTemplate("db/ai.substitutions", "PREFIX=${PREFIX}")
 dbLoadRecords("db/ao.db", "PREFIX=${PREFIX}")
