@@ -1,6 +1,6 @@
 use crate::{
     config::{AI_COUNT, MAX_APP_MSG_LEN, MAX_MCU_MSG_LEN},
-    values::{Din, Dout, Point, Uv},
+    values::{Di, Do, Point, Uv},
 };
 use core::mem::size_of;
 use flatty::{
@@ -14,22 +14,22 @@ use flatty::{
 #[flat(sized = false, tag_type = "u8")]
 pub enum AppMsg {
     KeepAlive,
-    DoutUpdate { value: Dout },
-    DacState { enable: Bool },
-    DacData { points: FlatVec<Point, u16> },
-    DacAdd { value: Uv },
+    DoUpdate { value: Do },
+    AoState { enable: Bool },
+    AoData { points: FlatVec<Point, u16> },
+    AoAdd { value: Uv },
     StatsReset,
 }
 
 #[flat(sized = false, tag_type = "u8")]
 pub enum McuMsg {
-    DinUpdate {
-        value: Din,
+    DiUpdate {
+        value: Di,
     },
-    DacRequest {
+    AoRequest {
         count: u32,
     },
-    AdcData {
+    AiData {
         points: FlatVec<[Point; AI_COUNT], u16>,
     },
     Error {
@@ -42,13 +42,13 @@ pub enum McuMsg {
 }
 
 /// Calculate `AppMsg::DacData::points` capacity based on its layout.
-pub const DAC_MSG_MAX_POINTS: usize = (floor_mul(MAX_APP_MSG_LEN, AppMsg::ALIGN)
+pub const AO_MSG_MAX_POINTS: usize = (floor_mul(MAX_APP_MSG_LEN, AppMsg::ALIGN)
     - ceil_mul(size_of::<AppMsgTag>(), AppMsg::ALIGN)
     - ceil_mul(size_of::<u16>(), Point::ALIGN))
     / size_of::<Point>();
 
 /// Calculate `McuMsg::AdcData::points` capacity based on its layout.
-pub const ADC_MSG_MAX_POINTS: usize = (floor_mul(MAX_MCU_MSG_LEN, McuMsg::ALIGN)
+pub const AI_MSG_MAX_POINTS: usize = (floor_mul(MAX_MCU_MSG_LEN, McuMsg::ALIGN)
     - ceil_mul(size_of::<McuMsgTag>(), McuMsg::ALIGN)
     - ceil_mul(size_of::<u16>(), Point::ALIGN))
     / (AI_COUNT * size_of::<Point>());

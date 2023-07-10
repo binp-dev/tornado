@@ -20,7 +20,7 @@ impl Ao {
 
         let ready = AtomicVariable::new(epics.next_ready);
         ready.store(1);
-        let next_cycle = AtomicVariable::new(epics.next_cycle);
+        let cycle = AtomicVariable::new(epics.next_cycle);
         let add = GenericSubscriber::new(AtomicVariable::new(epics.add));
 
         (
@@ -32,10 +32,7 @@ impl Ao {
                 },
             },
             AoHandle {
-                buffer: read_buffer.into_iter(AoModifier {
-                    ready,
-                    cycle: next_cycle,
-                }),
+                buffer: read_buffer.into_iter(AoModifier { ready, cycle }),
                 add: Box::pin(add.into_stream().map(volt_to_uv_saturating)),
             },
         )

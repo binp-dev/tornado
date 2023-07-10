@@ -11,7 +11,7 @@ use futures::future::{try_join_all, FutureExt};
 use ai::Ai;
 use ao::Ao;
 use debug::Debug;
-use dio::{Din, Dout};
+use dio::{Di, Do};
 use dispatch::Dispatcher;
 use tokio::spawn;
 
@@ -21,45 +21,45 @@ pub enum Error {
 }
 
 pub struct Device<C: Channel> {
-    dac: Ao,
-    adcs: [Ai; config::AI_COUNT],
-    din: Din,
-    dout: Dout,
+    ao: Ao,
+    ais: [Ai; config::AI_COUNT],
+    di: Di,
+    do_: Do,
     dispatcher: Dispatcher<C>,
 }
 
 impl<C: Channel> Device<C> {
     pub async fn new(channel: C, epics: Epics) -> Self {
-        let (dac, dac_handle) = Ao::new(epics.ao);
-        let (adcs, adc_handles) = unzip_array(epics.ai.map(Ai::new));
-        let (din, din_handle) = Din::new(epics.di);
-        let (dout, dout_handle) = Dout::new(epics.do_);
+        let (ao, ao_handle) = Ao::new(epics.ao);
+        let (ais, ai_handles) = unzip_array(epics.ais.map(Ai::new));
+        let (di, di_handle) = Di::new(epics.di);
+        let (do_, do_handle) = Do::new(epics.do_);
         let debug_handle = Debug::new(epics.debug);
         let dispatcher = Dispatcher::new(
             channel,
-            dac_handle,
-            adc_handles,
-            din_handle,
-            dout_handle,
+            ao_handle,
+            ai_handles,
+            di_handle,
+            do_handle,
             debug_handle,
         )
         .await;
         Self {
-            dac,
-            adcs,
-            din,
-            dout,
+            ao,
+            ais,
+            di,
+            do_,
             dispatcher,
         }
     }
 
     pub async fn run(self) {
         let res = try_join_all([
-            spawn(self.dac.run()).map(Result::unwrap),
-            spawn(try_join_all(self.adcs.map(|adc| adc.run())).map(|r| r.map(|_| ())))
+            spawn(self.ao.run()).map(Result::unwrap),
+            spawn(try_join_all(self.ais.map(|adc| adc.run())).map(|r| r.map(|_| ())))
                 .map(Result::unwrap),
-            spawn(self.din.run()).map(Result::unwrap),
-            spawn(self.dout.run()).map(Result::unwrap),
+            spawn(self.di.run()).map(Result::unwrap),
+            spawn(self.do_.run()).map(Result::unwrap),
             spawn(self.dispatcher.run()).map(Result::unwrap),
         ])
         .await;

@@ -4,7 +4,7 @@ use crate::{
 };
 use core::ffi::c_void;
 
-pub type RawDinCallback = extern "C" fn(*mut c_void, Din);
+pub type RawDinCallback = extern "C" fn(*mut c_void, Di);
 
 extern "C" {
     pub fn skifio_init() -> RetCode;
@@ -16,9 +16,9 @@ extern "C" {
     pub fn skifio_transfer(out: *const XferOut, in_: *mut XferIn) -> RetCode;
     pub fn skifio_wait_ready(timeout: Timeout) -> RetCode;
 
-    pub fn skifio_dout_write(value: Dout) -> RetCode;
+    pub fn skifio_dout_write(value: Do) -> RetCode;
 
-    pub fn skifio_din_read() -> Din;
+    pub fn skifio_din_read() -> Di;
     pub fn skifio_din_subscribe(callback: *mut RawDinCallback, data: *mut c_void) -> RetCode;
     pub fn skifio_din_unsubscribe() -> RetCode;
 }

@@ -25,14 +25,14 @@ const RPMSG_READ_TASK_PRIORITY: Priority = 2 as Priority;
 pub extern "C" fn user_main() {
     println!("Enter user code");
 
-    let dac_buffer = buffers::DAC_BUFFER.take().unwrap();
-    let adc_buffer = buffers::ADC_BUFFER.take().unwrap();
-    let (dac_producer, dac_consumer) = dac_buffer.split_ref();
-    let (adc_producer, adc_consumer) = adc_buffer.split_ref();
+    let ao_buffer = buffers::AO_BUFFER.take().unwrap();
+    let ai_buffer = buffers::AI_BUFFER.take().unwrap();
+    let (ao_producer, ao_consumer) = ao_buffer.split_ref();
+    let (ai_producer, ai_consumer) = ai_buffer.split_ref();
     let stats = tasks::STATISTICS.clone();
 
-    let (control, handle) = tasks::Control::new(dac_consumer, adc_producer, stats.clone());
-    let rpmsg = tasks::Rpmsg::new(handle, dac_producer, adc_consumer, stats.clone());
+    let (control, handle) = tasks::Control::new(ao_consumer, ai_producer, stats.clone());
+    let rpmsg = tasks::Rpmsg::new(handle, ao_producer, ai_consumer, stats.clone());
 
     println!("Starting tasks ...");
     control.run(CONTROL_TASK_PRIORITY);

@@ -1,4 +1,4 @@
-use common::values::{Din, Dout};
+use common::values::{Di, Do};
 use epics_ca::ValueChannel as Channel;
 use futures::StreamExt;
 use indicatif::ProgressBar;
@@ -16,15 +16,15 @@ use tokio::{
 const DELAY: Duration = Duration::from_millis(100);
 
 pub async fn test_dout(
-    mut epics: [Channel<u8>; Dout::SIZE],
-    mut device: Receiver<Dout>,
+    mut epics: [Channel<u8>; Do::SIZE],
+    mut device: Receiver<Do>,
     attempts: usize,
     pb: ProgressBar,
 ) {
     let mut rng = SomeRng::seed_from_u64(0xdeadbeef);
     let mut value = 0;
     for _ in 0..attempts {
-        let i = rng.gen_range(0..Dout::SIZE);
+        let i = rng.gen_range(0..Do::SIZE);
         value ^= 1 << i;
         epics[i].put((value >> i) & 1).unwrap().await.unwrap();
         sleep(DELAY).await;
@@ -35,8 +35,8 @@ pub async fn test_dout(
 }
 
 pub async fn test_din(
-    mut epics: [Channel<u8>; Din::SIZE],
-    device: Sender<Din>,
+    mut epics: [Channel<u8>; Di::SIZE],
+    device: Sender<Di>,
     attempts: usize,
     pb: ProgressBar,
 ) {
@@ -57,15 +57,15 @@ pub async fn test_din(
         .iter_mut()
         .map(|chan| Box::pin(chan.subscribe()))
         .collect::<Vec<_>>();
-    device.send(Din::default()).await.unwrap();
+    device.send(Di::default()).await.unwrap();
     sleep(DELAY).await;
     for mon in monitors.iter_mut() {
         assert_eq!(mon.next().await.unwrap().unwrap(), 0);
     }
     for _ in 0..attempts {
-        let i = rng.gen_range(0..Dout::SIZE);
+        let i = rng.gen_range(0..Do::SIZE);
         value ^= 1 << i;
-        device.send(Din::try_from(value).unwrap()).await.unwrap();
+        device.send(Di::try_from(value).unwrap()).await.unwrap();
         sleep(DELAY).await;
         assert_eq!(monitors[i].next().await.unwrap().unwrap(), (value >> i) & 1);
         pb.inc(1);

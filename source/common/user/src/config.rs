@@ -2,8 +2,8 @@ use core::time::Duration;
 
 pub const AI_COUNT: usize = 6;
 
-pub const DIN_BITS: usize = 8;
-pub const DOUT_BITS: usize = 4;
+pub const DI_BITS: usize = 8;
+pub const DO_BITS: usize = 4;
 
 pub const SAMPLE_PERIOD: Duration = Duration::from_micros(100);
 

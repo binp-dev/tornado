@@ -1,4 +1,4 @@
-use crate::config::{DIN_BITS, DOUT_BITS};
+use crate::config::{DI_BITS, DO_BITS};
 use core::{
     fmt::Debug,
     sync::atomic::{AtomicI32, AtomicU32, AtomicU8, Ordering},
@@ -102,5 +102,5 @@ unsafe impl<const N: usize> Flat for Bits<N> {}
 unsafe impl<const N: usize> Portable for Bits<N> {}
 pub type AtomicBits = AtomicU8;
 
-pub type Din = Bits<DIN_BITS>;
-pub type Dout = Bits<DOUT_BITS>;
+pub type Di = Bits<DI_BITS>;
+pub type Do = Bits<DO_BITS>;

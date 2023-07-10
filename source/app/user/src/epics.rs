@@ -31,7 +31,7 @@ pub struct Debug {
 /// EPICS interface
 pub struct Epics {
     pub ao: Ao,
-    pub ai: [Ai; AI_COUNT],
+    pub ais: [Ai; AI_COUNT],
     pub do_: Variable<u32>,
     pub di: Variable<u32>,
     pub debug: Debug,
@@ -67,13 +67,13 @@ impl Debug {
 impl Epics {
     pub fn new(mut ctx: Context) -> Result<Self, Error> {
         let reg = &mut ctx.registry;
-        let mut ai = Vec::new();
+        let mut ais = Vec::new();
         for index in 0..AI_COUNT {
-            ai.push(Ai::new(reg, index)?);
+            ais.push(Ai::new(reg, index)?);
         }
         let self_ = Self {
             ao: Ao::new(reg)?,
-            ai: ai.try_into().ok().unwrap(),
+            ais: ais.try_into().ok().unwrap(),
             do_: reg.remove_downcast_suffix("Do")?,
             di: reg.remove_downcast_suffix("Di")?,
             debug: Debug::new(reg)?,

@@ -1,4 +1,4 @@
-use common::config::{AI_COUNT, DIN_BITS, DOUT_BITS};
+use common::config::{AI_COUNT, DI_BITS, DO_BITS};
 use epics_ca::{
     error,
     types::{EpicsEnum, Value},
@@ -25,8 +25,8 @@ pub struct Adc {
 pub struct Epics {
     pub dac: Dac,
     pub adc: [Adc; AI_COUNT],
-    pub dout: [Channel<u8>; DOUT_BITS],
-    pub din: [Channel<u8>; DIN_BITS],
+    pub dout: [Channel<u8>; DO_BITS],
+    pub din: [Channel<u8>; DI_BITS],
 }
 
 async fn make_array<T, G: Future<Output = T>, F: Fn(usize) -> G, const N: usize>(f: F) -> [T; N] {
@@ -77,7 +77,7 @@ impl Epics {
                     .get()
                     .await
                     .unwrap();
-                assert_eq!(nobt as usize, DOUT_BITS);
+                assert_eq!(nobt as usize, DO_BITS);
 
                 make_array(|i| async move {
                     connect(ctx, &cformat!("{}Do.B{:X}", prefix, i))
@@ -94,7 +94,7 @@ impl Epics {
                     .get()
                     .await
                     .unwrap();
-                assert_eq!(nobt as usize, DIN_BITS);
+                assert_eq!(nobt as usize, DI_BITS);
 
                 make_array(|i| async move {
                     connect(ctx, &cformat!("{}Di.B{:X}", prefix, i))

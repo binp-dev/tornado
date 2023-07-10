@@ -2,7 +2,7 @@ use super::{
     ai::AiHandle,
     ao::AoHandle,
     debug::DebugHandle,
-    dio::{DinHandle, DoutHandle},
+    dio::{DiHandle, DoHandle},
     Error,
 };
 use crate::channel::Channel;
@@ -26,45 +26,45 @@ pub struct Dispatcher<C: Channel> {
 
 struct Writer<C: Channel> {
     channel: Mutex<MsgWriter<AppMsg, Compat<C::Write>>>,
-    dac: AoHandle,
-    dac_write_count: Subscriber<usize>,
-    dout: DoutHandle,
+    ao: AoHandle,
+    ao_write_count: Subscriber<usize>,
+    do_: DoHandle,
     debug: DebugHandle,
 }
 
 struct Reader<C: Channel> {
     channel: MsgReader<McuMsg, Compat<C::Read>>,
-    adcs: [AiHandle; AI_COUNT],
-    dac_write_count: Arc<AsyncAtomic<usize>>,
-    din: DinHandle,
+    ais: [AiHandle; AI_COUNT],
+    ao_write_count: Arc<AsyncAtomic<usize>>,
+    di: DiHandle,
 }
 
 impl<C: Channel> Dispatcher<C> {
     pub async fn new(
         channel: C,
-        dac: AoHandle,
-        adcs: [AiHandle; AI_COUNT],
-        din: DinHandle,
-        dout: DoutHandle,
+        ao: AoHandle,
+        ais: [AiHandle; AI_COUNT],
+        di: DiHandle,
+        do_: DoHandle,
         debug: DebugHandle,
     ) -> Self {
         let (r, w) = channel.split();
         let (r, w) = (Compat::new(r), Compat::new(w));
         let reader = MsgReader::<McuMsg, _>::new(r, config::MAX_MCU_MSG_LEN);
         let writer = Mutex::new(MsgWriter::<AppMsg, _>::new(w, config::MAX_APP_MSG_LEN));
-        let dac_write_count = AsyncAtomic::new(0).subscribe();
+        let ao_write_count = AsyncAtomic::new(0).subscribe();
         Self {
             reader: Reader {
                 channel: reader,
-                adcs,
-                dac_write_count: dac_write_count.clone(),
-                din,
+                ais,
+                ao_write_count: ao_write_count.clone(),
+                di,
             },
             writer: Writer {
                 channel: writer,
-                dac,
-                dac_write_count,
-                dout,
+                ao,
+                ao_write_count,
+                do_,
                 debug,
             },
         }
@@ -82,7 +82,7 @@ impl<C: Channel> Dispatcher<C> {
 impl<C: Channel> Reader<C> {
     async fn run(mut self) -> Result<(), Error> {
         let mut channel = self.channel;
-        let mut adcs = self.adcs;
+        let mut ais = self.ais;
         loop {
             let msg = match channel.read_message().await {
                 Err(ReadError::Eof) => break Err(Error::Disconnected),
@@ -96,13 +96,13 @@ impl<C: Channel> Reader<C> {
                 other => other.unwrap(),
             };
             match msg.as_ref() {
-                McuMsgRef::DinUpdate { value } => self.din.send(*value).await.unwrap(),
-                McuMsgRef::DacRequest { count } => {
-                    self.dac_write_count.fetch_add(*count as usize);
+                McuMsgRef::DiUpdate { value } => self.di.send(*value).await.unwrap(),
+                McuMsgRef::AoRequest { count } => {
+                    self.ao_write_count.fetch_add(*count as usize);
                 }
-                McuMsgRef::AdcData { points } => {
-                    for (index, adc) in adcs.iter_mut().enumerate() {
-                        adc.push_iter(points.iter().map(|a| a[index])).await;
+                McuMsgRef::AiData { points } => {
+                    for (index, ai) in ais.iter_mut().enumerate() {
+                        ai.push_iter(points.iter().map(|a| a[index])).await;
                     }
                 }
                 McuMsgRef::Error { code, message } => {
@@ -162,8 +162,8 @@ impl<C: Channel> Writer<C> {
                 let channel = channel.clone();
                 async move {
                     loop {
-                        let value = self.dout.next().await.unwrap();
-                        send_message(&channel, proto::AppMsgInitDoutUpdate { value }).await?;
+                        let value = self.do_.next().await.unwrap();
+                        send_message(&channel, proto::AppMsgInitDoUpdate { value }).await?;
                     }
                 }
             })
@@ -172,25 +172,25 @@ impl<C: Channel> Writer<C> {
                 let channel = channel.clone();
                 async move {
                     loop {
-                        let value = self.dac.add.next().await.unwrap();
-                        send_message(&channel, proto::AppMsgInitDacAdd { value }).await?;
+                        let value = self.ao.add.next().await.unwrap();
+                        send_message(&channel, proto::AppMsgInitAoAdd { value }).await?;
                     }
                 }
             })
             .map(Result::unwrap),
             spawn(async move {
-                let mut iter = self.dac.buffer;
+                let mut iter = self.ao.buffer;
                 loop {
-                    join!(self.dac_write_count.wait(|x| x >= 1), iter.wait_ready());
+                    join!(self.ao_write_count.wait(|x| x >= 1), iter.wait_ready());
                     let mut guard = channel.lock().await;
                     let mut msg = guard
                         .alloc_message()
-                        .new_in_place(proto::AppMsgInitDacData {
+                        .new_in_place(proto::AppMsgInitAoData {
                             points: flat_vec![],
                         })
                         .unwrap();
-                    let will_send = if let proto::AppMsgMut::DacData { points } = msg.as_mut() {
-                        let mut count = self.dac_write_count.swap(0);
+                    let will_send = if let proto::AppMsgMut::AoData { points } = msg.as_mut() {
+                        let mut count = self.ao_write_count.swap(0);
                         while count > 0 && !points.is_full() {
                             match iter.next() {
                                 Some(value) => {
@@ -200,7 +200,7 @@ impl<C: Channel> Writer<C> {
                                 None => break,
                             }
                         }
-                        self.dac_write_count.fetch_add(count);
+                        self.ao_write_count.fetch_add(count);
                         !points.is_empty()
                     } else {
                         unreachable!();

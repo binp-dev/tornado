@@ -13,28 +13,28 @@ pub type Prod<'a, T, const N: usize> = <Rb<T, N> as SplitRef>::RefProd<'a>;
 pub type Cons<'a, T, const N: usize> = <Rb<T, N> as SplitRef>::RefCons<'a>;
 
 #[cfg(feature = "real")]
-pub const DAC_BUFFER_LEN: usize = 1024;
+pub const AO_BUFFER_LEN: usize = 1024;
 #[cfg(feature = "real")]
-pub const ADC_BUFFER_LEN: usize = 384;
+pub const AI_BUFFER_LEN: usize = 384;
 #[cfg(feature = "fake")]
-pub const DAC_BUFFER_LEN: usize = 16384;
+pub const AO_BUFFER_LEN: usize = 16384;
 #[cfg(feature = "fake")]
-pub const ADC_BUFFER_LEN: usize = 16384;
+pub const AI_BUFFER_LEN: usize = 16384;
 
 #[cfg(feature = "fake")]
 pub const BUFFER_TIMEOUT: Option<Duration> = Some(Duration::from_millis(1000));
 
-pub type DacBuffer = Rb<Point, DAC_BUFFER_LEN>;
-pub type AdcBuffer = Rb<[Point; AI_COUNT], ADC_BUFFER_LEN>;
+pub type DacBuffer = Rb<Point, AO_BUFFER_LEN>;
+pub type AdcBuffer = Rb<[Point; AI_COUNT], AI_BUFFER_LEN>;
 
-pub type DacObserver = Obs<&'static DacBuffer>;
-pub type DacProducer = Prod<'static, Point, DAC_BUFFER_LEN>;
-pub type DacConsumer = Cons<'static, Point, DAC_BUFFER_LEN>;
+pub type AoObserver = Obs<&'static DacBuffer>;
+pub type AoProducer = Prod<'static, Point, AO_BUFFER_LEN>;
+pub type AoConsumer = Cons<'static, Point, AO_BUFFER_LEN>;
 
-pub type AdcProducer = Prod<'static, [Point; AI_COUNT], ADC_BUFFER_LEN>;
-pub type AdcConsumer = Cons<'static, [Point; AI_COUNT], ADC_BUFFER_LEN>;
+pub type AiProducer = Prod<'static, [Point; AI_COUNT], AI_BUFFER_LEN>;
+pub type AiConsumer = Cons<'static, [Point; AI_COUNT], AI_BUFFER_LEN>;
 
 once_mut! {
-    pub static mut DAC_BUFFER: Rb<Point, DAC_BUFFER_LEN> = Rb::default();
-    pub static mut ADC_BUFFER: Rb<[Point; AI_COUNT], ADC_BUFFER_LEN> = Rb::default();
+    pub static mut AO_BUFFER: Rb<Point, AO_BUFFER_LEN> = Rb::default();
+    pub static mut AI_BUFFER: Rb<[Point; AI_COUNT], AI_BUFFER_LEN> = Rb::default();
 }

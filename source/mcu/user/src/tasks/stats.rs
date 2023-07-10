@@ -47,12 +47,12 @@ pub struct Statistics {
     /// SkifIO board status.
     skifio_status: AtomicU8,
 
-    pub dac: StatsDac,
-    pub adcs: StatsAdc,
+    pub ao: StatsAo,
+    pub ais: StatsAis,
 }
 
 #[derive(Default)]
-pub struct StatsDac {
+pub struct StatsAo {
     /// Number of points lost because the DAC buffer was empty.
     lost_empty: AtomicUsize,
     /// Number of points lost because the DAC buffer was full.
@@ -64,7 +64,7 @@ pub struct StatsDac {
 }
 
 #[derive(Default)]
-pub struct StatsAdc {
+pub struct StatsAis {
     /// Number of points lost because the ADC buffer was full.
     lost_full: AtomicUsize,
 
@@ -95,8 +95,8 @@ impl Statistics {
         self.skifio_temp.store(i8::MIN, Ordering::Relaxed);
         self.skifio_status.store(0, Ordering::Relaxed);
 
-        self.dac.reset();
-        self.adcs.reset();
+        self.ao.reset();
+        self.ais.reset();
     }
 
     fn intr_clock(&self) {
@@ -127,7 +127,7 @@ impl Statistics {
     }
 }
 
-impl StatsDac {
+impl StatsAo {
     pub fn new() -> Self {
         let this = Self::default();
         this.reset();
@@ -144,12 +144,12 @@ impl StatsDac {
     pub fn report_lost_empty(&self, count: usize) {
         self.lost_empty.fetch_add(count, Ordering::Relaxed);
         #[cfg(feature = "fake")]
-        panic!("DAC ring buffer is empty");
+        panic!("AO ring buffer is empty");
     }
     pub fn report_lost_full(&self, count: usize) {
         self.lost_full.fetch_add(count, Ordering::Relaxed);
         #[cfg(feature = "fake")]
-        panic!("DAC ring buffer is full");
+        panic!("AO ring buffer is full");
     }
     pub fn report_req_exceed(&self, count: usize) {
         self.req_exceed.fetch_add(count, Ordering::Relaxed);
@@ -161,7 +161,7 @@ impl StatsDac {
     }
 }
 
-impl StatsAdc {
+impl StatsAis {
     pub fn new() -> Self {
         let this = Self::default();
         this.reset();
@@ -175,7 +175,7 @@ impl StatsAdc {
     pub fn report_lost_full(&self, count: usize) {
         self.lost_full.fetch_add(count, Ordering::Relaxed);
         #[cfg(feature = "fake")]
-        panic!("ADC ring buffer is full");
+        panic!("AI ring buffer is full");
     }
     pub fn update_values(&self, values: [Uv; AI_COUNT]) {
         self.values.iter().zip(values).for_each(|(v, x)| v.update(x));
@@ -221,17 +221,17 @@ impl Display for Statistics {
         writeln!(f, "skifio_temp: {}", self.skifio_temp.load(Ordering::Relaxed))?;
         writeln!(f, "skifio_status: 0b{:08b}", self.skifio_status.load(Ordering::Relaxed))?;
 
-        writeln!(f, "dac:")?;
-        write!(indented(f), "{}", self.dac)?;
+        writeln!(f, "ao:")?;
+        write!(indented(f), "{}", self.ao)?;
 
-        writeln!(f, "adcs:")?;
-        write!(indented(f), "{}", self.adcs)?;
+        writeln!(f, "ais:")?;
+        write!(indented(f), "{}", self.ais)?;
 
         Ok(())
     }
 }
 
-impl Display for StatsDac {
+impl Display for StatsAo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "lost_empty: {}", self.lost_empty.load(Ordering::Relaxed))?;
         writeln!(f, "lost_full: {}", self.lost_full.load(Ordering::Relaxed))?;
@@ -244,7 +244,7 @@ impl Display for StatsDac {
     }
 }
 
-impl Display for StatsAdc {
+impl Display for StatsAis {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "lost_full: {}", self.lost_full.load(Ordering::Relaxed))?;
 

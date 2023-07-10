@@ -1,5 +1,5 @@
 use super::Error;
-use common::values::{Din as DinValue, Dout as DoutValue};
+use common::values::{Di as DiValue, Do as DoValue};
 use ferrite::TypedVariable as Variable;
 use futures::{
     channel::mpsc::{channel, Receiver, Sender},
@@ -9,15 +9,15 @@ use futures::{
 const DOUT_BUFFER_SIZE: usize = 8;
 const DIN_BUFFER_SIZE: usize = 64;
 
-pub struct Dout {
+pub struct Do {
     variable: Variable<u32>,
-    channel: Sender<DoutValue>,
+    channel: Sender<DoValue>,
 }
 
-pub type DoutHandle = Receiver<DoutValue>;
+pub type DoHandle = Receiver<DoValue>;
 
-impl Dout {
-    pub fn new(epics: Variable<u32>) -> (Self, DoutHandle) {
+impl Do {
+    pub fn new(epics: Variable<u32>) -> (Self, DoHandle) {
         let (sender, receiver) = channel(DOUT_BUFFER_SIZE);
         (
             Self {
@@ -30,7 +30,7 @@ impl Dout {
     pub async fn run(mut self) -> Result<(), Error> {
         loop {
             let input = u8::try_from(self.variable.wait().await.read().await).unwrap();
-            let value = DoutValue::try_from(input).unwrap();
+            let value = DoValue::try_from(input).unwrap();
             if self.channel.send(value).await.is_err() {
                 break Err(Error::Disconnected);
             }
@@ -38,15 +38,15 @@ impl Dout {
     }
 }
 
-pub struct Din {
+pub struct Di {
     variable: Variable<u32>,
-    channel: Receiver<DinValue>,
+    channel: Receiver<DiValue>,
 }
 
-pub type DinHandle = Sender<DinValue>;
+pub type DiHandle = Sender<DiValue>;
 
-impl Din {
-    pub fn new(epics: Variable<u32>) -> (Self, DinHandle) {
+impl Di {
+    pub fn new(epics: Variable<u32>) -> (Self, DiHandle) {
         let (sender, reciever) = channel(DIN_BUFFER_SIZE);
         (
             Self {

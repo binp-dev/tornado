@@ -1,6 +1,6 @@
 use super::{control::ControlHandle, stats::Statistics};
 use crate::{
-    buffers::{AdcConsumer, DacObserver, DacProducer},
+    buffers::{AiConsumer, AoObserver, AoProducer},
     channel::{Channel, Reader, Writer},
     error::{Error, ErrorKind},
 };
@@ -26,23 +26,23 @@ use ustd::{
 pub struct Rpmsg {
     control: Arc<ControlHandle>,
     stats: Arc<Statistics>,
-    dac_buffer: DacProducer,
-    adc_buffer: AdcConsumer,
-    dac_observer: DacObserver,
+    ao_buffer: AoProducer,
+    ai_buffer: AiConsumer,
+    ao_observer: AoObserver,
 }
 
 pub struct RpmsgCommon {
     /// Whether IOC is alive.
     alive: AtomicBool,
     /// Number of DAC points requested from IOC.
-    dac_requested: AtomicUsize,
+    ao_requested: AtomicUsize,
 
-    dac_observer: DacObserver,
+    ao_observer: AoObserver,
 }
 
 pub struct RpmsgReader {
     channel: Option<Reader<AppMsg>>,
-    buffer: DacProducer,
+    buffer: AoProducer,
     common: Arc<RpmsgCommon>,
     control: Arc<ControlHandle>,
     stats: Arc<Statistics>,
@@ -50,42 +50,42 @@ pub struct RpmsgReader {
 
 pub struct RpmsgWriter {
     channel: Writer<McuMsg>,
-    buffer: AdcConsumer,
+    buffer: AiConsumer,
     common: Arc<RpmsgCommon>,
     control: Arc<ControlHandle>,
 }
 
 impl Rpmsg {
-    pub fn new(control: Arc<ControlHandle>, dac_buffer: DacProducer, adc_buffer: AdcConsumer, stats: Arc<Statistics>) -> Self {
-        control.configure(proto::DAC_MSG_MAX_POINTS, proto::ADC_MSG_MAX_POINTS);
+    pub fn new(control: Arc<ControlHandle>, dac_buffer: AoProducer, adc_buffer: AiConsumer, stats: Arc<Statistics>) -> Self {
+        control.configure(proto::AO_MSG_MAX_POINTS, proto::AI_MSG_MAX_POINTS);
         let dac_observer = dac_buffer.observe();
         Self {
             control,
             stats,
-            dac_buffer,
-            adc_buffer,
-            dac_observer,
+            ao_buffer: dac_buffer,
+            ai_buffer: adc_buffer,
+            ao_observer: dac_observer,
         }
     }
 
     fn split(self, channel: Channel) -> (RpmsgReader, RpmsgWriter) {
         let common = Arc::new(RpmsgCommon {
             alive: AtomicBool::new(false),
-            dac_requested: AtomicUsize::new(0),
-            dac_observer: self.dac_observer,
+            ao_requested: AtomicUsize::new(0),
+            ao_observer: self.ao_observer,
         });
         let (reader, writer) = channel.split();
         (
             RpmsgReader {
                 channel: Some(Reader::new(reader, Some(config::KEEP_ALIVE_MAX_DELAY))),
-                buffer: self.dac_buffer,
+                buffer: self.ao_buffer,
                 common: common.clone(),
                 control: self.control.clone(),
                 stats: self.stats,
             },
             RpmsgWriter {
                 channel: Writer::new(writer, None),
-                buffer: self.adc_buffer,
+                buffer: self.ai_buffer,
                 common,
                 control: self.control,
             },
@@ -155,16 +155,16 @@ impl RpmsgReader {
             }
             match message.as_ref() {
                 AppMsgRef::KeepAlive => unreachable!(),
-                AppMsgRef::DoutUpdate { value } => {
+                AppMsgRef::DoUpdate { value } => {
                     // println!("Set Dout: {:?}", value);
                     self.control.set_dout(*value)
                 }
-                AppMsgRef::DacState { enable } => {
+                AppMsgRef::AoState { enable } => {
                     println!("Set DAC state: {:?}", enable);
                     self.control.set_dac_mode(cx, enable.to_native());
                 }
-                AppMsgRef::DacData { points } => self.write_dac(points),
-                AppMsgRef::DacAdd { value } => self.control.dac_add.store(*value, Ordering::Release),
+                AppMsgRef::AoData { points } => self.write_ao(points),
+                AppMsgRef::AoAdd { value } => self.control.ao_add.store(*value, Ordering::Release),
                 AppMsgRef::StatsReset => {
                     println!("Reset stats");
                     self.stats.reset();
@@ -174,7 +174,7 @@ impl RpmsgReader {
     }
 
     fn connect(&mut self, cx: &mut impl Context) {
-        self.common.dac_requested.store(0, Ordering::Release);
+        self.common.ao_requested.store(0, Ordering::Release);
         self.control.set_dac_mode(cx, true);
         self.common.alive.store(true, Ordering::Release);
         self.control.notify(cx);
@@ -188,7 +188,7 @@ impl RpmsgReader {
         println!("IOC disconnected");
     }
 
-    fn write_dac(&mut self, points: &[Point]) {
+    fn write_ao(&mut self, points: &[Point]) {
         // Push received points to ring buffer.
         {
             #[cfg(feature = "fake")]
@@ -196,19 +196,19 @@ impl RpmsgReader {
 
             let count = self.buffer.push_iter(&mut points.iter().copied());
             if points.len() > count {
-                self.stats.dac.report_lost_full(points.len() - count);
+                self.stats.ao.report_lost_full(points.len() - count);
             }
         }
 
         // Safely decrement requested points counter.
         {
             let mut len = points.len();
-            let req = self.common.dac_requested.load(Ordering::Acquire);
+            let req = self.common.ao_requested.load(Ordering::Acquire);
             if req < len {
-                self.stats.dac.report_req_exceed(len - req);
+                self.stats.ao.report_req_exceed(len - req);
                 len = req;
             }
-            self.common.dac_requested.fetch_sub(len, Ordering::AcqRel);
+            self.common.ao_requested.fetch_sub(len, Ordering::AcqRel);
         }
     }
 }
@@ -239,37 +239,37 @@ impl RpmsgWriter {
             }
 
             if self.common.is_alive() {
-                self.send_din(cx);
-                self.send_adcs(cx);
-                self.send_dac_request(cx);
+                self.send_di(cx);
+                self.send_ais(cx);
+                self.send_ao_request(cx);
             } else {
-                self.discard_adcs();
+                self.discard_ais();
             }
         }
     }
 
-    fn send_din(&mut self, _cx: &mut impl BlockingContext) {
+    fn send_di(&mut self, _cx: &mut impl BlockingContext) {
         if let Some(value) = self.control.take_din() {
             try_timeout!(self.channel.alloc_message(), ())
                 .unwrap()
-                .new_in_place(proto::McuMsgInitDinUpdate { value })
+                .new_in_place(proto::McuMsgInitDiUpdate { value })
                 .unwrap()
                 .write()
                 .unwrap();
         }
     }
 
-    fn send_adcs(&mut self, _cx: &mut impl BlockingContext) -> usize {
+    fn send_ais(&mut self, _cx: &mut impl BlockingContext) -> usize {
         let mut total = 0;
-        const LEN: usize = proto::ADC_MSG_MAX_POINTS;
+        const LEN: usize = proto::AI_MSG_MAX_POINTS;
 
         while self.buffer.occupied_len() >= LEN {
             let mut msg = try_timeout!(self.channel.alloc_message(), total)
                 .unwrap()
-                .new_in_place(proto::McuMsgInitAdcData { points: flat_vec![] })
+                .new_in_place(proto::McuMsgInitAiData { points: flat_vec![] })
                 .unwrap();
 
-            let count = if let proto::McuMsgMut::AdcData { points } = msg.as_mut() {
+            let count = if let proto::McuMsgMut::AiData { points } = msg.as_mut() {
                 assert_eq!(points.capacity(), LEN);
                 points.extend_from_iter(self.buffer.pop_iter());
                 points.len()
@@ -284,29 +284,29 @@ impl RpmsgWriter {
         total
     }
 
-    fn send_dac_request(&mut self, _cx: &mut impl BlockingContext) {
-        const SIZE: usize = proto::DAC_MSG_MAX_POINTS;
-        let vacant = self.common.dac_observer.vacant_len();
-        let requested = self.common.dac_requested.load(Ordering::Acquire);
+    fn send_ao_request(&mut self, _cx: &mut impl BlockingContext) {
+        const SIZE: usize = proto::AO_MSG_MAX_POINTS;
+        let vacant = self.common.ao_observer.vacant_len();
+        let requested = self.common.ao_requested.load(Ordering::Acquire);
         let mut raw_count = 0;
         if requested <= vacant {
             raw_count = vacant - requested;
         }
         if raw_count >= SIZE {
-            // Request number of points that is multiple of `DAC_MSG_MAX_POINTS`.
+            // Request number of points that is multiple of `AO_MSG_MAX_POINTS`.
             let count = (raw_count / SIZE) * SIZE;
-            self.common.dac_requested.fetch_add(count, Ordering::AcqRel);
+            self.common.ao_requested.fetch_add(count, Ordering::AcqRel);
             try_timeout!(self.channel.alloc_message(), ())
                 .unwrap()
-                .new_in_place(proto::McuMsgInitDacRequest { count: count as u32 })
+                .new_in_place(proto::McuMsgInitAoRequest { count: count as u32 })
                 .unwrap()
                 .write()
                 .unwrap();
         }
     }
 
-    fn discard_adcs(&mut self) {
-        const LEN: usize = proto::ADC_MSG_MAX_POINTS;
+    fn discard_ais(&mut self) {
+        const LEN: usize = proto::AI_MSG_MAX_POINTS;
         let len = self.buffer.occupied_len();
         self.buffer.skip((len / LEN) * LEN);
     }

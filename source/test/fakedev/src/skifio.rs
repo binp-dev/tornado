@@ -1,11 +1,11 @@
 use common::{
     config::AI_COUNT,
-    values::{AtomicBits, Din, Dout, Uv},
+    values::{AtomicBits, Di, Do, Uv},
 };
 use futures::{future::pending, FutureExt};
 use mcu::{
     error::{Error, ErrorKind, ErrorSource},
-    skifio::{self, DinHandler, SkifioIface, SKIFIO},
+    skifio::{self, DiHandler, SkifioIface, SKIFIO},
 };
 use std::{
     sync::{atomic::Ordering, Arc, Mutex},
@@ -29,19 +29,19 @@ const DOUT_CHAN_CAP: usize = 16;
 pub struct SkifioHandle {
     pub dac: Receiver<Uv>,
     pub adcs: Sender<[Uv; AI_COUNT]>,
-    pub dout: Receiver<Dout>,
-    pub din: Sender<Din>,
+    pub dout: Receiver<Do>,
+    pub din: Sender<Di>,
 }
 
 struct Skifio {
-    dac: Sender<Uv>,
+    ao: Sender<Uv>,
     dac_enabled: bool,
     adcs: Receiver<[Uv; AI_COUNT]>,
-    last_adcs: Option<[Uv; AI_COUNT]>,
+    last_ais: Option<[Uv; AI_COUNT]>,
 
-    dout: Sender<Dout>,
-    last_din: Arc<AtomicBits>,
-    din_handler: Arc<Mutex<Option<Box<dyn DinHandler>>>>,
+    do_: Sender<Do>,
+    last_di: Arc<AtomicBits>,
+    di_handler: Arc<Mutex<Option<Box<dyn DiHandler>>>>,
 
     runtime: Runtime,
 
@@ -55,14 +55,14 @@ impl Skifio {
         let (dout_send, dout_recv) = channel(DOUT_CHAN_CAP);
         let (din_send, din_recv) = channel(DIN_CHAN_CAP);
         let last_din = Arc::new(AtomicBits::default());
-        let din_handler = Arc::new(Mutex::new(None::<Box<dyn DinHandler>>));
+        let din_handler = Arc::new(Mutex::new(None::<Box<dyn DiHandler>>));
         {
             let mut recv = din_recv;
             let handler = din_handler.clone();
             let last = last_din.clone();
             spawn(async move {
                 loop {
-                    let din: Din = match recv.recv().await {
+                    let din: Di = match recv.recv().await {
                         Some(x) => x,
                         None => pending().await, // Channel closed
                     };
@@ -80,13 +80,13 @@ impl Skifio {
             .unwrap();
         (
             Self {
-                dac: dac_send,
+                ao: dac_send,
                 dac_enabled: false,
                 adcs: adcs_recv,
-                last_adcs: None,
-                dout: dout_send,
-                last_din,
-                din_handler,
+                last_ais: None,
+                do_: dout_send,
+                last_di: last_din,
+                di_handler: din_handler,
                 runtime,
                 count: 0,
             },
@@ -101,27 +101,27 @@ impl Skifio {
 }
 
 impl SkifioIface for Skifio {
-    fn set_dac_state(&mut self, enabled: bool) -> Result<(), Error> {
+    fn set_ao_state(&mut self, enabled: bool) -> Result<(), Error> {
         self.dac_enabled = enabled;
         Ok(())
     }
-    fn dac_state(&self) -> bool {
+    fn ao_state(&self) -> bool {
         self.dac_enabled
     }
 
     fn wait_ready(&mut self, timeout: Option<Duration>) -> Result<(), Error> {
-        if self.last_adcs.is_some() {
+        if self.last_ais.is_some() {
             return Ok(());
         }
         let fut = async {
-            if self.last_adcs.is_none() {
+            if self.last_ais.is_none() {
                 let adcs = match self.adcs.recv().await {
                     Some(xs) => xs,
                     None => return false,
                 };
-                self.last_adcs = Some(adcs);
+                self.last_ais = Some(adcs);
             }
-            self.dac.reserve().await.is_ok()
+            self.ao.reserve().await.is_ok()
         };
         let fut_timed = async {
             match timeout {
@@ -162,32 +162,32 @@ impl SkifioIface for Skifio {
         }
     }
     fn transfer(&mut self, out: skifio::XferOut) -> Result<skifio::XferIn, Error> {
-        assert!(self.last_adcs.is_some());
-        let dac = if self.dac_enabled {
-            out.dac
+        assert!(self.last_ais.is_some());
+        let ao = if self.dac_enabled {
+            out.ao
         } else {
             Uv::default()
         };
-        let adcs = self.last_adcs.take().unwrap();
+        let ais = self.last_ais.take().unwrap();
         self.count += 1;
-        self.dac.try_send(dac).unwrap();
+        self.ao.try_send(ao).unwrap();
         Ok(skifio::XferIn {
-            adcs,
+            ais,
             temp: 36,
             status: 0,
         })
     }
 
-    fn write_dout(&mut self, dout: Dout) -> Result<(), Error> {
-        self.dout.try_send(dout).unwrap();
+    fn write_do(&mut self, do_: Do) -> Result<(), Error> {
+        self.do_.try_send(do_).unwrap();
         Ok(())
     }
 
-    fn read_din(&mut self) -> Din {
-        self.last_din.load(Ordering::Acquire).try_into().unwrap()
+    fn read_di(&mut self) -> Di {
+        self.last_di.load(Ordering::Acquire).try_into().unwrap()
     }
-    fn subscribe_din(&mut self, callback: Option<Box<dyn DinHandler>>) -> Result<(), Error> {
-        *self.din_handler.lock().unwrap() = callback;
+    fn subscribe_di(&mut self, callback: Option<Box<dyn DiHandler>>) -> Result<(), Error> {
+        *self.di_handler.lock().unwrap() = callback;
         Ok(())
     }
 }
