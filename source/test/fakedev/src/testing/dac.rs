@@ -9,7 +9,7 @@ use std::f64::consts::PI;
 use tokio::{sync::mpsc::Receiver, task::spawn};
 
 pub struct Context {
-    pub epics: epics::Dac,
+    pub epics: epics::Ao,
     pub device: Receiver<Uv>,
 }
 
@@ -18,7 +18,7 @@ pub async fn test(
     attempts: usize,
     pbs: (ProgressBar, ProgressBar),
 ) -> Context {
-    let len = context.epics.array.element_count().unwrap();
+    let len = context.epics.waveform.element_count().unwrap();
     let data = (0..attempts).map(move |j| {
         (0..len)
             .map(move |i| i as f64 / (len - 1) as f64)
@@ -30,7 +30,7 @@ pub async fn test(
         let mut epics = context.epics;
         async move {
             {
-                let request = epics.request.subscribe();
+                let request = epics.ready.subscribe();
                 pin_mut!(request);
                 loop {
                     let flag = request.next().await.unwrap().unwrap();
@@ -41,7 +41,7 @@ pub async fn test(
                         Some(iter) => iter.collect::<Vec<_>>(),
                         None => break,
                     };
-                    epics.array.put_ref(&wf).unwrap().await.unwrap();
+                    epics.waveform.put_ref(&wf).unwrap().await.unwrap();
                     pbs.0.inc(1);
                 }
                 pbs.0.finish_with_message("done");
@@ -71,7 +71,7 @@ pub async fn test(
 }
 
 pub async fn test_cyclic(mut context: Context, attempts: usize, pbs: (ProgressBar, ProgressBar)) {
-    let len = context.epics.array.element_count().unwrap();
+    let len = context.epics.waveform.element_count().unwrap();
     let data = (0..len)
         .map(move |i| i as f64 / (len - 1) as f64)
         .map(move |x| x * scale((2.0 * PI * x).sin()));
@@ -80,10 +80,10 @@ pub async fn test_cyclic(mut context: Context, attempts: usize, pbs: (ProgressBa
         let data = data.clone().collect::<Vec<_>>();
         let mut epics = context.epics;
         async move {
-            let request = epics.request.subscribe();
+            let request = epics.ready.subscribe();
             pin_mut!(request);
             while request.next().await.unwrap().unwrap() == EpicsEnum(0) {}
-            epics.array.put_ref(&data).unwrap().await.unwrap();
+            epics.waveform.put_ref(&data).unwrap().await.unwrap();
             pbs.0.inc(1);
             pbs.0.finish_with_message("done");
         }

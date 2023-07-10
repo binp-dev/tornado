@@ -26,8 +26,8 @@ async fn main() {
     let (dac_m, dac_sty) = (m.clone(), sty.clone());
     let dac = spawn(async move {
         let mut context = dac::Context {
-            epics: epics.dac,
-            device: skifio.dac,
+            epics: epics.ao,
+            device: skifio.ao,
         };
 
         let (m, sty) = (dac_m, dac_sty);
@@ -42,7 +42,13 @@ async fn main() {
                 .with_style(sty.clone())
                 .with_prefix("DAC.SkifIO"),
         );
-        context.epics.mode.put(EpicsEnum(1)).unwrap().await.unwrap();
+        context
+            .epics
+            .cyclic
+            .put(EpicsEnum(1))
+            .unwrap()
+            .await
+            .unwrap();
         let mut context = dac::test(context, ATTEMPTS, (ppb, cpb.clone())).await;
 
         let ppb = m.insert_after(
@@ -57,7 +63,13 @@ async fn main() {
                 .with_style(sty.clone())
                 .with_prefix("DAC(Cyclic).SkifIO"),
         );
-        context.epics.mode.put(EpicsEnum(0)).unwrap().await.unwrap();
+        context
+            .epics
+            .cyclic
+            .put(EpicsEnum(0))
+            .unwrap()
+            .await
+            .unwrap();
         dac::test_cyclic(context, CYCLIC_ATTEMPTS, (ppb, cpb)).await;
     })
     .map(Result::unwrap);
@@ -74,12 +86,12 @@ async fn main() {
                 .with_style(sty.clone())
                 .with_prefix("ADC.IOC"),
         );
-        adc::test(epics.adc, skifio.adcs, attempts, (ppb, cpb))
+        adc::test(epics.ais, skifio.ais, attempts, (ppb, cpb))
     })
     .map(Result::unwrap);
     let dout = spawn(dio::test_dout(
-        epics.dout,
-        skifio.dout,
+        epics.do_,
+        skifio.do_,
         ATTEMPTS,
         m.add(
             ProgressBar::new(ATTEMPTS as u64)
@@ -89,8 +101,8 @@ async fn main() {
     ))
     .map(Result::unwrap);
     let din = spawn(dio::test_din(
-        epics.din,
-        skifio.din,
+        epics.di,
+        skifio.di,
         ATTEMPTS,
         m.add(
             ProgressBar::new(ATTEMPTS as u64)

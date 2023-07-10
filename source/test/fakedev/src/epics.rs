@@ -12,21 +12,21 @@ use std::{
 };
 use tokio::time::timeout;
 
-pub struct Dac {
-    pub array: Channel<[f64]>,
-    pub request: Channel<EpicsEnum>,
-    pub mode: Channel<EpicsEnum>,
+pub struct Ao {
+    pub waveform: Channel<[f64]>,
+    pub ready: Channel<EpicsEnum>,
+    pub cyclic: Channel<EpicsEnum>,
 }
 
-pub struct Adc {
-    pub array: Channel<[f64]>,
+pub struct Ai {
+    pub waveform: Channel<[f64]>,
 }
 
 pub struct Epics {
-    pub dac: Dac,
-    pub adc: [Adc; AI_COUNT],
-    pub dout: [Channel<u8>; DO_BITS],
-    pub din: [Channel<u8>; DI_BITS],
+    pub ao: Ao,
+    pub ais: [Ai; AI_COUNT],
+    pub do_: [Channel<u8>; DO_BITS],
+    pub di: [Channel<u8>; DI_BITS],
 }
 
 async fn make_array<T, G: Future<Output = T>, F: Fn(usize) -> G, const N: usize>(f: F) -> [T; N] {
@@ -55,22 +55,22 @@ where
 impl Epics {
     pub async fn connect(ctx: &Context, prefix: &str) -> Self {
         Self {
-            dac: Dac {
-                array: connect(ctx, &cformat!("{}Ao0Next", prefix)).await.unwrap(),
-                request: connect(ctx, &cformat!("{}AoNextReady", prefix))
+            ao: Ao {
+                waveform: connect(ctx, &cformat!("{}Ao0Next", prefix)).await.unwrap(),
+                ready: connect(ctx, &cformat!("{}AoNextReady", prefix))
                     .await
                     .unwrap(),
-                mode: connect(ctx, &cformat!("{}AoNextCycle", prefix))
+                cyclic: connect(ctx, &cformat!("{}AoNextCycle", prefix))
                     .await
                     .unwrap(),
             },
-            adc: make_array(|i| async move {
-                Adc {
-                    array: connect(ctx, &cformat!("{}Ai{}", prefix, i)).await.unwrap(),
+            ais: make_array(|i| async move {
+                Ai {
+                    waveform: connect(ctx, &cformat!("{}Ai{}", prefix, i)).await.unwrap(),
                 }
             })
             .await,
-            dout: async {
+            do_: async {
                 let nobt = connect::<i16>(ctx, &cformat!("{}Do.NOBT", prefix))
                     .await
                     .unwrap()
@@ -87,7 +87,7 @@ impl Epics {
                 .await
             }
             .await,
-            din: async {
+            di: async {
                 let nobt = connect::<i16>(ctx, &cformat!("{}Di.NOBT", prefix))
                     .await
                     .unwrap()

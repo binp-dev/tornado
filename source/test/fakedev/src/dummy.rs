@@ -1,5 +1,5 @@
 use common::{
-    config::{AI_COUNT, SAMPLE_PERIOD},
+    config::{AI_COUNT, DO_BITS, SAMPLE_PERIOD},
     values::{try_volt_to_uv, Uv},
 };
 use fakedev::run;
@@ -18,15 +18,15 @@ async fn main() {
     let mut phases = [0.0_f64; AI_COUNT];
     spawn(async move {
         let mut counter: u64 = 0;
-        let mut adcs = [Uv::default(); AI_COUNT];
+        let mut ais = [Uv::default(); AI_COUNT];
         loop {
-            skifio.adcs.send(adcs).await.unwrap();
+            skifio.ais.send(ais).await.unwrap();
             unsafe { user_sample_intr() };
 
-            let dac = skifio.dac.recv().await.unwrap();
-            adcs[0] = dac;
+            let ao = skifio.ao.recv().await.unwrap();
+            ais[0] = ao;
             for i in 1..AI_COUNT {
-                adcs[i] = try_volt_to_uv(phases[i].sin()).unwrap();
+                ais[i] = try_volt_to_uv(phases[i].sin()).unwrap();
                 phases[i] = 2.0 * PI * FREQS[i] * counter as f64 * SAMPLE_PERIOD.as_secs_f64();
             }
 
@@ -39,15 +39,9 @@ async fn main() {
     });
     spawn(async move {
         loop {
-            skifio
-                .din
-                .send(
-                    u8::from(skifio.dout.recv().await.unwrap())
-                        .try_into()
-                        .unwrap(),
-                )
-                .await
-                .unwrap();
+            let mut value = u8::from(skifio.do_.recv().await.unwrap());
+            value |= value << DO_BITS;
+            skifio.di.send(value.try_into().unwrap()).await.unwrap();
         }
     });
     loop {

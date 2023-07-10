@@ -16,7 +16,7 @@ use std::{
 use tokio::{sync::mpsc::Sender, task::spawn, time::sleep};
 
 pub async fn test(
-    mut epics: [epics::Adc; AI_COUNT],
+    mut epics: [epics::Ai; AI_COUNT],
     device: Sender<[Uv; AI_COUNT]>,
     attempts: usize,
     pbs: (ProgressBar, ProgressBar),
@@ -25,7 +25,7 @@ pub async fn test(
 
     let len = epics
         .iter()
-        .map(|adc| adc.array.element_count().unwrap())
+        .map(|adc| adc.waveform.element_count().unwrap())
         .fold(None, |a, x| {
             if let Some(y) = a {
                 assert_eq!(x, y);
@@ -67,7 +67,7 @@ pub async fn test(
     let cons = spawn(async move {
         let mut arrays = epics
             .iter_mut()
-            .map(|adc| Box::pin(adc.array.subscribe_vec()))
+            .map(|adc| Box::pin(adc.waveform.subscribe_vec()))
             .collect::<Vec<_>>();
         let mut count = 0;
         loop {
