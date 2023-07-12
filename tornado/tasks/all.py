@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from dataclasses import dataclass
 
 from vortex.utils.path import TargetPath
@@ -54,8 +54,10 @@ class CrossGroup(ComponentGroup):
 
     @task
     def deploy(self, ctx: Context) -> None:
+        assert ctx.output is not None
+        ctx.output.mkdir(PurePosixPath("/opt"), exist_ok=True)
         self.epics_base.deploy(ctx)
-        self.app.ioc.deploy(ctx)
+        self.app.deploy(ctx)
         self.mcu.deploy(ctx)
 
     @task

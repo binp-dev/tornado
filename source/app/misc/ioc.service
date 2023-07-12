@@ -2,7 +2,7 @@
 Description=IOC
 
 [Service]
-ExecStart=/usr/bin/sh /opt/run_ioc.sh
+ExecStart=/usr/bin/bash /opt/run_ioc.sh
 Restart=always
 RestartSec=10
 

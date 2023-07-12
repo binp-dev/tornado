@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from vortex.utils.path import TargetPath
 from vortex.output.base import Device
@@ -28,6 +28,7 @@ class AppGroupHost(ComponentGroup):
 
 class AppGroupCross(ComponentGroup):
     def __init__(self, rustc: RustcCross, epics_base: EpicsBaseCross, src: Path, dst: TargetPath) -> None:
+        self.src = src
         assert rustc.cc is epics_base.cc
         self.cc = rustc.cc
         self.rustc = rustc
@@ -40,9 +41,22 @@ class AppGroupCross(ComponentGroup):
 
     @task
     def deploy(self, ctx: Context) -> None:
+        assert ctx.output is not None
+        ctx.output.mkdir(PurePosixPath("/opt"), exist_ok=True)
+
         self.ioc.deploy(ctx)
+
+        ctx.output.copy(self.src / "misc/run_ioc.sh", PurePosixPath("/opt/run_ioc.sh"))
+
+        systemd = PurePosixPath("/etc/systemd/system")
+        wants = "multi-user.target.wants"
+        service = "ioc.service"
+        ctx.output.mkdir(systemd / wants, exist_ok=True, recursive=True)
+        ctx.output.copy(self.src / "misc" / service, systemd / service)
+        ctx.output.link(PurePosixPath(systemd / wants / service), systemd / service)
 
     @task
     def restart(self, ctx: Context) -> None:
         assert isinstance(ctx.output, Device)
-        ctx.output.run(["systemctl", "restart", "ioc"], wait=True)
+        ctx.output.run(["systemctl", "daemon-reload"])
+        ctx.output.run(["systemctl", "restart", "ioc"])
