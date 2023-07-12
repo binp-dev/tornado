@@ -210,6 +210,30 @@ files = [
 ]
 
 [[package]]
+name = "types-colorama"
+version = "0.4.15.11"
+description = "Typing stubs for colorama"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "types-colorama-0.4.15.11.tar.gz", hash = "sha256:a9421eb24d9cfc584880dc1d33b7fd406a14227c1f99f50c5ab9265e04d07638"},
+    {file = "types_colorama-0.4.15.11-py3-none-any.whl", hash = "sha256:d1e37571a19e152c930b3e789c316e9332e51a43bfcd4470b98225be974fb90c"},
+]
+
+[[package]]
+name = "types-toml"
+version = "0.10.8.6"
+description = "Typing stubs for toml"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "types-toml-0.10.8.6.tar.gz", hash = "sha256:6d3ac79e36c9ee593c5d4fb33a50cca0e3adceb6ef5cff8b8e5aef67b4c4aaf2"},
+    {file = "types_toml-0.10.8.6-py3-none-any.whl", hash = "sha256:de7b2bb1831d6f7a4b554671ffe5875e729753496961b3e9b202745e4955dafa"},
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.7.1"
 description = "Backported and Experimental Type Hints for Python 3.7+"
@@ -235,6 +259,8 @@ develop = true
 colorama = "^0.4.6"
 dataclass-type-validator = "^0.1.2"
 toml = "^0.10.2"
+types-colorama = "^0.4.15"
+types-toml = "^0.10.8"
 
 [package.source]
 type = "directory"
@@ -243,4 +269,4 @@ url = "vortex"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "6d0f67ae9c1956e9fee533a462db0b97231d6ad837990a41fe7d405ee101a77a"
+content-hash = "cea0226cecbf12db8d2e10ba8e1bf4d803a23f0f54ba80b8c87f5da0b77be685"
