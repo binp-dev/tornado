@@ -1,5 +1,6 @@
 /target
 /deploy
+/output
 
 __pycache__
 .venv

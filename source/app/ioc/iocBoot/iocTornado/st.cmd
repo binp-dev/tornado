@@ -1,6 +1,7 @@
 #!../../bin/linux-x86_64/Tornado
 
 < envPaths
+< envDebug
 
 cd "${TOP}"
 
@@ -16,7 +17,7 @@ dbLoadTemplate("db/ai.substitutions", "PREFIX=${PREFIX}")
 dbLoadRecords("db/ao.db", "PREFIX=${PREFIX}")
 dbLoadRecords("db/di.db", "PREFIX=${PREFIX}")
 dbLoadRecords("db/do.db", "PREFIX=${PREFIX}")
-dbLoadRecords("db/debug.db", "PREFIX=${PREFIX}")
+dbLoadRecords("db/debug.db", "PREFIX=${PREFIX},VERSION='${VERSION}',BUILD_DATE='${BUILD_DATE}'")
 
 cd "${TOP}/iocBoot/${IOC}"
 iocInit()

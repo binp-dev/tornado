@@ -3,3 +3,17 @@ record(bo, "${PREFIX}DebugResetStats")
 {
     field(DTYP, "ferrite")
 }
+
+# IOC version string
+record(stringin, "${PREFIX}Version")
+{
+    field(VAL, "${VERSION}")
+    field(PINI, "YES")
+}
+
+# IOC build date and time
+record(stringin, "${PREFIX}BuildDate")
+{
+    field(VAL, "${BUILD_DATE}")
+    field(PINI, "YES")
+}
