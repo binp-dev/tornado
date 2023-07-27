@@ -10,7 +10,7 @@ dbLoadDatabase("dbd/Tornado.dbd", 0, 0)
 Tornado_registerRecordDeviceDriver(pdbbase) 
 
 ## Conditionally set PREFIX
-epicsEnvSet("PREFIX", "${DEV_NAME=tornado0}:")
+epicsEnvSet("PREFIX", "$(DEV_NAME=tornado0):")
 
 ## Load record instances
 dbLoadTemplate("db/ai.substitutions", "PREFIX=${PREFIX}")
