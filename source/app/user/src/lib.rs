@@ -37,7 +37,9 @@ async fn run(ctx: Context) {
         .await
         .unwrap();
     #[cfg(feature = "rpmsg")]
-    let channel = channel::Rpmsg::open("/dev/ttyRPMSG0").await.unwrap();
+    let channel = channel::Rpmsg::open("/dev/ttyRPMSG0")
+        .await
+        .expect("Error while opening RPMSG device");
     log::info!("Connection established");
 
     log::info!("Get EPICS PVs");
