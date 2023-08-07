@@ -14,11 +14,23 @@ use flatty::{
 #[flat(sized = false, tag_type = "u8")]
 pub enum AppMsg {
     KeepAlive,
-    DoUpdate { value: Do },
-    AoState { enable: Bool },
-    AoData { points: FlatVec<Point, u16> },
-    AoAdd { value: Uv },
+    DoUpdate {
+        value: Do,
+    },
+    AoState {
+        enable: Bool,
+    },
+    AoData {
+        points: FlatVec<Point, u16>,
+    },
+    AoAdd {
+        value: Uv,
+    },
     StatsReset,
+    WfBufTest {
+        offset: u32,
+        value: FlatVec<u8, u16>,
+    },
 }
 
 #[flat(sized = false, tag_type = "u8")]
@@ -38,6 +50,10 @@ pub enum McuMsg {
     },
     Debug {
         message: FlatVec<u8, u16>,
+    },
+    WfBufTest {
+        offset: u32,
+        value: FlatVec<u8, u16>,
     },
 }
 

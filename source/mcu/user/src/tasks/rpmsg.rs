@@ -3,6 +3,7 @@ use crate::{
     buffers::{AiConsumer, AoObserver, AoProducer},
     channel::{Channel, Reader, Writer},
     error::{Error, ErrorKind},
+    wf,
 };
 use alloc::sync::Arc;
 use common::{
@@ -14,7 +15,7 @@ use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     time::Duration,
 };
-use flatty::{flat_vec, prelude::NativeCast};
+use flatty::{flat_vec, prelude::*, vec::FromIterator};
 use ringbuf::traits::*;
 #[cfg(feature = "fake")]
 use ringbuf_blocking::traits::*;
@@ -37,6 +38,8 @@ pub struct RpmsgCommon {
     /// Number of AO points requested from IOC.
     ao_requested: AtomicUsize,
     ao_observer: AoObserver,
+    ping_pong: AtomicBool,
+    ping_count: AtomicUsize,
 }
 
 pub struct RpmsgReader {
@@ -72,6 +75,8 @@ impl Rpmsg {
             alive: AtomicBool::new(false),
             ao_requested: AtomicUsize::new(0),
             ao_observer: self.ao_observer,
+            ping_pong: AtomicBool::new(false),
+            ping_count: AtomicUsize::new(0),
         });
         let (reader, writer) = channel.split();
         (
@@ -124,7 +129,12 @@ impl RpmsgReader {
         let mut channel = self.channel.take().unwrap();
         loop {
             let message = match channel.read_message().map_err(Error::from) {
-                Ok(msg) => msg,
+                Ok(msg) => {
+                    if !self.common.is_alive() {
+                        self.connect(cx);
+                    }
+                    msg
+                }
                 Err(Error {
                     kind: ErrorKind::TimedOut,
                     ..
@@ -140,20 +150,7 @@ impl RpmsgReader {
 
             use proto::AppMsgRef;
             match message.as_ref() {
-                AppMsgRef::KeepAlive => {
-                    if !self.common.is_alive() {
-                        self.connect(cx);
-                    }
-                    continue;
-                }
-                _ => {
-                    if !self.common.is_alive() {
-                        println!("Error: IOC is not connected");
-                    }
-                }
-            }
-            match message.as_ref() {
-                AppMsgRef::KeepAlive => unreachable!(),
+                AppMsgRef::KeepAlive => {}
                 AppMsgRef::DoUpdate { value } => {
                     // println!("Set Do: {:?}", value);
                     self.control.set_do(*value)
@@ -167,6 +164,12 @@ impl RpmsgReader {
                 AppMsgRef::StatsReset => {
                     println!("Reset stats");
                     self.stats.reset();
+                }
+                AppMsgRef::WfBufTest { offset, value } => {
+                    println!("Read Wf");
+                    assert_eq!(*unsafe { wf::read(*offset as usize, value.len()) }, value.as_slice());
+                    assert!(!self.common.ping_pong.swap(true, Ordering::SeqCst));
+                    self.control.notify(cx);
                 }
             }
         }
@@ -241,6 +244,7 @@ impl RpmsgWriter {
                 self.send_di(cx);
                 self.send_ais(cx);
                 self.send_ao_request(cx);
+                self.send_wf_test(cx);
             } else {
                 self.discard_ais();
             }
@@ -308,5 +312,28 @@ impl RpmsgWriter {
         const LEN: usize = proto::AI_MSG_MAX_POINTS;
         let len = self.buffer.occupied_len();
         self.buffer.skip((len / LEN) * LEN);
+    }
+
+    fn send_wf_test(&mut self, _cx: &mut impl BlockingContext) {
+        if self.common.ping_pong.swap(false, Ordering::SeqCst) {
+            let j = self.common.ping_count.fetch_add(1, Ordering::SeqCst);
+            println!("Write Wf: {}", j);
+
+            let offset = 0;
+            let len = 4 * wf::offset_align();
+            let mut data = unsafe { wf::write(offset, len) };
+            for (i, b) in data.iter_mut().enumerate() {
+                *b = ((j + i) % 256) as u8;
+            }
+            let msg = try_timeout!(self.channel.alloc_message(), ())
+                .unwrap()
+                .new_in_place(proto::McuMsgInitWfBufTest {
+                    offset: offset as u32,
+                    value: FromIterator(data.iter().copied()),
+                })
+                .unwrap();
+            drop(data);
+            msg.write().unwrap();
+        }
     }
 }

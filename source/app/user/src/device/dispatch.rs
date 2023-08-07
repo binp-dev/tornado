@@ -5,7 +5,7 @@ use super::{
     dio::{DiHandle, DoHandle},
     Error,
 };
-use crate::channel::Channel;
+use crate::{channel::Channel, wf::WfData};
 use async_atomic::{Atomic as AsyncAtomic, Subscriber};
 use async_compat::Compat;
 use common::{
@@ -13,11 +13,15 @@ use common::{
     protocol::{self as proto, AppMsg, McuMsg, McuMsgRef},
     values::Point,
 };
-use flatty::{flat_vec, prelude::*, Emplacer};
+use flatty::{flat_vec, prelude::*, vec::FromIterator, Emplacer};
 use flatty_io::{AsyncReader as MsgReader, AsyncWriter as MsgWriter, ReadError};
 use futures::{future::try_join_all, join, AsyncWrite, FutureExt, SinkExt, StreamExt};
-use std::{io, sync::Arc};
-use tokio::{spawn, sync::Mutex, time::sleep};
+use std::{io, path::Path, sync::Arc};
+use tokio::{
+    spawn,
+    sync::{Mutex, Notify},
+    time::sleep,
+};
 
 pub struct Dispatcher<C: Channel> {
     writer: Writer<C>,
@@ -30,6 +34,8 @@ struct Writer<C: Channel> {
     ao_write_count: Subscriber<usize>,
     do_: DoHandle,
     debug: DebugHandle,
+    wf_data: Arc<WfData>,
+    ping_pong: Arc<Notify>,
 }
 
 struct Reader<C: Channel> {
@@ -37,6 +43,8 @@ struct Reader<C: Channel> {
     ais: [AiHandle; AI_COUNT],
     ao_write_count: Arc<AsyncAtomic<usize>>,
     di: DiHandle,
+    wf_data: Arc<WfData>,
+    ping_pong: Arc<Notify>,
 }
 
 impl<C: Channel> Dispatcher<C> {
@@ -53,12 +61,16 @@ impl<C: Channel> Dispatcher<C> {
         let reader = MsgReader::<McuMsg, _>::new(r, config::MAX_MCU_MSG_LEN);
         let writer = Mutex::new(MsgWriter::<AppMsg, _>::new(w, config::MAX_APP_MSG_LEN));
         let ao_write_count = AsyncAtomic::new(0).subscribe();
+        let wf_data = Arc::new(WfData::new(Path::new("/dev/uio0")).unwrap());
+        let ping_pong = Arc::new(Notify::new());
         Self {
             reader: Reader {
                 channel: reader,
                 ais,
                 ao_write_count: ao_write_count.clone(),
                 di,
+                wf_data: wf_data.clone(),
+                ping_pong: ping_pong.clone(),
             },
             writer: Writer {
                 channel: writer,
@@ -66,6 +78,8 @@ impl<C: Channel> Dispatcher<C> {
                 ao_write_count,
                 do_,
                 debug,
+                wf_data,
+                ping_pong,
             },
         }
     }
@@ -115,6 +129,12 @@ impl<C: Channel> Reader<C> {
                 McuMsgRef::Debug { message } => {
                     println!("Debug: {}", String::from_utf8_lossy(message.as_slice()))
                 }
+                McuMsgRef::WfBufTest { offset, value } => {
+                    println!("Read Wf buffer at {}", offset);
+                    let data = unsafe { self.wf_data.read(*offset as usize, value.len()) };
+                    assert_eq!(*data, value.as_slice());
+                    self.ping_pong.notify_one();
+                }
             }
         }
     }
@@ -138,6 +158,36 @@ impl<C: Channel> Writer<C> {
     async fn run(mut self) -> Result<(), Error> {
         let channel = Arc::new(self.channel);
         let res: Result<Vec<()>, io::Error> = try_join_all([
+            spawn({
+                let channel = channel.clone();
+                async move {
+                    for j in 0.. {
+                        let offset = 0;
+                        let len = 128;
+                        let mut data = unsafe { self.wf_data.write(offset, len) };
+                        for (i, b) in data.iter_mut().enumerate() {
+                            *b = ((len - i + j) % 256) as u8;
+                        }
+                        println!("Write wf buffer at {}", offset);
+
+                        let mut guard = channel.lock().await;
+                        let umsg = guard.alloc_message();
+                        let msg = umsg
+                            .new_in_place(proto::AppMsgInitWfBufTest {
+                                offset: offset as u32,
+                                value: FromIterator(data.iter().copied()),
+                            })
+                            .unwrap();
+
+                        drop(data);
+                        msg.write().await?;
+
+                        self.ping_pong.notified().await;
+                    }
+                    Ok(())
+                }
+            })
+            .map(Result::unwrap),
             spawn({
                 let channel = channel.clone();
                 async move {

@@ -113,7 +113,7 @@ dependencies = [
 
 [[package]]
 name = "flatty"
-version = "0.1.0-alpha.5"
+version = "0.1.0-rc.1"
 dependencies = [
  "flatty-base",
  "flatty-macros",
@@ -122,14 +122,14 @@ dependencies = [
 
 [[package]]
 name = "flatty-base"
-version = "0.1.0-alpha.5"
+version = "0.1.0-rc.1"
 dependencies = [
  "stavec",
 ]
 
 [[package]]
 name = "flatty-io"
-version = "0.1.0-alpha.4"
+version = "0.1.0-rc.1"
 dependencies = [
  "derive_more",
  "flatty",
@@ -138,7 +138,7 @@ dependencies = [
 
 [[package]]
 name = "flatty-macros"
-version = "0.1.0-alpha.5"
+version = "0.1.0-rc.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -147,7 +147,7 @@ dependencies = [
 
 [[package]]
 name = "flatty-portable"
-version = "0.1.0-alpha.5"
+version = "0.1.0-rc.1"
 dependencies = [
  "flatty-base",
  "num-traits",
