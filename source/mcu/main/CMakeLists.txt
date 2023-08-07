@@ -53,6 +53,8 @@ set(SRC
     "${ProjDirPath}/src/drivers/skifio.h"
     "${ProjDirPath}/src/drivers/sync.c"
     "${ProjDirPath}/src/drivers/sync.h"
+    "${ProjDirPath}/src/drivers/wf.c"
+    "${ProjDirPath}/src/drivers/wf.h"
 )
 
 add_executable(${MCUX_SDK_PROJECT_NAME} ${SRC})

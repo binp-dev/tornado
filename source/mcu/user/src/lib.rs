@@ -11,6 +11,7 @@ pub mod buffers;
 pub mod channel;
 pub mod skifio;
 pub mod tasks;
+pub mod wf;
 
 extern crate alloc;
 

@@ -40,6 +40,9 @@
 #define VDEV0_VRING_BASE      (0x40000000U)
 #define RESOURCE_TABLE_OFFSET (0xFF000)
 
+#define WFBUFFER_BASE      (0x40500000U)
+#define WFBUFFER_LEN      (0x100000U)
+
 #if defined(__cplusplus)
 extern "C" {
 #endif /* __cplusplus */
