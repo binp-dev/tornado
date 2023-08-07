@@ -2,6 +2,7 @@ mod channel;
 mod device;
 mod epics;
 mod utils;
+mod wf;
 
 #[cfg(feature = "tcp")]
 use common::config;

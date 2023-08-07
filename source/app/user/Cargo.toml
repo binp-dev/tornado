@@ -15,7 +15,7 @@ path = "src/lib.rs"
 default = ["real"]
 real = ["rpmsg", "common/real"]
 fake = ["tcp", "common/fake"]
-rpmsg = ["libc", "termios"]
+rpmsg = ["termios"]
 tcp = []
 
 [dependencies]
@@ -37,7 +37,7 @@ log = "0.4"
 env_logger = "0.9.1"
 thiserror = "1.0.38"
 pin-project = "1.0.12"
-libc = { version = "0.2.139", optional = true }
+libc = "0.2.139"
 termios = { version = "0.3.3", optional = true }
 async-atomic = "0.1.2"
 derive_more = "0.99.17"

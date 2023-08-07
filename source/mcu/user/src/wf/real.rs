@@ -15,6 +15,14 @@ extern "C" {
     fn wf_release(addr: *mut u8, len: usize);
 }
 
+pub fn max_offset() -> usize {
+    unsafe { wf_max_offset }
+}
+
+pub fn offset_align() -> usize {
+    unsafe { wf_offset_align }
+}
+
 #[derive(Deref)]
 pub struct WfRead {
     data: &'static [u8],
@@ -26,15 +34,16 @@ pub struct WfWrite {
 }
 
 macro_rules! assert_align {
-    ($value:expr) => {
-        assert!($value % unsafe { wf_offset_align } == 0, "Misalinged Wf offset");
-    };
+    ($value:expr) => {{
+        let v = $value;
+        assert!(v % offset_align() == 0, "Misalinged Wf offset: {}", v);
+    }};
 }
 
 pub unsafe fn read(offset: usize, len: usize) -> WfRead {
     assert_align!(offset);
     assert_align!(len);
-    assert!(offset + len < unsafe { wf_max_offset });
+    assert!(offset + len < max_offset());
 
     let addr = unsafe { wf_addr(offset) };
     unsafe { wf_acquire(addr, len) };
@@ -48,7 +57,7 @@ pub unsafe fn read(offset: usize, len: usize) -> WfRead {
 pub unsafe fn write(offset: usize, len: usize) -> WfWrite {
     assert_align!(offset);
     assert_align!(len);
-    assert!(offset + len < unsafe { wf_max_offset });
+    assert!(offset + len < max_offset());
 
     unsafe {
         WfWrite {
